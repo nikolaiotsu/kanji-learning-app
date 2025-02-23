@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import CameraButton from './CameraButton';
@@ -14,7 +14,7 @@ interface CapturedImage {
 export default function KanjiScanner() {
   const [capturedImage, setCapturedImage] = useState<CapturedImage | null>(null);
 
-  const handlePhotoCapture = (imageInfo: CapturedImage) => {
+  const handlePhotoCapture = (imageInfo: CapturedImage | null) => {
     setCapturedImage(imageInfo);
   };
 
@@ -49,6 +49,10 @@ export default function KanjiScanner() {
     console.log('Selected region:', region);
   };
 
+  const handleCancel = () => {
+    setCapturedImage(null); // Reset to initial state, clearing the image
+  };
+
   return (
     <View style={styles.container}>
       {!capturedImage ? (
@@ -59,12 +63,20 @@ export default function KanjiScanner() {
           </TouchableOpacity>
         </View>
       ) : (
-        <ImageHighlighter
-          imageUri={capturedImage.uri}
-          imageWidth={capturedImage.width}
-          imageHeight={capturedImage.height}
-          onRegionSelected={handleRegionSelected}
-        />
+        <View style={styles.imageContainer}>
+          <ImageHighlighter
+            imageUri={capturedImage.uri}
+            imageWidth={capturedImage.width}
+            imageHeight={capturedImage.height}
+            onRegionSelected={handleRegionSelected}
+          />
+          <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
+            <Ionicons name="close" size={24} color="white" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.saveButton} onPress={() => console.log('Save flashcard')}>
+            <Text style={styles.saveButtonText}>Save Flashcard</Text>
+          </TouchableOpacity>
+        </View>
       )}
     </View>
   );
@@ -96,4 +108,55 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-}); 
+  imageContainer: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    position: 'relative',
+  },
+  cancelButton: {
+    backgroundColor: '#FF2D55',
+    borderRadius: 30,
+    width: 60,
+    height: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    position: 'absolute',
+    bottom: 40,
+    left: 20,
+    zIndex: 999,
+  },
+  saveButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    paddingHorizontal: 20,
+    height: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    position: 'absolute',
+    bottom: 40,
+    right: 20,
+    zIndex: 999,
+  },
+  saveButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+});

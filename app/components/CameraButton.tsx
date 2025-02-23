@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TouchableOpacity, Image, StyleSheet, Alert } from 'react-native';
+import { TouchableOpacity, View, StyleSheet, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -8,10 +8,12 @@ interface CameraButtonProps {
     uri: string;
     width: number;
     height: number;
-  }) => void;
+  } | null) => void;
 }
 
 export default function CameraButton({ onPhotoCapture }: CameraButtonProps) {
+  const [hasPhoto, setHasPhoto] = useState(false);
+
   useEffect(() => {
     (async () => {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -30,6 +32,7 @@ export default function CameraButton({ onPhotoCapture }: CameraButtonProps) {
 
       if (!result.canceled) {
         const asset = result.assets[0];
+        setHasPhoto(true);
         onPhotoCapture({
           uri: asset.uri,
           width: asset.width,
@@ -42,14 +45,32 @@ export default function CameraButton({ onPhotoCapture }: CameraButtonProps) {
     }
   };
 
+  const handleBack = () => {
+    setHasPhoto(false);
+    onPhotoCapture(null);
+  };
+
   return (
-    <TouchableOpacity style={styles.button} onPress={takePhoto}>
-      <Ionicons name="camera" size={24} color="white" />
-    </TouchableOpacity>
+    <View style={styles.container}>
+      {hasPhoto ? (
+        <TouchableOpacity style={styles.button} onPress={handleBack}>
+          <Ionicons name="arrow-back" size={24} color="white" />
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity style={styles.button} onPress={takePhoto}>
+          <Ionicons name="camera" size={24} color="white" />
+        </TouchableOpacity>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   button: {
     backgroundColor: '#007AFF',
     borderRadius: 30,
