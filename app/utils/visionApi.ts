@@ -63,6 +63,13 @@ export async function detectJapaneseText(
     ],
   };
 
+  const isPointInRegion = (point: { x: number, y: number }) => {
+    return point.x >= region.x && 
+           point.x <= (region.x + region.width) &&
+           point.y >= region.y && 
+           point.y <= (region.y + region.height);
+  };
+
   try {
     const result = await fetch(API_URL, {
       method: 'POST',
@@ -82,14 +89,16 @@ export async function detectJapaneseText(
       return [];
     }
 
-    // Filter and transform the response to get Japanese text blocks
+    // Filter and transform the response to get Japanese text blocks within the selected region
     return data.responses[0].textAnnotations
       .filter((annotation: any) => {
         // Skip the first annotation as it contains all text
         if (annotation === data.responses[0].textAnnotations[0]) return false;
         
-        // Check if the text contains Japanese characters
-        return /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/.test(annotation.description);
+        // Check if the text contains Japanese characters and is within the region
+        const vertices = annotation.boundingPoly.vertices;
+        const isInRegion = vertices.some((vertex: { x: number; y: number }) => isPointInRegion(vertex));
+        return isInRegion && /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/.test(annotation.description);
       })
       .map((annotation: any) => ({
         text: annotation.description,
@@ -107,47 +116,77 @@ export async function detectJapaneseText(
   }
 }
 
-async function analyzeImage(imageData: string, region?: Region) {
+export async function analyzeImage(imageUri: string, region?: Region) {
   const apiKey = process.env.EXPO_PUBLIC_GOOGLE_CLOUD_API_KEY;
   console.log('API Key available:', !!apiKey);
 
-  const requestBody = {
-    requests: [{
-      image: {
-        content: imageData
-      },
-      features: [{
-        type: 'TEXT_DETECTION',
-        // Remove languageHints from here
-      }],
-      imageContext: {
-        languageHints: ['ja'] // Move languageHints here
-      }
-    }]
+  const response = await fetch(imageUri);
+  const blob = await response.blob();
+  const base64Image = await new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+
+  const isPointInRegion = (point: { x: number, y: number }, region: Region) => {
+    return point.x >= region.x && 
+           point.x <= (region.x + region.width) &&
+           point.y >= region.y && 
+           point.y <= (region.y + region.height);
+  };
+
+  const isAnnotationInRegion = (annotation: any, region: Region) => {
+    // Check if any vertex of the bounding polygon falls within the region
+    const vertices = annotation.boundingPoly.vertices;
+    return vertices.some((vertex: { x: number; y: number }) => 
+      isPointInRegion(vertex, region)
+    );
   };
 
   try {
-    const response = await fetch(
+    const result = await fetch(
       `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({
+          requests: [{
+            image: {
+              content: base64Image,
+            },
+            features: [{
+              type: 'TEXT_DETECTION',
+              // You might want to adjust model settings here if needed
+            }],
+          }],
+        }),
       }
     );
 
-    const data = await response.json();
-    
-    if (data.error) {
-      console.error('Vision API Error:', data.error);
-      return null;
+    const data = await result.json();
+    console.log('API Response:', data);
+
+    if (region) {
+      // Filter annotations to only include text within the selected region
+      const filteredAnnotations = data.responses[0].textAnnotations.filter(
+        (annotation: any, index: number) => {
+          // Skip the first annotation as it contains the full text
+          if (index === 0) return false;
+          return isAnnotationInRegion(annotation, region);
+        }
+      );
+
+      return {
+        ...data.responses[0],
+        textAnnotations: filteredAnnotations,
+      };
     }
 
-    return data.responses[0]?.textAnnotations || [];
+    return data.responses[0];
   } catch (error) {
     console.error('Error calling Vision API:', error);
-    return null;
+    throw error;
   }
 } 
