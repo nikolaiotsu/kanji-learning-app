@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import CameraButton from './CameraButton';
 import ImageHighlighter from './ImageHighlighter';
+import { useRouter } from 'expo-router';
 
 interface CapturedImage {
   uri: string;
@@ -11,8 +12,14 @@ interface CapturedImage {
   height: number;
 }
 
+interface TextAnnotation {
+  description: string;
+  // other fields if needed
+}
+
 export default function KanjiScanner() {
   const [capturedImage, setCapturedImage] = useState<CapturedImage | null>(null);
+  const router = useRouter();
 
   const handlePhotoCapture = (imageInfo: CapturedImage | null) => {
     setCapturedImage(imageInfo);
@@ -51,6 +58,16 @@ export default function KanjiScanner() {
 
   const handleCancel = () => {
     setCapturedImage(null); // Reset to initial state, clearing the image
+  };
+
+  const handleTextDetected = (detectedText: TextAnnotation[]) => {
+    if (detectedText.length > 0) {
+      const text = detectedText[0].description;
+      router.push({
+        pathname: "/flashcards",
+        params: { text }
+      });
+    }
   };
 
   return (

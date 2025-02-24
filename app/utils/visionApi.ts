@@ -11,6 +11,13 @@ interface VisionApiResponse {
   confidence: number;
 }
 
+interface Region {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export async function detectJapaneseText(
   imageUri: string,
   region: { x: number; y: number; width: number; height: number }
@@ -44,14 +51,13 @@ export async function detectJapaneseText(
         features: [
           {
             type: 'TEXT_DETECTION',
-            // Specify Japanese language hint
-            languageHints: ['ja'],
           },
         ],
         imageContext: {
           cropHintsParams: {
             aspectRatios: [region.width / region.height],
           },
+          languageHints: ['ja'],
         },
       },
     ],
@@ -98,5 +104,50 @@ export async function detectJapaneseText(
   } catch (error) {
     console.error('Error calling Vision API:', error);
     throw error;
+  }
+}
+
+async function analyzeImage(imageData: string, region?: Region) {
+  const apiKey = process.env.EXPO_PUBLIC_GOOGLE_CLOUD_API_KEY;
+  console.log('API Key available:', !!apiKey);
+
+  const requestBody = {
+    requests: [{
+      image: {
+        content: imageData
+      },
+      features: [{
+        type: 'TEXT_DETECTION',
+        // Remove languageHints from here
+      }],
+      imageContext: {
+        languageHints: ['ja'] // Move languageHints here
+      }
+    }]
+  };
+
+  try {
+    const response = await fetch(
+      `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      }
+    );
+
+    const data = await response.json();
+    
+    if (data.error) {
+      console.error('Vision API Error:', data.error);
+      return null;
+    }
+
+    return data.responses[0]?.textAnnotations || [];
+  } catch (error) {
+    console.error('Error calling Vision API:', error);
+    return null;
   }
 } 
