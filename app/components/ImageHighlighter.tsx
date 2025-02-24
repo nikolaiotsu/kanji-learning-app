@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { detectJapaneseText } from '../utils/visionApi';
+import { router } from 'expo-router';
 
 interface ImageHighlighterProps {
   imageUri: string;
@@ -122,13 +123,19 @@ export default function ImageHighlighter({
           setIsProcessing(true);
           const detectedText = await detectJapaneseText(imageUri, region);
           setDetectedRegions(detectedText);
-          onRegionSelected({
-            ...region,
-            detectedText: detectedText.map(item => item.text),
+          
+          // Get all detected Japanese text
+          const japaneseText = detectedText.map(item => item.text).join('\n');
+          
+          // Navigate to flashcards screen with the detected text
+          router.push({
+            pathname: "/flashcards",
+            params: { text: japaneseText }
           });
+          
         } catch (error) {
           console.error('Error detecting text:', error);
-          setDetectedRegions([]); // Clear previous detections on error
+          setDetectedRegions([]);
         } finally {
           setIsProcessing(false);
         }
