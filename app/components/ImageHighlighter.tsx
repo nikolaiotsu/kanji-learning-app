@@ -4,8 +4,11 @@ import {
   Image,
   StyleSheet,
   PanResponder,
-  Dimensions,
+  useWindowDimensions,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
+import { detectJapaneseText } from '../utils/visionApi';
 
 interface ImageHighlighterProps {
   imageUri: string;
@@ -16,8 +19,13 @@ interface ImageHighlighterProps {
     y: number;
     width: number;
     height: number;
+    detectedText?: string[];
   }) => void;
 }
+
+// Constants for layout calculations
+const BUTTON_CONTAINER_HEIGHT = 100; // Height reserved for buttons
+const VERTICAL_PADDING = 20; // Padding above and below image
 
 export default function ImageHighlighter({
   imageUri,
@@ -32,10 +40,34 @@ export default function ImageHighlighter({
     endY: 0,
   });
   const [isDrawing, setIsDrawing] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [detectedRegions, setDetectedRegions] = useState<Array<{
+    text: string;
+    boundingBox: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    };
+  }>>([]);
 
-  const screenWidth = Dimensions.get('window').width;
-  const scale = screenWidth / imageWidth;
-  const scaledHeight = imageHeight * scale;
+  // Use window dimensions hook for more reliable screen measurements
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+
+  // Calculate available space for image
+  const availableHeight = screenHeight - BUTTON_CONTAINER_HEIGHT - (VERTICAL_PADDING * 2);
+  const availableWidth = screenWidth - (Platform.OS === 'ios' ? 40 : 32); // Account for horizontal padding
+
+  // Calculate scaled dimensions while maintaining aspect ratio
+  const aspectRatio = imageWidth / imageHeight;
+  let scaledWidth = availableWidth;
+  let scaledHeight = scaledWidth / aspectRatio;
+
+  // If height exceeds available space, scale down based on height
+  if (scaledHeight > availableHeight) {
+    scaledHeight = availableHeight;
+    scaledWidth = scaledHeight * aspectRatio;
+  }
 
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -59,7 +91,7 @@ export default function ImageHighlighter({
         }));
       }
     },
-    onPanResponderRelease: () => {
+    onPanResponderRelease: async () => {
       setIsDrawing(false);
       if (onRegionSelected) {
         const minX = Math.min(highlightBox.startX, highlightBox.endX);
@@ -67,13 +99,39 @@ export default function ImageHighlighter({
         const minY = Math.min(highlightBox.startY, highlightBox.endY);
         const maxY = Math.max(highlightBox.startY, highlightBox.endY);
         
+        // Ensure we have a valid selection size
+        if (maxX - minX < 10 || maxY - minY < 10) {
+          console.log('Selection too small, ignoring');
+          return;
+        }
+
         const region = {
-          x: minX / scale,
-          y: minY / scale,
-          width: (maxX - minX) / scale,
-          height: (maxY - minY) / scale,
+          x: Math.max(0, Math.round(minX / (scaledWidth / imageWidth))),
+          y: Math.max(0, Math.round(minY / (scaledHeight / imageHeight))),
+          width: Math.round((maxX - minX) / (scaledWidth / imageWidth)),
+          height: Math.round((maxY - minY) / (scaledHeight / imageHeight)),
         };
-        onRegionSelected(region);
+
+        // Ensure coordinates don't exceed image boundaries
+        region.width = Math.min(region.width, imageWidth - region.x);
+        region.height = Math.min(region.height, imageHeight - region.y);
+
+        console.log('Sending region to API:', region);
+
+        try {
+          setIsProcessing(true);
+          const detectedText = await detectJapaneseText(imageUri, region);
+          setDetectedRegions(detectedText);
+          onRegionSelected({
+            ...region,
+            detectedText: detectedText.map(item => item.text),
+          });
+        } catch (error) {
+          console.error('Error detecting text:', error);
+          setDetectedRegions([]); // Clear previous detections on error
+        } finally {
+          setIsProcessing(false);
+        }
       }
     },
   });
@@ -94,10 +152,27 @@ export default function ImageHighlighter({
 
   return (
     <View style={styles.container}>
-      <View {...panResponder.panHandlers} style={styles.imageContainer}>
+      <View 
+        {...panResponder.panHandlers} 
+        style={[
+          styles.imageContainer,
+          { 
+            width: scaledWidth,
+            height: scaledHeight,
+            marginBottom: BUTTON_CONTAINER_HEIGHT / 2 // Add margin for buttons
+          }
+        ]}
+      >
         <Image
           source={{ uri: imageUri }}
-          style={[styles.image, { width: screenWidth, height: scaledHeight }]}
+          style={[
+            styles.image,
+            {
+              width: scaledWidth,
+              height: scaledHeight,
+            }
+          ]}
+          resizeMode="contain"
         />
         {isDrawing && (
           <View
@@ -107,6 +182,25 @@ export default function ImageHighlighter({
             ]}
           />
         )}
+        {detectedRegions.map((region, index) => (
+          <View
+            key={index}
+            style={[
+              styles.detectedRegion,
+              {
+                left: (region.boundingBox.x / imageWidth) * scaledWidth,
+                top: (region.boundingBox.y / imageHeight) * scaledHeight,
+                width: (region.boundingBox.width / imageWidth) * scaledWidth,
+                height: (region.boundingBox.height / imageHeight) * scaledHeight,
+              }
+            ]}
+          />
+        ))}
+        {isProcessing && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007AFF" />
+          </View>
+        )}
       </View>
     </View>
   );
@@ -115,12 +209,17 @@ export default function ImageHighlighter({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Platform.OS === 'ios' ? 20 : 16,
+    paddingVertical: VERTICAL_PADDING,
   },
   imageContainer: {
     position: 'relative',
+    alignSelf: 'center',
   },
   image: {
-    resizeMode: 'contain',
+    backgroundColor: 'transparent',
   },
   highlight: {
     position: 'absolute',
@@ -129,4 +228,21 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 122, 255, 0.1)',
     pointerEvents: 'none',
   },
-}); 
+  detectedRegion: {
+    position: 'absolute',
+    borderWidth: 2,
+    borderColor: '#00FF00',
+    backgroundColor: 'rgba(0, 255, 0, 0.1)',
+    pointerEvents: 'none',
+  },
+  loadingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+  },
+});
