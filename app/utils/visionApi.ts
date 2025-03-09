@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { EXPO_PUBLIC_GOOGLE_CLOUD_VISION_API_KEY } from '@env';
 
 interface VisionApiResponse {
   text: string;
@@ -22,7 +23,8 @@ export async function detectJapaneseText(
   imageUri: string,
   region: { x: number; y: number; width: number; height: number }
 ): Promise<VisionApiResponse[]> {
-  const API_KEY = Constants.expoConfig?.extra?.googleCloudVisionApiKey;
+  // Use the imported environment variable
+  const API_KEY = EXPO_PUBLIC_GOOGLE_CLOUD_VISION_API_KEY;
   
   // Debug log - remove in production
   console.log('API Key available:', !!API_KEY);
@@ -117,7 +119,7 @@ export async function detectJapaneseText(
 }
 
 export async function analyzeImage(imageUri: string, region?: Region) {
-  const apiKey = process.env.EXPO_PUBLIC_GOOGLE_CLOUD_API_KEY;
+  const apiKey = EXPO_PUBLIC_GOOGLE_CLOUD_VISION_API_KEY;
   console.log('API Key available:', !!apiKey);
 
   const response = await fetch(imageUri);

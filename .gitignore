@@ -11,3 +11,16 @@ npm-debug.*
 web-build/
 .DS_Store
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Temporary files
+*.log
+*.tmp
+*.temp
+
+# Build artifacts
+android/app/build/
+ios/build/
