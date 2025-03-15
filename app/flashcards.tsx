@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Platform, ActivityIndicator, ScrollView } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { View, Text, StyleSheet, Platform, ActivityIndicator, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { processWithClaude } from './services/claudeApi';
 import { cleanJapaneseText } from './utils/textFormatting';
+import { saveFlashcard } from './services/flashcardStorage';
+import { Flashcard } from './types/Flashcard';
+import { Ionicons } from '@expo/vector-icons';
+import * as Crypto from 'expo-crypto';
 
 export default function FlashcardsScreen() {
   const params = useLocalSearchParams();
@@ -22,6 +26,8 @@ export default function FlashcardsScreen() {
   const [furiganaText, setFuriganaText] = useState('');
   const [translatedText, setTranslatedText] = useState('');
   const [error, setError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
 
   useEffect(() => {
     // Process text with Claude API if we have Japanese text
@@ -37,14 +43,82 @@ export default function FlashcardsScreen() {
     
     try {
       const result = await processWithClaude(text);
-      setFuriganaText(result.furiganaText);
-      setTranslatedText(result.translatedText);
+      
+      // Check if we got valid results back
+      if (result.furiganaText && result.translatedText) {
+        setFuriganaText(result.furiganaText);
+        setTranslatedText(result.translatedText);
+      } else {
+        // If we didn't get valid results, show the error message from the API
+        setError(result.translatedText || 'Failed to process text with Claude API. Please try again later.');
+      }
     } catch (err) {
       console.error('Error processing with Claude:', err);
-      setError('Failed to process text with Claude API. Please try again.');
+      setError('Failed to process text with Claude API. Please try again later.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Retry processing with Claude API
+  const handleRetry = () => {
+    if (cleanedText) {
+      processTextWithClaude(cleanedText);
+    }
+  };
+
+  // Function to save flashcard
+  const handleSaveFlashcard = async () => {
+    if (!cleanedText || !furiganaText || !translatedText) {
+      Alert.alert('Cannot Save', 'Missing content for the flashcard. Please make sure the text was processed correctly.');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      // Generate a unique ID for the flashcard
+      const id = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        cleanedText + Date.now()
+      );
+
+      // Create flashcard object
+      const flashcard: Flashcard = {
+        id,
+        originalText: cleanedText,
+        furiganaText,
+        translatedText,
+        createdAt: Date.now(),
+      };
+
+      // Save flashcard
+      await saveFlashcard(flashcard);
+      setIsSaved(true);
+      
+      // Show success message
+      Alert.alert(
+        'Flashcard Saved',
+        'Your flashcard has been saved successfully!',
+        [
+          { 
+            text: 'View Saved Flashcards', 
+            onPress: () => router.push('/saved-flashcards') 
+          },
+          { text: 'OK' }
+        ]
+      );
+    } catch (err) {
+      console.error('Error saving flashcard:', err);
+      Alert.alert('Save Error', 'Failed to save flashcard. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Function to view saved flashcards
+  const handleViewSavedFlashcards = () => {
+    router.push('/saved-flashcards');
   };
 
   return (
@@ -66,6 +140,18 @@ export default function FlashcardsScreen() {
             {error ? (
               <View style={styles.errorContainer}>
                 <Text style={styles.errorText}>{error}</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
+                  <Ionicons name="refresh" size={18} color="#ffffff" style={styles.buttonIcon} />
+                  <Text style={styles.retryButtonText}>Try Again</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.viewButton}
+                  onPress={handleViewSavedFlashcards}
+                  >
+                  <Ionicons name="albums-outline" size={20} color="#ffffff" style={styles.buttonIcon} />
+                  <Text style={styles.buttonText}>View Saved Flashcards</Text>
+                </TouchableOpacity>
               </View>
             ) : (
               <>
@@ -80,6 +166,45 @@ export default function FlashcardsScreen() {
                   <View style={styles.resultContainer}>
                     <Text style={styles.sectionTitle}>English Translation</Text>
                     <Text style={styles.translatedText} numberOfLines={0}>{translatedText}</Text>
+                  </View>
+                )}
+
+                {/* Save Flashcard Button */}
+                {furiganaText && translatedText && (
+                  <View style={styles.buttonContainer}>
+                    <TouchableOpacity 
+                      style={[
+                        styles.saveButton, 
+                        isSaved ? styles.savedButton : null,
+                        isSaving ? styles.disabledButton : null
+                      ]}
+                      onPress={handleSaveFlashcard}
+                      disabled={isSaving || isSaved}
+                    >
+                      {isSaving ? (
+                        <ActivityIndicator size="small" color="#ffffff" />
+                      ) : (
+                        <>
+                          <Ionicons 
+                            name={isSaved ? "checkmark-circle" : "bookmark-outline"} 
+                            size={20} 
+                            color="#ffffff" 
+                            style={styles.buttonIcon} 
+                          />
+                          <Text style={styles.buttonText}>
+                            {isSaved ? "Saved as Flashcard" : "Save as Flashcard"}
+                          </Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      style={styles.viewButton}
+                      onPress={handleViewSavedFlashcards}
+                    >
+                      <Ionicons name="albums-outline" size={20} color="#ffffff" style={styles.buttonIcon} />
+                      <Text style={styles.buttonText}>View Saved Flashcards</Text>
+                    </TouchableOpacity>
                   </View>
                 )}
               </>
@@ -138,9 +263,26 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     backgroundColor: '#FFEBEE',
+    marginBottom: 20,
   },
   errorText: {
     color: '#D32F2F',
+    fontSize: 16,
+    marginBottom: 16,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F44336',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
     fontSize: 16,
   },
   resultContainer: {
@@ -167,5 +309,54 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 24,
     flexWrap: 'wrap',
+  },
+  buttonContainer: {
+    marginTop: 24,
+    marginBottom: 16,
+    width: '100%',
+  },
+  saveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4CAF50',
+    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.5,
+    marginBottom: 12,
+  },
+  viewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2196F3',
+    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.5,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  buttonIcon: {
+    marginRight: 8,
+  },
+  savedButton: {
+    backgroundColor: '#388E3C',
+  },
+  disabledButton: {
+    backgroundColor: '#A5D6A7',
+    opacity: 0.8,
   },
 });

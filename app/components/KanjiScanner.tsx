@@ -90,10 +90,17 @@ export default function KanjiScanner() {
           <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
             <Ionicons name="close" size={24} color="white" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.saveButton} onPress={() => console.log('Save flashcard')}>
-            <Text style={styles.saveButtonText}>Save Flashcard</Text>
-          </TouchableOpacity>
         </View>
+      )}
+      
+      {!capturedImage && (
+        <TouchableOpacity 
+          style={styles.viewFlashcardsButton} 
+          onPress={() => router.push('/saved-flashcards')}
+        >
+          <Ionicons name="albums-outline" size={20} color="#000" style={styles.buttonIcon} />
+          <Text style={styles.viewFlashcardsText}>View Saved Flashcards</Text>
+        </TouchableOpacity>
       )}
     </View>
   );
@@ -152,13 +159,14 @@ const styles = StyleSheet.create({
     left: 20,
     zIndex: 999,
   },
-  saveButton: {
-    backgroundColor: '#007AFF',
+  viewFlashcardsButton: {
+    backgroundColor: '#FFCC00',
     borderRadius: 8,
     paddingHorizontal: 20,
-    height: 60,
-    justifyContent: 'center',
+    paddingVertical: 12,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -168,13 +176,15 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
     position: 'absolute',
-    bottom: 20,
-    right: 20,
-    zIndex: 999,
+    bottom: 40,
+    alignSelf: 'center',
   },
-  saveButtonText: {
-    color: 'white',
+  viewFlashcardsText: {
+    color: '#000',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  buttonIcon: {
+    marginRight: 8,
   },
 });
