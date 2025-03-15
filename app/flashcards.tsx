@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Platform, ActivityIndicator, ScrollView } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { processWithClaude } from './services/claudeApi';
@@ -49,11 +49,11 @@ export default function FlashcardsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
         <Text style={styles.title}>Detected Japanese Text</Text>
         
         <View style={styles.textContainer}>
-          <Text style={styles.japaneseText}>{cleanedText}</Text>
+          <Text style={styles.japaneseText} numberOfLines={0}>{cleanedText}</Text>
         </View>
 
         {isLoading ? (
@@ -72,21 +72,21 @@ export default function FlashcardsScreen() {
                 {furiganaText && (
                   <View style={styles.resultContainer}>
                     <Text style={styles.sectionTitle}>With Furigana</Text>
-                    <Text style={styles.furiganaText}>{furiganaText}</Text>
+                    <Text style={styles.furiganaText} numberOfLines={0}>{furiganaText}</Text>
                   </View>
                 )}
                 
                 {translatedText && (
                   <View style={styles.resultContainer}>
                     <Text style={styles.sectionTitle}>English Translation</Text>
-                    <Text style={styles.translatedText}>{translatedText}</Text>
+                    <Text style={styles.translatedText} numberOfLines={0}>{translatedText}</Text>
                   </View>
                 )}
               </>
             )}
           </>
         )}
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -96,9 +96,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  content: {
-    padding: 20,
+  scrollView: {
     flex: 1,
+  },
+  contentContainer: {
+    padding: 20,
+    paddingBottom: 40, // Add extra padding at the bottom for better scrolling experience
   },
   title: {
     fontSize: 20,
@@ -118,6 +121,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'HiraginoSans-W3' : undefined,
     letterSpacing: 0.5,
     lineHeight: 28,
+    flexWrap: 'wrap',
   },
   loadingContainer: {
     marginTop: 20,
@@ -144,6 +148,8 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     backgroundColor: '#E3F2FD',
+    width: '100%',
+    minHeight: 100,
   },
   sectionTitle: {
     fontSize: 18,
@@ -155,9 +161,11 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontFamily: Platform.OS === 'ios' ? 'HiraginoSans-W3' : undefined,
     lineHeight: 28,
+    flexWrap: 'wrap',
   },
   translatedText: {
     fontSize: 18,
     lineHeight: 24,
+    flexWrap: 'wrap',
   },
 });
