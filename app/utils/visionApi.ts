@@ -59,7 +59,7 @@ export async function detectJapaneseText(
           cropHintsParams: {
             aspectRatios: [region.width / region.height],
           },
-          languageHints: ['ja'],
+          languageHints: ['ja', 'en'],
         },
       },
     ],
@@ -97,10 +97,10 @@ export async function detectJapaneseText(
         // Skip the first annotation as it contains all text
         if (annotation === data.responses[0].textAnnotations[0]) return false;
         
-        // Check if the text contains Japanese characters and is within the region
+        // Check if the text contains Japanese characters, English letters, or numbers and is within the region
         const vertices = annotation.boundingPoly.vertices;
         const isInRegion = vertices.some((vertex: { x: number; y: number }) => isPointInRegion(vertex));
-        return isInRegion && /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/.test(annotation.description);
+        return isInRegion && /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\w]/.test(annotation.description);
       })
       .map((annotation: any) => ({
         text: annotation.description,
@@ -162,6 +162,9 @@ export async function analyzeImage(imageUri: string, region?: Region) {
               type: 'TEXT_DETECTION',
               // You might want to adjust model settings here if needed
             }],
+            imageContext: {
+              languageHints: ['ja', 'en'],
+            },
           }],
         }),
       }

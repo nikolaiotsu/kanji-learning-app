@@ -32,24 +32,29 @@ export async function processWithClaude(japaneseText: string): Promise<ClaudeRes
 
     // Define the user message with our prompt
     const userMessage = `
-You are a Japanese language expert. I need you to analyze this Japanese text and add furigana to ALL kanji characters: "${japaneseText}"
+You are a Japanese language expert. I need you to analyze this Japanese text and add furigana to words containing kanji: "${japaneseText}"
 
-Important instructions:
-1. Add furigana (reading in hiragana) for EVERY kanji character
-2. Consider the full context of the sentence to determine the correct readings
-3. For compound words, provide the reading for the entire word
-4. For words like "通い" (かよい), "抑え" (おさえ), ensure you provide the correct contextual reading
-5. If there are multiple possible readings, choose the most likely one based on context
+IMPORTANT: You must follow this EXACT format:
+- Keep all original text as is
+- For each word containing kanji, add the hiragana reading in parentheses immediately after the COMPLETE word
+- The reading should cover the entire word (including any hiragana parts)
+- Add readings only for words containing kanji
+- Non-kanji words should remain unchanged
+
+Examples of correct formatting:
+- "東京" should become "東京(とうきょう)"
+- "日本語" should become "日本語(にほんご)"
+- "勉強する" should become "勉強する(べんきょうする)"
+- "引き金" should become "引き金(ひきがね)"
+
+For this text: "${japaneseText}"
+The response should maintain all original text but add readings for words containing kanji.
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "Japanese text with all kanji accompanied by furigana",
-  "translatedText": "Accurate English translation reflecting the full meaning"
+  "furiganaText": "Japanese text with furigana after each kanji word as shown in examples",
+  "translatedText": "Accurate English translation reflecting the full meaning in context"
 }
-
-Example format (using different text):
-For input "東京に行きます", your response should contain:
-"furiganaText": "東(とう)京(きょう)に行(い)きます"
 `;
 
     console.log("Sending request to Claude API...");
