@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Platform, ActivityIndicator, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, Platform, ActivityIndicator, ScrollView, TouchableOpacity, Alert, TextInput, Modal } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { processWithClaude } from './services/claudeApi';
@@ -34,20 +34,24 @@ export default function FlashcardsScreen() {
   const [showDeckSelector, setShowDeckSelector] = useState(false);
   const [selectedDeckId, setSelectedDeckId] = useState('deck1'); // Default to Deck 1
 
+  // State for text editing
+  const [editedText, setEditedText] = useState('');
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [textProcessed, setTextProcessed] = useState(false);
+
   useEffect(() => {
     // Initialize decks when the component mounts
     initializeDecks();
     
-    // Process text with Claude API if we have Japanese text
-    if (cleanedText) {
-      processTextWithClaude(cleanedText);
-    }
+    // Initialize the edited text with the cleaned text
+    setEditedText(cleanedText);
   }, [cleanedText]);
 
   // Function to process text with Claude API
   const processTextWithClaude = async (text: string) => {
     setIsLoading(true);
     setError('');
+    setTextProcessed(false);
     
     try {
       const result = await processWithClaude(text);
@@ -56,6 +60,7 @@ export default function FlashcardsScreen() {
       if (result.furiganaText && result.translatedText) {
         setFuriganaText(result.furiganaText);
         setTranslatedText(result.translatedText);
+        setTextProcessed(true);
       } else {
         // If we didn't get valid results, show the error message from the API
         setError(result.translatedText || 'Failed to process text with Claude API. Please try again later.');
@@ -70,14 +75,14 @@ export default function FlashcardsScreen() {
 
   // Retry processing with Claude API
   const handleRetry = () => {
-    if (cleanedText) {
-      processTextWithClaude(cleanedText);
+    if (editedText) {
+      processTextWithClaude(editedText);
     }
   };
 
   // Function to show deck selector
   const handleShowDeckSelector = () => {
-    if (!cleanedText || !furiganaText || !translatedText) {
+    if (!editedText || !furiganaText || !translatedText) {
       Alert.alert('Cannot Save', 'Missing content for the flashcard. Please make sure the text was processed correctly.');
       return;
     }
@@ -93,13 +98,13 @@ export default function FlashcardsScreen() {
       // Generate a unique ID for the flashcard
       const id = await Crypto.digestStringAsync(
         Crypto.CryptoDigestAlgorithm.SHA256,
-        cleanedText + Date.now()
+        editedText + Date.now()
       );
 
       // Create flashcard object
       const flashcard: Flashcard = {
         id,
-        originalText: cleanedText,
+        originalText: editedText,
         furiganaText,
         translatedText,
         createdAt: Date.now(),
@@ -135,14 +140,58 @@ export default function FlashcardsScreen() {
     router.push('/saved-flashcards');
   };
 
+  // Function to handle edit text button
+  const handleEditText = () => {
+    setShowEditModal(true);
+  };
+
+  // Function to handle translate button
+  const handleTranslate = () => {
+    if (editedText) {
+      processTextWithClaude(editedText);
+    }
+  };
+
+  // Function to save edited text
+  const handleSaveEdit = () => {
+    setShowEditModal(false);
+    // Reset any previous results since the text has changed
+    if (textProcessed) {
+      setFuriganaText('');
+      setTranslatedText('');
+      setTextProcessed(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
         <Text style={styles.title}>Detected Japanese Text</Text>
         
         <View style={styles.textContainer}>
-          <Text style={styles.japaneseText} numberOfLines={0}>{cleanedText}</Text>
+          <Text style={styles.japaneseText} numberOfLines={0}>{editedText}</Text>
         </View>
+
+        {/* Edit and Translate buttons */}
+        {!isLoading && !textProcessed && (
+          <View style={styles.actionButtonsContainer}>
+            <TouchableOpacity 
+              style={styles.editButton} 
+              onPress={handleEditText}
+            >
+              <Ionicons name="pencil" size={20} color="#ffffff" style={styles.buttonIcon} />
+              <Text style={styles.buttonText}>Edit Text</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.translateButton} 
+              onPress={handleTranslate}
+            >
+              <Ionicons name="language" size={20} color="#ffffff" style={styles.buttonIcon} />
+              <Text style={styles.buttonText}>Translate</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {isLoading ? (
           <View style={styles.loadingContainer}>
@@ -236,6 +285,46 @@ export default function FlashcardsScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* Edit Text Modal */}
+      <Modal
+        visible={showEditModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit Japanese Text</Text>
+            <TextInput
+              style={styles.textInput}
+              value={editedText}
+              onChangeText={setEditedText}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+              autoFocus
+            />
+            <View style={styles.modalButtonsContainer}>
+              <TouchableOpacity 
+                style={styles.modalCancelButton} 
+                onPress={() => {
+                  setEditedText(cleanedText); // Reset to original text
+                  setShowEditModal(false);
+                }}
+              >
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.modalSaveButton} 
+                onPress={handleSaveEdit}
+              >
+                <Text style={styles.modalButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -271,6 +360,33 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     lineHeight: 28,
     flexWrap: 'wrap',
+  },
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    flex: 1,
+    marginRight: 10,
+  },
+  translateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#5856D6',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    flex: 1,
+    marginLeft: 10,
   },
   loadingContainer: {
     marginTop: 20,
@@ -382,5 +498,67 @@ const styles = StyleSheet.create({
   disabledButton: {
     backgroundColor: '#A5D6A7',
     opacity: 0.8,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    width: '100%',
+    maxWidth: 500,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 18,
+    minHeight: 120,
+    fontFamily: Platform.OS === 'ios' ? 'HiraginoSans-W3' : undefined,
+  },
+  modalButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+  },
+  modalCancelButton: {
+    backgroundColor: '#F44336',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    flex: 1,
+    marginRight: 10,
+    alignItems: 'center',
+  },
+  modalSaveButton: {
+    backgroundColor: '#4CAF50',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    flex: 1,
+    marginLeft: 10,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });
