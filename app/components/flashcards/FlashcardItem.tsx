@@ -6,9 +6,10 @@ import { Ionicons } from '@expo/vector-icons';
 interface FlashcardItemProps {
   flashcard: Flashcard;
   onDelete?: (id: string) => void;
+  deckName?: string; // Optional deck name to display
 }
 
-const FlashcardItem: React.FC<FlashcardItemProps> = ({ flashcard, onDelete }) => {
+const FlashcardItem: React.FC<FlashcardItemProps> = ({ flashcard, onDelete, deckName }) => {
   const [isFlipped, setIsFlipped] = useState(false);
 
   const handleFlip = () => {
@@ -37,7 +38,14 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({ flashcard, onDelete }) =>
             <Text style={styles.japaneseText} numberOfLines={0}>
               {flashcard.originalText}
             </Text>
-            <Text style={styles.dateText}>Created: {formattedDate}</Text>
+            <View style={styles.cardInfo}>
+              {deckName && (
+                <View style={styles.deckBadge}>
+                  <Text style={styles.deckName}>{deckName}</Text>
+                </View>
+              )}
+              <Text style={styles.dateText}>Created: {formattedDate}</Text>
+            </View>
           </View>
         ) : (
           // Back of card
@@ -51,6 +59,15 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({ flashcard, onDelete }) =>
             <Text style={styles.translatedText} numberOfLines={0}>
               {flashcard.translatedText}
             </Text>
+            
+            <View style={styles.cardInfo}>
+              {deckName && (
+                <View style={styles.deckBadge}>
+                  <Text style={styles.deckName}>{deckName}</Text>
+                </View>
+              )}
+              <Text style={styles.dateText}>Created: {formattedDate}</Text>
+            </View>
           </View>
         )}
       </View>
@@ -78,7 +95,7 @@ const styles = StyleSheet.create({
     minHeight: 200,
     backgroundColor: '#ffffff',
     borderRadius: 12,
-    marginVertical: 10,
+    marginVertical: 6,
     marginHorizontal: 10,
     elevation: 4,
     shadowColor: '#000',
@@ -111,12 +128,27 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     marginBottom: 16,
   },
+  cardInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginTop: 8,
+  },
+  deckBadge: {
+    backgroundColor: '#E3F2FD',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  deckName: {
+    fontSize: 12,
+    color: '#1976D2',
+    fontWeight: '500',
+  },
   dateText: {
     fontSize: 12,
     color: '#757575',
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
   },
   sectionTitle: {
     fontSize: 16,

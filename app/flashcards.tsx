@@ -4,10 +4,11 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { processWithClaude } from './services/claudeApi';
 import { cleanJapaneseText } from './utils/textFormatting';
-import { saveFlashcard } from './services/flashcardStorage';
+import { saveFlashcard, initializeDecks } from './services/flashcardStorage';
 import { Flashcard } from './types/Flashcard';
 import { Ionicons } from '@expo/vector-icons';
 import * as Crypto from 'expo-crypto';
+import DeckSelector from './components/flashcards/DeckSelector';
 
 export default function FlashcardsScreen() {
   const params = useLocalSearchParams();
@@ -28,8 +29,15 @@ export default function FlashcardsScreen() {
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  
+  // State for deck selection
+  const [showDeckSelector, setShowDeckSelector] = useState(false);
+  const [selectedDeckId, setSelectedDeckId] = useState('deck1'); // Default to Deck 1
 
   useEffect(() => {
+    // Initialize decks when the component mounts
+    initializeDecks();
+    
     // Process text with Claude API if we have Japanese text
     if (cleanedText) {
       processTextWithClaude(cleanedText);
@@ -67,13 +75,18 @@ export default function FlashcardsScreen() {
     }
   };
 
-  // Function to save flashcard
-  const handleSaveFlashcard = async () => {
+  // Function to show deck selector
+  const handleShowDeckSelector = () => {
     if (!cleanedText || !furiganaText || !translatedText) {
       Alert.alert('Cannot Save', 'Missing content for the flashcard. Please make sure the text was processed correctly.');
       return;
     }
+    
+    setShowDeckSelector(true);
+  };
 
+  // Function to save flashcard to the selected deck
+  const handleSaveFlashcard = async (deckId: string) => {
     setIsSaving(true);
 
     try {
@@ -90,16 +103,17 @@ export default function FlashcardsScreen() {
         furiganaText,
         translatedText,
         createdAt: Date.now(),
+        deckId: deckId, // Set the deck ID from the selected deck
       };
 
       // Save flashcard
-      await saveFlashcard(flashcard);
+      await saveFlashcard(flashcard, deckId);
       setIsSaved(true);
       
       // Show success message
       Alert.alert(
         'Flashcard Saved',
-        'Your flashcard has been saved successfully!',
+        `Your flashcard has been saved to ${deckId === 'deck1' ? 'Deck 1' : 'a new deck'}!`,
         [
           { 
             text: 'View Saved Flashcards', 
@@ -178,7 +192,7 @@ export default function FlashcardsScreen() {
                         isSaved ? styles.savedButton : null,
                         isSaving ? styles.disabledButton : null
                       ]}
-                      onPress={handleSaveFlashcard}
+                      onPress={handleShowDeckSelector}
                       disabled={isSaving || isSaved}
                     >
                       {isSaving ? (
@@ -198,10 +212,20 @@ export default function FlashcardsScreen() {
                       )}
                     </TouchableOpacity>
 
+                    {/* Deck Selector Modal */}
+                    <DeckSelector
+                      visible={showDeckSelector}
+                      onClose={() => setShowDeckSelector(false)}
+                      onSelectDeck={(deckId) => {
+                        setSelectedDeckId(deckId);
+                        handleSaveFlashcard(deckId);
+                      }}
+                    />
+                    
                     <TouchableOpacity 
                       style={styles.viewButton}
                       onPress={handleViewSavedFlashcards}
-                    >
+                      >
                       <Ionicons name="albums-outline" size={20} color="#ffffff" style={styles.buttonIcon} />
                       <Text style={styles.buttonText}>View Saved Flashcards</Text>
                     </TouchableOpacity>

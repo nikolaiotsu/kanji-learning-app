@@ -4,4 +4,5 @@ export interface Flashcard {
   furiganaText: string;
   translatedText: string;
   createdAt: number;
+  deckId: string; // ID of the deck this flashcard belongs to
 } 
