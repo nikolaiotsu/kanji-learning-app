@@ -19,10 +19,12 @@ interface TextAnnotation {
 
 export default function KanjiScanner() {
   const [capturedImage, setCapturedImage] = useState<CapturedImage | null>(null);
+  const [highlightModeActive, setHighlightModeActive] = useState(false);
   const router = useRouter();
 
   const handlePhotoCapture = (imageInfo: CapturedImage | null) => {
     setCapturedImage(imageInfo);
+    setHighlightModeActive(false);
   };
 
   const pickImage = async () => {
@@ -39,6 +41,7 @@ export default function KanjiScanner() {
           width: asset.width,
           height: asset.height,
         });
+        setHighlightModeActive(false);
       }
     } catch (error) {
       console.error('Error picking image:', error);
@@ -57,7 +60,8 @@ export default function KanjiScanner() {
   };
 
   const handleCancel = () => {
-    setCapturedImage(null); // Reset to initial state, clearing the image
+    setCapturedImage(null);
+    setHighlightModeActive(false);
   };
 
   const handleTextDetected = (detectedText: TextAnnotation[]) => {
@@ -68,6 +72,10 @@ export default function KanjiScanner() {
         params: { text }
       });
     }
+  };
+
+  const activateHighlightMode = () => {
+    setHighlightModeActive(true);
   };
 
   return (
@@ -85,11 +93,21 @@ export default function KanjiScanner() {
             imageUri={capturedImage.uri}
             imageWidth={capturedImage.width}
             imageHeight={capturedImage.height}
+            highlightModeActive={highlightModeActive}
+            onActivateHighlightMode={activateHighlightMode}
             onRegionSelected={handleRegionSelected}
           />
           <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
             <Ionicons name="close" size={24} color="white" />
           </TouchableOpacity>
+          {!highlightModeActive && (
+            <TouchableOpacity 
+              style={styles.highlightButton} 
+              onPress={activateHighlightMode}
+            >
+              <Ionicons name="text" size={24} color="white" />
+            </TouchableOpacity>
+          )}
         </View>
       )}
       
@@ -157,6 +175,26 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 20,
     left: 20,
+    zIndex: 999,
+  },
+  highlightButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 30,
+    width: 60,
+    height: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
     zIndex: 999,
   },
   viewFlashcardsButton: {

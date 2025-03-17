@@ -7,14 +7,19 @@ import {
   useWindowDimensions,
   Platform,
   ActivityIndicator,
+  TouchableOpacity,
+  Text,
 } from 'react-native';
 import { detectJapaneseText } from '../utils/visionApi';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 interface ImageHighlighterProps {
   imageUri: string;
   imageWidth: number;
   imageHeight: number;
+  highlightModeActive?: boolean;
+  onActivateHighlightMode?: () => void;
   onRegionSelected?: (region: {
     x: number;
     y: number;
@@ -26,12 +31,15 @@ interface ImageHighlighterProps {
 
 // Constants for layout calculations
 const BUTTON_CONTAINER_HEIGHT = 100; // Height reserved for buttons
-const VERTICAL_PADDING = 20; // Padding above and below image
+const VERTICAL_PADDING = 80; // Increased padding to avoid button overlap
+const BUTTON_HEIGHT = 60; // Height of the buttons
 
 export default function ImageHighlighter({
   imageUri,
   imageWidth,
   imageHeight,
+  highlightModeActive = false,
+  onActivateHighlightMode,
   onRegionSelected,
 }: ImageHighlighterProps) {
   const [highlightBox, setHighlightBox] = useState({
@@ -71,7 +79,7 @@ export default function ImageHighlighter({
   }
 
   const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
+    onStartShouldSetPanResponder: () => highlightModeActive, // Only respond when highlight mode is active
     onPanResponderGrant: (evt) => {
       const { locationX, locationY } = evt.nativeEvent;
       setIsDrawing(true);
@@ -157,58 +165,73 @@ export default function ImageHighlighter({
     };
   };
 
+  const activateHighlightMode = () => {
+    if (onActivateHighlightMode) {
+      onActivateHighlightMode();
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <View 
-        {...panResponder.panHandlers} 
-        style={[
-          styles.imageContainer,
-          { 
-            width: scaledWidth,
-            height: scaledHeight,
-            marginBottom: BUTTON_CONTAINER_HEIGHT / 2 // Add margin for buttons
-          }
-        ]}
-      >
-        <Image
-          source={{ uri: imageUri }}
+      <View style={styles.imageWrapper}>
+        <View 
+          {...panResponder.panHandlers} 
           style={[
-            styles.image,
-            {
+            styles.imageContainer,
+            { 
               width: scaledWidth,
               height: scaledHeight,
             }
           ]}
-          resizeMode="contain"
-        />
-        {isDrawing && (
-          <View
+        >
+          <Image
+            source={{ uri: imageUri }}
             style={[
-              styles.highlight,
-              getHighlightStyle(),
-            ]}
-          />
-        )}
-        {detectedRegions.map((region, index) => (
-          <View
-            key={index}
-            style={[
-              styles.detectedRegion,
+              styles.image,
               {
-                left: (region.boundingBox.x / imageWidth) * scaledWidth,
-                top: (region.boundingBox.y / imageHeight) * scaledHeight,
-                width: (region.boundingBox.width / imageWidth) * scaledWidth,
-                height: (region.boundingBox.height / imageHeight) * scaledHeight,
+                width: scaledWidth,
+                height: scaledHeight,
               }
             ]}
+            resizeMode="contain"
           />
-        ))}
-        {isProcessing && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#007AFF" />
-          </View>
-        )}
+          {isDrawing && (
+            <View
+              style={[
+                styles.highlight,
+                getHighlightStyle(),
+              ]}
+            />
+          )}
+          {detectedRegions.map((region, index) => (
+            <View
+              key={index}
+              style={[
+                styles.detectedRegion,
+                {
+                  left: (region.boundingBox.x / imageWidth) * scaledWidth,
+                  top: (region.boundingBox.y / imageHeight) * scaledHeight,
+                  width: (region.boundingBox.width / imageWidth) * scaledWidth,
+                  height: (region.boundingBox.height / imageHeight) * scaledHeight,
+                }
+              ]}
+            />
+          ))}
+          {isProcessing && (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#007AFF" />
+            </View>
+          )}
+        </View>
       </View>
+      
+      {highlightModeActive && !isDrawing && (
+        <View style={styles.instructionContainer}>
+          <Text style={styles.instructionText}>
+            Draw a box around the text
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -216,10 +239,15 @@ export default function ImageHighlighter({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    width: '100%',
+    position: 'relative',
+  },
+  imageWrapper: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: Platform.OS === 'ios' ? 20 : 16,
-    paddingVertical: VERTICAL_PADDING,
+    width: '100%',
+    paddingBottom: BUTTON_HEIGHT + 20, // Add padding at the bottom to avoid button overlap
   },
   imageContainer: {
     position: 'relative',
@@ -251,5 +279,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.7)',
+  },
+  instructionContainer: {
+    position: 'absolute',
+    bottom: 90,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    zIndex: 100,
+  },
+  instructionText: {
+    color: 'white',
+    fontSize: 14,
+    textAlign: 'center',
   },
 });
