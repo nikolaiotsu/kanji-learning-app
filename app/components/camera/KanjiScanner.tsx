@@ -109,6 +109,16 @@ export default function KanjiScanner() {
           )}
         </View>
       )}
+      
+      {!capturedImage && (
+        <TouchableOpacity 
+          style={styles.viewFlashcardsButton} 
+          onPress={() => router.push('/saved-flashcards')}
+        >
+          <Ionicons name="albums-outline" size={20} color="#000" style={styles.buttonIcon} />
+          <Text style={styles.viewFlashcardsText}>View Saved Flashcards</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -200,5 +210,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  viewFlashcardsButton: {
+    backgroundColor: '#FFCC00',
+    borderRadius: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    position: 'absolute',
+    bottom: 40,
+    alignSelf: 'center',
+  },
+  viewFlashcardsText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  buttonIcon: {
+    marginRight: 8,
   },
 }); 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
-import KanjiScanner from './components/KanjiScanner';
+import KanjiScanner from './components/camera/KanjiScanner';
 
 export default function CameraScreen() {
   return (

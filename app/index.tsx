@@ -1,6 +1,6 @@
 import { View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import KanjiScanner from './components/KanjiScanner';
+import KanjiScanner from './components/camera/KanjiScanner';
 
 export default function App() {
   return (
