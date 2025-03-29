@@ -8,12 +8,13 @@ import {
   deleteFlashcard, 
   getDecks, 
   getFlashcardsByDeck, 
-  initializeDecks,
   deleteDeck,
   updateDeckName
-} from './services/flashcardStorage';
+} from './services/supabaseStorage';
 import FlashcardItem from './components/flashcards/FlashcardItem';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from './context/AuthContext';
+import { supabase } from './services/supabaseClient';
 
 export default function SavedFlashcardsScreen() {
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
@@ -23,13 +24,62 @@ export default function SavedFlashcardsScreen() {
   const [isLoadingDecks, setIsLoadingDecks] = useState(true);
   const [editingDeckId, setEditingDeckId] = useState<string | null>(null);
   const [newDeckName, setNewDeckName] = useState('');
+  const { user } = useAuth();
 
   // Load decks and flashcards on mount
   useEffect(() => {
-    initializeDecks().then(() => {
+    if (user) {
+      // Just load decks directly, don't initialize 
       loadDecks();
-    });
-  }, []);
+    }
+  }, [user]);
+
+  // Set up real-time subscription to deck changes
+  useEffect(() => {
+    if (!user) return;
+
+    // Subscribe to changes in the decks table
+    const decksSubscription = supabase
+      .channel('decks-changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'decks' 
+      }, () => {
+        // Reload decks when changes occur
+        loadDecks();
+      })
+      .subscribe();
+
+    // Cleanup subscription on unmount
+    return () => {
+      supabase.removeChannel(decksSubscription);
+    };
+  }, [user]);
+
+  // Set up real-time subscription to flashcard changes
+  useEffect(() => {
+    if (!user || !selectedDeckId) return;
+
+    // Subscribe to changes in the flashcards table for the selected deck
+    const flashcardsSubscription = supabase
+      .channel('flashcards-changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'flashcards',
+        filter: `deck_id=eq.${selectedDeckId}`
+      }, () => {
+        // Reload flashcards when changes occur
+        loadFlashcardsByDeck(selectedDeckId);
+      })
+      .subscribe();
+
+    // Cleanup subscription on unmount
+    return () => {
+      supabase.removeChannel(flashcardsSubscription);
+    };
+  }, [user, selectedDeckId]);
 
   // Load flashcards when selected deck changes
   useEffect(() => {
@@ -49,7 +99,8 @@ export default function SavedFlashcardsScreen() {
   const loadDecks = async () => {
     setIsLoadingDecks(true);
     try {
-      const savedDecks = await getDecks();
+      // Pass true to create a default deck if no decks exist
+      const savedDecks = await getDecks(true);
       setDecks(savedDecks);
       
       // If there are decks, select the first one by default
@@ -279,8 +330,6 @@ export default function SavedFlashcardsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Saved Flashcards</Text>
-      
       {isLoadingDecks ? (
         <View style={styles.deckSelectorPlaceholder}>
           <ActivityIndicator size="small" color="#007AFF" />
@@ -357,12 +406,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    margin: 16,
-    textAlign: 'center',
   },
   deckSelectorPlaceholder: {
     height: 50,

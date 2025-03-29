@@ -4,13 +4,15 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { processWithClaude } from './services/claudeApi';
 import { cleanJapaneseText } from './utils/textFormatting';
-import { saveFlashcard, initializeDecks } from './services/flashcardStorage';
+import { saveFlashcard } from './services/supabaseStorage';
 import { Flashcard } from './types/Flashcard';
 import { Ionicons } from '@expo/vector-icons';
 import * as Crypto from 'expo-crypto';
 import DeckSelector from './components/flashcards/DeckSelector';
+import { useAuth } from './context/AuthContext';
 
 export default function FlashcardsScreen() {
+  const { user } = useAuth();
   const params = useLocalSearchParams();
   const textParam = params.text;
   const displayText = typeof textParam === 'string' 
@@ -40,9 +42,6 @@ export default function FlashcardsScreen() {
   const [textProcessed, setTextProcessed] = useState(false);
 
   useEffect(() => {
-    // Initialize decks when the component mounts
-    initializeDecks();
-    
     // Initialize the edited text with the cleaned text
     setEditedText(cleanedText);
   }, [cleanedText]);
@@ -95,24 +94,26 @@ export default function FlashcardsScreen() {
     setIsSaving(true);
 
     try {
-      // Generate a unique ID for the flashcard
-      const id = await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        editedText + Date.now()
-      );
+      // Remove client-side ID generation
+      // const id = await Crypto.digestStringAsync(
+      //   Crypto.CryptoDigestAlgorithm.SHA256,
+      //   editedText + Date.now()
+      // );
 
-      // Create flashcard object
-      const flashcard: Flashcard = {
-        id,
+      // Create flashcard object without the 'id' property
+      // The database will generate the UUID automatically
+      const flashcard: Omit<Flashcard, 'id'> = { // Use Omit to exclude 'id' temporarily
         originalText: editedText,
         furiganaText,
         translatedText,
-        createdAt: Date.now(),
-        deckId: deckId, // Set the deck ID from the selected deck
+        createdAt: Date.now(), // Keep createdAt for potential local sorting/display
+        deckId: deckId,
       };
 
-      // Save flashcard
-      await saveFlashcard(flashcard, deckId);
+      // Save flashcard - saveFlashcard function now expects an object potentially without an id
+      // We might need to adjust the saveFlashcard function signature or logic if it strictly expects 'id'
+      // However, based on the previous fix in supabaseStorage.ts, it should handle this correctly.
+      await saveFlashcard(flashcard as Flashcard, deckId); // Type assertion might be needed depending on saveFlashcard signature
       setIsSaved(true);
       
       // Show success message

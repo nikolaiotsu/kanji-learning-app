@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import CameraButton from './CameraButton';
 import ImageHighlighter from '../shared/ImageHighlighter';
 import { useKanjiRecognition } from '../../hooks/useKanjiRecognition';
+import { useAuth } from '../../context/AuthContext';
 import { COLORS } from '../../constants/colors';
 import { CapturedImage, TextAnnotation } from '../../../types';
 
@@ -13,7 +14,33 @@ export default function KanjiScanner() {
   const [capturedImage, setCapturedImage] = useState<CapturedImage | null>(null);
   const [highlightModeActive, setHighlightModeActive] = useState(false);
   const router = useRouter();
+  const { signOut } = useAuth();
   const { recognizeKanji, isProcessing, error } = useKanjiRecognition();
+
+  const handleLogout = async () => {
+    try {
+      Alert.alert(
+        "Logout",
+        "Are you sure you want to log out?",
+        [
+          {
+            text: "Cancel",
+            style: "cancel"
+          },
+          {
+            text: "Logout",
+            onPress: async () => {
+              await signOut();
+              router.replace('/login');
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error logging out:', error);
+      Alert.alert('Error', 'Failed to log out. Please try again.');
+    }
+  };
 
   const handlePhotoCapture = (imageInfo: CapturedImage | null) => {
     setCapturedImage(imageInfo);
@@ -75,12 +102,28 @@ export default function KanjiScanner() {
   return (
     <View style={styles.container}>
       {!capturedImage ? (
-        <View style={styles.buttonContainer}>
-          <CameraButton onPhotoCapture={handlePhotoCapture} />
-          <TouchableOpacity style={styles.galleryButton} onPress={pickImage}>
-            <Ionicons name="images" size={24} color="white" />
+        <>
+          <TouchableOpacity 
+            style={styles.logoutButton} 
+            onPress={handleLogout}
+          >
+            <Ionicons name="log-out-outline" size={24} color="white" />
+            <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
-        </View>
+          <View style={styles.buttonContainer}>
+            <CameraButton onPhotoCapture={handlePhotoCapture} />
+            <TouchableOpacity style={styles.galleryButton} onPress={pickImage}>
+              <Ionicons name="images" size={24} color="white" />
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity 
+            style={styles.viewFlashcardsButton} 
+            onPress={() => router.push('/saved-flashcards')}
+          >
+            <Ionicons name="albums-outline" size={20} color="#000" style={styles.buttonIcon} />
+            <Text style={styles.viewFlashcardsText}>View Saved Flashcards</Text>
+          </TouchableOpacity>
+        </>
       ) : (
         <View style={styles.imageContainer}>
           <ImageHighlighter
@@ -108,16 +151,6 @@ export default function KanjiScanner() {
             </View>
           )}
         </View>
-      )}
-      
-      {!capturedImage && (
-        <TouchableOpacity 
-          style={styles.viewFlashcardsButton} 
-          onPress={() => router.push('/saved-flashcards')}
-        >
-          <Ionicons name="albums-outline" size={20} color="#000" style={styles.buttonIcon} />
-          <Text style={styles.viewFlashcardsText}>View Saved Flashcards</Text>
-        </TouchableOpacity>
       )}
     </View>
   );
@@ -238,5 +271,22 @@ const styles = StyleSheet.create({
   },
   buttonIcon: {
     marginRight: 8,
+  },
+  logoutButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: '#dc3545',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  logoutText: {
+    color: 'white',
+    marginLeft: 4,
+    fontWeight: 'bold',
   },
 }); 

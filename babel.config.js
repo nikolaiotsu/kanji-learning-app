@@ -7,10 +7,16 @@ module.exports = function (api) {
         "moduleName": "@env",
         "path": ".env",
         "blacklist": null,
-        "whitelist": null,
+        "whitelist": [
+          "EXPO_PUBLIC_SUPABASE_URL",
+          "EXPO_PUBLIC_SUPABASE_ANON_KEY",
+          "EXPO_PUBLIC_GOOGLE_CLOUD_VISION_API_KEY",
+          "EXPO_PUBLIC_CLAUDE_API_KEY"
+        ],
         "safe": false,
-        "allowUndefined": true
-      }]
+        "allowUndefined": false
+      }],
+      'expo-router/babel'
     ]
   };
 }; 

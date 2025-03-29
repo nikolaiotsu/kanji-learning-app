@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Deck } from '../../types/Deck';
-import { getDecks, createDeck } from '../../services/flashcardStorage';
+import { getDecks, createDeck } from '../../services/supabaseStorage';
 
 interface DeckSelectorProps {
   visible: boolean;

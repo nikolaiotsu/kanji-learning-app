@@ -183,4 +183,9 @@ Format your response as valid JSON with these exact keys:
     furiganaText: '',
     translatedText: 'Error processing text with Claude API. The service may be temporarily overloaded. Please try again later.'
   };
-} 
+}
+
+// Add default export to satisfy Expo Router's requirement
+export default {
+  processWithClaude
+}; 

@@ -194,4 +194,10 @@ export async function analyzeImage(imageUri: string, region?: Region) {
     console.error('Error calling Vision API:', error);
     throw error;
   }
-} 
+}
+
+// Add default export to satisfy Expo Router's requirement
+export default {
+  detectJapaneseText,
+  analyzeImage
+}; 
