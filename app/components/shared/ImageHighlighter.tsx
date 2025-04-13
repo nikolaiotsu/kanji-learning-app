@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useId } from 'react';
 import {
   View,
   Image,
@@ -59,6 +59,7 @@ export default function ImageHighlighter({
       width: number;
       height: number;
     };
+    id?: string;
   }>>([]);
 
   // Use window dimensions hook for more reliable screen measurements
@@ -131,10 +132,17 @@ export default function ImageHighlighter({
         try {
           setIsProcessing(true);
           const detectedText = await detectJapaneseText(imageUri, region);
-          setDetectedRegions(detectedText);
+          
+          // Add unique IDs to each detected region
+          const regionsWithIds = detectedText.map((item, idx) => ({
+            ...item,
+            id: `region-${Date.now()}-${idx}`
+          }));
+          
+          setDetectedRegions(regionsWithIds);
           
           // Get all detected Japanese text
-          const japaneseText = detectedText.map(item => item.text).join('\n');
+          const japaneseText = regionsWithIds.map(item => item.text).join('\n');
           
           // Navigate to flashcards screen with the detected text
           router.push({
@@ -205,8 +213,8 @@ export default function ImageHighlighter({
             />
           )}
           {detectedRegions.map((region, index) => (
+            /* @ts-ignore */
             <View
-              key={index}
               style={[
                 styles.detectedRegion,
                 {

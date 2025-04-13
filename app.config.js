@@ -19,13 +19,13 @@ export default {
       ]
     },
     ios: {
-      bundleIdentifier: "com.yourcompany.kanjilearningapp",
+      bundleIdentifier: "com.bluve01.kanjilearningapp",
       config: {
         usesNonExemptEncryption: false
       }
     },
     android: {
-      package: "com.yourcompany.kanjilearningapp",
+      package: "com.bluve01.kanjilearningapp",
       permissions: ["INTERNET"]
     },
     web: {
@@ -33,7 +33,7 @@ export default {
     },
     extra: {
       eas: {
-        projectId: "your-project-id"
+        projectId: "8d650758-11ac-4561-9757-e635a031ac9b"
       }
     },
     newArchEnabled: true,
