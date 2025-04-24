@@ -26,3 +26,7 @@ export const checkLocalStorage = async (): Promise<{hasDecks: boolean, hasFlashc
     return { hasDecks: false, hasFlashcards: false };
   }
 }; 
+
+// Add default export to satisfy Expo Router's requirement
+const LocalStorageUtils = { checkLocalStorage };
+export default LocalStorageUtils; 
