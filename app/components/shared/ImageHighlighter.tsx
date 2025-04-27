@@ -15,7 +15,7 @@ import {
 import { detectJapaneseText } from '../../services/visionApi';
 import { router } from 'expo-router';
 import { COLORS } from '../../constants/colors';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, FontAwesome6 } from '@expo/vector-icons';
 
 // Define the type for the forwarded ref handle
 export interface ImageHighlighterRef {
@@ -608,7 +608,13 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         style={styles.cropToggleButton}
         onPress={toggleCropMode}
       >
-        <Text style={styles.buttonText}>{cropMode ? 'Cancel Crop' : 'Crop Image'}</Text>
+        {cropMode ? (
+          <FontAwesome6 name="xmark" size={24} color="white" />
+        ) : (
+          <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'center'}}>
+            <FontAwesome6 name="crop" size={24} color="white" />
+          </View>
+        )}
       </TouchableOpacity>
       
       {/* Confirm crop button (only shown in crop mode with valid box) */}
@@ -617,7 +623,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           style={styles.confirmCropButton}
           onPress={applyCrop}
         >
-          <Text style={styles.buttonText}>Apply Crop</Text>
+          <FontAwesome6 name="check" size={24} color="white" />
         </TouchableOpacity>
       )}
     </View>
@@ -720,21 +726,35 @@ const styles = StyleSheet.create({
   cropToggleButton: {
     position: 'absolute',
     bottom: 20,
-    alignSelf: 'center',
+    right: 160, // Position it further from the highlight button
     backgroundColor: '#007AFF',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 10,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
     zIndex: 100,
   },
   confirmCropButton: {
     position: 'absolute',
     bottom: 20,
-    right: 20,
+    right: 90, // Position it right beside the highlight button (which is at right: 20)
     backgroundColor: '#22C55E',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 10,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
     zIndex: 100,
   },
   buttonText: {

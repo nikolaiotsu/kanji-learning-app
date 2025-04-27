@@ -6,6 +6,7 @@ import { useAuth } from './context/AuthContext';
 import { clearFlashcardsAndDecks } from './utils/clearLocalStorage';
 import { checkLocalStorage } from './utils/checkLocalStorage';
 import { useRouter } from 'expo-router';
+import { COLORS } from './constants/colors';
 
 export default function SettingsScreen() {
   const { user, signOut } = useAuth();
@@ -85,7 +86,7 @@ export default function SettingsScreen() {
               style={styles.settingItem}
               onPress={() => router.push('/login')}
             >
-              <Ionicons name="log-in-outline" size={24} color="#007AFF" style={styles.settingIcon} />
+              <Ionicons name="log-in-outline" size={24} color={COLORS.primary} style={styles.settingIcon} />
               <View style={styles.settingTextContainer}>
                 <Text style={styles.settingLabel}>Sign In</Text>
                 <Text style={styles.settingDescription}>
@@ -107,14 +108,14 @@ export default function SettingsScreen() {
             <Ionicons 
               name="trash-outline" 
               size={24} 
-              color={hasLocalData ? "#FF3B30" : "#CCCCCC"} 
+              color={hasLocalData ? COLORS.danger : COLORS.darkGray} 
               style={styles.settingIcon} 
             />
             <View style={styles.settingTextContainer}>
               <Text 
                 style={[
                   styles.settingLabel, 
-                  { color: hasLocalData ? "#FF3B30" : "#CCCCCC" }
+                  { color: hasLocalData ? COLORS.danger : COLORS.darkGray }
                 ]}
               >
                 Clear Local Storage
@@ -137,9 +138,9 @@ export default function SettingsScreen() {
               style={styles.settingItem}
               onPress={handleSignOut}
             >
-              <Ionicons name="log-out-outline" size={24} color="#FF3B30" style={styles.settingIcon} />
+              <Ionicons name="log-out-outline" size={24} color={COLORS.danger} style={styles.settingIcon} />
               <View style={styles.settingTextContainer}>
-                <Text style={[styles.settingLabel, { color: '#FF3B30' }]}>Sign Out</Text>
+                <Text style={[styles.settingLabel, { color: COLORS.danger }]}>Sign Out</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -152,21 +153,22 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: COLORS.background,
   },
   header: {
     padding: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.darkSurface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: COLORS.lightGray,
   },
   title: {
     fontSize: 22,
     fontWeight: 'bold',
+    color: COLORS.text,
   },
   section: {
     marginTop: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.darkSurface,
     borderRadius: 10,
     overflow: 'hidden',
     marginHorizontal: 16,
@@ -174,7 +176,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#8E8E93',
+    color: COLORS.pastelPurple,
     marginLeft: 16,
     marginBottom: 8,
     marginTop: -10,
@@ -184,7 +186,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: COLORS.lightGray,
   },
   settingIcon: {
     marginRight: 16,
@@ -195,17 +197,17 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontSize: 16,
     fontWeight: '500',
+    color: COLORS.text,
   },
   settingDescription: {
     fontSize: 14,
-    color: '#8E8E93',
-    marginTop: 4,
+    color: COLORS.darkGray,
   },
   profileInfo: {
     padding: 16,
   },
   emailText: {
     fontSize: 16,
-    color: '#333333',
+    color: COLORS.text,
   },
 }); 

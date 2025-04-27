@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Crypto from 'expo-crypto';
 import DeckSelector from './components/flashcards/DeckSelector';
 import { useAuth } from './context/AuthContext';
+import { COLORS } from './constants/colors';
 
 export default function FlashcardsScreen() {
   const { user } = useAuth();
@@ -138,6 +139,7 @@ export default function FlashcardsScreen() {
 
   // Function to view saved flashcards
   const handleViewSavedFlashcards = () => {
+    // Use router.push to maintain navigation history
     router.push('/saved-flashcards');
   };
 
@@ -333,7 +335,7 @@ export default function FlashcardsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.background,
   },
   scrollView: {
     flex: 1,
@@ -346,11 +348,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 16,
+    color: COLORS.text,
   },
   textContainer: {
     padding: 16,
     borderRadius: 8,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.darkSurface,
     marginBottom: 20,
   },
   japaneseText: {
@@ -361,6 +364,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     lineHeight: 28,
     flexWrap: 'wrap',
+    color: COLORS.text,
   },
   actionButtonsContainer: {
     flexDirection: 'row',
@@ -371,7 +375,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -382,7 +386,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#5856D6',
+    backgroundColor: COLORS.pastelPurple,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -397,17 +401,19 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#007AFF',
+    color: COLORS.pastelPurple,
   },
   errorContainer: {
     marginTop: 20,
     padding: 16,
     borderRadius: 8,
-    backgroundColor: '#FFEBEE',
+    backgroundColor: COLORS.darkSurface,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: COLORS.danger,
   },
   errorText: {
-    color: '#D32F2F',
+    color: COLORS.danger,
     fontSize: 16,
     marginBottom: 16,
   },
@@ -415,14 +421,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F44336',
+    backgroundColor: COLORS.danger,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,
     marginBottom: 12,
   },
   retryButtonText: {
-    color: '#fff',
+    color: COLORS.text,
     fontWeight: 'bold',
     fontSize: 16,
   },
@@ -430,26 +436,30 @@ const styles = StyleSheet.create({
     marginTop: 20,
     padding: 16,
     borderRadius: 8,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: COLORS.darkSurface,
     width: '100%',
     minHeight: 100,
+    borderWidth: 1,
+    borderColor: COLORS.pastelBlue,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 8,
-    color: '#0D47A1',
+    color: COLORS.pastelBlue,
   },
   furiganaText: {
     fontSize: 20,
     fontFamily: Platform.OS === 'ios' ? 'HiraginoSans-W3' : undefined,
     lineHeight: 28,
     flexWrap: 'wrap',
+    color: COLORS.text,
   },
   translatedText: {
     fontSize: 18,
     lineHeight: 24,
     flexWrap: 'wrap',
+    color: COLORS.text,
   },
   buttonContainer: {
     marginTop: 24,
@@ -460,7 +470,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#4CAF50',
+    backgroundColor: COLORS.secondary,
     borderRadius: 8,
     paddingVertical: 14,
     paddingHorizontal: 24,
@@ -475,7 +485,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#2196F3',
+    backgroundColor: COLORS.primary,
     borderRadius: 8,
     paddingVertical: 14,
     paddingHorizontal: 24,
@@ -486,7 +496,7 @@ const styles = StyleSheet.create({
     shadowRadius: 1.5,
   },
   buttonText: {
-    color: '#fff',
+    color: COLORS.text,
     fontWeight: 'bold',
     fontSize: 16,
   },
@@ -494,21 +504,21 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   savedButton: {
-    backgroundColor: '#388E3C',
+    backgroundColor: COLORS.pastelGreen,
   },
   disabledButton: {
-    backgroundColor: '#A5D6A7',
+    backgroundColor: COLORS.darkSurface,
     opacity: 0.8,
   },
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     padding: 20,
   },
   modalContent: {
-    backgroundColor: 'white',
+    backgroundColor: COLORS.darkSurface,
     borderRadius: 12,
     padding: 20,
     width: '100%',
@@ -517,7 +527,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    elevation: 5,
   },
   modalTitle: {
     fontSize: 18,

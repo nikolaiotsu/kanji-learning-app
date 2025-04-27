@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, Dimensions } from 'react-native';
 import { Flashcard } from '../../types/Flashcard';
 import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '../../constants/colors';
 
 interface FlashcardItemProps {
   flashcard: Flashcard;
@@ -74,12 +75,12 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({ flashcard, onDelete, deck
       
       {onDelete && (
         <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-          <Ionicons name="trash-outline" size={22} color="#D32F2F" />
+          <Ionicons name="trash-outline" size={22} color={COLORS.danger} />
         </TouchableOpacity>
       )}
 
       <View style={styles.flipHint}>
-        <Ionicons name="sync-outline" size={16} color="#757575" />
+        <Ionicons name="sync-outline" size={16} color={COLORS.darkGray} />
         <Text style={styles.flipHintText}>Tap to flip</Text>
       </View>
     </TouchableOpacity>
@@ -93,7 +94,7 @@ const styles = StyleSheet.create({
   cardContainer: {
     width: cardWidth,
     minHeight: 200,
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.darkSurface,
     borderRadius: 12,
     marginVertical: 6,
     marginHorizontal: 10,
@@ -105,7 +106,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   cardFlipped: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: COLORS.mediumSurface,
   },
   cardContent: {
     padding: 16,
@@ -127,6 +128,7 @@ const styles = StyleSheet.create({
     lineHeight: 32,
     flexWrap: 'wrap',
     marginBottom: 16,
+    color: COLORS.text,
   },
   cardInfo: {
     flexDirection: 'row',
@@ -136,25 +138,25 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   deckBadge: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
   },
   deckName: {
     fontSize: 12,
-    color: '#1976D2',
+    color: COLORS.text,
     fontWeight: '500',
   },
   dateText: {
     fontSize: 12,
-    color: '#757575',
+    color: COLORS.darkGray,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 8,
-    color: '#0D47A1',
+    color: COLORS.pastelPurple,
     marginTop: 12,
   },
   furiganaText: {
@@ -162,12 +164,14 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'HiraginoSans-W3' : undefined,
     lineHeight: 28,
     flexWrap: 'wrap',
+    color: COLORS.text,
   },
   translatedText: {
     fontSize: 16,
     lineHeight: 22,
     flexWrap: 'wrap',
     marginBottom: 24,
+    color: COLORS.text,
   },
   deleteButton: {
     position: 'absolute',
@@ -184,7 +188,7 @@ const styles = StyleSheet.create({
   },
   flipHintText: {
     fontSize: 12,
-    color: '#757575',
+    color: COLORS.darkGray,
     marginLeft: 4,
   },
 });

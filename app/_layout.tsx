@@ -8,10 +8,29 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <AuthProvider>
         <AuthGuard>
-          <Stack>
+          <Stack 
+            screenOptions={{
+              headerShown: true,
+              headerStyle: {
+                backgroundColor: '#1e293b', // Consistent with your app's color theme
+              },
+              headerTintColor: '#fff',
+              headerTitleStyle: {
+                fontWeight: 'bold',
+              },
+              // Set back button text to 'Back'
+              headerBackTitle: 'Back',
+            }}
+          >
             <Stack.Screen name="(screens)" options={{ headerShown: false }} />
+            <Stack.Screen name="index" options={{ headerShown: false, title: 'Home' }} />
             <Stack.Screen name="flashcards" options={{ title: 'Japanese Flashcard' }} />
-            <Stack.Screen name="saved-flashcards" options={{ title: 'Saved Flashcards' }} />
+            <Stack.Screen 
+              name="saved-flashcards" 
+              options={{ 
+                title: 'Saved Flashcards',
+              }} 
+            />
             <Stack.Screen name="settings" options={{ title: 'Settings' }} />
             <Stack.Screen name="login" options={{ title: 'Login', headerShown: false }} />
             <Stack.Screen name="signup" options={{ title: 'Sign Up', headerShown: false }} />

@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons, FontAwesome5, AntDesign, FontAwesome6 } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import CameraButton from './CameraButton';
@@ -16,6 +16,8 @@ import * as ImageManipulator from 'expo-image-manipulator';
 
 export default function KanjiScanner() {
   const [capturedImage, setCapturedImage] = useState<CapturedImage | null>(null);
+  const [imageHistory, setImageHistory] = useState<CapturedImage[]>([]);
+  const [forwardHistory, setForwardHistory] = useState<CapturedImage[]>([]);
   const [highlightModeActive, setHighlightModeActive] = useState(false);
   const [localProcessing, setLocalProcessing] = useState(false);
   const router = useRouter();
@@ -51,7 +53,15 @@ export default function KanjiScanner() {
   };
 
   const handlePhotoCapture = (imageInfo: CapturedImage | null) => {
-    setCapturedImage(imageInfo);
+    if (imageInfo) {
+      setCapturedImage(imageInfo);
+      setImageHistory([]);
+      setForwardHistory([]);
+    } else {
+      setCapturedImage(null);
+      setImageHistory([]);
+      setForwardHistory([]);
+    }
     setHighlightModeActive(false);
   };
 
@@ -69,6 +79,8 @@ export default function KanjiScanner() {
           width: asset.width,
           height: asset.height,
         });
+        setImageHistory([]);
+        setForwardHistory([]);
         setHighlightModeActive(false);
       }
     } catch (error) {
@@ -166,6 +178,13 @@ export default function KanjiScanner() {
           // This is a crop operation - just resize the image without text detection
           console.log('[KanjiScanner] CROP MODE: Starting crop operation');
           
+          // Save the current image to history before cropping
+          if (capturedImage) {
+            setImageHistory(prev => [...prev, capturedImage]);
+            // Clear forward history when making a new crop
+            setForwardHistory([]);
+          }
+          
           // For crop operations, we'll use the originalRegion directly from ImageHighlighter
           // without applying our own scaling again
           const resizedUri = await resizeImageToRegion(uri, region);
@@ -213,6 +232,40 @@ export default function KanjiScanner() {
   const handleCancel = () => {
     setCapturedImage(null);
     setHighlightModeActive(false);
+    setImageHistory([]);
+    setForwardHistory([]);
+  };
+
+  const handleBackToPreviousImage = () => {
+    if (imageHistory.length > 0 && capturedImage) {
+      // Get the last image from history
+      const previousImage = imageHistory[imageHistory.length - 1];
+      
+      // Save current image to forward history
+      setForwardHistory(prev => [...prev, capturedImage]);
+      
+      // Set previous image as the current image
+      setCapturedImage(previousImage);
+      
+      // Remove it from history
+      setImageHistory(prev => prev.slice(0, -1));
+    }
+  };
+
+  const handleForwardToNextImage = () => {
+    if (forwardHistory.length > 0 && capturedImage) {
+      // Get the last image from forward history
+      const nextImage = forwardHistory[forwardHistory.length - 1];
+      
+      // Save current image to backward history
+      setImageHistory(prev => [...prev, capturedImage]);
+      
+      // Set next image as the current image
+      setCapturedImage(nextImage);
+      
+      // Remove it from forward history
+      setForwardHistory(prev => prev.slice(0, -1));
+    }
   };
 
   const activateHighlightMode = () => {
@@ -238,22 +291,21 @@ export default function KanjiScanner() {
             style={styles.logoutButton} 
             onPress={handleLogout}
           >
-            <Ionicons name="log-out-outline" size={24} color="white" />
+            <MaterialIcons name="logout" size={24} color="white" />
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
           <View style={styles.buttonContainer}>
+            <TouchableOpacity 
+              style={styles.viewFlashcardsButton} 
+              onPress={() => router.push('/saved-flashcards')}
+            >
+              <MaterialIcons name="library-books" size={24} color="white" />
+            </TouchableOpacity>
             <CameraButton onPhotoCapture={handlePhotoCapture} />
             <TouchableOpacity style={styles.galleryButton} onPress={pickImage}>
-              <Ionicons name="images" size={24} color="white" />
+              <FontAwesome6 name="images" size={24} color="white" />
             </TouchableOpacity>
           </View>
-          <TouchableOpacity 
-            style={styles.viewFlashcardsButton} 
-            onPress={() => router.push('/saved-flashcards')}
-          >
-            <Ionicons name="albums-outline" size={20} color="#000" style={styles.buttonIcon} />
-            <Text style={styles.viewFlashcardsText}>View Saved Flashcards</Text>
-          </TouchableOpacity>
         </>
       ) : (
         <View style={styles.imageContainer}>
@@ -267,14 +319,32 @@ export default function KanjiScanner() {
             onRegionSelected={handleRegionSelected}
           />
           <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-            <Ionicons name="close" size={24} color="white" />
+            <AntDesign name="back" size={24} color="white" />
           </TouchableOpacity>
           {!highlightModeActive && (
             <TouchableOpacity 
               style={styles.highlightButton} 
               onPress={activateHighlightMode}
             >
-              <Ionicons name="text" size={24} color="white" />
+              <FontAwesome6 name="highlighter" size={24} color="white" />
+            </TouchableOpacity>
+          )}
+          {/* Back button to revert to previous image */}
+          {imageHistory.length > 0 && (
+            <TouchableOpacity 
+              style={styles.backButton} 
+              onPress={handleBackToPreviousImage}
+            >
+              <MaterialIcons name="arrow-back-ios" size={24} color="white" />
+            </TouchableOpacity>
+          )}
+          {/* Forward button to go to next image */}
+          {forwardHistory.length > 0 && (
+            <TouchableOpacity 
+              style={styles.forwardButton} 
+              onPress={handleForwardToNextImage}
+            >
+              <MaterialIcons name="arrow-forward-ios" size={24} color="white" />
             </TouchableOpacity>
           )}
           {error && (
@@ -297,6 +367,10 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     gap: 20,
+    position: 'absolute',
+    bottom: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   galleryButton: {
     backgroundColor: COLORS.secondary,
@@ -360,6 +434,46 @@ const styles = StyleSheet.create({
     right: 20,
     zIndex: 999,
   },
+  backButton: {
+    backgroundColor: COLORS.secondary,
+    borderRadius: 30,
+    width: 60,
+    height: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    position: 'absolute',
+    bottom: 100,
+    right: 20,
+    zIndex: 999,
+  },
+  forwardButton: {
+    backgroundColor: COLORS.secondary,
+    borderRadius: 30,
+    width: 60,
+    height: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    position: 'absolute',
+    bottom: 180,
+    right: 20,
+    zIndex: 999,
+  },
   errorContainer: {
     backgroundColor: 'rgba(255, 45, 85, 0.8)',
     padding: 10,
@@ -378,12 +492,11 @@ const styles = StyleSheet.create({
   },
   viewFlashcardsButton: {
     backgroundColor: '#FFCC00',
-    borderRadius: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderRadius: 30,
+    width: 60,
+    height: 60,
     justifyContent: 'center',
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -392,17 +505,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
-    position: 'absolute',
-    bottom: 40,
-    alignSelf: 'center',
-  },
-  viewFlashcardsText: {
-    color: '#000',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  buttonIcon: {
-    marginRight: 8,
   },
   logoutButton: {
     position: 'absolute',
@@ -415,6 +517,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     zIndex: 1000,
+  },
+  buttonIcon: {
+    marginRight: 8,
   },
   logoutText: {
     color: 'white',

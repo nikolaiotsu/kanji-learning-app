@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Deck } from '../../types/Deck';
 import { getDecks, createDeck } from '../../services/supabaseStorage';
+import { COLORS } from '../../constants/colors';
 
 interface DeckSelectorProps {
   visible: boolean;
@@ -84,14 +85,14 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
       style={styles.deckItem}
       onPress={() => handleSelectDeck(item.id)}
     >
-      <Ionicons name="albums-outline" size={24} color="#007AFF" style={styles.deckIcon} />
+      <Ionicons name="albums-outline" size={24} color={COLORS.primary} style={styles.deckIcon} />
       <View style={styles.deckInfo}>
         <Text style={styles.deckName}>{item.name}</Text>
         <Text style={styles.deckDate}>
           Created: {new Date(item.createdAt).toLocaleDateString()}
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={24} color="#CCCCCC" />
+      <Ionicons name="chevron-forward" size={24} color={COLORS.darkGray} />
     </TouchableOpacity>
   );
 
@@ -107,13 +108,13 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
           <View style={styles.header}>
             <Text style={styles.title}>Select Deck</Text>
             <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Ionicons name="close" size={24} color="#007AFF" />
+              <Ionicons name="close" size={24} color={COLORS.primary} />
             </TouchableOpacity>
           </View>
 
           {isLoading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#007AFF" />
+              <ActivityIndicator size="large" color={COLORS.primary} />
               <Text style={styles.loadingText}>Loading decks...</Text>
             </View>
           ) : (
@@ -159,7 +160,7 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
                       disabled={isCreatingDeck}
                     >
                       {isCreatingDeck ? (
-                        <ActivityIndicator size="small" color="#FFFFFF" />
+                        <ActivityIndicator size="small" color={COLORS.text} />
                       ) : (
                         <Text style={styles.createButtonText}>Create</Text>
                       )}
@@ -171,7 +172,7 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
                   style={styles.addDeckButton}
                   onPress={() => setShowNewDeckInput(true)}
                 >
-                  <Ionicons name="add-circle-outline" size={24} color="#FFFFFF" />
+                  <Ionicons name="add-circle-outline" size={24} color={COLORS.text} />
                   <Text style={styles.addDeckButtonText}>Create New Deck</Text>
                 </TouchableOpacity>
               )}
@@ -187,10 +188,10 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: 30,
@@ -202,37 +203,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
+    borderBottomColor: COLORS.lightGray,
   },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
+    color: COLORS.text,
   },
   closeButton: {
     padding: 4,
   },
   loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+    padding: 24,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   loadingText: {
-    marginTop: 12,
     fontSize: 16,
-    color: '#666666',
+    marginTop: 12,
+    color: COLORS.darkGray,
   },
   deckList: {
-    flexGrow: 1,
+    paddingBottom: 16,
   },
   deckItem: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
+    borderBottomColor: COLORS.lightGray,
   },
   deckIcon: {
-    marginRight: 12,
+    marginRight: 16,
   },
   deckInfo: {
     flex: 1,
@@ -240,74 +242,79 @@ const styles = StyleSheet.create({
   deckName: {
     fontSize: 16,
     fontWeight: '500',
+    marginBottom: 4,
+    color: COLORS.text,
   },
   deckDate: {
     fontSize: 12,
-    color: '#666666',
-    marginTop: 4,
+    color: COLORS.darkGray,
   },
   emptyContainer: {
     padding: 24,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyText: {
     fontSize: 16,
-    color: '#666666',
+    color: COLORS.darkGray,
     textAlign: 'center',
   },
   addDeckButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
     padding: 16,
     margin: 16,
     borderRadius: 8,
   },
   addDeckButtonText: {
-    color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: 'bold',
+    color: COLORS.text,
     marginLeft: 8,
   },
   newDeckContainer: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: '#EEEEEE',
+    borderTopColor: COLORS.lightGray,
   },
   newDeckInput: {
     borderWidth: 1,
-    borderColor: '#CCCCCC',
+    borderColor: COLORS.lightGray,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    marginBottom: 12,
+    marginBottom: 16,
+    backgroundColor: COLORS.darkSurface,
+    color: COLORS.text,
   },
   newDeckButtons: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
   },
   newDeckButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    flex: 1,
+    padding: 12,
     borderRadius: 8,
-    marginLeft: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cancelButton: {
-    backgroundColor: '#EEEEEE',
-  },
-  cancelButtonText: {
-    color: '#333333',
-    fontSize: 14,
-    fontWeight: '500',
+    backgroundColor: COLORS.lightGray,
+    marginRight: 8,
   },
   createButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
+    marginLeft: 8,
+  },
+  cancelButtonText: {
+    color: COLORS.text,
+    fontWeight: 'bold',
   },
   createButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '500',
+    color: COLORS.text,
+    fontWeight: 'bold',
   },
   disabledButton: {
     opacity: 0.5,

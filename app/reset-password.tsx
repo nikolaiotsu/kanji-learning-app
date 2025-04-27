@@ -3,6 +3,7 @@ import { View, StyleSheet, TextInput, TouchableOpacity, Text, Alert, ActivityInd
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from './context/AuthContext';
 import { router } from 'expo-router';
+import { COLORS } from './constants/colors';
 
 const ResetPasswordScreen = () => {
   const [email, setEmail] = useState('');
@@ -46,6 +47,7 @@ const ResetPasswordScreen = () => {
         <TextInput
           style={styles.input}
           placeholder="Email"
+          placeholderTextColor={COLORS.darkGray}
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
@@ -58,7 +60,7 @@ const ResetPasswordScreen = () => {
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={COLORS.text} />
           ) : (
             <Text style={styles.buttonText}>Send Reset Instructions</Text>
           )}
@@ -77,7 +79,7 @@ const ResetPasswordScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.background,
   },
   form: {
     padding: 20,
@@ -89,30 +91,33 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 16,
     textAlign: 'center',
+    color: COLORS.text,
   },
   description: {
     fontSize: 16,
-    color: '#666',
+    color: COLORS.pastelBlue,
     marginBottom: 24,
     textAlign: 'center',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: COLORS.lightGray,
     borderRadius: 8,
     padding: 12,
     marginBottom: 16,
     fontSize: 16,
+    backgroundColor: COLORS.darkSurface,
+    color: COLORS.text,
   },
   button: {
-    backgroundColor: '#007BFF',
+    backgroundColor: COLORS.primary,
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
     marginTop: 10,
   },
   buttonText: {
-    color: '#fff',
+    color: COLORS.text,
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -121,7 +126,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   link: {
-    color: '#007BFF',
+    color: COLORS.pastelPurple,
     fontSize: 14,
     marginVertical: 5,
   },

@@ -4,10 +4,10 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 export default function ScreensLayout() {
   return (
     <SafeAreaProvider>
-      <Stack>
-        <Stack.Screen name="index" options={{ title: "Kanji Learning App" }} />
-        <Stack.Screen name="camera" options={{ title: "Take Picture" }} />
-        <Stack.Screen name="flashcards" options={{ title: "Flashcards" }} />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="camera" />
+        <Stack.Screen name="flashcards" />
       </Stack>
     </SafeAreaProvider>
   );

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, Alert, TouchableOpacity, ActivityIndicator, TextInput } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Flashcard } from './types/Flashcard';
 import { Deck } from './types/Deck';
 import { 
@@ -15,6 +14,8 @@ import FlashcardItem from './components/flashcards/FlashcardItem';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from './context/AuthContext';
 import { supabase } from './services/supabaseClient';
+import { COLORS } from './constants/colors';
+import { useRouter } from 'expo-router';
 
 export default function SavedFlashcardsScreen() {
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
@@ -25,6 +26,7 @@ export default function SavedFlashcardsScreen() {
   const [editingDeckId, setEditingDeckId] = useState<string | null>(null);
   const [newDeckName, setNewDeckName] = useState('');
   const { user } = useAuth();
+  const router = useRouter();
 
   // Load decks and flashcards on mount
   useEffect(() => {
@@ -329,7 +331,7 @@ export default function SavedFlashcardsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {isLoadingDecks ? (
         <View style={styles.deckSelectorPlaceholder}>
           <ActivityIndicator size="small" color="#007AFF" />
@@ -398,22 +400,25 @@ export default function SavedFlashcardsScreen() {
           />
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.background,
+    paddingTop: 0,
   },
   deckSelectorPlaceholder: {
     height: 50,
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 10,
     marginBottom: 0,
   },
   deckSelectorContainer: {
+    marginTop: 10,
     marginBottom: 0,
     paddingBottom: 0,
   },
@@ -428,23 +433,23 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     marginHorizontal: 4,
     borderRadius: 20,
-    backgroundColor: '#EEEEEE',
+    backgroundColor: COLORS.darkSurface,
     minWidth: 80,
     justifyContent: 'center',
     alignItems: 'center',
     height: 36,
   },
   selectedDeckItem: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
   },
   deckName: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#333333',
+    color: COLORS.text,
     textAlignVertical: 'center',
   },
   selectedDeckName: {
-    color: '#FFFFFF',
+    color: COLORS.text,
   },
   noDecksContainer: {
     padding: 16,
@@ -452,7 +457,7 @@ const styles = StyleSheet.create({
   },
   noDecksText: {
     fontSize: 14,
-    color: '#666666',
+    color: COLORS.darkGray,
   },
   listContent: {
     padding: 8,
@@ -467,7 +472,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#666666',
+    color: COLORS.darkGray,
   },
   emptyContainer: {
     flex: 1,
@@ -480,11 +485,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 8,
-    color: '#424242',
+    color: COLORS.text,
   },
   emptyText: {
     fontSize: 16,
-    color: '#757575',
+    color: COLORS.darkGray,
     textAlign: 'center',
     lineHeight: 22,
   },
@@ -498,13 +503,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
   },
   renameModal: {
-    backgroundColor: 'white',
+    backgroundColor: COLORS.darkSurface,
     borderRadius: 10,
     padding: 20,
     width: '80%',
@@ -515,14 +520,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 15,
     textAlign: 'center',
+    color: COLORS.text,
   },
   renameInput: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: COLORS.lightGray,
     borderRadius: 5,
     padding: 10,
     marginBottom: 15,
     fontSize: 16,
+    color: COLORS.text,
+    backgroundColor: COLORS.mediumSurface,
   },
   renameButtonsContainer: {
     flexDirection: 'row',
@@ -537,16 +545,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: '#f0f0f0',
+    backgroundColor: COLORS.lightGray,
   },
   saveButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
   },
   renameButtonText: {
     fontWeight: 'bold',
-    color: '#333',
+    color: COLORS.text,
   },
   saveButtonText: {
-    color: 'white',
+    color: COLORS.text,
+  },
+  backButtonContainer: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    zIndex: 1000,
+  },
+  backButton: {
+    padding: 8,
+  },
+  backButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginLeft: 8,
+  },
+  customHeaderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    height: 60,
+    backgroundColor: '#1e293b',
+    paddingHorizontal: 15,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    flex: 1,
+    textAlign: 'center',
+  },
+  placeholderRight: {
+    width: 35,
   },
 }); 

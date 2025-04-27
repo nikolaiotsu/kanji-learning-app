@@ -1,6 +1,7 @@
 import { View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import KanjiScanner from './components/camera/KanjiScanner';
+import { COLORS } from './constants/colors';
 
 export default function App() {
   return (
@@ -15,6 +16,6 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.background,
   },
 });
