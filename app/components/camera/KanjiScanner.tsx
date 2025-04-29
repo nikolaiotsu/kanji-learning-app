@@ -13,6 +13,7 @@ import { captureRef } from 'react-native-view-shot';
 import { detectJapaneseText, convertToOriginalImageCoordinates, cropImageToRegion, resizeImageToRegion } from '../../services/visionApi';
 import { ImageHighlighterRef } from '../shared/ImageHighlighter';
 import * as ImageManipulator from 'expo-image-manipulator';
+import RandomCardReviewer from '../flashcards/RandomCardReviewer';
 
 export default function KanjiScanner() {
   const [capturedImage, setCapturedImage] = useState<CapturedImage | null>(null);
@@ -20,6 +21,7 @@ export default function KanjiScanner() {
   const [forwardHistory, setForwardHistory] = useState<CapturedImage[]>([]);
   const [highlightModeActive, setHighlightModeActive] = useState(false);
   const [localProcessing, setLocalProcessing] = useState(false);
+  
   const router = useRouter();
   const { signOut } = useAuth();
   const { recognizeKanji, isProcessing, error } = useKanjiRecognition();
@@ -294,6 +296,12 @@ export default function KanjiScanner() {
             <MaterialIcons name="logout" size={24} color="white" />
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
+          
+          {/* Random Card Reviewer */}
+          <View style={styles.reviewerContainer}>
+            <RandomCardReviewer />
+          </View>
+          
           <View style={styles.buttonContainer}>
             <TouchableOpacity 
               style={styles.viewFlashcardsButton} 
@@ -526,4 +534,12 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontWeight: 'bold',
   },
+  // Reviewer container style
+  reviewerContainer: {
+    position: 'absolute',
+    top: 60,
+    left: 10,
+    right: 10,
+    zIndex: 900,
+  }
 }); 
