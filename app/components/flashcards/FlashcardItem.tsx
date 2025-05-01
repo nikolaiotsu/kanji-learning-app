@@ -1,20 +1,29 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, Dimensions } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, Dimensions, Animated } from 'react-native';
 import { Flashcard } from '../../types/Flashcard';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 
 interface FlashcardItemProps {
   flashcard: Flashcard;
   onDelete?: (id: string) => void;
+  onSend?: (id: string) => void;
   deckName?: string; // Optional deck name to display
 }
 
-const FlashcardItem: React.FC<FlashcardItemProps> = ({ flashcard, onDelete, deckName }) => {
+const FlashcardItem: React.FC<FlashcardItemProps> = ({ flashcard, onDelete, onSend, deckName }) => {
   const [isFlipped, setIsFlipped] = useState(false);
+  const flipAnim = useRef(new Animated.Value(0)).current;
 
   const handleFlip = () => {
-    setIsFlipped(!isFlipped);
+    // Animate the flip
+    Animated.timing(flipAnim, {
+      toValue: isFlipped ? 0 : 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      setIsFlipped(!isFlipped);
+    });
   };
 
   const handleDelete = () => {
@@ -23,22 +32,69 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({ flashcard, onDelete, deck
     }
   };
 
+  const handleSend = () => {
+    if (onSend) {
+      onSend(flashcard.id);
+    }
+  };
+
   // Format the date
   const formattedDate = new Date(flashcard.createdAt).toLocaleDateString();
+  
+  // Interpolate for front and back animations
+  const frontAnimatedStyle = {
+    transform: [
+      { 
+        rotateY: flipAnim.interpolate({
+          inputRange: [0, 1],
+          outputRange: ['0deg', '180deg']
+        })
+      }
+    ],
+    opacity: flipAnim.interpolate({
+      inputRange: [0.5, 1],
+      outputRange: [1, 0]
+    }),
+    zIndex: flipAnim.interpolate({
+      inputRange: [0, 0.5, 1],
+      outputRange: [1, 0, 0]
+    })
+  };
+  
+  const backAnimatedStyle = {
+    transform: [
+      { 
+        rotateY: flipAnim.interpolate({
+          inputRange: [0, 1],
+          outputRange: ['180deg', '360deg']
+        })
+      }
+    ],
+    opacity: flipAnim.interpolate({
+      inputRange: [0, 0.5],
+      outputRange: [0, 1]
+    }),
+    zIndex: flipAnim.interpolate({
+      inputRange: [0, 0.5, 1],
+      outputRange: [0, 0, 1]
+    })
+  };
 
   return (
     <TouchableOpacity
-      style={[styles.cardContainer, isFlipped ? styles.cardFlipped : null]}
+      style={styles.cardContainer}
       activeOpacity={0.9}
       onPress={handleFlip}
     >
-      <View style={styles.cardContent}>
-        {!isFlipped ? (
-          // Front of card
+      <View style={styles.cardWrapper}>
+        {/* Front of the card */}
+        <Animated.View style={[styles.cardContent, styles.cardSide, frontAnimatedStyle]}>
           <View style={styles.cardFront}>
-            <Text style={styles.japaneseText} numberOfLines={0}>
-              {flashcard.originalText}
-            </Text>
+            <View style={styles.japaneseTextContainer}>
+              <Text style={styles.japaneseText} numberOfLines={0}>
+                {flashcard.originalText}
+              </Text>
+            </View>
             <View style={styles.cardInfo}>
               {deckName && (
                 <View style={styles.deckBadge}>
@@ -48,8 +104,10 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({ flashcard, onDelete, deck
               <Text style={styles.dateText}>Created: {formattedDate}</Text>
             </View>
           </View>
-        ) : (
-          // Back of card
+        </Animated.View>
+
+        {/* Back of the card */}
+        <Animated.View style={[styles.cardContent, styles.cardSide, backAnimatedStyle]}>
           <View style={styles.cardBack}>
             <Text style={styles.sectionTitle}>With Furigana</Text>
             <Text style={styles.furiganaText} numberOfLines={0}>
@@ -70,14 +128,22 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({ flashcard, onDelete, deck
               <Text style={styles.dateText}>Created: {formattedDate}</Text>
             </View>
           </View>
-        )}
+        </Animated.View>
       </View>
       
-      {onDelete && (
-        <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-          <Ionicons name="trash-outline" size={22} color={COLORS.danger} />
-        </TouchableOpacity>
-      )}
+      <View style={styles.cardActions}>
+        {onSend && (
+          <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
+            <MaterialIcons name="move-up" size={25} color={COLORS.primary} />
+          </TouchableOpacity>
+        )}
+        
+        {onDelete && (
+          <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+            <Ionicons name="trash-outline" size={25} color={COLORS.danger} />
+          </TouchableOpacity>
+        )}
+      </View>
 
       <View style={styles.flipHint}>
         <Ionicons name="sync-outline" size={16} color={COLORS.darkGray} />
@@ -94,23 +160,33 @@ const styles = StyleSheet.create({
   cardContainer: {
     width: cardWidth,
     minHeight: 200,
-    backgroundColor: COLORS.darkSurface,
+    backgroundColor: 'transparent',
     borderRadius: 12,
     marginVertical: 6,
     marginHorizontal: 10,
+    position: 'relative',
+  },
+  cardWrapper: {
+    width: '100%',
+    height: '100%',
+    position: 'relative',
+  },
+  cardSide: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    backfaceVisibility: 'hidden',
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
-    position: 'relative',
-  },
-  cardFlipped: {
-    backgroundColor: COLORS.mediumSurface,
+    borderRadius: 12,
   },
   cardContent: {
-    padding: 16,
-    width: '100%',
+    paddingTop: 48, // Add extra padding to the top for action buttons
+    backgroundColor: COLORS.darkSurface,
+    borderRadius: 12,
   },
   cardFront: {
     alignItems: 'center',
@@ -119,6 +195,14 @@ const styles = StyleSheet.create({
   },
   cardBack: {
     padding: 16,
+    paddingTop: 8,
+    backgroundColor: COLORS.mediumSurface,
+    borderRadius: 12,
+  },
+  japaneseTextContainer: {
+    width: '100%',
+    paddingHorizontal: 16, 
+    alignItems: 'center',
   },
   japaneseText: {
     fontSize: 24,
@@ -173,10 +257,21 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     color: COLORS.text,
   },
-  deleteButton: {
+  cardActions: {
     position: 'absolute',
     top: 12,
     right: 12,
+    flexDirection: 'row',
+    backgroundColor: COLORS.darkSurface,
+    borderRadius: 8,
+    padding: 4,
+    zIndex: 10,
+  },
+  sendButton: {
+    padding: 8,
+    marginRight: 4,
+  },
+  deleteButton: {
     padding: 8,
   },
   flipHint: {
@@ -185,6 +280,7 @@ const styles = StyleSheet.create({
     left: 12,
     flexDirection: 'row',
     alignItems: 'center',
+    zIndex: 10,
   },
   flipHintText: {
     fontSize: 12,

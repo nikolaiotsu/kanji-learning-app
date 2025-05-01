@@ -327,6 +327,33 @@ export const updateDeckName = async (deckId: string, newName: string): Promise<D
   }
 };
 
+/**
+ * Move a flashcard to a different deck
+ * @param flashcardId The ID of the flashcard to move
+ * @param targetDeckId The ID of the target deck
+ * @returns True if moved successfully, false otherwise
+ */
+export const moveFlashcardToDeck = async (flashcardId: string, targetDeckId: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('flashcards')
+      .update({ 
+        deck_id: targetDeckId
+      })
+      .eq('id', flashcardId);
+    
+    if (error) {
+      console.error('Error moving flashcard to deck:', error.message);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error moving flashcard to deck:', error);
+    return false;
+  }
+};
+
 // Add default export to satisfy Expo Router's requirement
 export default {
   getDecks,
@@ -338,5 +365,6 @@ export default {
   getFlashcardById,
   deleteFlashcard,
   deleteDeck,
-  updateDeckName
+  updateDeckName,
+  moveFlashcardToDeck
 }; 

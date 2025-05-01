@@ -8,7 +8,9 @@ import {
   getDecks, 
   getFlashcardsByDeck, 
   deleteDeck,
-  updateDeckName
+  updateDeckName,
+  moveFlashcardToDeck,
+  createDeck
 } from './services/supabaseStorage';
 import FlashcardItem from './components/flashcards/FlashcardItem';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +27,10 @@ export default function SavedFlashcardsScreen() {
   const [isLoadingDecks, setIsLoadingDecks] = useState(true);
   const [editingDeckId, setEditingDeckId] = useState<string | null>(null);
   const [newDeckName, setNewDeckName] = useState('');
+  const [selectedFlashcardId, setSelectedFlashcardId] = useState<string | null>(null);
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [newDeckMode, setNewDeckMode] = useState(false);
+  const [newDeckNameForSend, setNewDeckNameForSend] = useState('');
   const { user } = useAuth();
   const router = useRouter();
 
@@ -273,6 +279,74 @@ export default function SavedFlashcardsScreen() {
     );
   };
 
+  // Function to handle flashcard sending
+  const handleSendFlashcard = (id: string) => {
+    setSelectedFlashcardId(id);
+    setShowSendModal(true);
+  };
+
+  // Function to move flashcard to selected deck
+  const moveFlashcard = async (targetDeckId: string) => {
+    if (!selectedFlashcardId) return;
+    
+    try {
+      const success = await moveFlashcardToDeck(selectedFlashcardId, targetDeckId);
+      if (success) {
+        // If moving from the currently viewed deck, remove from local state
+        if (selectedDeckId === flashcards.find(f => f.id === selectedFlashcardId)?.deckId) {
+          setFlashcards(cards => cards.filter(card => card.id !== selectedFlashcardId));
+        }
+        Alert.alert('Success', 'Flashcard moved successfully');
+      } else {
+        Alert.alert('Error', 'Failed to move flashcard');
+      }
+    } catch (error) {
+      console.error('Error moving flashcard:', error);
+      Alert.alert('Error', 'Failed to move flashcard');
+    } finally {
+      closeModal();
+    }
+  };
+
+  // Function to create a new deck and move flashcard to it
+  const createNewDeckAndMove = async () => {
+    if (!selectedFlashcardId || !newDeckNameForSend.trim()) {
+      Alert.alert('Error', 'Please enter a deck name');
+      return;
+    }
+    
+    try {
+      // Create new deck
+      const newDeck = await createDeck(newDeckNameForSend.trim());
+      
+      // Move flashcard to new deck
+      const success = await moveFlashcardToDeck(selectedFlashcardId, newDeck.id);
+      
+      if (success) {
+        // If moving from the currently viewed deck, remove from local state
+        if (selectedDeckId === flashcards.find(f => f.id === selectedFlashcardId)?.deckId) {
+          setFlashcards(cards => cards.filter(card => card.id !== selectedFlashcardId));
+        }
+        Alert.alert('Success', `Flashcard moved to new deck: ${newDeck.name}`);
+      } else {
+        Alert.alert('Error', 'Failed to move flashcard');
+      }
+    } catch (error) {
+      console.error('Error creating deck and moving flashcard:', error);
+      Alert.alert('Error', 'Failed to create deck and move flashcard');
+    } finally {
+      closeModal();
+    }
+  };
+
+  // Close modal and reset state
+  const closeModal = () => {
+    setShowSendModal(false);
+    setSelectedFlashcardId(null);
+    setNewDeckMode(false);
+    setNewDeckNameForSend('');
+  };
+
   // Render deck selector item
   const renderDeckItem = ({ item }: { item: Deck }) => (
     <TouchableOpacity
@@ -316,7 +390,8 @@ export default function SavedFlashcardsScreen() {
     return (
       <FlashcardItem 
         flashcard={item} 
-        onDelete={handleDeleteFlashcard} 
+        onDelete={handleDeleteFlashcard}
+        onSend={handleSendFlashcard}
         deckName={deckName}
       />
     );
@@ -380,6 +455,82 @@ export default function SavedFlashcardsScreen() {
               >
                 <Text style={[styles.renameButtonText, styles.saveButtonText]}>Save</Text>
               </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+      
+      {/* Send Flashcard Modal */}
+      {showSendModal && (
+        <View style={styles.renameModalContainer}>
+          <View style={styles.sendModal}>
+            <Text style={styles.renameTitle}>
+              {newDeckMode ? 'Create New Deck' : 'Send to Deck'}
+            </Text>
+            
+            {newDeckMode ? (
+              <TextInput
+                style={styles.renameInput}
+                value={newDeckNameForSend}
+                onChangeText={setNewDeckNameForSend}
+                placeholder="Enter new deck name"
+                placeholderTextColor={COLORS.darkGray}
+                autoFocus
+                maxLength={30}
+              />
+            ) : (
+              <FlatList
+                data={decks.filter(deck => deck.id !== selectedDeckId)}
+                keyExtractor={(item) => item.id}
+                style={styles.deckList}
+                renderItem={({ item }) => (
+                  <TouchableOpacity 
+                    style={styles.deckListItem}
+                    onPress={() => moveFlashcard(item.id)}
+                  >
+                    <Text style={styles.deckListItemText}>{item.name}</Text>
+                    <Ionicons name="chevron-forward" size={20} color={COLORS.darkGray} />
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={
+                  <Text style={styles.noDeckOptions}>No other decks available</Text>
+                }
+              />
+            )}
+            
+            <View style={styles.sendModalButtons}>
+              {newDeckMode ? (
+                <>
+                  <TouchableOpacity 
+                    style={[styles.renameButton, styles.cancelButton]} 
+                    onPress={() => setNewDeckMode(false)}
+                  >
+                    <Text style={styles.renameButtonText}>Back</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.renameButton, styles.saveButton]} 
+                    onPress={createNewDeckAndMove}
+                    disabled={!newDeckNameForSend.trim()}
+                  >
+                    <Text style={[styles.renameButtonText, styles.saveButtonText]}>Create & Move</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <TouchableOpacity 
+                    style={[styles.renameButton, styles.cancelButton]} 
+                    onPress={closeModal}
+                  >
+                    <Text style={styles.renameButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.renameButton, styles.saveButton]} 
+                    onPress={() => setNewDeckMode(true)}
+                  >
+                    <Text style={[styles.renameButtonText, styles.saveButtonText]}>New Deck</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           </View>
         </View>
@@ -509,53 +660,92 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   renameModal: {
-    backgroundColor: COLORS.darkSurface,
-    borderRadius: 10,
-    padding: 20,
     width: '80%',
-    maxWidth: 400,
+    backgroundColor: COLORS.darkSurface,
+    borderRadius: 12,
+    padding: 20,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  sendModal: {
+    width: '90%',
+    backgroundColor: COLORS.darkSurface,
+    borderRadius: 12,
+    padding: 20,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    maxHeight: '80%',
   },
   renameTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 15,
-    textAlign: 'center',
+    marginBottom: 16,
     color: COLORS.text,
+    textAlign: 'center',
   },
   renameInput: {
-    borderWidth: 1,
-    borderColor: COLORS.lightGray,
-    borderRadius: 5,
-    padding: 10,
-    marginBottom: 15,
+    backgroundColor: COLORS.mediumSurface,
+    padding: 12,
+    borderRadius: 8,
     fontSize: 16,
     color: COLORS.text,
-    backgroundColor: COLORS.mediumSurface,
+    marginBottom: 16,
   },
   renameButtonsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   renameButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 5,
     flex: 1,
-    marginHorizontal: 5,
+    padding: 12,
+    borderRadius: 8,
     alignItems: 'center',
+    marginHorizontal: 4,
   },
   cancelButton: {
-    backgroundColor: COLORS.lightGray,
+    backgroundColor: COLORS.mediumSurface,
   },
   saveButton: {
     backgroundColor: COLORS.primary,
   },
   renameButtonText: {
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '500',
     color: COLORS.text,
   },
   saveButtonText: {
     color: COLORS.text,
+  },
+  deckList: {
+    maxHeight: 250,
+    marginBottom: 16,
+  },
+  deckListItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.mediumSurface,
+  },
+  deckListItemText: {
+    fontSize: 16,
+    color: COLORS.text,
+  },
+  noDeckOptions: {
+    textAlign: 'center',
+    color: COLORS.darkGray,
+    padding: 16,
+  },
+  sendModalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   backButtonContainer: {
     position: 'absolute',

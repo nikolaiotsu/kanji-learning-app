@@ -9,6 +9,8 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Deck } from '../../types/Deck';
@@ -103,83 +105,90 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
       transparent={true}
       onRequestClose={onClose}
     >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Select Deck</Text>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Ionicons name="close" size={24} color={COLORS.primary} />
-            </TouchableOpacity>
-          </View>
-
-          {isLoading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={COLORS.primary} />
-              <Text style={styles.loadingText}>Loading decks...</Text>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={0}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.header}>
+              <Text style={styles.title}>Select Deck</Text>
+              <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                <Ionicons name="close" size={24} color={COLORS.primary} />
+              </TouchableOpacity>
             </View>
-          ) : (
-            <>
-              <FlatList
-                data={decks}
-                renderItem={renderDeckItem}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.deckList}
-                ListEmptyComponent={
-                  <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyText}>No decks found. Create your first deck!</Text>
-                  </View>
-                }
-              />
 
-              {showNewDeckInput ? (
-                <View style={styles.newDeckContainer}>
-                  <TextInput
-                    style={styles.newDeckInput}
-                    placeholder="Enter deck name"
-                    value={newDeckName}
-                    onChangeText={setNewDeckName}
-                    autoFocus
-                  />
-                  <View style={styles.newDeckButtons}>
-                    <TouchableOpacity
-                      style={[styles.newDeckButton, styles.cancelButton]}
-                      onPress={() => {
-                        setShowNewDeckInput(false);
-                        setNewDeckName('');
-                      }}
-                    >
-                      <Text style={styles.cancelButtonText}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.newDeckButton,
-                        styles.createButton,
-                        isCreatingDeck && styles.disabledButton,
-                      ]}
-                      onPress={handleCreateDeck}
-                      disabled={isCreatingDeck}
-                    >
-                      {isCreatingDeck ? (
-                        <ActivityIndicator size="small" color={COLORS.text} />
-                      ) : (
-                        <Text style={styles.createButtonText}>Create</Text>
-                      )}
-                    </TouchableOpacity>
+            {isLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+                <Text style={styles.loadingText}>Loading decks...</Text>
+              </View>
+            ) : (
+              <>
+                <FlatList
+                  data={decks}
+                  renderItem={renderDeckItem}
+                  keyExtractor={(item) => item.id}
+                  contentContainerStyle={styles.deckList}
+                  ListEmptyComponent={
+                    <View style={styles.emptyContainer}>
+                      <Text style={styles.emptyText}>No decks found. Create your first deck!</Text>
+                    </View>
+                  }
+                />
+
+                {showNewDeckInput ? (
+                  <View style={styles.newDeckContainer}>
+                    <TextInput
+                      style={styles.newDeckInput}
+                      placeholder="Enter deck name"
+                      value={newDeckName}
+                      onChangeText={setNewDeckName}
+                      autoFocus
+                      keyboardAppearance="dark"
+                    />
+                    <View style={styles.newDeckButtons}>
+                      <TouchableOpacity
+                        style={[styles.newDeckButton, styles.cancelButton]}
+                        onPress={() => {
+                          setShowNewDeckInput(false);
+                          setNewDeckName('');
+                        }}
+                      >
+                        <Text style={styles.cancelButtonText}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.newDeckButton,
+                          styles.createButton,
+                          isCreatingDeck && styles.disabledButton,
+                        ]}
+                        onPress={handleCreateDeck}
+                        disabled={isCreatingDeck}
+                      >
+                        {isCreatingDeck ? (
+                          <ActivityIndicator size="small" color={COLORS.text} />
+                        ) : (
+                          <Text style={styles.createButtonText}>Create</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  style={styles.addDeckButton}
-                  onPress={() => setShowNewDeckInput(true)}
-                >
-                  <Ionicons name="add-circle-outline" size={24} color={COLORS.text} />
-                  <Text style={styles.addDeckButtonText}>Create New Deck</Text>
-                </TouchableOpacity>
-              )}
-            </>
-          )}
+                ) : (
+                  <TouchableOpacity
+                    style={styles.addDeckButton}
+                    onPress={() => setShowNewDeckInput(true)}
+                  >
+                    <Ionicons name="add-circle-outline" size={24} color={COLORS.text} />
+                    <Text style={styles.addDeckButtonText}>Create New Deck</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -194,8 +203,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: 30,
-    height: '80%',
+    paddingBottom: 20,
+    maxHeight: '80%',
   },
   header: {
     flexDirection: 'row',
@@ -266,6 +275,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     padding: 16,
     margin: 16,
+    marginBottom: 16,
     borderRadius: 8,
   },
   addDeckButtonText: {
@@ -276,8 +286,9 @@ const styles = StyleSheet.create({
   },
   newDeckContainer: {
     padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.lightGray,
+    paddingBottom: 8,
+    borderTopWidth: 0,
+    marginBottom: 0,
   },
   newDeckInput: {
     borderWidth: 1,

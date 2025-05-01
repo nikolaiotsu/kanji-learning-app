@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Animated } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import FlashcardItem from './FlashcardItem';
 import { useRandomCardReview } from '../../hooks/useRandomCardReview';
@@ -28,6 +28,10 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
   const [remainingCount, setRemainingCount] = useState(reviewSessionCards.length);
   // Track if we're processing an action to prevent double-clicks
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Animation values
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const opacityAnim = useRef(new Animated.Value(1)).current;
 
   // Update remaining count when reviewSessionCards changes
   useEffect(() => {
@@ -42,6 +46,45 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
     }
   }, [reviewSessionCards.length, currentCard, setCurrentCard, remainingCount]);
 
+  // Reset animations when card changes
+  useEffect(() => {
+    slideAnim.setValue(0);
+    opacityAnim.setValue(1);
+  }, [currentCard]);
+
+  // Animate card swipe
+  const animateSwipe = (direction: 'left' | 'right', callback: () => void) => {
+    const targetValue = direction === 'left' ? -300 : 300;
+    
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: targetValue,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      })
+    ]).start(() => {
+      // Reset animations immediately
+      slideAnim.setValue(0);
+      opacityAnim.setValue(0);
+      
+      // Execute the callback (which will change the card)
+      callback();
+      
+      // Fade in the new card
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+        delay: 50, // Small delay to ensure the card has changed
+      }).start();
+    });
+  };
+
   // Simple handlers for button clicks
   const onReviewAgain = () => {
     resetReviewSession();
@@ -52,10 +95,12 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
     setIsProcessing(true);
     
     try {
-      // Just select a random card without animation
-      handleSwipeLeft();
-    } finally {
-      // Immediately reset processing state for better responsiveness
+      animateSwipe('left', () => {
+        handleSwipeLeft();
+        setIsProcessing(false);
+      });
+    } catch (error) {
+      console.error('Error in onKeepCard:', error);
       setIsProcessing(false);
     }
   };
@@ -69,24 +114,28 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
         const cardId = currentCard.id;
         const isLastCard = reviewSessionCards.length <= 1;
         
-        // Remove the card from session
-        removeCardFromSession(cardId);
-        
-        if (isLastCard) {
-          // This was the last card, complete the review
-          setCurrentCard(null);
-          setRemainingCount(0);
-        } else {
-          // Get remaining cards after removal
-          const remainingCards = reviewSessionCards.filter(card => card.id !== cardId);
-          // Select a new random card
-          selectRandomCard(remainingCards);
-          // Update remaining count
-          setRemainingCount(remainingCards.length);
-        }
+        animateSwipe('right', () => {
+          // Remove the card from session
+          removeCardFromSession(cardId);
+          
+          if (isLastCard) {
+            // This was the last card, complete the review
+            setCurrentCard(null);
+            setRemainingCount(0);
+          } else {
+            // Get remaining cards after removal
+            const remainingCards = reviewSessionCards.filter(card => card.id !== cardId);
+            // Select a new random card
+            selectRandomCard(remainingCards);
+            // Update remaining count
+            setRemainingCount(remainingCards.length);
+          }
+          
+          setIsProcessing(false);
+        });
       }
-    } finally {
-      // Immediately reset processing state for better responsiveness
+    } catch (error) {
+      console.error('Error in onDismissCard:', error);
       setIsProcessing(false);
     }
   };
@@ -139,9 +188,17 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
   return (
     <View style={styles.container}>
       <View style={styles.cardStage}>
-        <View style={styles.cardContainer}>
+        <Animated.View 
+          style={[
+            styles.cardContainer, 
+            { 
+              transform: [{ translateX: slideAnim }],
+              opacity: opacityAnim
+            }
+          ]}
+        >
           <FlashcardItem flashcard={currentCard} />
-        </View>
+        </Animated.View>
       </View>
 
       <View style={styles.controlsContainer}>
