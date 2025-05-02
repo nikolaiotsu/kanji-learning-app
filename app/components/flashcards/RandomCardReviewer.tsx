@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Animated } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Animated, PanResponder } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import FlashcardItem from './FlashcardItem';
 import { useRandomCardReview } from '../../hooks/useRandomCardReview';
@@ -32,6 +32,10 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
   // Animation values
   const slideAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+
+  // Define swipe threshold
+  const SWIPE_THRESHOLD = 120;
 
   // Update remaining count when reviewSessionCards changes
   useEffect(() => {
@@ -50,12 +54,71 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
   useEffect(() => {
     slideAnim.setValue(0);
     opacityAnim.setValue(1);
+    rotateAnim.setValue(0);
   }, [currentCard]);
 
+  // Configure PanResponder
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        // Only respond to horizontal movements
+        return Math.abs(gestureState.dx) > Math.abs(gestureState.dy * 2);
+      },
+      onPanResponderGrant: () => {
+        // When touch starts
+        if (isProcessing) return;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        // Update position as user drags
+        slideAnim.setValue(gestureState.dx);
+        // Add slight rotation based on the drag distance
+        rotateAnim.setValue(gestureState.dx / 20);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (isProcessing) {
+          return;
+        }
+        
+        // Determine if the user swiped far enough to trigger an action
+        if (gestureState.dx > SWIPE_THRESHOLD) {
+          // Swiped right - dismiss card
+          completeSwipe('right');
+        } else if (gestureState.dx < -SWIPE_THRESHOLD) {
+          // Swiped left - keep card
+          completeSwipe('left');
+        } else {
+          // Not swiped far enough, reset position
+          Animated.spring(slideAnim, {
+            toValue: 0,
+            tension: 40,
+            friction: 5,
+            useNativeDriver: true
+          }).start();
+          Animated.spring(rotateAnim, {
+            toValue: 0,
+            tension: 40,
+            friction: 5,
+            useNativeDriver: true
+          }).start();
+        }
+      }
+    })
+  ).current;
+
   // Animate card swipe
-  const animateSwipe = (direction: 'left' | 'right', callback: () => void) => {
-    const targetValue = direction === 'left' ? -300 : 300;
+  const completeSwipe = (direction: 'left' | 'right') => {
+    if (isProcessing) {
+      return;
+    }
+    setIsProcessing(true);
     
+    const targetValue = direction === 'left' ? -400 : 400;
+    
+    // Store current card for reference after animation
+    const currentCardBeforeSwipe = currentCard;
+    
+    // First animate the card out
     Animated.parallel([
       Animated.timing(slideAnim, {
         toValue: targetValue,
@@ -68,76 +131,43 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
         useNativeDriver: true,
       })
     ]).start(() => {
-      // Reset animations immediately
+      // Reset animations immediately to prepare for next card
       slideAnim.setValue(0);
       opacityAnim.setValue(0);
+      rotateAnim.setValue(0);
       
-      // Execute the callback (which will change the card)
-      callback();
+      // Execute the callback based on direction
+      if (direction === 'left') {
+        handleSwipeLeft();
+      } else {
+        handleSwipeRight();
+      }
       
-      // Fade in the new card
-      Animated.timing(opacityAnim, {
-        toValue: 1,
-        duration: 150,
-        useNativeDriver: true,
-        delay: 50, // Small delay to ensure the card has changed
-      }).start();
+      // Small timeout to ensure state has updated before continuing animation
+      setTimeout(() => {
+        // Fade in the new card
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }).start(() => {
+          setIsProcessing(false);
+        });
+      }, 50); // Small delay to ensure state updates have processed
     });
   };
 
-  // Simple handlers for button clicks
+  // Manual button handlers (as fallback)
   const onReviewAgain = () => {
     resetReviewSession();
   };
 
   const onKeepCard = () => {
-    if (isProcessing) return;
-    setIsProcessing(true);
-    
-    try {
-      animateSwipe('left', () => {
-        handleSwipeLeft();
-        setIsProcessing(false);
-      });
-    } catch (error) {
-      console.error('Error in onKeepCard:', error);
-      setIsProcessing(false);
-    }
+    completeSwipe('left');
   };
 
   const onDismissCard = () => {
-    if (isProcessing) return;
-    setIsProcessing(true);
-    
-    try {
-      if (currentCard) {
-        const cardId = currentCard.id;
-        const isLastCard = reviewSessionCards.length <= 1;
-        
-        animateSwipe('right', () => {
-          // Remove the card from session
-          removeCardFromSession(cardId);
-          
-          if (isLastCard) {
-            // This was the last card, complete the review
-            setCurrentCard(null);
-            setRemainingCount(0);
-          } else {
-            // Get remaining cards after removal
-            const remainingCards = reviewSessionCards.filter(card => card.id !== cardId);
-            // Select a new random card
-            selectRandomCard(remainingCards);
-            // Update remaining count
-            setRemainingCount(remainingCards.length);
-          }
-          
-          setIsProcessing(false);
-        });
-      }
-    } catch (error) {
-      console.error('Error in onDismissCard:', error);
-      setIsProcessing(false);
-    }
+    completeSwipe('right');
   };
 
   if (isLoading) {
@@ -192,27 +222,41 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
           style={[
             styles.cardContainer, 
             { 
-              transform: [{ translateX: slideAnim }],
+              transform: [
+                { translateX: slideAnim },
+                { rotate: rotateAnim.interpolate({
+                  inputRange: [-300, 0, 300],
+                  outputRange: ['-10deg', '0deg', '10deg']
+                }) }
+              ],
               opacity: opacityAnim
             }
           ]}
+          {...panResponder.panHandlers}
         >
-          <FlashcardItem flashcard={currentCard} />
+          <FlashcardItem flashcard={currentCard} disableTouchHandling={false} />
         </Animated.View>
       </View>
 
       <View style={styles.controlsContainer}>
+        <Text style={styles.swipeInstructionText}>
+          Swipe left to review again, right to dismiss
+        </Text>
+        <Text style={styles.countText}>
+          {remainingCount} cards remaining
+        </Text>
+      </View>
+      
+      {/* Optional buttons as fallback */}
+      <View style={styles.buttonContainer}>
         <TouchableOpacity 
           style={[styles.controlButton, styles.leftButton]} 
           onPress={onKeepCard}
           disabled={isProcessing}
         >
           <MaterialIcons name="refresh" size={24} color="white" />
+          <Text style={styles.buttonText}>Keep</Text>
         </TouchableOpacity>
-        
-        <Text style={styles.countText}>
-          {remainingCount} cards remaining
-        </Text>
         
         <TouchableOpacity 
           style={[styles.controlButton, styles.rightButton]} 
@@ -220,6 +264,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
           disabled={isProcessing}
         >
           <Ionicons name="checkmark-done" size={24} color="white" />
+          <Text style={styles.buttonText}>Dismiss</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -249,19 +294,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   controlsContainer: {
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    paddingVertical: 10,
+  },
+  buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    width: '100%',
+    width: '80%',
     marginTop: 10,
-    paddingHorizontal: 20,
+  },
+  swipeInstructionText: {
+    color: COLORS.lightGray,
+    fontSize: 14,
+    marginBottom: 5,
+  },
+  countText: {
+    color: COLORS.lightGray,
+    fontSize: 14,
+    marginTop: 5,
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 12,
+    marginTop: 4,
   },
   controlButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    padding: 10,
   },
   leftButton: {
     backgroundColor: COLORS.primary,
@@ -269,12 +336,8 @@ const styles = StyleSheet.create({
   rightButton: {
     backgroundColor: COLORS.secondary,
   },
-  countText: {
-    color: 'white',
-    fontSize: 14,
-  },
   loadingText: {
-    color: 'white',
+    color: COLORS.text,
     marginTop: 10,
   },
   errorText: {
@@ -286,57 +349,34 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     paddingHorizontal: 20,
     paddingVertical: 10,
-    borderRadius: 5,
-    marginTop: 10,
+    borderRadius: 8,
   },
   retryText: {
-    color: 'white',
+    color: COLORS.text,
     fontWeight: 'bold',
   },
   noCardsText: {
-    color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  hintText: {
-    color: COLORS.pastelYellow,
+    color: COLORS.text,
     textAlign: 'center',
-  },
-  completeText: {
-    color: COLORS.pastelGreen,
-    fontSize: 20,
-    fontWeight: 'bold',
     marginBottom: 10,
   },
-  resetButton: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 5,
-    marginTop: 10,
-  },
-  resetText: {
-    color: 'white',
-    fontWeight: 'bold',
+  guidanceText: {
+    fontSize: 14,
+    color: COLORS.lightGray,
+    textAlign: 'center',
   },
   reviewAgainButton: {
     backgroundColor: COLORS.primary,
     paddingHorizontal: 20,
     paddingVertical: 10,
-    borderRadius: 5,
-    marginTop: 15,
+    borderRadius: 8,
+    marginTop: 10,
   },
   reviewAgainText: {
-    color: 'white',
+    color: COLORS.text,
     fontWeight: 'bold',
-  },
-  guidanceText: {
-    color: COLORS.pastelYellow,
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 10,
-    paddingHorizontal: 20,
   },
 });
 

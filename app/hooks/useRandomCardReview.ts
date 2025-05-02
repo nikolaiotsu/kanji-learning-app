@@ -19,6 +19,10 @@ export const useRandomCardReview = () => {
   // Use refs to track the last data state to prevent unnecessary updates
   const lastFetchedCardsRef = useRef<string>("");
   
+  // Add refs to track current state values
+  const currentCardRef = useRef<Flashcard | null>(null);
+  const reviewSessionCardsRef = useRef<Flashcard[]>([]);
+  
   const { user } = useAuth();
 
   // Helper function to check if two arrays of flashcards are equal by serializing and comparing
@@ -137,9 +141,19 @@ export const useRandomCardReview = () => {
     return () => clearInterval(interval);
   }, [user, fetchAllFlashcards, isInReviewMode]);
 
+  // Update refs when state changes
+  useEffect(() => {
+    currentCardRef.current = currentCard;
+  }, [currentCard]);
+
+  useEffect(() => {
+    reviewSessionCardsRef.current = reviewSessionCards;
+  }, [reviewSessionCards]);
+
   // Select a random card from the given array or from the session cards
   const selectRandomCard = (cards?: Flashcard[]) => {
     const cardArray = cards || reviewSessionCards;
+    
     if (cardArray.length === 0) {
       setCurrentCard(null);
       return;
@@ -155,7 +169,7 @@ export const useRandomCardReview = () => {
     if (!isInReviewMode) {
       setIsInReviewMode(true);
     }
-    selectRandomCard();
+    selectRandomCard(reviewSessionCardsRef.current);
   };
 
   // Handle swipe right (dismiss card from review session)
@@ -163,14 +177,19 @@ export const useRandomCardReview = () => {
     if (!isInReviewMode) {
       setIsInReviewMode(true);
     }
-    if (!currentCard || reviewSessionCards.length === 0) {
+    
+    const currentCardValue = currentCardRef.current;
+    const reviewSessionCardsValue = reviewSessionCardsRef.current;
+    
+    if (!currentCardValue || reviewSessionCardsValue.length === 0) {
       return;
     }
     
     // Remove current card and select next
-    const currentCardId = currentCard.id;
+    const currentCardId = currentCardValue.id;
+    
     // Calculate remaining cards before removing the current one
-    const remainingCards = reviewSessionCards.filter(card => card.id !== currentCardId);
+    const remainingCards = reviewSessionCardsValue.filter(card => card.id !== currentCardId);
     
     // Remove the card from session
     setReviewSessionCards(remainingCards);

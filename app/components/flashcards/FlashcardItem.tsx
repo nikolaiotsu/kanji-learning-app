@@ -9,13 +9,22 @@ interface FlashcardItemProps {
   onDelete?: (id: string) => void;
   onSend?: (id: string) => void;
   deckName?: string; // Optional deck name to display
+  disableTouchHandling?: boolean; // If true, the card won't be flippable via touch
 }
 
-const FlashcardItem: React.FC<FlashcardItemProps> = ({ flashcard, onDelete, onSend, deckName }) => {
+const FlashcardItem: React.FC<FlashcardItemProps> = ({ 
+  flashcard, 
+  onDelete, 
+  onSend, 
+  deckName,
+  disableTouchHandling = false 
+}) => {
   const [isFlipped, setIsFlipped] = useState(false);
   const flipAnim = useRef(new Animated.Value(0)).current;
 
   const handleFlip = () => {
+    if (disableTouchHandling) return;
+    
     // Animate the flip
     Animated.timing(flipAnim, {
       toValue: isFlipped ? 0 : 1,
@@ -80,12 +89,14 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({ flashcard, onDelete, onSe
     })
   };
 
+  // Use a regular View instead of TouchableOpacity if touch handling is disabled
+  const CardWrapper = disableTouchHandling ? View : TouchableOpacity;
+  const cardWrapperProps = disableTouchHandling 
+    ? { style: styles.cardContainer } 
+    : { style: styles.cardContainer, activeOpacity: 0.9, onPress: handleFlip };
+
   return (
-    <TouchableOpacity
-      style={styles.cardContainer}
-      activeOpacity={0.9}
-      onPress={handleFlip}
-    >
+    <CardWrapper {...cardWrapperProps}>
       <View style={styles.cardWrapper}>
         {/* Front of the card */}
         <Animated.View style={[styles.cardContent, styles.cardSide, frontAnimatedStyle]}>
@@ -145,11 +156,13 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({ flashcard, onDelete, onSe
         )}
       </View>
 
-      <View style={styles.flipHint}>
-        <Ionicons name="sync-outline" size={16} color={COLORS.darkGray} />
-        <Text style={styles.flipHintText}>Tap to flip</Text>
-      </View>
-    </TouchableOpacity>
+      {!disableTouchHandling && (
+        <View style={styles.flipHint}>
+          <Ionicons name="sync-outline" size={16} color={COLORS.darkGray} />
+          <Text style={styles.flipHintText}>Tap to flip</Text>
+        </View>
+      )}
+    </CardWrapper>
   );
 };
 
