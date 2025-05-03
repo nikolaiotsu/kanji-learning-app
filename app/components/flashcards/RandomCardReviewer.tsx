@@ -60,10 +60,11 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
   // Configure PanResponder
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: () => false, // Let scroll events pass through initially
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        // Only respond to horizontal movements
-        return Math.abs(gestureState.dx) > Math.abs(gestureState.dy * 2);
+        // Only respond to horizontal movements that are significant
+        // This prevents conflict with vertical scrolling
+        return Math.abs(gestureState.dx) > 20 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy * 3);
       },
       onPanResponderGrant: () => {
         // When touch starts
@@ -234,7 +235,10 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
           ]}
           {...panResponder.panHandlers}
         >
-          <FlashcardItem flashcard={currentCard} disableTouchHandling={false} />
+          <FlashcardItem 
+            flashcard={currentCard} 
+            disableTouchHandling={false} 
+          />
         </Animated.View>
       </View>
 
@@ -247,26 +251,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
         </Text>
       </View>
       
-      {/* Optional buttons as fallback */}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity 
-          style={[styles.controlButton, styles.leftButton]} 
-          onPress={onKeepCard}
-          disabled={isProcessing}
-        >
-          <MaterialIcons name="refresh" size={24} color="white" />
-          <Text style={styles.buttonText}>Keep</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.controlButton, styles.rightButton]} 
-          onPress={onDismissCard}
-          disabled={isProcessing}
-        >
-          <Ionicons name="checkmark-done" size={24} color="white" />
-          <Text style={styles.buttonText}>Dismiss</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Optional buttons removed as swipe gestures are sufficient */}
     </View>
   );
 };
@@ -279,7 +264,14 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    elevation: 5, // Add elevation for Android
+    shadowColor: '#000', // Shadow for iOS
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   cardStage: {
     width: '100%',
@@ -300,13 +292,6 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingVertical: 10,
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '80%',
-    marginTop: 10,
-  },
   swipeInstructionText: {
     color: COLORS.lightGray,
     fontSize: 14,
@@ -316,25 +301,6 @@ const styles = StyleSheet.create({
     color: COLORS.lightGray,
     fontSize: 14,
     marginTop: 5,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 12,
-    marginTop: 4,
-  },
-  controlButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    padding: 10,
-  },
-  leftButton: {
-    backgroundColor: COLORS.primary,
-  },
-  rightButton: {
-    backgroundColor: COLORS.secondary,
   },
   loadingText: {
     color: COLORS.text,

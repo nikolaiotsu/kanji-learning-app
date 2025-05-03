@@ -199,7 +199,7 @@ export default function FlashcardsScreen() {
         {isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#007AFF" />
-            <Text style={styles.loadingText}>Processing with Claude AI...</Text>
+            <Text style={styles.loadingText}>Processing...</Text>
           </View>
         ) : (
           <>
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.pastelPurple,
+    backgroundColor: COLORS.accentMedium,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: COLORS.pastelPurple,
+    color: COLORS.accentMedium,
   },
   errorContainer: {
     marginTop: 20,
@@ -440,13 +440,13 @@ const styles = StyleSheet.create({
     width: '100%',
     minHeight: 100,
     borderWidth: 1,
-    borderColor: COLORS.pastelBlue,
+    borderColor: COLORS.accentLight,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 8,
-    color: COLORS.pastelBlue,
+    color: COLORS.accentLight,
   },
   furiganaText: {
     fontSize: 20,
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   savedButton: {
-    backgroundColor: COLORS.pastelGreen,
+    backgroundColor: COLORS.secondary,
   },
   disabledButton: {
     backgroundColor: COLORS.darkSurface,

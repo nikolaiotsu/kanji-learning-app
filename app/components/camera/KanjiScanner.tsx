@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
-import { Ionicons, MaterialIcons, FontAwesome5, AntDesign, FontAwesome6 } from '@expo/vector-icons';
+import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal } from 'react-native';
+import { Ionicons, MaterialIcons, FontAwesome5, AntDesign, FontAwesome6, Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import CameraButton from './CameraButton';
@@ -21,6 +21,7 @@ export default function KanjiScanner() {
   const [forwardHistory, setForwardHistory] = useState<CapturedImage[]>([]);
   const [highlightModeActive, setHighlightModeActive] = useState(false);
   const [localProcessing, setLocalProcessing] = useState(false);
+  const [settingsMenuVisible, setSettingsMenuVisible] = useState(false);
   
   const router = useRouter();
   const { signOut } = useAuth();
@@ -30,6 +31,7 @@ export default function KanjiScanner() {
   const imageHighlighterRef = useRef<ImageHighlighterRef>(null);
 
   const handleLogout = async () => {
+    setSettingsMenuVisible(false);
     try {
       Alert.alert(
         "Logout",
@@ -52,6 +54,15 @@ export default function KanjiScanner() {
       console.error('Error logging out:', error);
       Alert.alert('Error', 'Failed to log out. Please try again.');
     }
+  };
+
+  const handleOpenSettings = () => {
+    setSettingsMenuVisible(false);
+    router.push('/settings');
+  };
+
+  const toggleSettingsMenu = () => {
+    setSettingsMenuVisible(!settingsMenuVisible);
   };
 
   const handlePhotoCapture = (imageInfo: CapturedImage | null) => {
@@ -289,13 +300,41 @@ export default function KanjiScanner() {
     <View style={styles.container}>
       {!capturedImage ? (
         <>
+          {/* Settings Menu Button */}
           <TouchableOpacity 
-            style={styles.logoutButton} 
-            onPress={handleLogout}
+            style={styles.settingsButton} 
+            onPress={toggleSettingsMenu}
           >
-            <MaterialIcons name="logout" size={24} color="white" />
-            <Text style={styles.logoutText}>Logout</Text>
+            <Feather name="menu" size={24} color="white" />
           </TouchableOpacity>
+          
+          {/* Settings Menu Modal */}
+          {settingsMenuVisible && (
+            <>
+              <TouchableOpacity 
+                style={styles.backdrop} 
+                activeOpacity={0} 
+                onPress={toggleSettingsMenu}
+              />
+              <View style={styles.settingsMenu}>
+                <TouchableOpacity 
+                  style={styles.settingsMenuItem} 
+                  onPress={handleOpenSettings}
+                >
+                  <Ionicons name="settings-outline" size={20} color="white" />
+                  <Text style={styles.settingsMenuItemText}>Settings</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.settingsMenuItem} 
+                  onPress={handleLogout}
+                >
+                  <MaterialIcons name="logout" size={20} color="white" />
+                  <Text style={styles.settingsMenuItemText}>Logout</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
           
           {/* Random Card Reviewer */}
           <View style={styles.reviewerContainer}>
@@ -382,9 +421,9 @@ const styles = StyleSheet.create({
   },
   galleryButton: {
     backgroundColor: COLORS.secondary,
-    borderRadius: 30,
-    width: 60,
-    height: 60,
+    borderRadius: 8,
+    width: 80,
+    height: 50,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -404,9 +443,9 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     backgroundColor: COLORS.danger,
-    borderRadius: 30,
-    width: 60,
-    height: 60,
+    borderRadius: 8,
+    width: 80,
+    height: 50,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -424,9 +463,9 @@ const styles = StyleSheet.create({
   },
   highlightButton: {
     backgroundColor: COLORS.primary,
-    borderRadius: 30,
-    width: 60,
-    height: 60,
+    borderRadius: 8,
+    width: 80,
+    height: 50,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -444,9 +483,9 @@ const styles = StyleSheet.create({
   },
   backButton: {
     backgroundColor: COLORS.secondary,
-    borderRadius: 30,
-    width: 60,
-    height: 60,
+    borderRadius: 8,
+    width: 80,
+    height: 50,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -464,9 +503,9 @@ const styles = StyleSheet.create({
   },
   forwardButton: {
     backgroundColor: COLORS.secondary,
-    borderRadius: 30,
-    width: 60,
-    height: 60,
+    borderRadius: 8,
+    width: 80,
+    height: 50,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -499,10 +538,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   viewFlashcardsButton: {
-    backgroundColor: '#FFCC00',
-    borderRadius: 30,
-    width: 60,
-    height: 60,
+    backgroundColor: COLORS.accentMedium,
+    borderRadius: 8,
+    width: 80,
+    height: 50,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -514,32 +553,66 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-  logoutButton: {
+  settingsButton: {
     position: 'absolute',
     top: 10,
     right: 10,
-    backgroundColor: '#dc3545',
+    backgroundColor: COLORS.accentMedium,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    zIndex: 1000,
+    zIndex: 1001,
+  },
+  settingsMenu: {
+    position: 'absolute',
+    top: 55,
+    right: 10,
+    backgroundColor: COLORS.darkSurface,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    width: 150,
+    zIndex: 1002,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  settingsMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  settingsMenuItemText: {
+    color: 'white',
+    marginLeft: 8,
+    fontWeight: '500',
   },
   buttonIcon: {
     marginRight: 8,
   },
-  logoutText: {
-    color: 'white',
-    marginLeft: 4,
-    fontWeight: 'bold',
-  },
   // Reviewer container style
   reviewerContainer: {
     position: 'absolute',
-    top: 60,
+    top: '40%', // Position it at 40% instead of 50% to move it higher up
+    transform: [{ translateY: -150 }], // Offset by half the height of the container
     left: 10,
     right: 10,
     zIndex: 900,
-  }
+  },
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
+  },
 }); 

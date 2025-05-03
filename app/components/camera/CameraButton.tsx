@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { TouchableOpacity, View, StyleSheet, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '../../constants/colors';
 
 interface CameraButtonProps {
   onPhotoCapture: (imageInfo: {
@@ -72,10 +73,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   button: {
-    backgroundColor: '#007AFF',
-    borderRadius: 30,
-    width: 60,
-    height: 60,
+    backgroundColor: COLORS.danger,
+    borderRadius: 8,
+    width: 80,
+    height: 50,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',

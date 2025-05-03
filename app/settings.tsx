@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.pastelPurple,
+    color: COLORS.accentMedium,
     marginLeft: 16,
     marginBottom: 8,
     marginTop: -10,

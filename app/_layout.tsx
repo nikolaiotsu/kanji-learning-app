@@ -3,6 +3,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './context/AuthContext';
 import AuthGuard from './components/auth/AuthGuard';
 import { StyleSheet, View } from 'react-native';
+import { COLORS } from './constants/colors';
 
 export default function RootLayout() {
   return (
@@ -14,9 +15,9 @@ export default function RootLayout() {
               screenOptions={{
                 headerShown: true,
                 headerStyle: {
-                  backgroundColor: '#1e293b', // Consistent with your app's color theme
+                  backgroundColor: COLORS.darkSurface, // Dark navy for header
                 },
-                headerTintColor: '#fff',
+                headerTintColor: COLORS.text, // Pale blue for header text
                 headerTitleStyle: {
                   fontWeight: 'bold',
                 },

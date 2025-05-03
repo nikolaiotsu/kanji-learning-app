@@ -8,6 +8,17 @@ export function cleanJapaneseText(text: string): string {
   // Remove extra spaces
   cleanedText = cleanedText.replace(/\s+/g, ' ').trim();
   
+  // Remove all spaces between Japanese characters
+  // This regex targets hiragana, katakana, and kanji specifically
+  const japaneseCharRegex = /([\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff])\s+([\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff])/g;
+  
+  // Continue replacing until no more changes
+  let previousText;
+  do {
+    previousText = cleanedText;
+    cleanedText = cleanedText.replace(japaneseCharRegex, '$1$2');
+  } while (previousText !== cleanedText);
+  
   return cleanedText;
 }
 

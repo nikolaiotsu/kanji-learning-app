@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 16,
-    color: COLORS.pastelBlue,
+    color: COLORS.accentLight,
     marginBottom: 24,
     textAlign: 'center',
   },
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   link: {
-    color: COLORS.pastelPurple,
+    color: COLORS.accentMedium,
     fontSize: 14,
     marginVertical: 5,
   },

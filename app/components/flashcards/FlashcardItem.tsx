@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, Dimensions, Animated } from 'react-native';
+import React, { useState, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, Dimensions, Animated, ScrollView, LayoutChangeEvent } from 'react-native';
 import { Flashcard } from '../../types/Flashcard';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
@@ -21,7 +21,14 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
 }) => {
   const [isFlipped, setIsFlipped] = useState(false);
   const flipAnim = useRef(new Animated.Value(0)).current;
+  // Track if content is scrollable (overflow)
+  const [frontContentScrollable, setFrontContentScrollable] = useState(false);
+  const [backContentScrollable, setBackContentScrollable] = useState(false);
+  // References to the scroll views
+  const frontScrollViewRef = useRef<ScrollView>(null);
+  const backScrollViewRef = useRef<ScrollView>(null);
 
+  // Function to handle card flipping
   const handleFlip = () => {
     if (disableTouchHandling) return;
     
@@ -47,9 +54,23 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
     }
   };
 
-  // Format the date
-  const formattedDate = new Date(flashcard.createdAt).toLocaleDateString();
-  
+  // Check if content is scrollable by comparing content height to container height
+  const checkContentScrollable = useCallback((event: {
+    nativeEvent: {
+      contentSize: { height: number },
+      layoutMeasurement: { height: number }
+    }
+  }, side: 'front' | 'back') => {
+    const { contentSize, layoutMeasurement } = event.nativeEvent;
+    const isScrollable = contentSize.height > layoutMeasurement.height;
+    
+    if (side === 'front') {
+      setFrontContentScrollable(isScrollable);
+    } else {
+      setBackContentScrollable(isScrollable);
+    }
+  }, []);
+
   // Interpolate for front and back animations
   const frontAnimatedStyle = {
     transform: [
@@ -89,59 +110,91 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
     })
   };
 
-  // Use a regular View instead of TouchableOpacity if touch handling is disabled
-  const CardWrapper = disableTouchHandling ? View : TouchableOpacity;
-  const cardWrapperProps = disableTouchHandling 
-    ? { style: styles.cardContainer } 
-    : { style: styles.cardContainer, activeOpacity: 0.9, onPress: handleFlip };
-
   return (
-    <CardWrapper {...cardWrapperProps}>
+    <View style={styles.cardContainer}>
       <View style={styles.cardWrapper}>
         {/* Front of the card */}
         <Animated.View style={[styles.cardContent, styles.cardSide, frontAnimatedStyle]}>
           <View style={styles.cardFront}>
-            <View style={styles.japaneseTextContainer}>
-              <Text style={styles.japaneseText} numberOfLines={0}>
-                {flashcard.originalText}
-              </Text>
-            </View>
-            <View style={styles.cardInfo}>
-              {deckName && (
-                <View style={styles.deckBadge}>
-                  <Text style={styles.deckName}>{deckName}</Text>
-                </View>
-              )}
-              <Text style={styles.dateText}>Created: {formattedDate}</Text>
-            </View>
+            <ScrollView 
+              ref={frontScrollViewRef}
+              style={styles.scrollContainer}
+              contentContainerStyle={styles.scrollContentContainer}
+              showsVerticalScrollIndicator={true}
+              scrollEnabled={true}
+              nestedScrollEnabled={true}
+              onContentSizeChange={(width, height) => {
+                const scrollView = {
+                  nativeEvent: {
+                    contentSize: { height },
+                    layoutMeasurement: { height: 300 } // Approximate card height
+                  }
+                };
+                checkContentScrollable(scrollView, 'front');
+              }}
+              onLayout={(event: LayoutChangeEvent) => {
+                const scrollView = {
+                  nativeEvent: {
+                    contentSize: { height: 0 }, // Will be updated
+                    layoutMeasurement: { height: event.nativeEvent.layout.height }
+                  }
+                };
+                checkContentScrollable(scrollView, 'front');
+              }}
+            >
+              <View style={styles.japaneseTextContainer}>
+                <Text style={styles.japaneseText}>
+                  {flashcard.originalText}
+                </Text>
+              </View>
+            </ScrollView>
           </View>
         </Animated.View>
 
         {/* Back of the card */}
         <Animated.View style={[styles.cardContent, styles.cardSide, backAnimatedStyle]}>
           <View style={styles.cardBack}>
-            <Text style={styles.sectionTitle}>With Furigana</Text>
-            <Text style={styles.furiganaText} numberOfLines={0}>
-              {flashcard.furiganaText}
-            </Text>
-            
-            <Text style={styles.sectionTitle}>English Translation</Text>
-            <Text style={styles.translatedText} numberOfLines={0}>
-              {flashcard.translatedText}
-            </Text>
-            
-            <View style={styles.cardInfo}>
-              {deckName && (
-                <View style={styles.deckBadge}>
-                  <Text style={styles.deckName}>{deckName}</Text>
-                </View>
-              )}
-              <Text style={styles.dateText}>Created: {formattedDate}</Text>
-            </View>
+            <ScrollView 
+              ref={backScrollViewRef}
+              style={styles.scrollContainer}
+              contentContainerStyle={styles.scrollContentContainer}
+              showsVerticalScrollIndicator={true}
+              scrollEnabled={true}
+              nestedScrollEnabled={true}
+              onContentSizeChange={(width, height) => {
+                const scrollView = {
+                  nativeEvent: {
+                    contentSize: { height },
+                    layoutMeasurement: { height: 300 } // Approximate card height
+                  }
+                };
+                checkContentScrollable(scrollView, 'back');
+              }}
+              onLayout={(event: LayoutChangeEvent) => {
+                const scrollView = {
+                  nativeEvent: {
+                    contentSize: { height: 0 }, // Will be updated
+                    layoutMeasurement: { height: event.nativeEvent.layout.height }
+                  }
+                };
+                checkContentScrollable(scrollView, 'back');
+              }}
+            >
+              <Text style={styles.sectionTitle}>With Furigana</Text>
+              <Text style={styles.furiganaText}>
+                {flashcard.furiganaText}
+              </Text>
+              
+              <Text style={styles.sectionTitle}>English Translation</Text>
+              <Text style={styles.translatedText}>
+                {flashcard.translatedText}
+              </Text>
+            </ScrollView>
           </View>
         </Animated.View>
       </View>
       
+      {/* Card actions and flip button */}
       <View style={styles.cardActions}>
         {onSend && (
           <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
@@ -155,14 +208,18 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
           </TouchableOpacity>
         )}
       </View>
-
+      
+      {/* Flip button - separate from the content to avoid conflicts with scrolling */}
       {!disableTouchHandling && (
-        <View style={styles.flipHint}>
-          <Ionicons name="sync-outline" size={16} color={COLORS.darkGray} />
-          <Text style={styles.flipHintText}>Tap to flip</Text>
-        </View>
+        <TouchableOpacity 
+          style={styles.flipButton} 
+          onPress={handleFlip}
+          activeOpacity={0.8}
+        >
+          <MaterialIcons name="flip" size={24} color={COLORS.primary} />
+        </TouchableOpacity>
       )}
-    </CardWrapper>
+    </View>
   );
 };
 
@@ -208,16 +265,18 @@ const styles = StyleSheet.create({
   },
   cardFront: {
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     padding: 16,
     flex: 1,
+    width: '100%',
   },
   cardBack: {
     padding: 16,
     paddingTop: 8,
-    backgroundColor: COLORS.mediumSurface,
+    backgroundColor: COLORS.darkSurface,
     borderRadius: 12,
     flex: 1,
+    width: '100%',
   },
   japaneseTextContainer: {
     width: '100%',
@@ -234,33 +293,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     color: COLORS.text,
   },
-  cardInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    marginTop: 8,
-  },
-  deckBadge: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  deckName: {
-    fontSize: 12,
-    color: COLORS.text,
-    fontWeight: '500',
-  },
-  dateText: {
-    fontSize: 12,
-    color: COLORS.darkGray,
-  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 8,
-    color: COLORS.pastelPurple,
+    color: COLORS.accentMedium,
     marginTop: 12,
   },
   furiganaText: {
@@ -294,18 +331,42 @@ const styles = StyleSheet.create({
   deleteButton: {
     padding: 8,
   },
-  flipHint: {
+  scrollContainer: {
+    flex: 1,
+    width: '100%',
+    paddingHorizontal: 4,
+  },
+  scrollContentContainer: {
+    paddingBottom: 24,
+    paddingTop: 8,
+  },
+  scrollIndicator: {
     position: 'absolute',
     bottom: 8,
-    left: 12,
+    left: 8,
+    backgroundColor: 'rgba(30, 30, 30, 0.7)',
+    borderRadius: 12,
+    padding: 4,
+    opacity: 0.7,
+    zIndex: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    zIndex: 10,
   },
-  flipHintText: {
-    fontSize: 12,
-    color: COLORS.darkGray,
-    marginLeft: 4,
+  flipButton: {
+    position: 'absolute',
+    bottom: 8,
+    right: 12,
+    backgroundColor: COLORS.darkSurface,
+    borderRadius: 12,
+    padding: 10,
+    zIndex: 10,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });
 
