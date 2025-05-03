@@ -548,6 +548,9 @@ export default function SavedFlashcardsScreen() {
             ListEmptyComponent={renderEmptyState}
             showsVerticalScrollIndicator={true}
             scrollEnabled={true}
+            initialNumToRender={4}
+            windowSize={5}
+            removeClippedSubviews={true}
           />
         </View>
       )}
@@ -611,9 +614,10 @@ const styles = StyleSheet.create({
     color: COLORS.darkGray,
   },
   listContent: {
-    padding: 8,
-    paddingTop: 0,
-    paddingBottom: 30,
+    paddingHorizontal: 8,
+    paddingTop: 4,
+    paddingBottom: 80,
+    flexGrow: 1,
   },
   loadingContainer: {
     flex: 1,
@@ -647,6 +651,7 @@ const styles = StyleSheet.create({
   flashcardsContainer: {
     flex: 1,
     marginTop: 0,
+    width: '100%',
   },
   renameModalContainer: {
     position: 'absolute',

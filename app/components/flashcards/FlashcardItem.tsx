@@ -173,16 +173,19 @@ const styles = StyleSheet.create({
   cardContainer: {
     width: cardWidth,
     minHeight: 200,
+    maxHeight: 350,
     backgroundColor: 'transparent',
     borderRadius: 12,
-    marginVertical: 6,
+    marginVertical: 10,
     marginHorizontal: 10,
     position: 'relative',
+    overflow: 'hidden',
   },
   cardWrapper: {
     width: '100%',
     height: '100%',
     position: 'relative',
+    minHeight: 200,
   },
   cardSide: {
     position: 'absolute',
@@ -200,17 +203,21 @@ const styles = StyleSheet.create({
     paddingTop: 48, // Add extra padding to the top for action buttons
     backgroundColor: COLORS.darkSurface,
     borderRadius: 12,
+    height: '100%',
+    flexDirection: 'column',
   },
   cardFront: {
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
+    flex: 1,
   },
   cardBack: {
     padding: 16,
     paddingTop: 8,
     backgroundColor: COLORS.mediumSurface,
     borderRadius: 12,
+    flex: 1,
   },
   japaneseTextContainer: {
     width: '100%',
