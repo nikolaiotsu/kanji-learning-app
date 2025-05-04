@@ -344,7 +344,7 @@ export async function detectJapaneseText(
           },
         ],
         imageContext: {
-          languageHints: ['ja'],
+          languageHints: ['ja', 'en', 'es', 'fr', 'de', 'zh', 'ko', 'pt', 'ru', 'ar'],
         },
       },
     ],
@@ -388,14 +388,15 @@ export async function detectJapaneseText(
     // Check if we have any Japanese text in the first annotation (which contains all text)
     if (allAnnotations.length > 0) {
       const firstAnnotation = allAnnotations[0];
-      const hasJapaneseChars = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/.test(firstAnnotation.description);
+      // Include Korean Unicode ranges in the regex pattern
+      const hasTextContent = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\u0030-\u0039\u0041-\u005A\u0061-\u007A\uFF65-\uFF9F\u0020-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E\u2010-\u2015\u2018-\u201D\u3000-\u303F\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC]/.test(firstAnnotation.description);
       
       console.log('First annotation (all text):', firstAnnotation.description);
-      console.log('Contains Japanese characters:', hasJapaneseChars);
+      console.log('Contains text content:', hasTextContent);
       
-      // If we don't have Japanese characters in the full text, return empty
-      if (!hasJapaneseChars && allAnnotations.length === 1) {
-        console.log('No Japanese text found in the image');
+      // If we don't have any text content in the full text, return empty
+      if (!hasTextContent && allAnnotations.length === 1) {
+        console.log('No text found in the image');
         return [];
       }
     }
@@ -406,13 +407,13 @@ export async function detectJapaneseText(
         // Skip the first annotation as it contains all text
         if (index === 0) return false;
         
-        // Check if the text contains Japanese characters
-        const hasJapaneseChars = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/.test(annotation.description);
+        // Include Korean Unicode ranges in this regex pattern too
+        const hasTextContent = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\u0030-\u0039\u0041-\u005A\u0061-\u007A\uFF65-\uFF9F\u0020-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E\u2010-\u2015\u2018-\u201D\u3000-\u303F\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC]/.test(annotation.description);
         
         // Log each annotation for debugging
-        console.log(`Annotation ${index}: "${annotation.description}" - Is Japanese: ${hasJapaneseChars}`);
+        console.log(`Annotation ${index}: "${annotation.description}" - Has text: ${hasTextContent}`);
         
-        return hasJapaneseChars;
+        return hasTextContent;
       })
       .map((annotation: any) => ({
         text: annotation.description,
@@ -427,11 +428,12 @@ export async function detectJapaneseText(
     
     console.log('Processed results:', results.length > 0 ? results.map((r: VisionApiResponse) => r.text).join(', ') : 'No results');
     
-    // If no individual annotations with Japanese characters were found,
-    // but the first annotation has Japanese text, use it as a fallback
+    // If no individual annotations with text were found,
+    // but the first annotation has text, use it as a fallback
     if (results.length === 0 && allAnnotations.length > 0) {
       const firstAnnotation = allAnnotations[0];
-      if (/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/.test(firstAnnotation.description)) {
+      // Include Korean Unicode ranges in this regex pattern as well
+      if (/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\u0030-\u0039\u0041-\u005A\u0061-\u007A\uFF65-\uFF9F\u0020-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E\u2010-\u2015\u2018-\u201D\u3000-\u303F\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC]/.test(firstAnnotation.description)) {
         console.log('Using first annotation as fallback');
         return [{
           text: firstAnnotation.description,
@@ -489,6 +491,9 @@ export async function analyzeImage(imageUri: string, region?: Region) {
               type: 'TEXT_DETECTION',
               // You might want to adjust model settings here if needed
             }],
+            imageContext: {
+              languageHints: ['ja', 'en', 'es', 'fr', 'de', 'zh', 'ko', 'pt', 'ru', 'ar'],
+            },
           }],
         }),
       }

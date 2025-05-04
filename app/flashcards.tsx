@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Platform, ActivityIndicator, ScrollView, Toucha
 import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { processWithClaude } from './services/claudeApi';
-import { cleanJapaneseText } from './utils/textFormatting';
+import { cleanText, containsJapanese, containsChineseJapanese, containsKoreanText, containsChinese } from './utils/textFormatting';
 import { saveFlashcard } from './services/supabaseStorage';
 import { Flashcard } from './types/Flashcard';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,8 +22,8 @@ export default function FlashcardsScreen() {
       ? textParam.join('') 
       : '';
   
-  // Clean the detected Japanese text
-  const cleanedText = cleanJapaneseText(displayText);
+  // Clean the detected text, preserving spaces for languages that need them
+  const cleanedText = cleanText(displayText);
 
   // State for Claude API response
   const [isLoading, setIsLoading] = useState(false);
@@ -42,6 +42,10 @@ export default function FlashcardsScreen() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [textProcessed, setTextProcessed] = useState(false);
 
+  // State for language detection
+  const [isJapaneseText, setIsJapaneseText] = useState(true);
+  const [needsFurigana, setNeedsFurigana] = useState(true);
+
   useEffect(() => {
     // Initialize the edited text with the cleaned text
     setEditedText(cleanedText);
@@ -54,13 +58,30 @@ export default function FlashcardsScreen() {
     setTextProcessed(false);
     
     try {
+      // Check if the text contains Japanese, Chinese, or Korean characters
+      const hasJapanese = containsJapanese(text);
+      const hasChinese = containsChinese(text);
+      const hasKorean = containsKoreanText(text);
+      
+      setIsJapaneseText(hasJapanese);
+      
+      // Determine if we need furigana - only for Japanese text, not for Chinese or Korean
+      const needsFurigana = hasJapanese && !hasChinese && !hasKorean;
+      setNeedsFurigana(needsFurigana);
+      
       const result = await processWithClaude(text);
       
       // Check if we got valid results back
-      if (result.furiganaText && result.translatedText) {
-        setFuriganaText(result.furiganaText);
-        setTranslatedText(result.translatedText);
-        setTextProcessed(true);
+      if (result.translatedText) {
+        // Chinese and Korean text won't have furigana
+        if (result.furiganaText || hasChinese || hasKorean) {
+          setFuriganaText(result.furiganaText);
+          setTranslatedText(result.translatedText);
+          setTextProcessed(true);
+        } else {
+          // If furigana is missing for Japanese text
+          setError('Failed to process text with Claude API. Please try again later.');
+        }
       } else {
         // If we didn't get valid results, show the error message from the API
         setError(result.translatedText || 'Failed to process text with Claude API. Please try again later.');
@@ -82,7 +103,14 @@ export default function FlashcardsScreen() {
 
   // Function to show deck selector
   const handleShowDeckSelector = () => {
-    if (!editedText || !furiganaText || !translatedText) {
+    // For texts that don't need furigana, we only need the translation to be present
+    if (!needsFurigana && !translatedText) {
+      Alert.alert('Cannot Save', 'Missing translation for the flashcard. Please make sure the text was processed correctly.');
+      return;
+    }
+    
+    // For texts that need furigana (Japanese), we need both furigana and translation
+    if (needsFurigana && (!editedText || !furiganaText || !translatedText)) {
       Alert.alert('Cannot Save', 'Missing content for the flashcard. Please make sure the text was processed correctly.');
       return;
     }
@@ -95,26 +123,17 @@ export default function FlashcardsScreen() {
     setIsSaving(true);
 
     try {
-      // Remove client-side ID generation
-      // const id = await Crypto.digestStringAsync(
-      //   Crypto.CryptoDigestAlgorithm.SHA256,
-      //   editedText + Date.now()
-      // );
-
-      // Create flashcard object without the 'id' property
-      // The database will generate the UUID automatically
-      const flashcard: Omit<Flashcard, 'id'> = { // Use Omit to exclude 'id' temporarily
+      // Create flashcard object - for non-Japanese text, furiganaText will be empty
+      const flashcard: Omit<Flashcard, 'id'> = {
         originalText: editedText,
-        furiganaText,
+        furiganaText: needsFurigana ? furiganaText : "", // Empty for texts that don't need furigana
         translatedText,
-        createdAt: Date.now(), // Keep createdAt for potential local sorting/display
+        createdAt: Date.now(),
         deckId: deckId,
       };
 
-      // Save flashcard - saveFlashcard function now expects an object potentially without an id
-      // We might need to adjust the saveFlashcard function signature or logic if it strictly expects 'id'
-      // However, based on the previous fix in supabaseStorage.ts, it should handle this correctly.
-      await saveFlashcard(flashcard as Flashcard, deckId); // Type assertion might be needed depending on saveFlashcard signature
+      // Save flashcard
+      await saveFlashcard(flashcard as Flashcard, deckId);
       setIsSaved(true);
       
       // Show success message
@@ -169,7 +188,7 @@ export default function FlashcardsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
-        <Text style={styles.title}>Detected Japanese Text</Text>
+        <Text style={styles.title}>Detected Text</Text>
         
         <View style={styles.textContainer}>
           <Text style={styles.japaneseText} numberOfLines={0}>{editedText}</Text>
@@ -221,7 +240,7 @@ export default function FlashcardsScreen() {
               </View>
             ) : (
               <>
-                {furiganaText && (
+                {furiganaText && needsFurigana && (
                   <View style={styles.resultContainer}>
                     <Text style={styles.sectionTitle}>With Furigana</Text>
                     <Text style={styles.furiganaText} numberOfLines={0}>{furiganaText}</Text>
@@ -236,7 +255,7 @@ export default function FlashcardsScreen() {
                 )}
 
                 {/* Save Flashcard Button */}
-                {furiganaText && translatedText && (
+                {((furiganaText && needsFurigana) || (translatedText && !needsFurigana)) && (
                   <View style={styles.buttonContainer}>
                     <TouchableOpacity 
                       style={[
@@ -298,7 +317,7 @@ export default function FlashcardsScreen() {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Edit Japanese Text</Text>
+            <Text style={styles.modalTitle}>Edit Text</Text>
             <TextInput
               style={styles.textInput}
               value={editedText}

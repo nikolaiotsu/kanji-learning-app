@@ -19,7 +19,7 @@ interface Region {
   height: number;
 }
 
-export async function detectJapaneseText(
+export async function detectText(
   imageUri: string,
   region: { x: number; y: number; width: number; height: number }
 ): Promise<VisionApiResponse[]> {
@@ -59,7 +59,7 @@ export async function detectJapaneseText(
           cropHintsParams: {
             aspectRatios: [region.width / region.height],
           },
-          languageHints: ['ja', 'en'],
+          languageHints: ['ja', 'en', 'es', 'fr', 'de', 'zh', 'ko', 'pt', 'ru', 'ar'],
         },
       },
     ],
@@ -91,16 +91,16 @@ export async function detectJapaneseText(
       return [];
     }
 
-    // Filter and transform the response to get Japanese text blocks within the selected region
+    // Filter and transform the response to get text blocks within the selected region
     return data.responses[0].textAnnotations
       .filter((annotation: any) => {
         // Skip the first annotation as it contains all text
         if (annotation === data.responses[0].textAnnotations[0]) return false;
         
-        // Check if the text contains Japanese characters, English letters, or numbers and is within the region
+        // Check if the text contains content and is within the region
         const vertices = annotation.boundingPoly.vertices;
         const isInRegion = vertices.some((vertex: { x: number; y: number }) => isPointInRegion(vertex));
-        return isInRegion && /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\w]/.test(annotation.description);
+        return isInRegion && /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\u0030-\u0039\u0041-\u005A\u0061-\u007A\uFF65-\uFF9F\u0020-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E\u2010-\u2015\u2018-\u201D\u3000-\u303F]/.test(annotation.description);
       })
       .map((annotation: any) => ({
         text: annotation.description,
@@ -117,6 +117,9 @@ export async function detectJapaneseText(
     throw error;
   }
 }
+
+// For backward compatibility, maintain the original function name
+export const detectJapaneseText = detectText;
 
 export async function analyzeImage(imageUri: string, region?: Region) {
   const apiKey = EXPO_PUBLIC_GOOGLE_CLOUD_VISION_API_KEY;
@@ -163,7 +166,7 @@ export async function analyzeImage(imageUri: string, region?: Region) {
               // You might want to adjust model settings here if needed
             }],
             imageContext: {
-              languageHints: ['ja', 'en'],
+              languageHints: ['ja', 'en', 'es', 'fr', 'de', 'zh', 'ko', 'pt', 'ru', 'ar'],
             },
           }],
         }),
@@ -198,6 +201,7 @@ export async function analyzeImage(imageUri: string, region?: Region) {
 
 // Add default export to satisfy Expo Router's requirement
 export default {
+  detectText,
   detectJapaneseText,
   analyzeImage
 }; 

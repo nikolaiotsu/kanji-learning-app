@@ -1,8 +1,9 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, Dimensions, Animated, ScrollView, LayoutChangeEvent } from 'react-native';
 import { Flashcard } from '../../types/Flashcard';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import { containsJapanese } from '../../utils/textFormatting';
 
 interface FlashcardItemProps {
   flashcard: Flashcard;
@@ -24,9 +25,17 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   // Track if content is scrollable (overflow)
   const [frontContentScrollable, setFrontContentScrollable] = useState(false);
   const [backContentScrollable, setBackContentScrollable] = useState(false);
+  // Check if text is Japanese
+  const [needsFurigana, setNeedsFurigana] = useState(true);
   // References to the scroll views
   const frontScrollViewRef = useRef<ScrollView>(null);
   const backScrollViewRef = useRef<ScrollView>(null);
+
+  // Check if the text contains Japanese characters
+  useEffect(() => {
+    // Only Japanese text needs furigana
+    setNeedsFurigana(containsJapanese(flashcard.originalText));
+  }, [flashcard.originalText]);
 
   // Function to handle card flipping
   const handleFlip = () => {
@@ -180,10 +189,14 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
                 checkContentScrollable(scrollView, 'back');
               }}
             >
-              <Text style={styles.sectionTitle}>With Furigana</Text>
-              <Text style={styles.furiganaText}>
-                {flashcard.furiganaText}
-              </Text>
+              {needsFurigana && flashcard.furiganaText && (
+                <>
+                  <Text style={styles.sectionTitle}>With Furigana</Text>
+                  <Text style={styles.furiganaText}>
+                    {flashcard.furiganaText}
+                  </Text>
+                </>
+              )}
               
               <Text style={styles.sectionTitle}>English Translation</Text>
               <Text style={styles.translatedText}>

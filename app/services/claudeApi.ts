@@ -1,5 +1,6 @@
 import axios, { AxiosError } from 'axios';
 import Constants from 'expo-constants';
+import { containsJapanese, containsChineseJapanese, containsChinese, containsKoreanText } from '../utils/textFormatting';
 
 // Define response structure
 interface ClaudeResponse {
@@ -20,11 +21,11 @@ interface ClaudeContentItem {
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
- * Processes Japanese text with Claude AI API to add furigana and provide translation
- * @param japaneseText The Japanese text to be processed
- * @returns Object containing text with furigana and English translation
+ * Processes text with Claude AI API to add furigana and provide translation
+ * @param text The text to be processed
+ * @returns Object containing text with furigana (if Japanese) and English translation
  */
-export async function processWithClaude(japaneseText: string): Promise<ClaudeResponse> {
+export async function processWithClaude(text: string): Promise<ClaudeResponse> {
   // Maximum number of retry attempts
   const MAX_RETRIES = 3;
   // Initial backoff delay in milliseconds
@@ -32,6 +33,11 @@ export async function processWithClaude(japaneseText: string): Promise<ClaudeRes
   
   let retryCount = 0;
   let lastError: unknown = null;
+
+  // Detect language characteristics
+  const hasJapanese = containsJapanese(text);
+  const hasChinese = containsChinese(text);
+  const hasKorean = containsKoreanText(text);
 
   while (retryCount < MAX_RETRIES) {
     try {
@@ -45,9 +51,39 @@ export async function processWithClaude(japaneseText: string): Promise<ClaudeRes
         throw new Error('Claude API key is not configured. Please add EXPO_PUBLIC_CLAUDE_API_KEY to your environment variables.');
       }
 
-      // Define the user message with our prompt
-      const userMessage = `
-You are a Japanese language expert. I need you to analyze this Japanese text and add furigana to words containing kanji: "${japaneseText}"
+      // Define the user message with our prompt based on language detection
+      let userMessage = '';
+      
+      if (hasKorean) {
+        // Korean-specific prompt
+        userMessage = `
+You are a Korean language expert. I need you to translate this Korean text: "${text}"
+
+IMPORTANT: For Korean text, DO NOT add any furigana or readings. Korean text should be translated directly.
+
+Format your response as valid JSON with these exact keys:
+{
+  "furiganaText": "", 
+  "translatedText": "Accurate English translation reflecting the full meaning in context"
+}
+`;
+      } else if (hasChinese) {
+        // Chinese-specific prompt
+        userMessage = `
+You are a Chinese language expert. I need you to translate this Chinese text: "${text}"
+
+IMPORTANT: For Chinese text, DO NOT add any furigana or readings. Chinese text should be translated directly.
+
+Format your response as valid JSON with these exact keys:
+{
+  "furiganaText": "", 
+  "translatedText": "Accurate English translation reflecting the full meaning in context"
+}
+`;
+      } else {
+        // Default Japanese prompt
+        userMessage = `
+You are a Japanese language expert. I need you to analyze this Japanese text and add furigana to words containing kanji: "${text}"
 
 IMPORTANT: You must follow this EXACT format:
 - Keep all original text as is
@@ -62,7 +98,7 @@ Examples of correct formatting:
 - "勉強する" should become "勉強する(べんきょうする)"
 - "引き金" should become "引き金(ひきがね)"
 
-For this text: "${japaneseText}"
+For this text: "${text}"
 The response should maintain all original text but add readings for words containing kanji.
 
 Format your response as valid JSON with these exact keys:
@@ -71,9 +107,11 @@ Format your response as valid JSON with these exact keys:
   "translatedText": "Accurate English translation reflecting the full meaning in context"
 }
 `;
+      }
 
       console.log("Sending request to Claude API...");
-      console.log("Text to process:", japaneseText);
+      console.log("Text to process:", text);
+      console.log("Text identified as:", hasChinese ? "Chinese" : hasKorean ? "Korean" : "Japanese");
       
       // Make API request to Claude using latest API format
       const response = await axios.post(
