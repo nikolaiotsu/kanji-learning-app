@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
 import { supabase } from '../services/supabaseClient';
+import { COLORS } from '../constants/colors';
+import { AntDesign, FontAwesome } from '@expo/vector-icons';
 
 interface SocialAuthProps {
   mode: 'login' | 'signup';
@@ -45,6 +47,7 @@ const SocialAuth = ({ mode }: SocialAuthProps) => {
         style={[styles.button, styles.googleButton]}
         onPress={handleGoogleSignIn}
       >
+        <AntDesign name="google" size={20} color="#4285F4" style={styles.buttonIcon} />
         <Text style={styles.googleButtonText}>
           {mode === 'login' ? 'Continue with Google' : 'Sign up with Google'}
         </Text>
@@ -54,6 +57,7 @@ const SocialAuth = ({ mode }: SocialAuthProps) => {
         style={[styles.button, styles.appleButton]}
         onPress={handleAppleSignIn}
       >
+        <AntDesign name="apple1" size={20} color="white" style={styles.buttonIcon} />
         <Text style={styles.appleButtonText}>
           {mode === 'login' ? 'Continue with Apple' : 'Sign up with Apple'}
         </Text>
@@ -75,21 +79,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
   },
+  buttonIcon: {
+    marginRight: 10,
+  },
   googleButton: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.darkSurface,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: COLORS.accentLight,
   },
   googleButtonText: {
-    color: '#444',
+    color: COLORS.text,
     fontWeight: '500',
     fontSize: 16,
   },
   appleButton: {
-    backgroundColor: '#000',
+    backgroundColor: 'black',
+    borderWidth: 1,
+    borderColor: COLORS.accentLight,
   },
   appleButtonText: {
-    color: '#fff',
+    color: COLORS.text,
     fontWeight: '500',
     fontSize: 16,
   },

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { Ionicons, MaterialIcons, FontAwesome5, AntDesign, FontAwesome6, Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
@@ -22,6 +22,8 @@ export default function KanjiScanner() {
   const [highlightModeActive, setHighlightModeActive] = useState(false);
   const [localProcessing, setLocalProcessing] = useState(false);
   const [settingsMenuVisible, setSettingsMenuVisible] = useState(false);
+  const [showTextInputModal, setShowTextInputModal] = useState(false);
+  const [inputText, setInputText] = useState('');
   
   const router = useRouter();
   const { signOut } = useAuth();
@@ -285,6 +287,32 @@ export default function KanjiScanner() {
     setHighlightModeActive(true);
   };
 
+  const handleTextInput = () => {
+    setShowTextInputModal(true);
+  };
+
+  const handleCancelTextInput = () => {
+    setInputText('');
+    setShowTextInputModal(false);
+  };
+
+  const handleSubmitTextInput = () => {
+    if (!inputText.trim()) {
+      Alert.alert("Empty Input", "Please enter some text to translate.");
+      return;
+    }
+
+    // Navigate to flashcards with the input text
+    router.push({
+      pathname: "/flashcards",
+      params: { text: inputText.trim() }
+    });
+
+    // Reset the input and close the modal
+    setInputText('');
+    setShowTextInputModal(false);
+  };
+
   // Add an effect to monitor capturedImage changes
   React.useEffect(() => {
     if (capturedImage) {
@@ -343,14 +371,20 @@ export default function KanjiScanner() {
           
           <View style={styles.buttonContainer}>
             <TouchableOpacity 
-              style={styles.viewFlashcardsButton} 
-              onPress={() => router.push('/saved-flashcards')}
+              style={styles.textInputButton} 
+              onPress={handleTextInput}
             >
-              <MaterialIcons name="library-books" size={24} color="white" />
+              <Ionicons name="add" size={24} color="white" />
             </TouchableOpacity>
             <CameraButton onPhotoCapture={handlePhotoCapture} />
             <TouchableOpacity style={styles.galleryButton} onPress={pickImage}>
               <FontAwesome6 name="images" size={24} color="white" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.viewFlashcardsButton} 
+              onPress={() => router.push('/saved-flashcards')}
+            >
+              <MaterialIcons name="library-books" size={24} color="white" />
             </TouchableOpacity>
           </View>
         </>
@@ -401,6 +435,51 @@ export default function KanjiScanner() {
           )}
         </View>
       )}
+
+      {/* Text Input Modal */}
+      <Modal
+        visible={showTextInputModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={handleCancelTextInput}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
+            style={styles.modalContainer}
+          >
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Enter Text</Text>
+              <TextInput
+                style={styles.textInput}
+                value={inputText}
+                onChangeText={setInputText}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+                placeholder="Enter text to translate"
+                placeholderTextColor="#999"
+                autoFocus
+              />
+              <View style={styles.modalButtonsContainer}>
+                <TouchableOpacity 
+                  style={styles.modalCancelButton} 
+                  onPress={handleCancelTextInput}
+                >
+                  <Text style={styles.modalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.modalSaveButton} 
+                  onPress={handleSubmitTextInput}
+                >
+                  <Text style={styles.modalButtonText}>Translate</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </TouchableWithoutFeedback>
+      </Modal>
     </View>
   );
 }
@@ -413,11 +492,15 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     flexDirection: 'row',
-    gap: 20,
-    position: 'absolute',
-    bottom: 40,
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'absolute',
+    bottom: 40,
+    left: 20,
+    right: 20,
+    gap: 16,
+    flexWrap: 'wrap',
+    paddingHorizontal: 10,
   },
   galleryButton: {
     backgroundColor: COLORS.secondary,
@@ -614,5 +697,88 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     zIndex: 1000,
+  },
+  textInputButton: {
+    backgroundColor: '#E53170',
+    borderRadius: 8,
+    width: 80,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: Platform.OS === 'ios' ? 'flex-end' : 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    padding: 20,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 20,
+  },
+  modalContent: {
+    backgroundColor: COLORS.darkSurface,
+    borderRadius: 12,
+    padding: 20,
+    width: '100%',
+    maxWidth: 500,
+    marginBottom: Platform.OS === 'ios' ? 10 : 0,
+    maxHeight: '70%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+    color: COLORS.text,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: COLORS.accentLight,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 18,
+    minHeight: 120,
+    maxHeight: 180,
+    color: COLORS.text,
+    backgroundColor: COLORS.darkSurface,
+  },
+  modalButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+  },
+  modalCancelButton: {
+    backgroundColor: COLORS.danger,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    flex: 1,
+    marginRight: 10,
+    alignItems: 'center',
+  },
+  modalSaveButton: {
+    backgroundColor: COLORS.secondary,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    flex: 1,
+    marginLeft: 10,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 }); 

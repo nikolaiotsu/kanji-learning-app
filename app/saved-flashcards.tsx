@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Alert, TouchableOpacity, ActivityIndicator, TextInput } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, FlatList, Alert, TouchableOpacity, ActivityIndicator, TextInput, Dimensions } from 'react-native';
 import { Flashcard } from './types/Flashcard';
 import { Deck } from './types/Deck';
 import { 
@@ -23,6 +23,7 @@ export default function SavedFlashcardsScreen() {
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [decks, setDecks] = useState<Deck[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
+  const [selectedDeckIndex, setSelectedDeckIndex] = useState(0);
   const [isLoadingFlashcards, setIsLoadingFlashcards] = useState(true);
   const [isLoadingDecks, setIsLoadingDecks] = useState(true);
   const [editingDeckId, setEditingDeckId] = useState<string | null>(null);
@@ -33,6 +34,10 @@ export default function SavedFlashcardsScreen() {
   const [newDeckNameForSend, setNewDeckNameForSend] = useState('');
   const { user } = useAuth();
   const router = useRouter();
+
+  const flashcardsListRef = useRef<FlatList>(null);
+  const deckSelectorRef = useRef<FlatList>(null);
+  const screenWidth = Dimensions.get('window').width;
 
   // Load decks and flashcards on mount
   useEffect(() => {
@@ -96,6 +101,7 @@ export default function SavedFlashcardsScreen() {
     } else if (decks.length > 0) {
       // If no deck is selected but decks are loaded, select the first deck
       setSelectedDeckId(decks[0].id);
+      setSelectedDeckIndex(0);
     } else {
       // If no decks are available, show empty state
       setFlashcards([]);
@@ -347,14 +353,61 @@ export default function SavedFlashcardsScreen() {
     setNewDeckNameForSend('');
   };
 
+  // Function to handle deck selection
+  const handleDeckSelect = (deckId: string, index: number) => {
+    // Update selected deck state
+    setSelectedDeckId(deckId);
+    setSelectedDeckIndex(index);
+    
+    // Scroll the deck selector to keep the selected deck visible
+    if (deckSelectorRef.current) {
+      deckSelectorRef.current.scrollToIndex({
+        index,
+        animated: true,
+        viewPosition: 0.5
+      });
+    }
+
+    // Scroll the deck pager to show the selected deck
+    if (flashcardsListRef.current) {
+      flashcardsListRef.current.scrollToIndex({
+        index,
+        animated: true,
+      });
+    }
+  };
+  
+  // Function to handle swipe between decks
+  const handleDeckSwipe = (index: number) => {
+    if (index >= 0 && index < decks.length) {
+      const deck = decks[index];
+      
+      // Set loading state first to prevent showing stale content
+      setIsLoadingFlashcards(true);
+      
+      // Update selected deck ID and index
+      setSelectedDeckId(deck.id);
+      setSelectedDeckIndex(index);
+      
+      // Scroll the deck selector to keep the selected deck visible
+      if (deckSelectorRef.current) {
+        deckSelectorRef.current.scrollToIndex({
+          index,
+          animated: true,
+          viewPosition: 0.5
+        });
+      }
+    }
+  };
+
   // Render deck selector item
-  const renderDeckItem = ({ item }: { item: Deck }) => (
+  const renderDeckItem = ({ item, index }: { item: Deck, index: number }) => (
     <TouchableOpacity
       style={[
         styles.deckItem,
         selectedDeckId === item.id && styles.selectedDeckItem,
       ]}
-      onPress={() => setSelectedDeckId(item.id)}
+      onPress={() => handleDeckSelect(item.id, index)}
       onLongPress={() => handleDeckLongPress(item.id)}
       delayLongPress={500} // 500ms long press to trigger
     >
@@ -397,13 +450,45 @@ export default function SavedFlashcardsScreen() {
     );
   };
 
-  // Render loading state
-  const renderLoading = () => (
-    <View style={styles.loadingContainer}>
-      <ActivityIndicator size="large" color="#007AFF" />
-      <Text style={styles.loadingText}>Loading flashcards...</Text>
-    </View>
-  );
+  // Function to render a deck page with its flashcards
+  const renderDeckPage = ({ item, index }: { item: Deck, index: number }) => {
+    // Return a container with consistent width
+    return (
+      <View style={[styles.deckPage, { width: screenWidth }]}>
+        {selectedDeckId === item.id && (
+          <View style={styles.deckContentContainer}>
+            {isLoadingFlashcards ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#007AFF" />
+                <Text style={styles.loadingText}>Loading flashcards...</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={flashcards}
+                renderItem={renderFlashcard}
+                keyExtractor={(flashcardItem) => flashcardItem.id}
+                contentContainerStyle={styles.listContent}
+                ListEmptyComponent={renderEmptyState}
+                showsVerticalScrollIndicator={true}
+                scrollEnabled={true}
+                initialNumToRender={4}
+                windowSize={5}
+                removeClippedSubviews={true}
+              />
+            )}
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  // Add a useEffect hook to preload content for smoother transitions
+  useEffect(() => {
+    // Preload flashcards for the current deck
+    if (selectedDeckId) {
+      loadFlashcardsByDeck(selectedDeckId);
+    }
+  }, [selectedDeckId]);
 
   return (
     <View style={styles.container}>
@@ -414,6 +499,7 @@ export default function SavedFlashcardsScreen() {
       ) : (
         <View style={styles.deckSelectorContainer}>
           <FlatList
+            ref={deckSelectorRef}
             data={decks}
             renderItem={renderDeckItem}
             keyExtractor={(item) => item.id}
@@ -536,22 +622,42 @@ export default function SavedFlashcardsScreen() {
         </View>
       )}
       
-      {isLoadingFlashcards ? (
-        renderLoading()
-      ) : (
-        <View style={styles.flashcardsContainer}>
-          <FlatList
-            data={flashcards}
-            renderItem={renderFlashcard}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.listContent}
-            ListEmptyComponent={renderEmptyState}
-            showsVerticalScrollIndicator={true}
-            scrollEnabled={true}
-            initialNumToRender={4}
-            windowSize={5}
-            removeClippedSubviews={true}
-          />
+      {/* Deck pages with flashcards */}
+      {!isLoadingDecks && decks.length > 0 && (
+        <FlatList
+          ref={flashcardsListRef}
+          data={decks}
+          renderItem={renderDeckPage}
+          keyExtractor={(item) => item.id}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          initialScrollIndex={selectedDeckIndex}
+          getItemLayout={(_, index) => ({
+            length: screenWidth,
+            offset: screenWidth * index,
+            index,
+          })}
+          onMomentumScrollEnd={(e) => {
+            const newIndex = Math.floor(e.nativeEvent.contentOffset.x / screenWidth);
+            if (newIndex !== selectedDeckIndex) {
+              handleDeckSwipe(newIndex);
+            }
+          }}
+          scrollEnabled={true}
+          style={styles.deckPager}
+          removeClippedSubviews={false}
+          maxToRenderPerBatch={1}
+          windowSize={3}
+          decelerationRate="fast"
+          snapToAlignment="start"
+        />
+      )}
+      
+      {isLoadingDecks && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>Loading flashcards...</Text>
         </View>
       )}
     </View>
@@ -751,6 +857,7 @@ const styles = StyleSheet.create({
   sendModalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginTop: 16,
   },
   backButtonContainer: {
     position: 'absolute',
@@ -784,5 +891,16 @@ const styles = StyleSheet.create({
   },
   placeholderRight: {
     width: 35,
+  },
+  deckPage: {
+    flex: 1,
+    width: '100%',
+  },
+  deckContentContainer: {
+    flex: 1,
+    width: '100%',
+  },
+  deckPager: {
+    flex: 1,
   },
 }); 

@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { router } from 'expo-router';
 import SocialAuth from '../components/SocialAuth';
 import { supabase } from '../services/supabaseClient';
+import { COLORS } from '../constants/colors';
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
@@ -87,6 +88,7 @@ const LoginScreen = () => {
         <TextInput
           style={styles.input}
           placeholder="Email"
+          placeholderTextColor="#A0A0A0"
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
@@ -96,6 +98,7 @@ const LoginScreen = () => {
         <TextInput
           style={styles.input}
           placeholder="Password"
+          placeholderTextColor="#A0A0A0"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -134,7 +137,7 @@ const LoginScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.background,
   },
   form: {
     padding: 20,
@@ -146,47 +149,51 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 20,
     textAlign: 'center',
+    color: COLORS.text,
   },
   newUserContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 30,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: COLORS.darkSurface,
     padding: 15,
     borderRadius: 8,
   },
   newUserText: {
     fontSize: 16,
     marginRight: 10,
+    color: COLORS.text,
   },
   signUpButton: {
-    backgroundColor: '#28a745',
+    backgroundColor: COLORS.secondary,
     paddingVertical: 8,
     paddingHorizontal: 15,
     borderRadius: 20,
   },
   signUpButtonText: {
-    color: 'white',
+    color: COLORS.text,
     fontWeight: 'bold',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: COLORS.accentLight,
     borderRadius: 8,
     padding: 12,
     marginBottom: 16,
     fontSize: 16,
+    backgroundColor: COLORS.darkSurface,
+    color: COLORS.text,
   },
   button: {
-    backgroundColor: '#007BFF',
+    backgroundColor: COLORS.primary,
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
     marginTop: 10,
   },
   buttonText: {
-    color: '#fff',
+    color: COLORS.text,
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -195,7 +202,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   link: {
-    color: '#007BFF',
+    color: COLORS.accentMedium,
     fontSize: 14,
     marginVertical: 5,
   },
@@ -207,11 +214,11 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#ddd',
+    backgroundColor: COLORS.accentLight,
   },
   dividerText: {
     marginHorizontal: 10,
-    color: '#666',
+    color: COLORS.text,
   },
 });
 
