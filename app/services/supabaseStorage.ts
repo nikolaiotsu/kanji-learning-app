@@ -196,6 +196,43 @@ export const getFlashcardsByDeck = async (deckId: string): Promise<Flashcard[]> 
 };
 
 /**
+ * Get flashcards by multiple deck IDs
+ * @param deckIds Array of deck IDs to get flashcards for
+ * @returns Array of flashcards in the specified decks
+ */
+export const getFlashcardsByDecks = async (deckIds: string[]): Promise<Flashcard[]> => {
+  if (!deckIds || deckIds.length === 0) {
+    return [];
+  }
+
+  try {
+    const { data: flashcards, error } = await supabase
+      .from('flashcards')
+      .select('*')
+      .in('deck_id', deckIds)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching flashcards by decks:', error.message);
+      return [];
+    }
+    
+    // Transform from database format to app format
+    return flashcards.map((card: any) => ({
+      id: card.id,
+      originalText: card.original_text,
+      furiganaText: card.furigana_text,
+      translatedText: card.translated_text,
+      createdAt: new Date(card.created_at).getTime(),
+      deckId: card.deck_id,
+    }));
+  } catch (error) {
+    console.error('Error getting flashcards by decks:', error);
+    return [];
+  }
+};
+
+/**
  * Get a flashcard by ID
  * @param id The ID of the flashcard to get
  * @returns The flashcard if found, null otherwise
@@ -362,6 +399,7 @@ export default {
   saveFlashcard,
   getFlashcards,
   getFlashcardsByDeck,
+  getFlashcardsByDecks,
   getFlashcardById,
   deleteFlashcard,
   deleteDeck,

@@ -3,7 +3,16 @@ import { View, Text, StyleSheet, Platform, ActivityIndicator, ScrollView, Toucha
 import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { processWithClaude } from './services/claudeApi';
-import { cleanText, containsJapanese, containsChineseJapanese, containsKoreanText, containsChinese } from './utils/textFormatting';
+import { 
+  cleanText, 
+  containsJapanese, 
+  containsChineseJapanese, 
+  containsKoreanText, 
+  containsChinese,
+  containsRussianText,
+  containsArabicText,
+  containsItalianText
+} from './utils/textFormatting';
 import { saveFlashcard } from './services/supabaseStorage';
 import { Flashcard } from './types/Flashcard';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,8 +52,8 @@ export default function FlashcardsScreen() {
   const [textProcessed, setTextProcessed] = useState(false);
 
   // State for language detection
-  const [isJapaneseText, setIsJapaneseText] = useState(true);
-  const [needsFurigana, setNeedsFurigana] = useState(true);
+  const [detectedLanguage, setDetectedLanguage] = useState('');
+  const [needsRomanization, setNeedsRomanization] = useState(true);
 
   useEffect(() => {
     // Initialize the edited text with the cleaned text
@@ -58,30 +67,46 @@ export default function FlashcardsScreen() {
     setTextProcessed(false);
     
     try {
-      // Check if the text contains Japanese, Chinese, or Korean characters
+      // Check if the text contains Japanese, Chinese, Korean, Russian, Arabic, or Italian characters
       const hasJapanese = containsJapanese(text);
       const hasChinese = containsChinese(text);
       const hasKorean = containsKoreanText(text);
+      const hasRussian = containsRussianText(text);
+      const hasArabic = containsArabicText(text);
+      const hasItalian = containsItalianText(text);
       
-      setIsJapaneseText(hasJapanese);
+      // Determine language for display
+      let language = 'unknown';
+      if (hasJapanese && !hasChinese && !hasKorean) language = 'Japanese';
+      else if (hasChinese) language = 'Chinese';
+      else if (hasKorean) language = 'Korean';
+      else if (hasRussian) language = 'Russian';
+      else if (hasArabic) language = 'Arabic';
+      else if (hasItalian) language = 'Italian';
+      setDetectedLanguage(language);
       
-      // Determine if we need furigana - only for Japanese text, not for Chinese or Korean
-      const needsFurigana = hasJapanese && !hasChinese && !hasKorean;
-      setNeedsFurigana(needsFurigana);
+      // All these languages need some form of romanization/furigana
+      const needsRomanization = hasJapanese || hasChinese || hasKorean || hasRussian || hasArabic;
+      setNeedsRomanization(needsRomanization);
       
       const result = await processWithClaude(text);
       
       // Check if we got valid results back
       if (result.translatedText) {
-        // Chinese and Korean text won't have furigana
-        if (result.furiganaText || hasChinese || hasKorean) {
+        // Set translated text for all languages
+        setTranslatedText(result.translatedText);
+        
+        // Set romanization text if provided for languages that need it
+        if (needsRomanization) {
           setFuriganaText(result.furiganaText);
-          setTranslatedText(result.translatedText);
-          setTextProcessed(true);
-        } else {
-          // If furigana is missing for Japanese text
-          setError('Failed to process text with Claude API. Please try again later.');
+          // Show error if romanization is missing for languages that should have it
+          if (!result.furiganaText) {
+            setError('Failed to get proper romanization for this text. The translation is still available.');
+          }
         }
+        
+        // Mark as processed if we have what we need
+        setTextProcessed(true);
       } else {
         // If we didn't get valid results, show the error message from the API
         setError(result.translatedText || 'Failed to process text with Claude API. Please try again later.');
@@ -104,13 +129,13 @@ export default function FlashcardsScreen() {
   // Function to show deck selector
   const handleShowDeckSelector = () => {
     // For texts that don't need furigana, we only need the translation to be present
-    if (!needsFurigana && !translatedText) {
+    if (!needsRomanization && !translatedText) {
       Alert.alert('Cannot Save', 'Missing translation for the flashcard. Please make sure the text was processed correctly.');
       return;
     }
     
     // For texts that need furigana (Japanese), we need both furigana and translation
-    if (needsFurigana && (!editedText || !furiganaText || !translatedText)) {
+    if (needsRomanization && (!editedText || !furiganaText || !translatedText)) {
       Alert.alert('Cannot Save', 'Missing content for the flashcard. Please make sure the text was processed correctly.');
       return;
     }
@@ -123,10 +148,10 @@ export default function FlashcardsScreen() {
     setIsSaving(true);
 
     try {
-      // Create flashcard object - for non-Japanese text, furiganaText will be empty
+      // Create flashcard object
       const flashcard: Omit<Flashcard, 'id'> = {
         originalText: editedText,
-        furiganaText: needsFurigana ? furiganaText : "", // Empty for texts that don't need furigana
+        furiganaText: needsRomanization ? furiganaText : "", // Store romanization in furiganaText field
         translatedText,
         createdAt: Date.now(),
         deckId: deckId,
@@ -136,10 +161,11 @@ export default function FlashcardsScreen() {
       await saveFlashcard(flashcard as Flashcard, deckId);
       setIsSaved(true);
       
-      // Show success message
+      // Show success message with language-specific wording
+      const cardType = detectedLanguage ? `${detectedLanguage} flashcard` : 'flashcard';
       Alert.alert(
         'Flashcard Saved',
-        `Your flashcard has been saved to ${deckId === 'deck1' ? 'Deck 1' : 'a new deck'}!`,
+        `Your ${cardType} has been saved to ${deckId === 'deck1' ? 'Deck 1' : 'a new deck'}!`,
         [
           { 
             text: 'View Saved Flashcards', 
@@ -240,9 +266,16 @@ export default function FlashcardsScreen() {
               </View>
             ) : (
               <>
-                {furiganaText && needsFurigana && (
+                {furiganaText && needsRomanization && (
                   <View style={styles.resultContainer}>
-                    <Text style={styles.sectionTitle}>With Furigana</Text>
+                    <Text style={styles.sectionTitle}>
+                      {detectedLanguage === 'Japanese' ? 'With Furigana' :
+                       detectedLanguage === 'Chinese' ? 'With Pinyin' :
+                       detectedLanguage === 'Korean' ? 'With Revised Romanization' :
+                       detectedLanguage === 'Russian' ? 'With Practical Romanization' :
+                       detectedLanguage === 'Arabic' ? 'With Arabic Chat Alphabet' :
+                       'With Romanization'}
+                    </Text>
                     <Text style={styles.furiganaText} numberOfLines={0}>{furiganaText}</Text>
                   </View>
                 )}
@@ -255,7 +288,7 @@ export default function FlashcardsScreen() {
                 )}
 
                 {/* Save Flashcard Button */}
-                {((furiganaText && needsFurigana) || (translatedText && !needsFurigana)) && (
+                {textProcessed && translatedText && (
                   <View style={styles.buttonContainer}>
                     <TouchableOpacity 
                       style={[

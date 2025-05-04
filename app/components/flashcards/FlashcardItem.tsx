@@ -3,7 +3,13 @@ import { View, Text, StyleSheet, TouchableOpacity, Platform, Dimensions, Animate
 import { Flashcard } from '../../types/Flashcard';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
-import { containsJapanese } from '../../utils/textFormatting';
+import { 
+  containsJapanese, 
+  containsChinese, 
+  containsKoreanText, 
+  containsRussianText, 
+  containsArabicText 
+} from '../../utils/textFormatting';
 
 interface FlashcardItemProps {
   flashcard: Flashcard;
@@ -25,16 +31,34 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   // Track if content is scrollable (overflow)
   const [frontContentScrollable, setFrontContentScrollable] = useState(false);
   const [backContentScrollable, setBackContentScrollable] = useState(false);
-  // Check if text is Japanese
-  const [needsFurigana, setNeedsFurigana] = useState(true);
+  // Check language and determine if romanization is needed
+  const [needsRomanization, setNeedsRomanization] = useState(false);
+  const [detectedLanguage, setDetectedLanguage] = useState('');
   // References to the scroll views
   const frontScrollViewRef = useRef<ScrollView>(null);
   const backScrollViewRef = useRef<ScrollView>(null);
 
-  // Check if the text contains Japanese characters
+  // Detect language of the text
   useEffect(() => {
-    // Only Japanese text needs furigana
-    setNeedsFurigana(containsJapanese(flashcard.originalText));
+    const originalText = flashcard.originalText;
+    const hasJapanese = containsJapanese(originalText);
+    const hasChinese = containsChinese(originalText);
+    const hasKorean = containsKoreanText(originalText);
+    const hasRussian = containsRussianText(originalText);
+    const hasArabic = containsArabicText(originalText);
+    
+    // Determine language
+    let language = 'unknown';
+    if (hasJapanese && !hasChinese && !hasKorean) language = 'Japanese';
+    else if (hasChinese) language = 'Chinese';
+    else if (hasKorean) language = 'Korean';
+    else if (hasRussian) language = 'Russian';
+    else if (hasArabic) language = 'Arabic';
+    setDetectedLanguage(language);
+
+    // All these languages need romanization
+    const needsRom = hasJapanese || hasChinese || hasKorean || hasRussian || hasArabic;
+    setNeedsRomanization(needsRom);
   }, [flashcard.originalText]);
 
   // Function to handle card flipping
@@ -189,9 +213,16 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
                 checkContentScrollable(scrollView, 'back');
               }}
             >
-              {needsFurigana && flashcard.furiganaText && (
+              {needsRomanization && flashcard.furiganaText && (
                 <>
-                  <Text style={styles.sectionTitle}>With Furigana</Text>
+                  <Text style={styles.sectionTitle}>
+                    {detectedLanguage === 'Japanese' ? 'With Furigana' :
+                     detectedLanguage === 'Chinese' ? 'With Pinyin' :
+                     detectedLanguage === 'Korean' ? 'With Revised Romanization' :
+                     detectedLanguage === 'Russian' ? 'With Practical Romanization' :
+                     detectedLanguage === 'Arabic' ? 'With Arabic Chat Alphabet' :
+                     'With Romanization'}
+                  </Text>
                   <Text style={styles.furiganaText}>
                     {flashcard.furiganaText}
                   </Text>

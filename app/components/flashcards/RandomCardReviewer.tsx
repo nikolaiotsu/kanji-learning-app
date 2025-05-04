@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Animated, PanResponder } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import FlashcardItem from './FlashcardItem';
 import { useRandomCardReview } from '../../hooks/useRandomCardReview';
 import { COLORS } from '../../constants/colors';
+import MultiDeckSelector from './MultiDeckSelector';
 
 interface RandomCardReviewerProps {
   // No props needed
@@ -21,13 +22,17 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
     allFlashcards,
     selectRandomCard,
     setCurrentCard,
-    removeCardFromSession
+    removeCardFromSession,
+    selectedDeckIds,
+    updateSelectedDeckIds
   } = useRandomCardReview();
 
   // Local state for remaining cards count to prevent flickering
   const [remainingCount, setRemainingCount] = useState(reviewSessionCards.length);
   // Track if we're processing an action to prevent double-clicks
   const [isProcessing, setIsProcessing] = useState(false);
+  // State for showing the deck selector modal
+  const [showDeckSelector, setShowDeckSelector] = useState(false);
   
   // Animation values
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -171,6 +176,33 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
     completeSwipe('right');
   };
 
+  // Handle deck selection
+  const handleDeckSelection = useCallback((deckIds: string[]) => {
+    // Only do a full reset if the selection actually changed
+    if (JSON.stringify(deckIds.sort()) !== JSON.stringify(selectedDeckIds.sort())) {
+      // When changing decks, we want to reset the review session
+      // This ensures we get a clean start with the newly selected decks
+      updateSelectedDeckIds(deckIds);
+      
+      // Wait for the deck selection modal to close before resetting
+      setTimeout(() => {
+        resetReviewSession();
+      }, 100);
+    }
+    
+    setShowDeckSelector(false);
+  }, [selectedDeckIds, updateSelectedDeckIds, resetReviewSession]);
+
+  // Memoize the MultiDeckSelector to prevent unnecessary re-renders
+  const deckSelector = useMemo(() => (
+    <MultiDeckSelector 
+      visible={showDeckSelector}
+      onClose={() => setShowDeckSelector(false)}
+      onSelectDecks={handleDeckSelection}
+      initialSelectedDeckIds={selectedDeckIds}
+    />
+  ), [showDeckSelector, selectedDeckIds, handleDeckSelection]);
+
   if (isLoading) {
     return (
       <View style={styles.container}>
@@ -196,8 +228,18 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
     if (reviewSessionCards.length === 0 && allFlashcards.length === 0) {
       return (
         <View style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity 
+              style={styles.deckButton} 
+              onPress={() => setShowDeckSelector(true)}
+            >
+              <Ionicons name="albums-outline" size={20} color={COLORS.primary} />
+              <Text style={styles.deckButtonText}>Select Decks</Text>
+            </TouchableOpacity>
+          </View>
           <Text style={styles.noCardsText}>Nothing to review</Text>
           <Text style={styles.guidanceText}>Go scan some text to make new flashcards!</Text>
+          {deckSelector}
         </View>
       );
     }
@@ -205,6 +247,15 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
     // If we have cards but finished reviewing them, or if we want to start a fresh review
     return (
       <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.deckButton} 
+            onPress={() => setShowDeckSelector(true)}
+          >
+            <Ionicons name="albums-outline" size={20} color={COLORS.primary} />
+            <Text style={styles.deckButtonText}>Select Decks</Text>
+          </TouchableOpacity>
+        </View>
         <Text style={styles.noCardsText}>You've finished your review!</Text>
         <TouchableOpacity 
           style={styles.reviewAgainButton} 
@@ -212,12 +263,22 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
         >
           <Text style={styles.reviewAgainText}>Review Again</Text>
         </TouchableOpacity>
+        {deckSelector}
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.deckButton} 
+          onPress={() => setShowDeckSelector(true)}
+        >
+          <Ionicons name="albums-outline" size={20} color={COLORS.primary} />
+          <Text style={styles.deckButtonText}>Select Decks</Text>
+        </TouchableOpacity>
+      </View>
       <View style={styles.cardStage}>
         <Animated.View 
           style={[
@@ -251,7 +312,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
         </Text>
       </View>
       
-      {/* Optional buttons removed as swipe gestures are sufficient */}
+      {deckSelector}
     </View>
   );
 };
@@ -272,6 +333,26 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+  },
+  header: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    marginBottom: 10,
+    paddingHorizontal: 5,
+  },
+  deckButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  deckButtonText: {
+    color: COLORS.primary,
+    marginLeft: 4,
+    fontWeight: '500',
   },
   cardStage: {
     width: '100%',

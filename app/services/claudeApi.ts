@@ -1,6 +1,14 @@
 import axios, { AxiosError } from 'axios';
 import Constants from 'expo-constants';
-import { containsJapanese, containsChineseJapanese, containsChinese, containsKoreanText } from '../utils/textFormatting';
+import { 
+  containsJapanese, 
+  containsChineseJapanese, 
+  containsChinese, 
+  containsKoreanText,
+  containsRussianText,
+  containsArabicText,
+  containsItalianText
+} from '../utils/textFormatting';
 
 // Define response structure
 interface ClaudeResponse {
@@ -21,9 +29,78 @@ interface ClaudeContentItem {
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
- * Processes text with Claude AI API to add furigana and provide translation
+ * Determines the primary language of a text while acknowledging it may contain other languages
+ * @param text The text to analyze
+ * @returns The detected primary language
+ */
+function detectPrimaryLanguage(text: string): string {
+  // Count characters by language category
+  let russianChars = 0;
+  let japaneseChars = 0;
+  let chineseChars = 0;
+  let koreanChars = 0;
+  let arabicChars = 0;
+  let italianChars = 0;
+  
+  // Check each character in the text
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    
+    // Russian (Cyrillic)
+    if (/[\u0400-\u04FF]/.test(char)) {
+      russianChars++;
+    }
+    // Japanese specific (hiragana, katakana)
+    else if (/[\u3040-\u30ff]/.test(char)) {
+      japaneseChars++;
+    }
+    // CJK characters (could be either Chinese or Japanese kanji)
+    else if (/[\u3400-\u4dbf\u4e00-\u9fff]/.test(char)) {
+      if (!containsJapanese(text)) {
+        // If no hiragana/katakana, more likely Chinese
+        chineseChars++;
+      } else {
+        // Otherwise, count as Japanese
+        japaneseChars++;
+      }
+    }
+    // Korean
+    else if (/[\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC]/.test(char)) {
+      koreanChars++;
+    }
+    // Arabic
+    else if (/[\u0600-\u06FF\u0750-\u077F]/.test(char)) {
+      arabicChars++;
+    }
+  }
+  
+  // Check for Italian based on patterns (simpler approach)
+  if (containsItalianText(text) && 
+      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars)) {
+    return "Italian";
+  }
+  
+  // Return language with highest character count
+  const counts = [
+    { lang: "Russian", count: russianChars },
+    { lang: "Japanese", count: japaneseChars },
+    { lang: "Chinese", count: chineseChars },
+    { lang: "Korean", count: koreanChars },
+    { lang: "Arabic", count: arabicChars }
+  ];
+  
+  counts.sort((a, b) => b.count - a.count);
+  
+  // If the highest count is 0, return "unknown"
+  if (counts[0].count === 0) return "unknown";
+  
+  return counts[0].lang;
+}
+
+/**
+ * Processes text with Claude AI API to add furigana/romanization and provide translation
  * @param text The text to be processed
- * @returns Object containing text with furigana (if Japanese) and English translation
+ * @returns Object containing text with furigana/romanization and English translation
  */
 export async function processWithClaude(text: string): Promise<ClaudeResponse> {
   // Maximum number of retry attempts
@@ -34,10 +111,9 @@ export async function processWithClaude(text: string): Promise<ClaudeResponse> {
   let retryCount = 0;
   let lastError: unknown = null;
 
-  // Detect language characteristics
-  const hasJapanese = containsJapanese(text);
-  const hasChinese = containsChinese(text);
-  const hasKorean = containsKoreanText(text);
+  // Detect primary language
+  const primaryLanguage = detectPrimaryLanguage(text);
+  console.log("Primary language detected:", primaryLanguage);
 
   while (retryCount < MAX_RETRIES) {
     try {
@@ -54,52 +130,102 @@ export async function processWithClaude(text: string): Promise<ClaudeResponse> {
       // Define the user message with our prompt based on language detection
       let userMessage = '';
       
-      if (hasKorean) {
-        // Korean-specific prompt
+      if (primaryLanguage === "Chinese") {
+        // Chinese-specific prompt with pinyin
         userMessage = `
-You are a Korean language expert. I need you to translate this Korean text: "${text}"
-
-IMPORTANT: For Korean text, DO NOT add any furigana or readings. Korean text should be translated directly.
-
-Format your response as valid JSON with these exact keys:
-{
-  "furiganaText": "", 
-  "translatedText": "Accurate English translation reflecting the full meaning in context"
-}
-`;
-      } else if (hasChinese) {
-        // Chinese-specific prompt
-        userMessage = `
-You are a Chinese language expert. I need you to translate this Chinese text: "${text}"
-
-IMPORTANT: For Chinese text, DO NOT add any furigana or readings. Chinese text should be translated directly.
-
-Format your response as valid JSON with these exact keys:
-{
-  "furiganaText": "", 
-  "translatedText": "Accurate English translation reflecting the full meaning in context"
-}
-`;
-      } else {
-        // Default Japanese prompt
-        userMessage = `
-You are a Japanese language expert. I need you to analyze this Japanese text and add furigana to words containing kanji: "${text}"
+You are a Chinese language expert. I need you to analyze and translate this text: "${text}"
 
 IMPORTANT: You must follow this EXACT format:
-- Keep all original text as is
+- Keep all original text as is (including any English words, numbers, or punctuation)
+- For each Chinese character or word, add the pinyin romanization in parentheses immediately after
+- Do NOT add romanization to English words or numbers
+- The pinyin should include tone marks (e.g., "你好" should become "你好(nǐ hǎo)")
+
+Format your response as valid JSON with these exact keys:
+{
+  "furiganaText": "Chinese text with pinyin after each character/word as described",
+  "translatedText": "Accurate English translation reflecting the full meaning in context"
+}
+`;
+      } else if (primaryLanguage === "Korean") {
+        // Korean-specific prompt with Revised Romanization
+        userMessage = `
+You are a Korean language expert. I need you to analyze and translate this text: "${text}"
+
+IMPORTANT: You must follow this EXACT format:
+- Keep all original text as is (including any English words, numbers, or punctuation)
+- For each Korean word, add the Revised Romanization in parentheses immediately after
+- Do NOT add romanization to English words or numbers
+- Follow the official Revised Romanization system rules
+
+Format your response as valid JSON with these exact keys:
+{
+  "furiganaText": "Korean text with Revised Romanization after each word in parentheses",
+  "translatedText": "Accurate English translation reflecting the full meaning in context"
+}
+`;
+      } else if (primaryLanguage === "Russian") {
+        // Russian-specific prompt with Practical Romanization
+        userMessage = `
+You are a Russian language expert. I need you to analyze and translate this text: "${text}"
+
+IMPORTANT: You must follow this EXACT format:
+- Keep all original text as is (including any English words, numbers, or punctuation)
+- For each Russian word, add the Practical Romanization in parentheses immediately after
+- Do NOT add romanization to English words or numbers
+- Follow practical, easy-to-read romanization standards
+
+Format your response as valid JSON with these exact keys:
+{
+  "furiganaText": "Russian text with Practical Romanization after each word in parentheses",
+  "translatedText": "Accurate English translation reflecting the full meaning in context"
+}
+`;
+      } else if (primaryLanguage === "Arabic") {
+        // Arabic-specific prompt with Arabic Chat Alphabet
+        userMessage = `
+You are an Arabic language expert. I need you to analyze and translate this text: "${text}"
+
+IMPORTANT: You must follow this EXACT format:
+- Keep all original text as is (including any English words, numbers, or punctuation)
+- For each Arabic word, add the Arabic Chat Alphabet (Franco-Arabic) transliteration in parentheses immediately after
+- Do NOT add transliteration to English words or numbers
+- Follow common Arabic Chat Alphabet conventions used in online messaging
+
+Format your response as valid JSON with these exact keys:
+{
+  "furiganaText": "Arabic text with Arabic Chat Alphabet transliteration after each word in parentheses",
+  "translatedText": "Accurate English translation reflecting the full meaning in context"
+}
+`;
+      } else if (primaryLanguage === "Italian") {
+        // Italian-specific prompt (Western language - no need for romanization)
+        userMessage = `
+You are an Italian language expert. I need you to translate this Italian text: "${text}"
+
+Format your response as valid JSON with these exact keys:
+{
+  "furiganaText": "", 
+  "translatedText": "Accurate English translation reflecting the full meaning in context"
+}
+`;
+      } else if (primaryLanguage === "Japanese") {
+        // Japanese prompt
+        userMessage = `
+You are a Japanese language expert. I need you to analyze this text and add furigana to words containing kanji: "${text}"
+
+IMPORTANT: You must follow this EXACT format:
+- Keep all original text as is (including any English words, numbers, or punctuation)
 - For each word containing kanji, add the hiragana reading in parentheses immediately after the COMPLETE word
 - The reading should cover the entire word (including any hiragana parts)
 - Add readings only for words containing kanji
-- Non-kanji words should remain unchanged
+- Non-kanji words, English words, and numbers should remain unchanged
 
 Examples of correct formatting:
 - "東京" should become "東京(とうきょう)"
 - "日本語" should become "日本語(にほんご)"
 - "勉強する" should become "勉強する(べんきょうする)"
-- "引き金" should become "引き金(ひきがね)"
-
-For this text: "${text}"
-The response should maintain all original text but add readings for words containing kanji.
+- "iPhone 15" should remain "iPhone 15"
 
 Format your response as valid JSON with these exact keys:
 {
@@ -107,11 +233,21 @@ Format your response as valid JSON with these exact keys:
   "translatedText": "Accurate English translation reflecting the full meaning in context"
 }
 `;
+      } else {
+        // Default prompt for other languages
+        userMessage = `
+I need you to translate this text: "${text}"
+
+Format your response as valid JSON with these exact keys:
+{
+  "furiganaText": "", 
+  "translatedText": "Accurate English translation reflecting the full meaning in context"
+}
+`;
       }
 
       console.log("Sending request to Claude API...");
       console.log("Text to process:", text);
-      console.log("Text identified as:", hasChinese ? "Chinese" : hasKorean ? "Korean" : "Japanese");
       
       // Make API request to Claude using latest API format
       const response = await axios.post(

@@ -70,6 +70,38 @@ export function containsKoreanText(text: string): boolean {
 }
 
 /**
+ * Checks if text contains Russian characters
+ */
+export function containsRussianText(text: string): boolean {
+  // Regex for Cyrillic alphabet (covers Russian characters)
+  const russianRegex = /[\u0400-\u04FF]/;
+  return russianRegex.test(text);
+}
+
+/**
+ * Checks if text contains Arabic characters
+ */
+export function containsArabicText(text: string): boolean {
+  // Regex for Arabic alphabet
+  const arabicRegex = /[\u0600-\u06FF\u0750-\u077F]/;
+  return arabicRegex.test(text);
+}
+
+/**
+ * Checks if text contains Italian characters and patterns
+ */
+export function containsItalianText(text: string): boolean {
+  // Characters distinct to Italian (like accented vowels)
+  const italianSpecificChars = /[àèéìíîòóùú]/i;
+  
+  // Common Italian word patterns (articles, prepositions, endings)
+  const italianPatterns = /\b(il|lo|la|i|gli|le|un|uno|una|di|da|in|con|su|per|tra|fra)\b|\w+(zione|tà|ità|ismo|ista|mente|are|ere|ire)\b/i;
+  
+  // Check for Italian specific characters or word patterns
+  return italianSpecificChars.test(text) || italianPatterns.test(text);
+}
+
+/**
  * Checks if text contains any content (from any language)
  */
 export function containsText(text: string): boolean {
@@ -89,6 +121,9 @@ const TextFormatting = {
   containsChineseJapanese,
   containsChinese,
   containsKoreanText,
-  containsText 
+  containsText,
+  containsRussianText,
+  containsArabicText,
+  containsItalianText
 };
 export default TextFormatting; 
