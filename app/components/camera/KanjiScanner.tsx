@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { Ionicons, MaterialIcons, FontAwesome5, AntDesign, FontAwesome6, Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -14,16 +14,26 @@ import { detectJapaneseText, convertToOriginalImageCoordinates, cropImageToRegio
 import { ImageHighlighterRef } from '../shared/ImageHighlighter';
 import * as ImageManipulator from 'expo-image-manipulator';
 import RandomCardReviewer from '../flashcards/RandomCardReviewer';
+import { useFocusEffect } from 'expo-router';
 
 export default function KanjiScanner() {
   const [capturedImage, setCapturedImage] = useState<CapturedImage | null>(null);
   const [imageHistory, setImageHistory] = useState<CapturedImage[]>([]);
   const [forwardHistory, setForwardHistory] = useState<CapturedImage[]>([]);
   const [highlightModeActive, setHighlightModeActive] = useState(false);
+  const [cropModeActive, setCropModeActive] = useState(false);
+  const [hasCropSelection, setHasCropSelection] = useState(false);
   const [localProcessing, setLocalProcessing] = useState(false);
   const [settingsMenuVisible, setSettingsMenuVisible] = useState(false);
   const [showTextInputModal, setShowTextInputModal] = useState(false);
   const [inputText, setInputText] = useState('');
+  const [hasHighlightSelection, setHasHighlightSelection] = useState(false);
+  const [highlightRegion, setHighlightRegion] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
   
   const router = useRouter();
   const { signOut } = useAuth();
@@ -124,6 +134,13 @@ export default function KanjiScanner() {
         return;
       }
 
+      // For highlight mode, store the region for later confirmation
+      if (highlightModeActive) {
+        setHighlightRegion(region);
+        setHasHighlightSelection(true);
+        return;
+      }
+
       setLocalProcessing(true);
       
       // Get the transform data which includes scaling information
@@ -158,37 +175,9 @@ export default function KanjiScanner() {
       
       try {
         if (highlightModeActive) {
-          // This is a text selection - follow the original flow with text detection
-          // Crop directly from the original image
-          const croppedUri = await cropImageToRegion(uri, originalRegion);
-          console.log('[KanjiScanner] Cropped image URI:', croppedUri);
-          
-          // Use the entire cropped image for OCR
-          const textRegions = await detectJapaneseText(
-            croppedUri,
-            { x: 0, y: 0, width: 1000, height: 1000 }, // Use entire image
-            false
-          );
-          
-          console.log('OCR result:', textRegions.length > 0 ? `${textRegions.length} texts found` : 'No text found');
-          
-          if (textRegions && textRegions.length > 0) {
-            // Join all detected text items with newlines
-            const detectedText = textRegions.map(item => item.text).join('\n');
-            console.log('Extracted text:', detectedText);
-            
-            // Navigate to flashcards with the detected text
-            router.push({
-              pathname: "/flashcards",
-              params: { text: detectedText }
-            });
-          } else {
-            Alert.alert(
-              "No Japanese Text Found",
-              "No Japanese text was detected in the selected area. Please try selecting a different area.",
-              [{ text: "OK" }]
-            );
-          }
+          // This should not be reachable with the confirmation flow, 
+          // but kept for safety if the flow changes
+          processHighlightRegion(originalRegion);
         } else {
           // This is a crop operation - just resize the image without text detection
           console.log('[KanjiScanner] CROP MODE: Starting crop operation');
@@ -221,6 +210,10 @@ export default function KanjiScanner() {
             width: resizedImage.width,
             height: resizedImage.height
           });
+          
+          // Reset crop mode
+          setCropModeActive(false);
+          
           console.log('[KanjiScanner] Crop operation completed successfully');
         }
       } catch (error) {
@@ -244,47 +237,122 @@ export default function KanjiScanner() {
     }
   };
 
-  const handleCancel = () => {
-    setCapturedImage(null);
-    setHighlightModeActive(false);
-    setImageHistory([]);
-    setForwardHistory([]);
-  };
-
-  const handleBackToPreviousImage = () => {
-    if (imageHistory.length > 0 && capturedImage) {
-      // Get the last image from history
-      const previousImage = imageHistory[imageHistory.length - 1];
+  // New function to process the highlight region
+  const processHighlightRegion = async (originalRegion: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }) => {
+    if (!capturedImage) return;
+    
+    setLocalProcessing(true);
+    try {
+      const { uri } = capturedImage;
       
-      // Save current image to forward history
-      setForwardHistory(prev => [...prev, capturedImage]);
+      // Crop directly from the original image
+      const croppedUri = await cropImageToRegion(uri, originalRegion);
+      console.log('[KanjiScanner] Cropped image URI:', croppedUri);
       
-      // Set previous image as the current image
-      setCapturedImage(previousImage);
+      // Use the entire cropped image for OCR
+      const textRegions = await detectJapaneseText(
+        croppedUri,
+        { x: 0, y: 0, width: 1000, height: 1000 }, // Use entire image
+        false
+      );
       
-      // Remove it from history
-      setImageHistory(prev => prev.slice(0, -1));
+      console.log('OCR result:', textRegions.length > 0 ? `${textRegions.length} texts found` : 'No text found');
+      
+      if (textRegions && textRegions.length > 0) {
+        // Join all detected text items with newlines
+        const detectedText = textRegions.map(item => item.text).join('\n');
+        console.log('Extracted text:', detectedText);
+        
+        // Clear the highlight box
+        imageHighlighterRef.current?.clearHighlightBox?.();
+        
+        // Navigate to flashcards with the detected text
+        router.push({
+          pathname: "/flashcards",
+          params: { text: detectedText }
+        });
+      } else {
+        Alert.alert(
+          "No Japanese Text Found",
+          "No Japanese text was detected in the selected area. Please try selecting a different area.",
+          [{ text: "OK" }]
+        );
+      }
+    } catch (error) {
+      console.error('Error processing highlight region:', error);
+      Alert.alert(
+        "OCR Error",
+        "There was a problem recognizing text in the selected area. Please try again.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setLocalProcessing(false);
+      setHighlightRegion(null);
+      setHasHighlightSelection(false);
+      setHighlightModeActive(false);
+      
+      // Ensure highlight box is cleared
+      imageHighlighterRef.current?.clearHighlightBox?.();
     }
   };
 
-  const handleForwardToNextImage = () => {
-    if (forwardHistory.length > 0 && capturedImage) {
-      // Get the last image from forward history
-      const nextImage = forwardHistory[forwardHistory.length - 1];
-      
-      // Save current image to backward history
-      setImageHistory(prev => [...prev, capturedImage]);
-      
-      // Set next image as the current image
-      setCapturedImage(nextImage);
-      
-      // Remove it from forward history
-      setForwardHistory(prev => prev.slice(0, -1));
-    }
+  const confirmHighlightSelection = async () => {
+    if (!highlightRegion || !imageHighlighterRef.current) return;
+    
+    const transformData = imageHighlighterRef.current.getTransformData();
+    const { width, height } = capturedImage as CapturedImage;
+    
+    // Calculate the scaling ratio between the original image and how it's displayed
+    const widthRatio = width / transformData.scaledWidth;
+    const heightRatio = height / transformData.scaledHeight;
+    
+    // Convert the selected region to original image coordinates
+    const originalRegion = {
+      x: Math.round(highlightRegion.x * widthRatio),
+      y: Math.round(highlightRegion.y * heightRatio),
+      width: Math.round(highlightRegion.width * widthRatio),
+      height: Math.round(highlightRegion.height * heightRatio)
+    };
+    
+    await processHighlightRegion(originalRegion);
+  };
+
+  const cancelHighlightSelection = () => {
+    setHighlightRegion(null);
+    setHasHighlightSelection(false);
+    imageHighlighterRef.current?.clearHighlightBox?.();
   };
 
   const activateHighlightMode = () => {
     setHighlightModeActive(true);
+    setCropModeActive(false);
+    setHasHighlightSelection(false);
+    setHighlightRegion(null);
+  };
+
+  const cancelHighlightMode = () => {
+    setHighlightModeActive(false);
+    setHasHighlightSelection(false);
+    setHighlightRegion(null);
+    imageHighlighterRef.current?.clearHighlightBox?.();
+  };
+
+  const toggleCropMode = () => {
+    const newCropMode = !cropModeActive;
+    setCropModeActive(newCropMode);
+    
+    // Exit highlight mode if it's active
+    if (newCropMode && highlightModeActive) {
+      setHighlightModeActive(false);
+    }
+    
+    // Call the ImageHighlighter's toggleCropMode function
+    imageHighlighterRef.current?.toggleCropMode();
   };
 
   const handleTextInput = () => {
@@ -323,6 +391,101 @@ export default function KanjiScanner() {
       });
     }
   }, [capturedImage]);
+
+  // Restore the handleCancel function which was accidentally removed
+  const handleCancel = () => {
+    setCapturedImage(null);
+    setHighlightModeActive(false);
+    setCropModeActive(false);
+    setImageHistory([]);
+    setForwardHistory([]);
+  };
+
+  // Restore the handleBackToPreviousImage function which was accidentally removed
+  const handleBackToPreviousImage = () => {
+    if (imageHistory.length > 0 && capturedImage) {
+      // Clear any highlight box or selections
+      imageHighlighterRef.current?.clearHighlightBox?.();
+      setHighlightRegion(null);
+      setHasHighlightSelection(false);
+      setHighlightModeActive(false);
+      
+      // Get the last image from history
+      const previousImage = imageHistory[imageHistory.length - 1];
+      
+      // Save current image to forward history
+      setForwardHistory(prev => [...prev, capturedImage]);
+      
+      // Set previous image as the current image
+      setCapturedImage(previousImage);
+      
+      // Remove it from history
+      setImageHistory(prev => prev.slice(0, -1));
+    }
+  };
+
+  // Restore the handleForwardToNextImage function which was accidentally removed
+  const handleForwardToNextImage = () => {
+    if (forwardHistory.length > 0 && capturedImage) {
+      // Clear any highlight box or selections
+      imageHighlighterRef.current?.clearHighlightBox?.();
+      setHighlightRegion(null);
+      setHasHighlightSelection(false);
+      setHighlightModeActive(false);
+      
+      // Get the last image from forward history
+      const nextImage = forwardHistory[forwardHistory.length - 1];
+      
+      // Save current image to backward history
+      setImageHistory(prev => [...prev, capturedImage]);
+      
+      // Set next image as the current image
+      setCapturedImage(nextImage);
+      
+      // Remove it from forward history
+      setForwardHistory(prev => prev.slice(0, -1));
+    }
+  };
+
+  // Add an effect to check if a crop region exists when in crop mode
+  React.useEffect(() => {
+    if (cropModeActive) {
+      // Use an interval to check crop status since it might change
+      const checkInterval = setInterval(() => {
+        const hasCrop = !!imageHighlighterRef.current?.hasCropRegion;
+        if (hasCrop !== hasCropSelection) {
+          setHasCropSelection(hasCrop);
+        }
+      }, 100);
+      
+      return () => clearInterval(checkInterval);
+    } else {
+      setHasCropSelection(false);
+    }
+  }, [cropModeActive, hasCropSelection]);
+
+  // Clear highlight when the screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (capturedImage) {
+        // Clear any lingering highlight boxes or selections
+        imageHighlighterRef.current?.clearHighlightBox?.();
+        setHighlightRegion(null);
+        setHasHighlightSelection(false);
+        
+        // Only deactivate highlight mode if we're returning from another screen
+        // to avoid disrupting the user if they're actively using the app
+        if (highlightModeActive) {
+          console.log('[KanjiScanner] Screen focus: Clearing highlight mode');
+          setHighlightModeActive(false);
+        }
+      }
+      
+      return () => {
+        // Cleanup function
+      };
+    }, [capturedImage])
+  );
 
   return (
     <View style={styles.container}>
@@ -399,17 +562,98 @@ export default function KanjiScanner() {
             onActivateHighlightMode={activateHighlightMode}
             onRegionSelected={handleRegionSelected}
           />
+          
+          {highlightModeActive && (
+            <View style={styles.instructionContainer}>
+              <Text style={styles.instructionText}>
+                Drag to highlight text for translation
+              </Text>
+            </View>
+          )}
+          
           <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
             <AntDesign name="back" size={24} color="white" />
           </TouchableOpacity>
-          {!highlightModeActive && (
-            <TouchableOpacity 
-              style={styles.highlightButton} 
-              onPress={activateHighlightMode}
-            >
-              <FontAwesome6 name="highlighter" size={24} color="white" />
-            </TouchableOpacity>
+          
+          {/* Highlight and Crop buttons - only shown when no active mode */}
+          {!highlightModeActive && !cropModeActive && (
+            <>
+              <TouchableOpacity 
+                style={styles.highlightButton} 
+                onPress={activateHighlightMode}
+              >
+                <FontAwesome6 name="highlighter" size={24} color="white" />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.cropButton} 
+                onPress={toggleCropMode}
+              >
+                <FontAwesome6 name="crop" size={24} color="white" />
+              </TouchableOpacity>
+            </>
           )}
+          
+          {/* Highlight mode buttons - before selection */}
+          {highlightModeActive && !hasHighlightSelection && (
+            <>
+              <TouchableOpacity 
+                style={styles.cancelHighlightButton} 
+                onPress={cancelHighlightMode}
+              >
+                <FontAwesome6 name="xmark" size={24} color="white" />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                disabled={true}
+                style={[
+                  styles.confirmHighlightButton, 
+                  { opacity: 0.5 } // Dim the button to indicate it's not active yet
+                ]}
+              >
+                <FontAwesome6 name="check" size={24} color="white" />
+              </TouchableOpacity>
+            </>
+          )}
+          
+          {/* Highlight selection confirmation buttons - after selection */}
+          {highlightModeActive && hasHighlightSelection && (
+            <>
+              <TouchableOpacity 
+                style={styles.cancelHighlightButton} 
+                onPress={cancelHighlightSelection}
+              >
+                <FontAwesome6 name="xmark" size={24} color="white" />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.confirmHighlightButton}
+                onPress={confirmHighlightSelection}
+              >
+                <FontAwesome6 name="check" size={24} color="white" />
+              </TouchableOpacity>
+            </>
+          )}
+          
+          {/* Crop mode buttons */}
+          {cropModeActive && (
+            <>
+              <TouchableOpacity 
+                style={styles.cancelHighlightButton} 
+                onPress={toggleCropMode}
+              >
+                <FontAwesome6 name="xmark" size={24} color="white" />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[
+                  styles.confirmHighlightButton, 
+                  !hasCropSelection ? { opacity: 0.5 } : {}
+                ]} 
+                disabled={!hasCropSelection}
+                onPress={() => imageHighlighterRef.current?.applyCrop?.()}
+              >
+                <FontAwesome6 name="check" size={24} color="white" />
+              </TouchableOpacity>
+            </>
+          )}
+          
           {/* Back button to revert to previous image */}
           {imageHistory.length > 0 && (
             <TouchableOpacity 
@@ -563,6 +807,66 @@ const styles = StyleSheet.create({
     bottom: 20,
     right: 20,
     zIndex: 999,
+  },
+  cropButton: {
+    backgroundColor: COLORS.secondary,
+    borderRadius: 8,
+    width: 80,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    position: 'absolute',
+    bottom: 20,
+    right: 110, // Position it to the left of the highlight button
+    zIndex: 999,
+  },
+  cancelHighlightButton: {
+    backgroundColor: '#B3B3B3',
+    borderRadius: 8,
+    width: 80,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    position: 'absolute',
+    bottom: 20,
+    right: 110,
+    zIndex: 1000,
+  },
+  confirmHighlightButton: {
+    backgroundColor: '#2CB67D',
+    borderRadius: 8,
+    width: 80,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    zIndex: 1000,
   },
   backButton: {
     backgroundColor: COLORS.secondary,
@@ -780,5 +1084,26 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  instructionContainer: {
+    position: 'absolute',
+    bottom: 90,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    zIndex: 100,
+  },
+  instructionText: {
+    color: 'white',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
 }); 

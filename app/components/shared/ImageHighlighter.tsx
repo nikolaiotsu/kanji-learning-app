@@ -29,6 +29,10 @@ export interface ImageHighlighterRef {
     scaledWidth: number;
     scaledHeight: number;
   };
+  toggleCropMode: () => void;
+  applyCrop: () => void;
+  hasCropRegion: boolean;
+  clearHighlightBox: () => void;
 }
 
 interface ImageHighlighterProps {
@@ -113,7 +117,88 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       imageHeight,
       scaledWidth,
       scaledHeight,
-    })
+    }),
+    toggleCropMode: () => {
+      const newCropMode = !cropMode;
+      setCropMode(newCropMode);
+      
+      if (newCropMode) {
+        // Exit highlight mode if it's active
+        if (highlightModeActive && onActivateHighlightMode) {
+          onActivateHighlightMode();
+        }
+        // Reset crop box to empty state
+        setCropBox({ x: 0, y: 0, width: 0, height: 0 });
+        setIsCropDrawing(false);
+      }
+    },
+    applyCrop: () => {
+      if (!cropMode || !onRegionSelected || cropBox.width === 0 || cropBox.height === 0) return;
+      
+      try {
+        console.log('[ImageHighlighter] applyCrop called - Starting crop operation');
+        setIsProcessing(true);
+        
+        // Normalize the crop box coordinates (ensure positive width/height)
+        const { x, y, width, height } = cropBox;
+        const normalizedX = width < 0 ? x + width : x;
+        const normalizedY = height < 0 ? y + height : y;
+        const normalizedWidth = Math.abs(width);
+        const normalizedHeight = Math.abs(height);
+        
+        // Ensure valid crop box values (no negative dimensions)
+        const validCrop = {
+          x: Math.max(0, normalizedX),
+          y: Math.max(0, normalizedY),
+          width: Math.max(1, normalizedWidth),
+          height: Math.max(1, normalizedHeight)
+        };
+        console.log('[ImageHighlighter] validCrop (screen coordinates):', validCrop);
+        
+        // Convert crop box coordinates to be relative to the original image
+        // The result will be the actual pixel coordinates in the original image
+        const originalRegion = {
+          x: Math.round((validCrop.x / scaledWidth) * imageWidth),
+          y: Math.round((validCrop.y / scaledHeight) * imageHeight),
+          width: Math.round((validCrop.width / scaledWidth) * imageWidth),
+          height: Math.round((validCrop.height / scaledHeight) * imageHeight),
+        };
+        console.log('[ImageHighlighter] originalRegion (original image coordinates):', originalRegion);
+        
+        // Ensure no negative values and dimensions don't exceed image bounds
+        const safeRegion = {
+          x: Math.max(0, Math.min(originalRegion.x, imageWidth - 1)),
+          y: Math.max(0, Math.min(originalRegion.y, imageHeight - 1)),
+          width: Math.max(5, Math.min(originalRegion.width, imageWidth - originalRegion.x)),
+          height: Math.max(5, Math.min(originalRegion.height, imageHeight - originalRegion.y))
+        };
+        
+        console.log('[ImageHighlighter] safeRegion (final image coordinates for crop):', safeRegion);
+        
+        // Use the existing onRegionSelected callback to process the crop
+        // We're still in crop mode (not highlight mode) when calling this
+        console.log('[ImageHighlighter] Calling onRegionSelected with safeRegion');
+        onRegionSelected(safeRegion);
+        console.log('[ImageHighlighter] onRegionSelected callback completed');
+        
+        // Exit crop mode after applying
+        setCropMode(false);
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    // Computed property to check if a crop region exists
+    get hasCropRegion() {
+      // Check if there's a valid crop box with meaningful dimensions (at least 10x10 pixels)
+      return cropMode && cropBox.width !== 0 && cropBox.height !== 0 && 
+             Math.abs(cropBox.width) > 10 && Math.abs(cropBox.height) > 10;
+    },
+    clearHighlightBox: () => {
+      setIsDrawing(false);
+      setHighlightBox({ startX: 0, startY: 0, endX: 0, endY: 0 });
+      // Also reset any detected regions that might be displayed
+      setDetectedRegions([]);
+    }
   }));
 
   // Use window dimensions hook for more reliable screen measurements
@@ -289,6 +374,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           };
           
           console.log('[ImageHighlighter] Crop box drawn:', normalizedCropBox);
+          // Setting crop box triggers UI refresh and hasCropRegion update
           setCropBox(normalizedCropBox);
         }
       }
@@ -296,6 +382,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       // Handle end of drawing highlight box
       if (isDrawing && highlightModeActive) {
         setIsDrawing(false);
+        
         if (onRegionSelected) {
           const minX = Math.min(highlightBox.startX, highlightBox.endX);
           const maxX = Math.max(highlightBox.startX, highlightBox.endX);
@@ -305,6 +392,14 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           // Ensure we have a valid selection size
           if (maxX - minX < 10 || maxY - minY < 10) {
             console.log('Selection too small, ignoring');
+            
+            // Reset highlight box for tiny selections
+            setHighlightBox({
+              startX: 0,
+              startY: 0,
+              endX: 0,
+              endY: 0,
+            });
             return;
           }
 
@@ -320,6 +415,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           
           try {
             setIsProcessing(true);
+            // We don't reset the highlight box here, so it stays visible for confirmation
             onRegionSelected(unscaledRegion);
           } finally {
             setIsProcessing(false);
@@ -331,7 +427,8 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
 
   // Function to render the highlight box
   const renderHighlightBox = () => {
-    if (!isDrawing) return null;
+    // We want to show the highlight box when drawing OR when there's a finished selection (not drawing but has a selection)
+    if (!isDrawing && highlightBox.startX === 0 && highlightBox.endX === 0) return null;
     
     const minX = Math.min(highlightBox.startX, highlightBox.endX);
     const maxX = Math.max(highlightBox.startX, highlightBox.endX);
@@ -457,63 +554,6 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
     }
   };
 
-  // Apply the crop
-  const applyCrop = () => {
-    if (!cropMode || !onRegionSelected || cropBox.width === 0 || cropBox.height === 0) return;
-    
-    try {
-      console.log('[ImageHighlighter] applyCrop called - Starting crop operation');
-      setIsProcessing(true);
-      
-      // Normalize the crop box coordinates (ensure positive width/height)
-      const { x, y, width, height } = cropBox;
-      const normalizedX = width < 0 ? x + width : x;
-      const normalizedY = height < 0 ? y + height : y;
-      const normalizedWidth = Math.abs(width);
-      const normalizedHeight = Math.abs(height);
-      
-      // Ensure valid crop box values (no negative dimensions)
-      const validCrop = {
-        x: Math.max(0, normalizedX),
-        y: Math.max(0, normalizedY),
-        width: Math.max(1, normalizedWidth),
-        height: Math.max(1, normalizedHeight)
-      };
-      console.log('[ImageHighlighter] validCrop (screen coordinates):', validCrop);
-      
-      // Convert crop box coordinates to be relative to the original image
-      // The result will be the actual pixel coordinates in the original image
-      const originalRegion = {
-        x: Math.round((validCrop.x / scaledWidth) * imageWidth),
-        y: Math.round((validCrop.y / scaledHeight) * imageHeight),
-        width: Math.round((validCrop.width / scaledWidth) * imageWidth),
-        height: Math.round((validCrop.height / scaledHeight) * imageHeight),
-      };
-      console.log('[ImageHighlighter] originalRegion (original image coordinates):', originalRegion);
-      
-      // Ensure no negative values and dimensions don't exceed image bounds
-      const safeRegion = {
-        x: Math.max(0, Math.min(originalRegion.x, imageWidth - 1)),
-        y: Math.max(0, Math.min(originalRegion.y, imageHeight - 1)),
-        width: Math.max(5, Math.min(originalRegion.width, imageWidth - originalRegion.x)),
-        height: Math.max(5, Math.min(originalRegion.height, imageHeight - originalRegion.y))
-      };
-      
-      console.log('[ImageHighlighter] safeRegion (final image coordinates for crop):', safeRegion);
-      
-      // Use the existing onRegionSelected callback to process the crop
-      // We're still in crop mode (not highlight mode) when calling this
-      console.log('[ImageHighlighter] Calling onRegionSelected with safeRegion');
-      onRegionSelected(safeRegion);
-      console.log('[ImageHighlighter] onRegionSelected callback completed');
-      
-      // Exit crop mode after applying
-      setCropMode(false);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   // Reset when image changes
   React.useEffect(() => {
     console.log('[ImageHighlighter] imageUri changed:', imageUri);
@@ -601,30 +641,6 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
               : 'Drag the corner handles to adjust the crop'}
           </Text>
         </View>
-      )}
-      
-      {/* Crop mode toggle button */}
-      <TouchableOpacity 
-        style={styles.cropToggleButton}
-        onPress={toggleCropMode}
-      >
-        {cropMode ? (
-          <FontAwesome6 name="xmark" size={24} color="white" />
-        ) : (
-          <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'center'}}>
-            <FontAwesome6 name="crop" size={24} color="white" />
-          </View>
-        )}
-      </TouchableOpacity>
-      
-      {/* Confirm crop button (only shown in crop mode with valid box) */}
-      {cropMode && cropBox.width !== 0 && cropBox.height !== 0 && (
-        <TouchableOpacity 
-          style={styles.confirmCropButton}
-          onPress={applyCrop}
-        >
-          <FontAwesome6 name="check" size={24} color="white" />
-        </TouchableOpacity>
       )}
     </View>
   );
@@ -726,7 +742,7 @@ const styles = StyleSheet.create({
   cropToggleButton: {
     position: 'absolute',
     bottom: 20,
-    right: 160,
+    right: 110,
     backgroundColor: COLORS.secondary,
     width: 80,
     height: 50,
@@ -743,8 +759,8 @@ const styles = StyleSheet.create({
   confirmCropButton: {
     position: 'absolute',
     bottom: 20,
-    right: 90,
-    backgroundColor: COLORS.primary,
+    right: 20,
+    backgroundColor: '#2CB67D',
     width: 80,
     height: 50,
     borderRadius: 8,

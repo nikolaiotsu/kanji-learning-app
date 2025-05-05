@@ -21,7 +21,7 @@ import DeckSelector from './components/flashcards/DeckSelector';
 import { useAuth } from './context/AuthContext';
 import { COLORS } from './constants/colors';
 
-export default function FlashcardsScreen() {
+export default function LanguageFlashcardsScreen() {
   const { user } = useAuth();
   const params = useLocalSearchParams();
   const textParam = params.text;
@@ -162,7 +162,7 @@ export default function FlashcardsScreen() {
       setIsSaved(true);
       
       // Show success message with language-specific wording
-      const cardType = detectedLanguage ? `${detectedLanguage} flashcard` : 'flashcard';
+      const cardType = detectedLanguage ? `${detectedLanguage} flashcard` : 'language flashcard';
       Alert.alert(
         'Flashcard Saved',
         `Your ${cardType} has been saved to ${deckId === 'deck1' ? 'Deck 1' : 'a new deck'}!`,
@@ -211,13 +211,26 @@ export default function FlashcardsScreen() {
     }
   };
 
+  // Function to handle going back to home
+  const handleGoHome = () => {
+    router.push('/');
+  };
+
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Make a Flashcard</Text>
+        <TouchableOpacity 
+          style={styles.homeButton}
+          onPress={handleGoHome}
+        >
+          <Ionicons name="home-outline" size={24} color={COLORS.text} />
+        </TouchableOpacity>
+      </View>
+      
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
-        <Text style={styles.title}>Detected Text</Text>
-        
         <View style={styles.textContainer}>
-          <Text style={styles.japaneseText} numberOfLines={0}>{editedText}</Text>
+          <Text style={styles.originalText} numberOfLines={0}>{editedText}</Text>
         </View>
 
         {/* Edit and Translate buttons */}
@@ -274,7 +287,7 @@ export default function FlashcardsScreen() {
                        detectedLanguage === 'Korean' ? 'With Revised Romanization' :
                        detectedLanguage === 'Russian' ? 'With Practical Romanization' :
                        detectedLanguage === 'Arabic' ? 'With Arabic Chat Alphabet' :
-                       'With Romanization'}
+                       'With Pronunciation Guide'}
                     </Text>
                     <Text style={styles.furiganaText} numberOfLines={0}>{furiganaText}</Text>
                   </View>
@@ -282,7 +295,7 @@ export default function FlashcardsScreen() {
                 
                 {translatedText && (
                   <View style={styles.resultContainer}>
-                    <Text style={styles.sectionTitle}>English Translation</Text>
+                    <Text style={styles.sectionTitle}>Translation</Text>
                     <Text style={styles.translatedText} numberOfLines={0}>{translatedText}</Text>
                   </View>
                 )}
@@ -389,17 +402,30 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  homeButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: COLORS.darkSurface,
+  },
   scrollView: {
     flex: 1,
   },
   contentContainer: {
     padding: 20,
+    paddingTop: 8, // Reduced padding at top since we have the header
     paddingBottom: 40, // Add extra padding at the bottom for better scrolling experience
   },
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 16,
     color: COLORS.text,
   },
   textContainer: {
@@ -408,7 +434,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.darkSurface,
     marginBottom: 20,
   },
-  japaneseText: {
+  originalText: {
     fontSize: 24,
     writingDirection: 'ltr',
     textAlign: 'left',
