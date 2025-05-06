@@ -4,8 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from './context/AuthContext';
 import { useSettings, AVAILABLE_LANGUAGES, DETECTABLE_LANGUAGES } from './context/SettingsContext';
-import { clearFlashcardsAndDecks } from './utils/clearLocalStorage';
-import { checkLocalStorage } from './utils/checkLocalStorage';
 import { useRouter } from 'expo-router';
 import { COLORS } from './constants/colors';
 
@@ -21,53 +19,8 @@ export default function SettingsScreen() {
   } = useSettings();
   
   const router = useRouter();
-  const [hasLocalData, setHasLocalData] = useState(false);
-  const [isCheckingStorage, setIsCheckingStorage] = useState(true);
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
   const [showDetectionSelector, setShowDetectionSelector] = useState(false);
-
-  // Check local storage on component mount
-  useEffect(() => {
-    checkLocalData();
-  }, []);
-
-  // Function to check if there's data in local storage
-  const checkLocalData = async () => {
-    setIsCheckingStorage(true);
-    try {
-      const { hasDecks, hasFlashcards } = await checkLocalStorage();
-      setHasLocalData(hasDecks || hasFlashcards);
-    } catch (error) {
-      console.error('Error checking local storage:', error);
-    } finally {
-      setIsCheckingStorage(false);
-    }
-  };
-
-  // Function to handle storage cleanup
-  const handleClearLocalStorage = () => {
-    Alert.alert(
-      'Clear Local Data',
-      'This will remove any old flashcards and decks stored locally that might not be synced to your account. This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Clear', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await clearFlashcardsAndDecks();
-              setHasLocalData(false);
-              Alert.alert('Success', 'Local flashcards and decks have been cleared.');
-            } catch (error) {
-              console.error('Error clearing local storage:', error);
-              Alert.alert('Error', 'Failed to clear local storage.');
-            }
-          } 
-        }
-      ]
-    );
-  };
 
   // Function to handle sign out
   const handleSignOut = async () => {
@@ -127,10 +80,6 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView>
-        <View style={styles.header}>
-          <Text style={styles.title}>Settings</Text>
-        </View>
-
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
           {user ? (
@@ -188,41 +137,6 @@ export default function SettingsScreen() {
                 <Ionicons name="refresh" size={20} color={COLORS.text} />
               </TouchableOpacity>
             )}
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Data Management</Text>
-          
-          <TouchableOpacity
-            style={styles.settingItem}
-            onPress={handleClearLocalStorage}
-            disabled={!hasLocalData && !isCheckingStorage}
-          >
-            <Ionicons 
-              name="trash-outline" 
-              size={24} 
-              color={hasLocalData ? COLORS.danger : COLORS.darkGray} 
-              style={styles.settingIcon} 
-            />
-            <View style={styles.settingTextContainer}>
-              <Text 
-                style={[
-                  styles.settingLabel, 
-                  { color: hasLocalData ? COLORS.danger : COLORS.darkGray }
-                ]}
-              >
-                Clear Local Storage
-              </Text>
-              <Text style={styles.settingDescription}>
-                {isCheckingStorage 
-                  ? "Checking for local data..."
-                  : hasLocalData 
-                  ? "Old flashcards and decks detected in local storage"
-                  : "No local data to clear"
-                }
-              </Text>
-            </View>
           </TouchableOpacity>
         </View>
 
@@ -353,23 +267,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  header: {
-    padding: 16,
-    backgroundColor: COLORS.darkSurface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: COLORS.text,
-  },
   section: {
-    marginTop: 20,
+    marginTop: 24,
     backgroundColor: COLORS.darkSurface,
     borderRadius: 10,
     overflow: 'hidden',
     marginHorizontal: 16,
+    paddingTop: 12,
   },
   sectionTitle: {
     fontSize: 16,
@@ -378,6 +282,11 @@ const styles = StyleSheet.create({
     marginLeft: 16,
     marginBottom: 8,
     marginTop: -10,
+    position: 'absolute',
+    top: -8,
+    backgroundColor: COLORS.background,
+    paddingHorizontal: 8,
+    zIndex: 1,
   },
   settingItem: {
     flexDirection: 'row',

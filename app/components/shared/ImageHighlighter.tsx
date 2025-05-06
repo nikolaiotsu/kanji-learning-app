@@ -1,4 +1,4 @@
-import React, { useState, useRef, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useRef, forwardRef, useImperativeHandle, useEffect } from 'react';
 import {
   View,
   Image,
@@ -28,10 +28,14 @@ export interface ImageHighlighterRef {
     imageHeight: number;
     scaledWidth: number;
     scaledHeight: number;
+    rotation: number;
   };
   toggleCropMode: () => void;
+  toggleRotateMode: () => void;
   applyCrop: () => void;
+  applyRotation: () => void;
   hasCropRegion: boolean;
+  hasRotation: boolean;
   clearHighlightBox: () => void;
 }
 
@@ -47,6 +51,7 @@ interface ImageHighlighterProps {
     width: number;
     height: number;
     detectedText?: string[];
+    rotation?: number;
   }) => void;
 }
 
@@ -103,8 +108,27 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   const [activeCropHandle, setActiveCropHandle] = useState<string | null>(null);
   const [isCropDrawing, setIsCropDrawing] = useState(false);
   
+  // State for rotate mode
+  const [rotateMode, setRotateMode] = useState(false);
+  const [rotation, setRotation] = useState(0);
+  const [initialRotation, setInitialRotation] = useState(0);
+  const [rotateStartAngle, setRotateStartAngle] = useState(0);
+
   // Reference to the image view for capturing screenshots
   const imageViewRef = useRef<View>(null);
+  
+  // Previous imageUri ref to detect changes
+  const prevImageUriRef = useRef<string | null>(null);
+  
+  // Effect to track image changes and reset processing state
+  useEffect(() => {
+    if (prevImageUriRef.current !== imageUri) {
+      console.log('[ImageHighlighter] imageUri changed:', imageUri);
+      // Clear processing state when image changes
+      setIsProcessing(false);
+      prevImageUriRef.current = imageUri;
+    }
+  }, [imageUri]);
   
   // Forward the imageViewRef and transform data to parent component
   useImperativeHandle(ref, () => ({
@@ -117,19 +141,39 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       imageHeight,
       scaledWidth,
       scaledHeight,
+      rotation,
     }),
     toggleCropMode: () => {
       const newCropMode = !cropMode;
       setCropMode(newCropMode);
       
       if (newCropMode) {
-        // Exit highlight mode if it's active
+        // Exit other modes if they're active
         if (highlightModeActive && onActivateHighlightMode) {
           onActivateHighlightMode();
+        }
+        if (rotateMode) {
+          setRotateMode(false);
         }
         // Reset crop box to empty state
         setCropBox({ x: 0, y: 0, width: 0, height: 0 });
         setIsCropDrawing(false);
+      }
+    },
+    toggleRotateMode: () => {
+      const newRotateMode = !rotateMode;
+      setRotateMode(newRotateMode);
+      
+      if (newRotateMode) {
+        // Exit other modes if they're active
+        if (highlightModeActive && onActivateHighlightMode) {
+          onActivateHighlightMode();
+        }
+        if (cropMode) {
+          setCropMode(false);
+        }
+        // Store the initial rotation when entering rotate mode
+        setInitialRotation(rotation);
       }
     },
     applyCrop: () => {
@@ -162,6 +206,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           y: Math.round((validCrop.y / scaledHeight) * imageHeight),
           width: Math.round((validCrop.width / scaledWidth) * imageWidth),
           height: Math.round((validCrop.height / scaledHeight) * imageHeight),
+          rotation: rotation // Include current rotation
         };
         console.log('[ImageHighlighter] originalRegion (original image coordinates):', originalRegion);
         
@@ -170,7 +215,8 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           x: Math.max(0, Math.min(originalRegion.x, imageWidth - 1)),
           y: Math.max(0, Math.min(originalRegion.y, imageHeight - 1)),
           width: Math.max(5, Math.min(originalRegion.width, imageWidth - originalRegion.x)),
-          height: Math.max(5, Math.min(originalRegion.height, imageHeight - originalRegion.y))
+          height: Math.max(5, Math.min(originalRegion.height, imageHeight - originalRegion.y)),
+          rotation: originalRegion.rotation
         };
         
         console.log('[ImageHighlighter] safeRegion (final image coordinates for crop):', safeRegion);
@@ -187,11 +233,57 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         setIsProcessing(false);
       }
     },
+    applyRotation: () => {
+      if (!rotateMode || !onRegionSelected) return;
+      
+      try {
+        console.log('[ImageHighlighter] applyRotation called - Applying rotation:', rotation);
+        setIsProcessing(true);
+        
+        // Create a region covering the whole image to apply rotation
+        const fullImageRegion = {
+          x: 0,
+          y: 0,
+          width: imageWidth,
+          height: imageHeight,
+          rotation: rotation
+        };
+        
+        // Use the existing onRegionSelected callback to process the rotation
+        console.log('[ImageHighlighter] Calling onRegionSelected with rotation');
+        onRegionSelected(fullImageRegion);
+        console.log('[ImageHighlighter] onRegionSelected callback completed');
+        
+        // Exit rotate mode after applying
+        setRotateMode(false);
+        
+        // Note: We don't call setIsProcessing(false) here anymore
+        // Let the parent component (KanjiScanner) control this state
+        // through re-rendering with the new image
+      } catch (error) {
+        console.error("Error applying rotation:", error);
+        setIsProcessing(false); // Only clear on error
+      }
+    },
     // Computed property to check if a crop region exists
     get hasCropRegion() {
       // Check if there's a valid crop box with meaningful dimensions (at least 10x10 pixels)
       return cropMode && cropBox.width !== 0 && cropBox.height !== 0 && 
              Math.abs(cropBox.width) > 10 && Math.abs(cropBox.height) > 10;
+    },
+    // Computed property to check if rotation has changed
+    get hasRotation() {
+      // Consider a rotation change of at least 1 degree as significant
+      // Also check if rotation mode is active
+      const rotationDelta = Math.abs(rotation - initialRotation);
+      const hasChanged = rotationDelta > 1;
+      console.log('[ImageHighlighter] Checking hasRotation:', { 
+        rotation, 
+        initialRotation, 
+        delta: rotationDelta,
+        hasChanged
+      });
+      return rotateMode && hasChanged;
     },
     clearHighlightBox: () => {
       setIsDrawing(false);
@@ -228,17 +320,30 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
     );
   };
 
+  // Helper function to calculate angle between two points relative to the center
+  const calculateAngle = (x: number, y: number) => {
+    const centerX = scaledWidth / 2;
+    const centerY = scaledHeight / 2;
+    return Math.atan2(y - centerY, x - centerX) * (180 / Math.PI);
+  };
+
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: (evt, gestureState) => {
-      // Allow highlighting only when highlight mode is active
-      // Allow crop interactions when in crop mode
-      return highlightModeActive || cropMode || Math.abs(gestureState.dx) > 10 || Math.abs(gestureState.dy) > 10;
+      // Allow interaction based on active modes
+      return highlightModeActive || cropMode || rotateMode || 
+             Math.abs(gestureState.dx) > 10 || Math.abs(gestureState.dy) > 10;
     },
     onPanResponderGrant: (evt) => {
       const { locationX, locationY } = evt.nativeEvent;
       
-      if (cropMode) {
+      if (rotateMode) {
+        // Store the starting angle for rotation
+        const startAngle = calculateAngle(locationX, locationY);
+        setRotateStartAngle(startAngle);
+        console.log('[ImageHighlighter] Starting rotation from angle:', startAngle);
+      }
+      else if (cropMode) {
         if (activeCropHandle === null && !isCropDrawing && (cropBox.width === 0 && cropBox.height === 0)) {
           // Start drawing a new crop box
           console.log('[ImageHighlighter] Starting to draw new crop box');
@@ -269,7 +374,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           }
         }
       } 
-      // If in highlight mode and not in crop mode, start drawing
+      // If in highlight mode and not in other modes, start drawing
       else if (highlightModeActive) {
         console.log('[DEBUG][Highlight] Start touch:', 
           { locationX, locationY, scaledWidth, scaledHeight });
@@ -286,8 +391,25 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
     onPanResponderMove: (evt, gestureState: PanResponderGestureState) => {
       const { locationX, locationY } = evt.nativeEvent;
       
+      if (rotateMode) {
+        // Calculate the current angle
+        const currentAngle = calculateAngle(locationX, locationY);
+        // Calculate the difference from the start angle
+        let angleDelta = currentAngle - rotateStartAngle;
+        
+        // Normalize the angle delta to prevent large jumps
+        if (angleDelta > 180) angleDelta -= 360;
+        if (angleDelta < -180) angleDelta += 360;
+        
+        // Apply rotation change with some damping for smoother control
+        const dampingFactor = 0.5;
+        const newRotation = initialRotation + (angleDelta * dampingFactor);
+        
+        // Update rotation state
+        setRotation(newRotation);
+      }
       // Handle crop box drawing
-      if (cropMode && isCropDrawing) {
+      else if (cropMode && isCropDrawing) {
         setCropBox(prev => ({
           ...prev,
           width: locationX - prev.x,
@@ -357,8 +479,23 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       }
     },
     onPanResponderRelease: async (evt) => {
+      if (rotateMode) {
+        // When done with rotation, update the initial rotation for next interaction
+        // but keep the difference between initial and current rotation to properly
+        // detect hasRotation even after the first interaction
+        const rotationDelta = rotation - initialRotation;
+        setInitialRotation(rotation - rotationDelta);
+        
+        // Log the rotation change for debugging
+        console.log('[ImageHighlighter] Rotation updated:', {
+          rotation,
+          initialRotation,
+          delta: rotationDelta,
+          hasChanged: Math.abs(rotationDelta) > 1
+        });
+      }
       // Reset active crop handle
-      if (cropMode) {
+      else if (cropMode) {
         setActiveCropHandle(null);
         
         if (isCropDrawing) {
@@ -544,9 +681,12 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
     setCropMode(newCropMode);
     
     if (newCropMode) {
-      // Exit highlight mode if it's active
+      // Exit other modes if they're active
       if (highlightModeActive && onActivateHighlightMode) {
         onActivateHighlightMode();
+      }
+      if (rotateMode) {
+        setRotateMode(false);
       }
       // Reset crop box to empty state
       setCropBox({ x: 0, y: 0, width: 0, height: 0 });
@@ -554,11 +694,31 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
     }
   };
 
+  // Toggle rotate mode
+  const toggleRotateMode = () => {
+    const newRotateMode = !rotateMode;
+    setRotateMode(newRotateMode);
+    
+    if (newRotateMode) {
+      // Exit other modes if they're active
+      if (highlightModeActive && onActivateHighlightMode) {
+        onActivateHighlightMode();
+      }
+      if (cropMode) {
+        setCropMode(false);
+      }
+      // Store the initial rotation when entering rotate mode
+      setInitialRotation(rotation);
+    }
+  };
+
   // Reset when image changes
   React.useEffect(() => {
     console.log('[ImageHighlighter] imageUri changed:', imageUri);
     setCropMode(false);
+    setRotateMode(false);
     setCropBox({ x: 0, y: 0, width: 0, height: 0 });
+    setRotation(0);
   }, [imageUri]);
   
   // Log when component renders with new props
@@ -592,6 +752,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
               {
                 width: scaledWidth,
                 height: scaledHeight,
+                transform: [{ rotate: `${rotation}deg` }]
               }
             ]}
             resizeMode="contain"
@@ -616,6 +777,14 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           
           {/* Draw the crop box when in crop mode */}
           {renderCropBox()}
+          
+          {rotateMode && (
+            <View style={styles.instructionContainer}>
+              <Text style={styles.instructionText}>
+                Drag to rotate the image
+              </Text>
+            </View>
+          )}
           
           {isProcessing && (
             <View style={styles.loadingContainer}>

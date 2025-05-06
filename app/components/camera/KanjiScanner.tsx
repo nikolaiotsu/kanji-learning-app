@@ -15,6 +15,7 @@ import { ImageHighlighterRef } from '../shared/ImageHighlighter';
 import * as ImageManipulator from 'expo-image-manipulator';
 import RandomCardReviewer from '../flashcards/RandomCardReviewer';
 import { useFocusEffect } from 'expo-router';
+import * as ProcessImage from '../../services/ProcessImage';
 
 export default function KanjiScanner() {
   const [capturedImage, setCapturedImage] = useState<CapturedImage | null>(null);
@@ -35,12 +36,22 @@ export default function KanjiScanner() {
     height: number;
   } | null>(null);
   
+  // Add state for rotate mode
+  const [rotateModeActive, setRotateModeActive] = useState(false);
+  const [hasRotation, setHasRotation] = useState(false);
+  // Add local error state for rotate errors
+  const [rotateError, setRotateError] = useState<string | null>(null);
+  
   const router = useRouter();
   const { signOut } = useAuth();
   const { recognizeKanji, isProcessing, error } = useKanjiRecognition();
   
   // Add ref to access the ImageHighlighter component
   const imageHighlighterRef = useRef<ImageHighlighterRef>(null);
+
+  // Instead of setting initialRotation to rotation, we'll store a reference
+  // to track rotation changes better
+  const rotationRef = useRef<number>(0);
 
   const handleLogout = async () => {
     setSettingsMenuVisible(false);
@@ -118,6 +129,7 @@ export default function KanjiScanner() {
     y: number;
     width: number;
     height: number;
+    rotation?: number;
   }) => {
     if (!capturedImage || !imageHighlighterRef.current) return;
     
@@ -172,6 +184,55 @@ export default function KanjiScanner() {
       };
       
       console.log('[KanjiScanner] Original image coordinates:', originalRegion);
+      
+      // Handle rotation when provided
+      if (region.rotation !== undefined && rotateModeActive) {
+        try {
+          // Set local processing to show loading state and prevent flicker
+          setLocalProcessing(true);
+          
+          // Push current image to history before modifying
+          if (capturedImage) {
+            setImageHistory(prev => [...prev, capturedImage]);
+            setForwardHistory([]);
+          }
+          
+          console.log('[KanjiScanner] Rotating image with angle:', region.rotation);
+          console.log('[KanjiScanner] Original dimensions:', capturedImage.width, 'x', capturedImage.height);
+          
+          // Apply rotation to the image - use the processImage function to better preserve dimensions
+          const rotatedImageUri = await ProcessImage.processImage(
+            capturedImage.uri, 
+            { rotate: region.rotation }
+          );
+          
+          if (rotatedImageUri) {
+            // Update image with rotated version
+            const imageInfo = await ProcessImage.getImageInfo(rotatedImageUri);
+            console.log('[KanjiScanner] Rotated dimensions:', imageInfo.width, 'x', imageInfo.height);
+            
+            setCapturedImage({
+              uri: rotatedImageUri,
+              width: imageInfo.width,
+              height: imageInfo.height
+            });
+            
+            // Reset rotate mode after applying
+            setRotateModeActive(false);
+            setHasRotation(false);
+            setRotateError(null);
+          }
+        } catch (error) {
+          console.error('Error rotating image:', error);
+          setRotateError('Failed to rotate image');
+        } finally {
+          // Always clear the loading state
+          setLocalProcessing(false);
+        }
+        return;
+      }
+
+      setLocalProcessing(true);
       
       try {
         if (highlightModeActive) {
@@ -487,6 +548,78 @@ export default function KanjiScanner() {
     }, [capturedImage])
   );
 
+  // Toggle rotate mode
+  const toggleRotateMode = () => {
+    if (imageHighlighterRef.current) {
+      // Call the toggleRotateMode method on the ImageHighlighter
+      imageHighlighterRef.current.toggleRotateMode();
+      
+      // Update local state
+      const newRotateMode = !rotateModeActive;
+      setRotateModeActive(newRotateMode);
+      
+      // Reset rotation tracking when entering rotate mode
+      setHasRotation(false);
+      setRotateError(null); // Clear any rotation errors when toggling
+      
+      // Save current rotation reference value when toggling mode
+      if (newRotateMode) {
+        // Get current rotation value when entering rotate mode
+        const transformData = imageHighlighterRef.current.getTransformData();
+        rotationRef.current = transformData.rotation;
+        console.log('[KanjiScanner] Entered rotate mode, initial rotation:', rotationRef.current);
+      }
+      
+      // Exit other modes
+      if (highlightModeActive) {
+        setHighlightModeActive(false);
+        setHasHighlightSelection(false);
+      }
+      
+      if (cropModeActive) {
+        setCropModeActive(false);
+        setHasCropSelection(false);
+      }
+    }
+  };
+  
+  // Check for rotation changes
+  useEffect(() => {
+    if (rotateModeActive && imageHighlighterRef.current) {
+      // Create an interval to continuously check for rotation changes
+      const intervalId = setInterval(() => {
+        if (imageHighlighterRef.current) {
+          const transformData = imageHighlighterRef.current.getTransformData();
+          const currentRotation = transformData.rotation;
+          
+          // Check if rotation has changed enough to enable the button
+          const rotationDelta = Math.abs(currentRotation - rotationRef.current);
+          const hasChanged = rotationDelta > 1;
+          
+          if (hasChanged !== hasRotation) {
+            console.log('[KanjiScanner] Detected rotation change:', {
+              initial: rotationRef.current,
+              current: currentRotation,
+              delta: rotationDelta,
+              hasChanged
+            });
+            setHasRotation(hasChanged);
+          }
+        }
+      }, 100); // Check every 100ms
+      
+      // Initial check
+      if (imageHighlighterRef.current.hasRotation) {
+        setHasRotation(true);
+      }
+      
+      // Clean up interval on unmount or when leaving rotate mode
+      return () => {
+        clearInterval(intervalId);
+      };
+    }
+  }, [rotateModeActive, hasRotation]);
+
   return (
     <View style={styles.container}>
       {!capturedImage ? (
@@ -575,8 +708,8 @@ export default function KanjiScanner() {
             <AntDesign name="back" size={24} color="white" />
           </TouchableOpacity>
           
-          {/* Highlight and Crop buttons - only shown when no active mode */}
-          {!highlightModeActive && !cropModeActive && (
+          {/* Highlight, Crop and Rotate buttons - only shown when no active mode */}
+          {!highlightModeActive && !cropModeActive && !rotateModeActive && (
             <>
               <TouchableOpacity 
                 style={styles.highlightButton} 
@@ -589,6 +722,12 @@ export default function KanjiScanner() {
                 onPress={toggleCropMode}
               >
                 <FontAwesome6 name="crop" size={24} color="white" />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.rotateButton} 
+                onPress={toggleRotateMode}
+              >
+                <FontAwesome6 name="rotate" size={24} color="white" />
               </TouchableOpacity>
             </>
           )}
@@ -654,6 +793,28 @@ export default function KanjiScanner() {
             </>
           )}
           
+          {/* Rotate mode buttons */}
+          {rotateModeActive && (
+            <>
+              <TouchableOpacity 
+                style={styles.cancelHighlightButton} 
+                onPress={toggleRotateMode}
+              >
+                <FontAwesome6 name="xmark" size={24} color="white" />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[
+                  styles.confirmHighlightButton, 
+                  !hasRotation ? { opacity: 0.5 } : {}
+                ]} 
+                disabled={!hasRotation}
+                onPress={() => imageHighlighterRef.current?.applyRotation?.()}
+              >
+                <FontAwesome6 name="check" size={24} color="white" />
+              </TouchableOpacity>
+            </>
+          )}
+          
           {/* Back button to revert to previous image */}
           {imageHistory.length > 0 && (
             <TouchableOpacity 
@@ -672,9 +833,10 @@ export default function KanjiScanner() {
               <MaterialIcons name="arrow-forward-ios" size={24} color="white" />
             </TouchableOpacity>
           )}
-          {error && (
+          {/* Display either rotation error or general error */}
+          {(error || rotateError) && (
             <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
+              <Text style={styles.errorText}>{rotateError || error}</Text>
             </View>
           )}
         </View>
@@ -694,7 +856,6 @@ export default function KanjiScanner() {
             style={styles.modalContainer}
           >
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Enter Text</Text>
               <TextInput
                 style={styles.textInput}
                 value={inputText}
@@ -1105,5 +1266,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  rotateButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+    width: 80,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    position: 'absolute',
+    bottom: 20,
+    right: 200, // Position it to the left of the crop button
+    zIndex: 999,
   },
 }); 
