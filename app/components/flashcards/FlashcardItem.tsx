@@ -3,12 +3,15 @@ import { View, Text, StyleSheet, TouchableOpacity, Platform, Dimensions, Animate
 import { Flashcard } from '../../types/Flashcard';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import { useSettings, AVAILABLE_LANGUAGES } from '../../context/SettingsContext';
 import { 
   containsJapanese, 
   containsChinese, 
   containsKoreanText, 
   containsRussianText, 
-  containsArabicText 
+  containsArabicText,
+  containsItalianText,
+  containsTagalogText
 } from '../../utils/textFormatting';
 
 interface FlashcardItemProps {
@@ -28,6 +31,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   deckName,
   disableTouchHandling = false 
 }) => {
+  const { targetLanguage } = useSettings();
   const [isFlipped, setIsFlipped] = useState(false);
   const flipAnim = useRef(new Animated.Value(0)).current;
   // Track if content is scrollable (overflow)
@@ -39,6 +43,9 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   // References to the scroll views
   const frontScrollViewRef = useRef<ScrollView>(null);
   const backScrollViewRef = useRef<ScrollView>(null);
+  
+  // Get translated language name for display
+  const translatedLanguageName = AVAILABLE_LANGUAGES[targetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'English';
 
   // Detect language of the text
   useEffect(() => {
@@ -48,6 +55,8 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
     const hasKorean = containsKoreanText(originalText);
     const hasRussian = containsRussianText(originalText);
     const hasArabic = containsArabicText(originalText);
+    const hasItalian = containsItalianText(originalText);
+    const hasTagalog = containsTagalogText(originalText);
     
     // Determine language
     let language = 'unknown';
@@ -56,6 +65,15 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
     else if (hasKorean) language = 'Korean';
     else if (hasRussian) language = 'Russian';
     else if (hasArabic) language = 'Arabic';
+    else if (hasItalian) language = 'Italian';
+    else if (hasTagalog) language = 'Tagalog';
+    else {
+      // Check if the text is primarily Latin characters (likely English or other European languages)
+      const latinChars = originalText.replace(/\s+/g, '').split('').filter(char => /[a-zA-Z]/.test(char)).length;
+      if (latinChars > 0 && latinChars / originalText.replace(/\s+/g, '').length >= 0.5) {
+        language = 'English';
+      }
+    }
     setDetectedLanguage(language);
 
     // All these languages need romanization
@@ -229,6 +247,8 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
                      detectedLanguage === 'Korean' ? 'With Revised Romanization' :
                      detectedLanguage === 'Russian' ? 'With Practical Romanization' :
                      detectedLanguage === 'Arabic' ? 'With Arabic Chat Alphabet' :
+                     detectedLanguage === 'Italian' ? 'With Italian Alphabet' :
+                     detectedLanguage === 'Tagalog' ? 'With Tagalog Alphabet' :
                      'With Romanization'}
                   </Text>
                   <Text style={styles.furiganaText}>
@@ -237,7 +257,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
                 </>
               )}
               
-              <Text style={styles.sectionTitle}>English Translation</Text>
+              <Text style={styles.sectionTitle}>{translatedLanguageName} Translation</Text>
               <Text style={styles.translatedText}>
                 {flashcard.translatedText}
               </Text>

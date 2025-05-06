@@ -22,8 +22,11 @@ import {
   containsChinese, 
   containsKoreanText, 
   containsRussianText, 
-  containsArabicText 
+  containsArabicText,
+  containsItalianText,
+  containsTagalogText
 } from '../../utils/textFormatting';
+import { useSettings, AVAILABLE_LANGUAGES } from '../../context/SettingsContext';
 import { COLORS } from '../../constants/colors';
 
 interface EditFlashcardModalProps {
@@ -39,6 +42,7 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
   onClose, 
   onSave 
 }) => {
+  const { targetLanguage, forcedDetectionLanguage } = useSettings();
   const [originalText, setOriginalText] = useState('');
   const [furiganaText, setFuriganaText] = useState('');
   const [translatedText, setTranslatedText] = useState('');
@@ -46,6 +50,9 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
   const [needsRomanization, setNeedsRomanization] = useState(false);
   const [detectedLanguage, setDetectedLanguage] = useState('');
   const [error, setError] = useState('');
+
+  // Get translated language name for display
+  const translatedLanguageName = AVAILABLE_LANGUAGES[targetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'English';
 
   // Initialize form when flashcard changes
   useEffect(() => {
@@ -61,6 +68,8 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
       const hasKorean = containsKoreanText(text);
       const hasRussian = containsRussianText(text);
       const hasArabic = containsArabicText(text);
+      const hasItalian = containsItalianText(text);
+      const hasTagalog = containsTagalogText(text);
       
       // Determine language
       let language = 'unknown';
@@ -69,6 +78,15 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
       else if (hasKorean) language = 'Korean';
       else if (hasRussian) language = 'Russian';
       else if (hasArabic) language = 'Arabic';
+      else if (hasItalian) language = 'Italian';
+      else if (hasTagalog) language = 'Tagalog';
+      else {
+        // Check if the text is primarily Latin characters (likely English or other European languages)
+        const latinChars = text.replace(/\s+/g, '').split('').filter(char => /[a-zA-Z]/.test(char)).length;
+        if (latinChars > 0 && latinChars / text.replace(/\s+/g, '').length >= 0.5) {
+          language = 'English';
+        }
+      }
       setDetectedLanguage(language);
 
       // All these languages need romanization
@@ -142,7 +160,7 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
     setError('');
     
     try {
-      const result = await processWithClaude(originalText);
+      const result = await processWithClaude(originalText, targetLanguage, forcedDetectionLanguage);
       
       if (result.translatedText) {
         setTranslatedText(result.translatedText);
@@ -200,6 +218,8 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
                     detectedLanguage === 'Korean' ? 'Romanized Text:' :
                     detectedLanguage === 'Russian' ? 'Romanized Text:' :
                     detectedLanguage === 'Arabic' ? 'Transliterated Text:' :
+                    detectedLanguage === 'Italian' ? 'Transliterated Text:' :
+                    detectedLanguage === 'Tagalog' ? 'Transliterated Text:' :
                     'Romanized Text:'}
                   </Text>
                   <TextInput
@@ -214,7 +234,7 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
                 </>
               )}
               
-              <Text style={styles.inputLabel}>Translated Text:</Text>
+              <Text style={styles.inputLabel}>Translated Text: ({translatedLanguageName})</Text>
               <TextInput
                 style={styles.textInput}
                 value={translatedText}

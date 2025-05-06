@@ -102,6 +102,20 @@ export function containsItalianText(text: string): boolean {
 }
 
 /**
+ * Checks if text contains Tagalog characters and patterns
+ */
+export function containsTagalogText(text: string): boolean {
+  // Tagalog-specific characters include ñ and accented vowels
+  const tagalogSpecificChars = /[ñÑ]/i;
+  
+  // Common Tagalog words and patterns (articles, prepositions, common word parts)
+  const tagalogPatterns = /\b(ang|ng|mga|sa|kay|ni|si|at|kung|na|ay|para|ito|iyon|nito|niyon|naman|din|rin)\b|\w+(han|in|an|hin)\b/i;
+  
+  // Check for Tagalog specific characters or word patterns
+  return tagalogSpecificChars.test(text) || tagalogPatterns.test(text);
+}
+
+/**
  * Checks if text contains any content (from any language)
  */
 export function containsText(text: string): boolean {
@@ -124,6 +138,7 @@ const TextFormatting = {
   containsText,
   containsRussianText,
   containsArabicText,
-  containsItalianText
+  containsItalianText,
+  containsTagalogText
 };
 export default TextFormatting; 

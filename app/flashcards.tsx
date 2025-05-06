@@ -11,7 +11,8 @@ import {
   containsChinese,
   containsRussianText,
   containsArabicText,
-  containsItalianText
+  containsItalianText,
+  containsTagalogText
 } from './utils/textFormatting';
 import { saveFlashcard } from './services/supabaseStorage';
 import { Flashcard } from './types/Flashcard';
@@ -19,10 +20,12 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Crypto from 'expo-crypto';
 import DeckSelector from './components/flashcards/DeckSelector';
 import { useAuth } from './context/AuthContext';
+import { useSettings, AVAILABLE_LANGUAGES } from './context/SettingsContext';
 import { COLORS } from './constants/colors';
 
 export default function LanguageFlashcardsScreen() {
   const { user } = useAuth();
+  const { targetLanguage, forcedDetectionLanguage } = useSettings();
   const params = useLocalSearchParams();
   const textParam = params.text;
   const displayText = typeof textParam === 'string' 
@@ -67,29 +70,59 @@ export default function LanguageFlashcardsScreen() {
     setTextProcessed(false);
     
     try {
-      // Check if the text contains Japanese, Chinese, Korean, Russian, Arabic, or Italian characters
+      // Check if the text contains Japanese, Chinese, Korean, Russian, Arabic characters
+      // These are the languages that need romanization
       const hasJapanese = containsJapanese(text);
       const hasChinese = containsChinese(text);
       const hasKorean = containsKoreanText(text);
       const hasRussian = containsRussianText(text);
       const hasArabic = containsArabicText(text);
-      const hasItalian = containsItalianText(text);
-      
-      // Determine language for display
-      let language = 'unknown';
-      if (hasJapanese && !hasChinese && !hasKorean) language = 'Japanese';
-      else if (hasChinese) language = 'Chinese';
-      else if (hasKorean) language = 'Korean';
-      else if (hasRussian) language = 'Russian';
-      else if (hasArabic) language = 'Arabic';
-      else if (hasItalian) language = 'Italian';
-      setDetectedLanguage(language);
       
       // All these languages need some form of romanization/furigana
-      const needsRomanization = hasJapanese || hasChinese || hasKorean || hasRussian || hasArabic;
+      const needsRomanization = (
+        hasJapanese || 
+        hasChinese || 
+        hasKorean || 
+        hasRussian || 
+        hasArabic
+      );
       setNeedsRomanization(needsRomanization);
       
-      const result = await processWithClaude(text);
+      // Determine language label for display purposes only
+      let language = 'unknown';
+      if (forcedDetectionLanguage !== 'auto') {
+        // Use the forced language setting if enabled
+        switch (forcedDetectionLanguage) {
+          case 'en': language = 'English'; break;
+          case 'zh': language = 'Chinese'; break;
+          case 'ja': language = 'Japanese'; break;
+          case 'ko': language = 'Korean'; break;
+          case 'ru': language = 'Russian'; break;
+          case 'ar': language = 'Arabic'; break;
+          case 'it': language = 'Italian'; break;
+          case 'es': language = 'Spanish'; break;
+          case 'fr': language = 'French'; break;
+          case 'tl': language = 'Tagalog'; break;
+          case 'pt': language = 'Portuguese'; break;
+          case 'de': language = 'German'; break;
+          default: language = 'unknown';
+        }
+        console.log(`Using forced language detection: ${language}`);
+      } else if (hasJapanese && !hasChinese && !hasKorean) {
+        language = 'Japanese';
+      } else if (hasChinese) {
+        language = 'Chinese';
+      } else if (hasKorean) {
+        language = 'Korean';
+      } else if (hasRussian) {
+        language = 'Russian';
+      } else if (hasArabic) {
+        language = 'Arabic';
+      }
+      
+      setDetectedLanguage(language);
+      
+      const result = await processWithClaude(text, targetLanguage, forcedDetectionLanguage);
       
       // Check if we got valid results back
       if (result.translatedText) {
@@ -195,9 +228,11 @@ export default function LanguageFlashcardsScreen() {
 
   // Function to handle translate button
   const handleTranslate = () => {
-    if (editedText) {
-      processTextWithClaude(editedText);
+    if (!editedText) {
+      Alert.alert('Error', 'Please enter text to translate.');
+      return;
     }
+    processTextWithClaude(editedText);
   };
 
   // Function to save edited text
@@ -215,6 +250,9 @@ export default function LanguageFlashcardsScreen() {
   const handleGoHome = () => {
     router.push('/');
   };
+
+  // Get translated language name for display
+  const translatedLanguageName = AVAILABLE_LANGUAGES[targetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'English';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -287,6 +325,8 @@ export default function LanguageFlashcardsScreen() {
                        detectedLanguage === 'Korean' ? 'With Revised Romanization' :
                        detectedLanguage === 'Russian' ? 'With Practical Romanization' :
                        detectedLanguage === 'Arabic' ? 'With Arabic Chat Alphabet' :
+                       detectedLanguage === 'Italian' ? 'Original Text' :
+                       detectedLanguage === 'Tagalog' ? 'Original Text' :
                        'With Pronunciation Guide'}
                     </Text>
                     <Text style={styles.furiganaText} numberOfLines={0}>{furiganaText}</Text>
@@ -295,7 +335,7 @@ export default function LanguageFlashcardsScreen() {
                 
                 {translatedText && (
                   <View style={styles.resultContainer}>
-                    <Text style={styles.sectionTitle}>Translation</Text>
+                    <Text style={styles.sectionTitle}>{translatedLanguageName} Translation</Text>
                     <Text style={styles.translatedText} numberOfLines={0}>{translatedText}</Text>
                   </View>
                 )}
