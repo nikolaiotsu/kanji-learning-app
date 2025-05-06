@@ -10,9 +10,11 @@ import {
   deleteDeck,
   updateDeckName,
   moveFlashcardToDeck,
-  createDeck
+  createDeck,
+  updateFlashcard
 } from './services/supabaseStorage';
 import FlashcardItem from './components/flashcards/FlashcardItem';
+import EditFlashcardModal from './components/flashcards/EditFlashcardModal';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from './context/AuthContext';
 import { supabase } from './services/supabaseClient';
@@ -32,6 +34,8 @@ export default function SavedFlashcardsScreen() {
   const [showSendModal, setShowSendModal] = useState(false);
   const [newDeckMode, setNewDeckMode] = useState(false);
   const [newDeckNameForSend, setNewDeckNameForSend] = useState('');
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [flashcardToEdit, setFlashcardToEdit] = useState<Flashcard | null>(null);
   const { user } = useAuth();
   const router = useRouter();
 
@@ -400,6 +404,37 @@ export default function SavedFlashcardsScreen() {
     }
   };
 
+  // Function to handle editing flashcard
+  const handleEditFlashcard = (id: string) => {
+    const flashcard = flashcards.find(card => card.id === id);
+    if (flashcard) {
+      setFlashcardToEdit(flashcard);
+      setShowEditModal(true);
+    }
+  };
+
+  // Function to save edited flashcard
+  const handleSaveEditedFlashcard = async (updatedFlashcard: Flashcard) => {
+    try {
+      const success = await updateFlashcard(updatedFlashcard);
+      if (success) {
+        // Update the flashcard in the local state
+        setFlashcards(currentFlashcards => 
+          currentFlashcards.map(card => 
+            card.id === updatedFlashcard.id ? updatedFlashcard : card
+          )
+        );
+        setShowEditModal(false);
+        Alert.alert('Success', 'Flashcard updated successfully.');
+      } else {
+        Alert.alert('Error', 'Failed to update flashcard. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error updating flashcard:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    }
+  };
+
   // Render deck selector item
   const renderDeckItem = ({ item, index }: { item: Deck, index: number }) => (
     <TouchableOpacity
@@ -436,16 +471,12 @@ export default function SavedFlashcardsScreen() {
 
   // Render flashcard item
   const renderFlashcard = ({ item }: { item: Flashcard }) => {
-    // Find the deck name for this flashcard
-    const deck = decks.find(d => d.id === item.deckId);
-    const deckName = deck ? deck.name : 'Unknown Deck';
-    
     return (
-      <FlashcardItem 
-        flashcard={item} 
+      <FlashcardItem
+        flashcard={item}
         onDelete={handleDeleteFlashcard}
         onSend={handleSendFlashcard}
-        deckName={deckName}
+        onEdit={handleEditFlashcard}
       />
     );
   };
@@ -660,6 +691,14 @@ export default function SavedFlashcardsScreen() {
           <Text style={styles.loadingText}>Loading flashcards...</Text>
         </View>
       )}
+
+      {/* Edit modal for flashcards */}
+      <EditFlashcardModal
+        visible={showEditModal}
+        flashcard={flashcardToEdit}
+        onClose={() => setShowEditModal(false)}
+        onSave={handleSaveEditedFlashcard}
+      />
     </View>
   );
 }

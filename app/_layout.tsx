@@ -27,7 +27,7 @@ export default function RootLayout() {
             >
               <Stack.Screen name="(screens)" options={{ headerShown: false }} />
               <Stack.Screen name="index" options={{ headerShown: false, title: 'Home' }} />
-              <Stack.Screen name="flashcards" options={{ title: 'Japanese Flashcard' }} />
+              <Stack.Screen name="flashcards" options={{ title: 'Make a Flashcard' }} />
               <Stack.Screen 
                 name="saved-flashcards" 
                 options={{ 

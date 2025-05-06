@@ -391,6 +391,34 @@ export const moveFlashcardToDeck = async (flashcardId: string, targetDeckId: str
   }
 };
 
+/**
+ * Update a flashcard
+ * @param flashcard The flashcard data to update
+ * @returns Boolean indicating success or failure
+ */
+export const updateFlashcard = async (flashcard: Flashcard): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('flashcards')
+      .update({
+        original_text: flashcard.originalText,
+        furigana_text: flashcard.furiganaText,
+        translated_text: flashcard.translatedText,
+      })
+      .eq('id', flashcard.id);
+    
+    if (error) {
+      console.error('Error updating flashcard:', error.message);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error updating flashcard:', error);
+    return false;
+  }
+};
+
 // Add default export to satisfy Expo Router's requirement
 export default {
   getDecks,
@@ -404,5 +432,6 @@ export default {
   deleteFlashcard,
   deleteDeck,
   updateDeckName,
-  moveFlashcardToDeck
+  moveFlashcardToDeck,
+  updateFlashcard
 }; 

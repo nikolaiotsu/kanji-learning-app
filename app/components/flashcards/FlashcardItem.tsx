@@ -15,6 +15,7 @@ interface FlashcardItemProps {
   flashcard: Flashcard;
   onDelete?: (id: string) => void;
   onSend?: (id: string) => void;
+  onEdit?: (id: string) => void;
   deckName?: string; // Optional deck name to display
   disableTouchHandling?: boolean; // If true, the card won't be flippable via touch
 }
@@ -23,6 +24,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   flashcard, 
   onDelete, 
   onSend, 
+  onEdit,
   deckName,
   disableTouchHandling = false 
 }) => {
@@ -84,6 +86,12 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   const handleSend = () => {
     if (onSend) {
       onSend(flashcard.id);
+    }
+  };
+  
+  const handleEdit = () => {
+    if (onEdit) {
+      onEdit(flashcard.id);
     }
   };
 
@@ -240,6 +248,12 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
       
       {/* Card actions and flip button */}
       <View style={styles.cardActions}>
+        {onEdit && (
+          <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
+            <MaterialIcons name="edit" size={25} color={COLORS.primary} />
+          </TouchableOpacity>
+        )}
+        
         {onSend && (
           <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
             <MaterialIcons name="move-up" size={25} color={COLORS.primary} />
@@ -368,9 +382,13 @@ const styles = StyleSheet.create({
     padding: 4,
     zIndex: 10,
   },
+  editButton: {
+    padding: 8,
+    marginRight: 5,
+  },
   sendButton: {
     padding: 8,
-    marginRight: 4,
+    marginRight: 5,
   },
   deleteButton: {
     padding: 8,
@@ -411,6 +429,15 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  deckNameContainer: {
+    padding: 8,
+    marginLeft: 5,
+  },
+  deckNameText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.accentMedium,
   },
 });
 

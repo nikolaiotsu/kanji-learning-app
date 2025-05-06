@@ -219,7 +219,7 @@ export default function LanguageFlashcardsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Make a Flashcard</Text>
+        <Text style={styles.title}>Flashcard Input</Text>
         <TouchableOpacity 
           style={styles.homeButton}
           onPress={handleGoHome}
