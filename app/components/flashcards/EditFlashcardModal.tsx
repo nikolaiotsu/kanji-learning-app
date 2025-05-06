@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
     minHeight: 80,
     marginBottom: 15,
     backgroundColor: COLORS.mediumSurface,
-    color: COLORS.text,
+    color: 'white',
   },
   errorText: {
     color: COLORS.danger,

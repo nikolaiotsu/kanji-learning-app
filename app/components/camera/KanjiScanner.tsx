@@ -1268,7 +1268,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   rotateButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#A0A0B9',
     borderRadius: 8,
     width: 80,
     height: 50,

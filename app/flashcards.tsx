@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#A0A0B9',
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -660,6 +660,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     minHeight: 120,
     fontFamily: Platform.OS === 'ios' ? 'HiraginoSans-W3' : undefined,
+    color: 'white',
+    backgroundColor: COLORS.mediumSurface,
   },
   modalButtonsContainer: {
     flexDirection: 'row',
