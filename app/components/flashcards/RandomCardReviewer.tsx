@@ -33,6 +33,8 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   // State for showing the deck selector modal
   const [showDeckSelector, setShowDeckSelector] = useState(false);
+  // State to track if image is expanded (to hide controls)
+  const [isImageExpanded, setIsImageExpanded] = useState(false);
   
   // Animation values
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -298,19 +300,21 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
         >
           <FlashcardItem 
             flashcard={currentCard} 
-            disableTouchHandling={false} 
+            disableTouchHandling={false}
+            onImageToggle={(showImage) => {
+              setIsImageExpanded(showImage);
+            }} 
           />
         </Animated.View>
       </View>
 
-      <View style={styles.controlsContainer}>
-        <Text style={styles.swipeInstructionText}>
-          Swipe left to review again, right to dismiss
-        </Text>
-        <Text style={styles.countText}>
-          {remainingCount} cards remaining
-        </Text>
-      </View>
+      {!isImageExpanded && (
+        <View style={styles.controlsContainer}>
+          <Text style={styles.countText}>
+            {remainingCount} remaining (swipe ← to review, → to dismiss)
+          </Text>
+        </View>
+      )}
       
       {deckSelector}
     </View>
@@ -322,6 +326,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
     borderRadius: 12,
     padding: 10,
+    paddingBottom: 30,
+    marginBottom: -60,
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
@@ -356,7 +362,7 @@ const styles = StyleSheet.create({
   },
   cardStage: {
     width: '100%',
-    height: 300, // Fixed height for consistent card rendering
+    height: 320,
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
@@ -367,21 +373,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   controlsContainer: {
-    flexDirection: 'column',
+    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
-    paddingVertical: 10,
-  },
-  swipeInstructionText: {
-    color: COLORS.lightGray,
-    fontSize: 14,
-    marginBottom: 5,
+    paddingVertical: 5,
   },
   countText: {
     color: COLORS.lightGray,
-    fontSize: 14,
-    marginTop: 5,
+    fontSize: 12,
   },
   loadingText: {
     color: COLORS.text,

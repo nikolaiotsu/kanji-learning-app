@@ -311,14 +311,17 @@ export default function KanjiScanner() {
     try {
       const { uri } = capturedImage;
       
-      // Crop directly from the original image
-      const croppedUri = await cropImageToRegion(uri, originalRegion);
-      console.log('[KanjiScanner] Cropped image URI:', croppedUri);
+      // Crop the exact highlighted region for OCR only
+      const exactCropUri = await cropImageToRegion(uri, originalRegion);
+      console.log('[KanjiScanner] Exact cropped image URI for OCR:', exactCropUri);
       
-      // Use the entire cropped image for OCR
+      // Use the original full image for context instead of cropping
+      console.log('[KanjiScanner] Using full original image for context:', uri);
+      
+      // Use the EXACT crop for OCR to ensure we only process the highlighted text
       const textRegions = await detectJapaneseText(
-        croppedUri,
-        { x: 0, y: 0, width: 1000, height: 1000 }, // Use entire image
+        exactCropUri,
+        { x: 0, y: 0, width: 1000, height: 1000 }, // Use entire cropped image
         false
       );
       
@@ -332,10 +335,13 @@ export default function KanjiScanner() {
         // Clear the highlight box
         imageHighlighterRef.current?.clearHighlightBox?.();
         
-        // Navigate to flashcards with the detected text
+        // Navigate to flashcards with the detected text and the FULL original image URI
         router.push({
           pathname: "/flashcards",
-          params: { text: detectedText }
+          params: { 
+            text: detectedText,
+            imageUri: uri // Send the full original image for maximum context
+          }
         });
       } else {
         Alert.alert(

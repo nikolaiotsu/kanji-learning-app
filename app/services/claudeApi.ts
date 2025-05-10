@@ -1,14 +1,11 @@
-import axios, { AxiosError } from 'axios';
 import Constants from 'expo-constants';
+import axios, { AxiosError } from 'axios';
 import { 
   containsJapanese, 
-  containsChineseJapanese, 
   containsChinese, 
   containsKoreanText,
-  containsRussianText,
-  containsArabicText,
   containsItalianText,
-  containsTagalogText
+  containsTagalogText 
 } from '../utils/textFormatting';
 
 // Define response structure
@@ -18,7 +15,7 @@ interface ClaudeResponse {
 }
 
 // Map for language code to name for prompts
-const LANGUAGE_NAMES = {
+const LANGUAGE_NAMES_MAP = {
   en: 'English',
   fr: 'French',
   es: 'Spanish',
@@ -148,6 +145,92 @@ function detectPrimaryLanguage(text: string, forcedLanguage: string = 'auto'): s
 }
 
 /**
+ * Validates if the text contains the specified forced language
+ * @param text The text to validate
+ * @param forcedLanguage The language code to validate against
+ * @returns True if the text matches the forced language or if forcedLanguage is 'auto', false otherwise
+ */
+export function validateTextMatchesLanguage(text: string, forcedLanguage: string = 'auto'): boolean {
+  // If auto-detect is enabled, always return true (no validation needed)
+  if (forcedLanguage === 'auto') {
+    return true;
+  }
+
+  // If text is too short, don't validate (prevent false rejections for very short inputs)
+  if (text.trim().length < 2) {
+    return true;
+  }
+
+  // Detect the actual language in the text
+  const detectedLang = detectPrimaryLanguage(text, 'auto'); // Force auto-detection for validation
+  
+  // Map the forced language code to the language name format used in detection
+  let expectedLanguage: string;
+  switch (forcedLanguage) {
+    case 'en': expectedLanguage = 'English'; break;
+    case 'zh': expectedLanguage = 'Chinese'; break;
+    case 'ja': expectedLanguage = 'Japanese'; break;
+    case 'ko': expectedLanguage = 'Korean'; break;
+    case 'ru': expectedLanguage = 'Russian'; break;
+    case 'ar': expectedLanguage = 'Arabic'; break;
+    case 'it': expectedLanguage = 'Italian'; break;
+    case 'es': expectedLanguage = 'Spanish'; break;
+    case 'fr': expectedLanguage = 'French'; break;
+    case 'tl': expectedLanguage = 'Tagalog'; break;
+    case 'pt': expectedLanguage = 'Portuguese'; break;
+    case 'de': expectedLanguage = 'German'; break;
+    default: expectedLanguage = forcedLanguage;
+  }
+  
+  console.log(`Validating language: Expected ${expectedLanguage}, Detected ${detectedLang}`);
+  
+  // Special handling for similar languages or scripts that might be confused
+  
+  // Case 1: CJK languages (Chinese, Japanese, Korean) 
+  // These can sometimes be confused due to shared characters
+  const cjkLanguages = ['Chinese', 'Japanese', 'Korean'];
+  if (cjkLanguages.includes(expectedLanguage) && cjkLanguages.includes(detectedLang)) {
+    // For Japanese forced mode, require hiragana/katakana presence
+    if (expectedLanguage === 'Japanese' && !containsJapanese(text)) {
+      return false;
+    }
+    // For Korean forced mode, require Hangul presence
+    if (expectedLanguage === 'Korean' && !containsKoreanText(text)) {
+      return false;
+    }
+    // For Chinese forced mode, require Chinese characters without significant Japanese kana
+    if (expectedLanguage === 'Chinese' && (containsJapanese(text) || !containsChinese(text))) {
+      return false;
+    }
+  }
+  
+  // Case 2: Latin-based languages (English, Italian, Spanish, etc.)
+  // These can be harder to distinguish from each other
+  const latinLanguages = ['English', 'Italian', 'Spanish', 'French', 'Portuguese', 'German'];
+  if (latinLanguages.includes(expectedLanguage) && latinLanguages.includes(detectedLang)) {
+    // For these languages, our validation may not be precise enough to distinguish reliably
+    // We'll be more lenient here and check for language-specific patterns where possible
+    
+    // Check for Italian-specific patterns when Italian is forced
+    if (expectedLanguage === 'Italian' && containsItalianText(text)) {
+      return true;
+    }
+    
+    // Check for Tagalog-specific patterns when Tagalog is forced
+    if (expectedLanguage === 'Tagalog' && containsTagalogText(text)) {
+      return true;
+    }
+    
+    // For Latin-based languages, be more lenient if we can't clearly distinguish
+    // This prevents frustrating false rejections for similar languages
+    return true;
+  }
+  
+  // Standard comparison for other languages
+  return detectedLang === expectedLanguage;
+}
+
+/**
  * Processes text with Claude AI API to add furigana/romanization and provide translation
  * @param text The text to be processed
  * @param targetLanguage The language to translate into (default: 'en' for English)
@@ -168,7 +251,7 @@ export async function processWithClaude(
   let lastError: unknown = null;
 
   // Get target language name or default to English if not found
-  const targetLangName = LANGUAGE_NAMES[targetLanguage as keyof typeof LANGUAGE_NAMES] || LANGUAGE_NAMES.en;
+  const targetLangName = LANGUAGE_NAMES_MAP[targetLanguage as keyof typeof LANGUAGE_NAMES_MAP] || LANGUAGE_NAMES_MAP.en;
 
   // Detect primary language, respecting any forced language setting
   const primaryLanguage = detectPrimaryLanguage(text, forcedLanguage);

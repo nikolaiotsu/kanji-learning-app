@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, Dimensions, Animated, ScrollView, LayoutChangeEvent } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, Dimensions, Animated, ScrollView, LayoutChangeEvent, Image } from 'react-native';
 import { Flashcard } from '../../types/Flashcard';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons, FontAwesome6 } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { useSettings, AVAILABLE_LANGUAGES } from '../../context/SettingsContext';
 import { 
@@ -19,6 +19,7 @@ interface FlashcardItemProps {
   onDelete?: (id: string) => void;
   onSend?: (id: string) => void;
   onEdit?: (id: string) => void;
+  onImageToggle?: (showImage: boolean) => void;
   deckName?: string; // Optional deck name to display
   disableTouchHandling?: boolean; // If true, the card won't be flippable via touch
 }
@@ -28,6 +29,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   onDelete, 
   onSend, 
   onEdit,
+  onImageToggle,
   deckName,
   disableTouchHandling = false 
 }) => {
@@ -43,6 +45,10 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   // References to the scroll views
   const frontScrollViewRef = useRef<ScrollView>(null);
   const backScrollViewRef = useRef<ScrollView>(null);
+  // State for showing the image
+  const [showImage, setShowImage] = useState(false);
+  // State to track expanded card size when image is shown
+  const [expandedCardHeight, setExpandedCardHeight] = useState(0);
   
   // Get translated language name for display
   const translatedLanguageName = AVAILABLE_LANGUAGES[targetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'English';
@@ -113,6 +119,16 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
     }
   };
 
+  // Toggle showing the image
+  const toggleShowImage = () => {
+    const newState = !showImage;
+    setShowImage(newState);
+    // Call the onImageToggle callback if provided
+    if (onImageToggle) {
+      onImageToggle(newState);
+    }
+  };
+
   // Check if content is scrollable by comparing content height to container height
   const checkContentScrollable = useCallback((event: {
     nativeEvent: {
@@ -170,8 +186,14 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   };
 
   return (
-    <View style={styles.cardContainer}>
-      <View style={styles.cardWrapper}>
+    <View style={[
+      styles.cardContainer,
+      showImage && flashcard.imageUrl ? styles.expandedCardContainer : null
+    ]}>
+      <View style={[
+        styles.cardWrapper,
+        showImage && flashcard.imageUrl ? styles.expandedCardWrapper : null
+      ]}>
         {/* Front of the card */}
         <Animated.View style={[styles.cardContent, styles.cardSide, frontAnimatedStyle]}>
           <View style={styles.cardFront}>
@@ -186,7 +208,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
                 const scrollView = {
                   nativeEvent: {
                     contentSize: { height },
-                    layoutMeasurement: { height: 300 } // Approximate card height
+                    layoutMeasurement: { height: showImage && flashcard.imageUrl ? 650 : 300 } // Adjust measurement based on image display
                   }
                 };
                 checkContentScrollable(scrollView, 'front');
@@ -206,6 +228,17 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
                   {flashcard.originalText}
                 </Text>
               </View>
+              
+              {/* Show image when toggled */}
+              {flashcard.imageUrl && showImage && (
+                <View style={styles.imageContainer}>
+                  <Image 
+                    source={{ uri: flashcard.imageUrl }} 
+                    style={styles.image}
+                    resizeMode="contain"
+                  />
+                </View>
+              )}
             </ScrollView>
           </View>
         </Animated.View>
@@ -224,7 +257,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
                 const scrollView = {
                   nativeEvent: {
                     contentSize: { height },
-                    layoutMeasurement: { height: 300 } // Approximate card height
+                    layoutMeasurement: { height: showImage && flashcard.imageUrl ? 650 : 300 } // Adjust measurement based on image display
                   }
                 };
                 checkContentScrollable(scrollView, 'back');
@@ -249,7 +282,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
                      detectedLanguage === 'Arabic' ? 'With Arabic Chat Alphabet' :
                      detectedLanguage === 'Italian' ? 'With Italian Alphabet' :
                      detectedLanguage === 'Tagalog' ? 'With Tagalog Alphabet' :
-                     'With Romanization'}
+                     'With Pronunciation Guide'}
                   </Text>
                   <Text style={styles.furiganaText}>
                     {flashcard.furiganaText}
@@ -261,42 +294,68 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
               <Text style={styles.translatedText}>
                 {flashcard.translatedText}
               </Text>
+              
+              {/* Show image on back side too when toggled */}
+              {flashcard.imageUrl && showImage && (
+                <View style={styles.imageContainer}>
+                  <Image 
+                    source={{ uri: flashcard.imageUrl }} 
+                    style={styles.image}
+                    resizeMode="contain"
+                  />
+                </View>
+              )}
+              
+              {deckName && (
+                <View style={styles.deckInfoContainer}>
+                  <Text style={styles.deckLabel}>Deck:</Text>
+                  <Text style={styles.deckName}>{deckName}</Text>
+                </View>
+              )}
             </ScrollView>
           </View>
         </Animated.View>
       </View>
       
-      {/* Card actions and flip button */}
-      <View style={styles.cardActions}>
+      {/* Card Actions */}
+      <View style={styles.actionButtonsContainer}>
+        {onDelete && (
+          <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+            <Ionicons name="trash-outline" size={22} color={COLORS.danger} />
+          </TouchableOpacity>
+        )}
+        
         {onEdit && (
           <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
-            <MaterialIcons name="edit" size={25} color={COLORS.primary} />
+            <Ionicons name="pencil" size={22} color={COLORS.accentLight} />
           </TouchableOpacity>
         )}
         
         {onSend && (
           <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
-            <MaterialIcons name="move-up" size={25} color={COLORS.primary} />
-          </TouchableOpacity>
-        )}
-        
-        {onDelete && (
-          <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-            <Ionicons name="trash-outline" size={25} color={COLORS.danger} />
+            <MaterialIcons name="send" size={22} color={COLORS.secondary} />
           </TouchableOpacity>
         )}
       </View>
       
-      {/* Flip button - separate from the content to avoid conflicts with scrolling */}
-      {!disableTouchHandling && (
-        <TouchableOpacity 
-          style={styles.flipButton} 
-          onPress={handleFlip}
-          activeOpacity={0.8}
-        >
-          <MaterialIcons name="flip" size={24} color={COLORS.primary} />
+      {/* Bottom right actions for image and flip */}
+      <View style={styles.bottomRightActionsContainer}>
+        {/* Add image toggle button */}
+        {flashcard.imageUrl && (
+          <TouchableOpacity style={styles.bottomActionButton} onPress={toggleShowImage}>
+            <FontAwesome6 
+              name="image" 
+              size={20} 
+              color={COLORS.accentMedium} 
+            />
+          </TouchableOpacity>
+        )}
+        
+        {/* Flip button */}
+        <TouchableOpacity style={styles.bottomActionButton} onPress={handleFlip}>
+          <MaterialIcons name="flip" size={22} color={COLORS.accentMedium} />
         </TouchableOpacity>
-      )}
+      </View>
     </View>
   );
 };
@@ -306,93 +365,95 @@ const cardWidth = width * 0.9;
 
 const styles = StyleSheet.create({
   cardContainer: {
-    width: cardWidth,
-    minHeight: 200,
-    maxHeight: 350,
-    backgroundColor: 'transparent',
-    borderRadius: 12,
-    marginVertical: 10,
-    marginHorizontal: 10,
     position: 'relative',
-    overflow: 'hidden',
+    width: '100%',
+    marginVertical: 10,
+    borderRadius: 16,
+    overflow: 'visible', // Allow overflow for the flip button
+  },
+  expandedCardContainer: {
+    // Additional styles for when card is expanded with image
+    marginVertical: 20,
   },
   cardWrapper: {
     width: '100%',
-    height: '100%',
+    minHeight: 280,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: COLORS.darkSurface,
     position: 'relative',
-    minHeight: 200,
   },
-  cardSide: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    backfaceVisibility: 'hidden',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    borderRadius: 12,
+  expandedCardWrapper: {
+    // This expands the card height when an image is displayed
+    minHeight: 650, // Larger to accommodate the image
   },
   cardContent: {
-    paddingTop: 48, // Add extra padding to the top for action buttons
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backfaceVisibility: 'hidden',
     backgroundColor: COLORS.darkSurface,
-    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.accentLight,
+  },
+  cardSide: {
+    width: '100%',
     height: '100%',
-    flexDirection: 'column',
   },
   cardFront: {
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    padding: 16,
     flex: 1,
-    width: '100%',
+    padding: 20,
+    paddingTop: 50, // Extra padding at top for action buttons
+    paddingBottom: 50, // Extra padding at the bottom for flip/image buttons
   },
   cardBack: {
-    padding: 16,
-    paddingTop: 8,
-    backgroundColor: COLORS.darkSurface,
-    borderRadius: 12,
     flex: 1,
-    width: '100%',
+    padding: 20,
+    paddingTop: 50, // Extra padding at top for action buttons
+    paddingBottom: 50, // Extra padding at the bottom for flip/image buttons
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContentContainer: {
+    paddingBottom: 70, // Extra space at the bottom
   },
   japaneseTextContainer: {
-    width: '100%',
-    paddingHorizontal: 16, 
-    alignItems: 'center',
+    marginBottom: 15,
+    alignItems: 'center', // Center the text
   },
   japaneseText: {
     fontSize: 24,
-    textAlign: 'center',
-    fontFamily: Platform.OS === 'ios' ? 'HiraginoSans-W3' : undefined,
-    letterSpacing: 0.5,
-    lineHeight: 32,
-    flexWrap: 'wrap',
-    marginBottom: 16,
+    textAlign: 'center', // Center the text
     color: COLORS.text,
+    lineHeight: 36,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 8,
     color: COLORS.accentMedium,
-    marginTop: 12,
+    marginBottom: 5,
+    marginTop: 15,
+    textAlign: 'center', // Center the title
   },
   furiganaText: {
     fontSize: 18,
-    fontFamily: Platform.OS === 'ios' ? 'HiraginoSans-W3' : undefined,
-    lineHeight: 28,
-    flexWrap: 'wrap',
+    textAlign: 'center', // Center the text
     color: COLORS.text,
+    marginBottom: 15,
+    lineHeight: 28,
   },
   translatedText: {
-    fontSize: 16,
-    lineHeight: 22,
-    flexWrap: 'wrap',
-    marginBottom: 24,
+    fontSize: 18,
+    textAlign: 'center', // Center the text
     color: COLORS.text,
+    lineHeight: 28,
   },
-  cardActions: {
+  actionButtonsContainer: {
     position: 'absolute',
     top: 12,
     right: 12,
@@ -402,62 +463,70 @@ const styles = StyleSheet.create({
     padding: 4,
     zIndex: 10,
   },
-  editButton: {
-    padding: 8,
-    marginRight: 5,
-  },
-  sendButton: {
-    padding: 8,
-    marginRight: 5,
-  },
-  deleteButton: {
-    padding: 8,
-  },
-  scrollContainer: {
-    flex: 1,
-    width: '100%',
-    paddingHorizontal: 4,
-  },
-  scrollContentContainer: {
-    paddingBottom: 24,
-    paddingTop: 8,
-  },
-  scrollIndicator: {
+  bottomRightActionsContainer: {
     position: 'absolute',
-    bottom: 8,
-    left: 8,
-    backgroundColor: 'rgba(30, 30, 30, 0.7)',
-    borderRadius: 12,
-    padding: 4,
-    opacity: 0.7,
-    zIndex: 10,
+    bottom: 12,
+    right: 12,
     flexDirection: 'row',
-    alignItems: 'center',
+    backgroundColor: COLORS.darkSurface,
+    borderRadius: 8,
+    padding: 4,
+    zIndex: 10,
+  },
+  bottomActionButton: {
+    marginHorizontal: 8,
+    padding: 6,
   },
   flipButton: {
-    position: 'absolute',
-    bottom: 8,
-    right: 12,
-    backgroundColor: COLORS.darkSurface,
-    borderRadius: 12,
+    marginHorizontal: 8,
+    padding: 6,
+  },
+  deleteButton: {
+    marginHorizontal: 8,
+    padding: 6,
+  },
+  editButton: {
+    marginHorizontal: 8,
+    padding: 6,
+  },
+  sendButton: {
+    marginHorizontal: 8,
+    padding: 6,
+  },
+  imageButton: {
+    marginHorizontal: 8,
+    padding: 6,
+  },
+  imageContainer: {
+    width: '100%',
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginTop: 15,
+    marginBottom: 10,
+    alignSelf: 'center', // Center the image container
+  },
+  image: {
+    width: '100%',
+    height: 500,
+    borderRadius: 8,
+    backgroundColor: COLORS.background,
+  },
+  deckInfoContainer: {
+    marginTop: 10,
     padding: 10,
-    zIndex: 10,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.accentLight,
+    backgroundColor: COLORS.darkSurface,
   },
-  deckNameContainer: {
-    padding: 8,
-    marginLeft: 5,
-  },
-  deckNameText: {
+  deckLabel: {
     fontSize: 16,
     fontWeight: 'bold',
     color: COLORS.accentMedium,
+  },
+  deckName: {
+    fontSize: 16,
+    color: COLORS.accentLight,
   },
 });
 

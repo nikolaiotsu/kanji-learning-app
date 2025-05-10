@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Platform, ActivityIndicator, ScrollView, TouchableOpacity, Alert, TextInput, Modal } from 'react-native';
+import { View, Text, StyleSheet, Platform, ActivityIndicator, ScrollView, TouchableOpacity, Alert, TextInput, Modal, Image } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { processWithClaude } from './services/claudeApi';
+import { processWithClaude, validateTextMatchesLanguage } from './services/claudeApi';
 import { 
   cleanText, 
   containsJapanese, 
@@ -14,7 +14,7 @@ import {
   containsItalianText,
   containsTagalogText
 } from './utils/textFormatting';
-import { saveFlashcard } from './services/supabaseStorage';
+import { saveFlashcard, uploadImageToStorage } from './services/supabaseStorage';
 import { Flashcard } from './types/Flashcard';
 import { Ionicons } from '@expo/vector-icons';
 import * as Crypto from 'expo-crypto';
@@ -22,17 +22,22 @@ import DeckSelector from './components/flashcards/DeckSelector';
 import { useAuth } from './context/AuthContext';
 import { useSettings, AVAILABLE_LANGUAGES } from './context/SettingsContext';
 import { COLORS } from './constants/colors';
+import { FontAwesome6 } from '@expo/vector-icons';
 
 export default function LanguageFlashcardsScreen() {
   const { user } = useAuth();
   const { targetLanguage, forcedDetectionLanguage } = useSettings();
   const params = useLocalSearchParams();
   const textParam = params.text;
+  const imageUriParam = params.imageUri;
+  
   const displayText = typeof textParam === 'string' 
     ? textParam 
     : Array.isArray(textParam) 
       ? textParam.join('') 
       : '';
+  
+  const imageUri = typeof imageUriParam === 'string' ? imageUriParam : undefined;
   
   // Clean the detected text, preserving spaces for languages that need them
   const cleanedText = cleanText(displayText);
@@ -57,6 +62,9 @@ export default function LanguageFlashcardsScreen() {
   // State for language detection
   const [detectedLanguage, setDetectedLanguage] = useState('');
   const [needsRomanization, setNeedsRomanization] = useState(true);
+  
+  // State for the image display
+  const [showImagePreview, setShowImagePreview] = useState(false);
 
   useEffect(() => {
     // Initialize the edited text with the cleaned text
@@ -108,6 +116,15 @@ export default function LanguageFlashcardsScreen() {
           default: language = 'unknown';
         }
         console.log(`Using forced language detection: ${language}`);
+        
+        // Validate that text matches the forced language
+        const isValidLanguage = validateTextMatchesLanguage(text, forcedDetectionLanguage);
+        if (!isValidLanguage) {
+          // Show error notification if text doesn't match forced language
+          setIsLoading(false);
+          setError(`Forced language not detected: The text doesn't appear to be in ${language}. When forced language mode is active, please only enter text in the selected language. You can change your language preferences in Settings.`);
+          return;
+        }
       } else if (hasJapanese && !hasChinese && !hasKorean) {
         language = 'Japanese';
       } else if (hasChinese) {
@@ -154,7 +171,11 @@ export default function LanguageFlashcardsScreen() {
 
   // Retry processing with Claude API
   const handleRetry = () => {
-    if (editedText) {
+    if (error.includes("Forced language not detected")) {
+      // If the error is about forced language detection, navigate home
+      router.push('/');
+    } else if (editedText) {
+      // For other errors, try processing the text again
       processTextWithClaude(editedText);
     }
   };
@@ -181,6 +202,15 @@ export default function LanguageFlashcardsScreen() {
     setIsSaving(true);
 
     try {
+      // Upload image to storage if available
+      let storedImageUrl: string | undefined = undefined;
+      if (imageUri) {
+        const uploadedUrl = await uploadImageToStorage(imageUri);
+        if (uploadedUrl) {
+          storedImageUrl = uploadedUrl;
+        }
+      }
+
       // Create flashcard object
       const flashcard: Omit<Flashcard, 'id'> = {
         originalText: editedText,
@@ -188,6 +218,7 @@ export default function LanguageFlashcardsScreen() {
         translatedText,
         createdAt: Date.now(),
         deckId: deckId,
+        imageUrl: storedImageUrl, // Include the image URL if available
       };
 
       // Save flashcard
@@ -235,6 +266,52 @@ export default function LanguageFlashcardsScreen() {
     processTextWithClaude(editedText);
   };
 
+  // Function to handle retry with validation for forced language settings
+  const handleRetryWithValidation = () => {
+    if (!editedText) {
+      Alert.alert('Error', 'Please enter text to translate.');
+      return;
+    }
+
+    // Check if text matches the forced language before proceeding
+    if (forcedDetectionLanguage !== 'auto') {
+      const isValidLanguage = validateTextMatchesLanguage(editedText, forcedDetectionLanguage);
+      
+      if (!isValidLanguage) {
+        // Map language code to name for display
+        let languageName;
+        switch (forcedDetectionLanguage) {
+          case 'en': languageName = 'English'; break;
+          case 'zh': languageName = 'Chinese'; break;
+          case 'ja': languageName = 'Japanese'; break;
+          case 'ko': languageName = 'Korean'; break;
+          case 'ru': languageName = 'Russian'; break;
+          case 'ar': languageName = 'Arabic'; break;
+          case 'it': languageName = 'Italian'; break;
+          case 'es': languageName = 'Spanish'; break;
+          case 'fr': languageName = 'French'; break;
+          case 'tl': languageName = 'Tagalog'; break;
+          case 'pt': languageName = 'Portuguese'; break;
+          case 'de': languageName = 'German'; break;
+          default: languageName = forcedDetectionLanguage;
+        }
+        
+        // Show popup when text still doesn't match the forced language
+        Alert.alert(
+          'Language Mismatch',
+          `The text still doesn't appear to be in ${languageName}. Please try with a different text or change your forced language settings.`,
+          [
+            { text: 'OK' }
+          ]
+        );
+        return;
+      }
+    }
+    
+    // If validation passes or auto-detect is enabled, proceed with translation
+    processTextWithClaude(editedText);
+  };
+
   // Function to save edited text
   const handleSaveEdit = () => {
     setShowEditModal(false);
@@ -249,6 +326,11 @@ export default function LanguageFlashcardsScreen() {
   // Function to handle going back to home
   const handleGoHome = () => {
     router.push('/');
+  };
+
+  // Function to toggle image preview
+  const toggleImagePreview = () => {
+    setShowImagePreview(!showImagePreview);
   };
 
   // Get translated language name for display
@@ -266,9 +348,39 @@ export default function LanguageFlashcardsScreen() {
         </TouchableOpacity>
       </View>
       
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={true}
+      >
         <View style={styles.textContainer}>
           <Text style={styles.originalText} numberOfLines={0}>{editedText}</Text>
+          
+          {/* Show image thumbnail and preview button if image is available */}
+          {imageUri && (
+            <View style={styles.imagePreviewContainer}>
+              <TouchableOpacity 
+                style={styles.previewButton}
+                onPress={toggleImagePreview}
+              >
+                <FontAwesome6 
+                  name="image" 
+                  size={24} 
+                  color="#ffffff" 
+                />
+              </TouchableOpacity>
+              
+              {showImagePreview && (
+                <View style={styles.imagePreviewWrap}>
+                  <Image 
+                    source={{ uri: imageUri }} 
+                    style={styles.previewImage}
+                    resizeMode="contain"
+                  />
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
         {/* Edit and Translate buttons */}
@@ -303,9 +415,31 @@ export default function LanguageFlashcardsScreen() {
               <View style={styles.errorContainer}>
                 <Text style={styles.errorText}>{error}</Text>
                 <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
-                  <Ionicons name="refresh" size={18} color="#ffffff" style={styles.buttonIcon} />
-                  <Text style={styles.retryButtonText}>Try Again</Text>
+                  <Ionicons name={error.includes("Forced language not detected") ? "arrow-back" : "refresh"} size={18} color="#ffffff" style={styles.buttonIcon} />
+                  <Text style={styles.retryButtonText}>
+                    {error.includes("Forced language not detected") ? "Go Back" : "Try Again"}
+                  </Text>
                 </TouchableOpacity>
+                
+                {error.includes("Forced language not detected") && (
+                  <TouchableOpacity 
+                    style={styles.settingsButton}
+                    onPress={() => router.push('/settings')}
+                  >
+                    <Ionicons name="settings-outline" size={20} color="#ffffff" style={styles.buttonIcon} />
+                    <Text style={styles.buttonText}>Go to Settings</Text>
+                  </TouchableOpacity>
+                )}
+                
+                {error.includes("Forced language not detected") && (
+                  <TouchableOpacity 
+                    style={styles.translateAgainButton}
+                    onPress={handleRetryWithValidation}
+                  >
+                    <Ionicons name="language" size={20} color="#ffffff" style={styles.buttonIcon} />
+                    <Text style={styles.buttonText}>Try Again</Text>
+                  </TouchableOpacity>
+                )}
                 
                 <TouchableOpacity 
                   style={styles.viewButton}
@@ -409,17 +543,13 @@ export default function LanguageFlashcardsScreen() {
               value={editedText}
               onChangeText={setEditedText}
               multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-              autoFocus
+              placeholder="Edit text here..."
+              placeholderTextColor="#aaa"
             />
             <View style={styles.modalButtonsContainer}>
               <TouchableOpacity 
                 style={styles.modalCancelButton} 
-                onPress={() => {
-                  setEditedText(cleanedText); // Reset to original text
-                  setShowEditModal(false);
-                }}
+                onPress={() => setShowEditModal(false)}
               >
                 <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>
@@ -461,7 +591,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: 20,
     paddingTop: 8, // Reduced padding at top since we have the header
-    paddingBottom: 40, // Add extra padding at the bottom for better scrolling experience
+    paddingBottom: 60, // Add extra padding at the bottom for better scrolling experience
   },
   title: {
     fontSize: 20,
@@ -690,5 +820,53 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  imagePreviewContainer: {
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.accentLight,
+    backgroundColor: COLORS.darkSurface,
+  },
+  imagePreviewWrap: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFD166',
+    padding: 8,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+    marginBottom: 10,
+  },
+  previewImage: {
+    width: '100%',
+    height: 500,
+    borderRadius: 8,
+    backgroundColor: COLORS.background,
+  },
+  settingsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  translateAgainButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2CB67D',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    marginBottom: 12,
   },
 });

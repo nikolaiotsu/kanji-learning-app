@@ -16,6 +16,7 @@ module.exports = function (api) {
         "safe": false,
         "allowUndefined": false
       }],
+      'react-native-reanimated/plugin',
       'expo-router/babel'
     ]
   };

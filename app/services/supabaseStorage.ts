@@ -1,6 +1,8 @@
 import { supabase } from './supabaseClient';
 import { Flashcard } from '../types/Flashcard';
 import { Deck } from '../types/Deck';
+import { decode } from 'base64-arraybuffer';
+import * as FileSystem from 'expo-file-system';
 
 // Simple UUID generator that doesn't rely on crypto.getRandomValues()
 const generateUUID = (): string => {
@@ -100,6 +102,86 @@ export const initializeDecks = async (): Promise<void> => {
 };
 
 /**
+ * Upload an image to Supabase Storage and return the URL
+ * @param imageUri Local URI of the image to upload
+ * @returns URL of the uploaded image
+ */
+export const uploadImageToStorage = async (imageUri: string): Promise<string | null> => {
+  try {
+    console.log('Uploading image to storage:', imageUri);
+    
+    // Generate a unique filename for the image
+    const fileExt = imageUri.split('.').pop();
+    const fileName = `${generateUUID()}.${fileExt}`;
+    const filePath = `flashcard-images/${fileName}`;
+    
+    // Read the file as base64
+    const base64 = await FileSystem.readAsStringAsync(imageUri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    
+    // Convert base64 to ArrayBuffer
+    const arrayBuffer = decode(base64);
+    
+    // Upload to Supabase Storage
+    const { data, error } = await supabase
+      .storage
+      .from('flashcards')  // Make sure this bucket exists in your Supabase project
+      .upload(filePath, arrayBuffer, {
+        contentType: `image/${fileExt}`,
+        upsert: true,
+      });
+    
+    if (error) {
+      console.error('Error uploading image:', error.message);
+      return null;
+    }
+    
+    // Get public URL for the uploaded image
+    const { data: { publicUrl } } = supabase
+      .storage
+      .from('flashcards')
+      .getPublicUrl(filePath);
+    
+    console.log('Image uploaded successfully, URL:', publicUrl);
+    return publicUrl;
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    return null;
+  }
+};
+
+/**
+ * Delete an image from Supabase Storage
+ * @param imageUrl URL of the image to delete
+ * @returns True if deleted successfully, false otherwise
+ */
+export const deleteImageFromStorage = async (imageUrl: string): Promise<boolean> => {
+  try {
+    // Extract the file path from the URL
+    const urlParts = imageUrl.split('/');
+    const fileName = urlParts[urlParts.length - 1];
+    const filePath = `flashcard-images/${fileName}`;
+    
+    const { error } = await supabase
+      .storage
+      .from('flashcards')
+      .remove([filePath]);
+    
+    if (error) {
+      console.error('Error deleting image:', error.message);
+      return false;
+    }
+    
+    console.log('Image deleted successfully');
+    return true;
+  } catch (error) {
+    console.error('Error deleting image:', error);
+    return false;
+  }
+};
+
+/**
  * Save a flashcard to the database
  * @param flashcard The flashcard to save
  * @param deckId The ID of the deck to save the flashcard to
@@ -113,6 +195,7 @@ export const saveFlashcard = async (flashcard: Flashcard, deckId: string): Promi
       translated_text: flashcard.translatedText,
       created_at: new Date().toISOString(),
       deck_id: deckId,
+      image_url: flashcard.imageUrl || null, // Include image URL if available
     };
     
     const { error } = await supabase
@@ -155,6 +238,7 @@ export const getFlashcards = async (): Promise<Flashcard[]> => {
       translatedText: card.translated_text,
       createdAt: new Date(card.created_at).getTime(),
       deckId: card.deck_id,
+      imageUrl: card.image_url || undefined, // Include image URL if available
     }));
   } catch (error) {
     console.error('Error getting flashcards:', error);
@@ -188,6 +272,7 @@ export const getFlashcardsByDeck = async (deckId: string): Promise<Flashcard[]> 
       translatedText: card.translated_text,
       createdAt: new Date(card.created_at).getTime(),
       deckId: card.deck_id,
+      imageUrl: card.image_url || undefined, // Include image URL if available
     }));
   } catch (error) {
     console.error('Error getting flashcards by deck:', error);
@@ -393,8 +478,8 @@ export const moveFlashcardToDeck = async (flashcardId: string, targetDeckId: str
 
 /**
  * Update a flashcard
- * @param flashcard The flashcard data to update
- * @returns Boolean indicating success or failure
+ * @param flashcard The flashcard to update
+ * @returns True if updated successfully, false otherwise
  */
 export const updateFlashcard = async (flashcard: Flashcard): Promise<boolean> => {
   try {
@@ -404,6 +489,7 @@ export const updateFlashcard = async (flashcard: Flashcard): Promise<boolean> =>
         original_text: flashcard.originalText,
         furigana_text: flashcard.furiganaText,
         translated_text: flashcard.translatedText,
+        image_url: flashcard.imageUrl || null, // Include image URL in update
       })
       .eq('id', flashcard.id);
     
