@@ -49,6 +49,8 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   const [showImage, setShowImage] = useState(false);
   // State to track expanded card size when image is shown
   const [expandedCardHeight, setExpandedCardHeight] = useState(0);
+  // Track if image is loaded to prevent unnecessary reloads
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
   
   // Get translated language name for display
   const translatedLanguageName = AVAILABLE_LANGUAGES[targetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'English';
@@ -129,6 +131,11 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
     }
   };
 
+  // Handle image load success
+  const handleImageLoad = () => {
+    setIsImageLoaded(true);
+  };
+
   // Check if content is scrollable by comparing content height to container height
   const checkContentScrollable = useCallback((event: {
     nativeEvent: {
@@ -185,6 +192,15 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
     })
   };
 
+  // Pre-load the image when the component mounts
+  useEffect(() => {
+    if (flashcard.imageUrl) {
+      Image.prefetch(flashcard.imageUrl).catch(() => {
+        // Silent catch - we'll still try to load the image normally if prefetch fails
+      });
+    }
+  }, [flashcard.imageUrl]);
+
   return (
     <View style={[
       styles.cardContainer,
@@ -229,13 +245,17 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
                 </Text>
               </View>
               
-              {/* Show image when toggled */}
-              {flashcard.imageUrl && showImage && (
-                <View style={styles.imageContainer}>
+              {/* Always render the image but conditionally show it */}
+              {flashcard.imageUrl && (
+                <View style={[
+                  styles.imageContainer,
+                  !showImage && styles.hiddenImage
+                ]}>
                   <Image 
                     source={{ uri: flashcard.imageUrl }} 
                     style={styles.image}
                     resizeMode="contain"
+                    onLoad={handleImageLoad}
                   />
                 </View>
               )}
@@ -295,20 +315,24 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
                 {flashcard.translatedText}
               </Text>
               
-              {/* Show image on back side too when toggled */}
-              {flashcard.imageUrl && showImage && (
-                <View style={styles.imageContainer}>
+              {/* Always render the image on back side too but conditionally show it */}
+              {flashcard.imageUrl && (
+                <View style={[
+                  styles.imageContainer,
+                  !showImage && styles.hiddenImage
+                ]}>
                   <Image 
                     source={{ uri: flashcard.imageUrl }} 
                     style={styles.image}
                     resizeMode="contain"
+                    onLoad={handleImageLoad}
                   />
                 </View>
               )}
               
               {deckName && (
                 <View style={styles.deckInfoContainer}>
-                  <Text style={styles.deckLabel}>Deck:</Text>
+                  <Text style={styles.deckLabel}>Collection:</Text>
                   <Text style={styles.deckName}>{deckName}</Text>
                 </View>
               )}
@@ -333,7 +357,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
         
         {onSend && (
           <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
-            <MaterialIcons name="send" size={22} color={COLORS.secondary} />
+            <MaterialIcons name="drive-file-move-outline" size={22} color={COLORS.secondary} />
           </TouchableOpacity>
         )}
       </View>
@@ -504,6 +528,9 @@ const styles = StyleSheet.create({
     marginTop: 15,
     marginBottom: 10,
     alignSelf: 'center', // Center the image container
+  },
+  hiddenImage: {
+    display: 'none', // Hide the image container when toggled off
   },
   image: {
     width: '100%',

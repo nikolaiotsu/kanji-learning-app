@@ -32,7 +32,7 @@ export const getDecks = async (createDefaultIfEmpty: boolean = false): Promise<D
     // Create a default deck if requested and no decks exist
     if (createDefaultIfEmpty && (!decks || decks.length === 0)) {
       console.log('No decks found, creating default deck');
-      const defaultDeck = await createDeck('Deck 1');
+      const defaultDeck = await createDeck('Collection 1');
       return [defaultDeck];
     }
     

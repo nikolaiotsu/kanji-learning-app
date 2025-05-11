@@ -236,7 +236,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
               onPress={() => setShowDeckSelector(true)}
             >
               <Ionicons name="albums-outline" size={20} color={COLORS.primary} />
-              <Text style={styles.deckButtonText}>Select Decks</Text>
+              <Text style={styles.deckButtonText}>Select Collections</Text>
             </TouchableOpacity>
           </View>
           <Text style={styles.noCardsText}>Nothing to review</Text>
@@ -255,7 +255,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
             onPress={() => setShowDeckSelector(true)}
           >
             <Ionicons name="albums-outline" size={20} color={COLORS.primary} />
-            <Text style={styles.deckButtonText}>Select Decks</Text>
+            <Text style={styles.deckButtonText}>Select Collections</Text>
           </TouchableOpacity>
         </View>
         <Text style={styles.noCardsText}>You've finished your review!</Text>
@@ -278,7 +278,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
           onPress={() => setShowDeckSelector(true)}
         >
           <Ionicons name="albums-outline" size={20} color={COLORS.primary} />
-          <Text style={styles.deckButtonText}>Select Decks</Text>
+          <Text style={styles.deckButtonText}>Collections</Text>
         </TouchableOpacity>
       </View>
       <View style={styles.cardStage}>
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   countText: {
-    color: COLORS.lightGray,
+    color: '#b3b3b3',
     fontSize: 12,
   },
   loadingText: {

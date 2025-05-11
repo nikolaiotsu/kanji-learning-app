@@ -126,8 +126,8 @@ export default function SavedFlashcardsScreen() {
         setSelectedDeckId(savedDecks[0].id);
       }
     } catch (error) {
-      console.error('Error loading decks:', error);
-      Alert.alert('Error', 'Failed to load decks. Please try again.');
+      console.error('Error loading collections:', error);
+      Alert.alert('Error', 'Failed to load collections. Please try again.');
     } finally {
       setIsLoadingDecks(false);
     }
@@ -158,8 +158,8 @@ export default function SavedFlashcardsScreen() {
       deckFlashcards.sort((a, b) => b.createdAt - a.createdAt);
       setFlashcards(deckFlashcards);
     } catch (error) {
-      console.error('Error loading flashcards for deck:', error);
-      Alert.alert('Error', 'Failed to load flashcards for this deck. Please try again.');
+      console.error('Error loading flashcards for collection:', error);
+      Alert.alert('Error', 'Failed to load flashcards for this collection. Please try again.');
     } finally {
       setIsLoadingFlashcards(false);
     }
@@ -198,15 +198,15 @@ export default function SavedFlashcardsScreen() {
     if (decks.length <= 1) {
       Alert.alert(
         'Cannot Delete',
-        'You must have at least one deck. Create a new deck before deleting this one.',
+        'You must have at least one collection. Create a new collection before deleting this one.',
         [{ text: 'OK' }]
       );
       return;
     }
 
     Alert.alert(
-      'Delete Deck',
-      'Are you sure you want to delete this deck? All flashcards in this deck will also be deleted.',
+      'Delete Collection',
+      'Are you sure you want to delete this collection? All flashcards in this collection will also be deleted.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -226,8 +226,8 @@ export default function SavedFlashcardsScreen() {
                 }
               }
             } catch (error) {
-              console.error('Error deleting deck:', error);
-              Alert.alert('Error', 'Failed to delete deck. Please try again.');
+              console.error('Error deleting collection:', error);
+              Alert.alert('Error', 'Failed to delete collection. Please try again.');
             }
           },
         },
@@ -261,8 +261,8 @@ export default function SavedFlashcardsScreen() {
         ));
       }
     } catch (error) {
-      console.error('Error renaming deck:', error);
-      Alert.alert('Error', 'Failed to rename deck. Please try again.');
+      console.error('Error renaming collection:', error);
+      Alert.alert('Error', 'Failed to rename collection. Please try again.');
     } finally {
       setEditingDeckId(null);
       setNewDeckName('');
@@ -272,8 +272,8 @@ export default function SavedFlashcardsScreen() {
   // Function to handle long press on deck item
   const handleDeckLongPress = (deckId: string) => {
     Alert.alert(
-      'Deck Options',
-      'What would you like to do with this deck?',
+      'Collection Options',
+      'What would you like to do with this collection?',
       [
         { text: 'Cancel', style: 'cancel' },
         { 
@@ -337,7 +337,7 @@ export default function SavedFlashcardsScreen() {
         if (selectedDeckId === flashcards.find(f => f.id === selectedFlashcardId)?.deckId) {
           setFlashcards(cards => cards.filter(card => card.id !== selectedFlashcardId));
         }
-        Alert.alert('Success', `Flashcard moved to new deck: ${newDeck.name}`);
+        Alert.alert('Success', `Flashcard moved to new collection: ${newDeck.name}`);
       } else {
         Alert.alert('Error', 'Failed to move flashcard');
       }
@@ -462,9 +462,9 @@ export default function SavedFlashcardsScreen() {
   // Render empty state
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <Text style={styles.emptyTitle}>No Flashcards in This Deck</Text>
+      <Text style={styles.emptyTitle}>No Flashcards in This Collection</Text>
       <Text style={styles.emptyText}>
-        Flashcards you save to this deck will appear here. Go scan some text and save it as a flashcard!
+        Flashcards you save to this collection will appear here. Go scan some text and save it as a flashcard!
       </Text>
     </View>
   );
@@ -539,7 +539,7 @@ export default function SavedFlashcardsScreen() {
             contentContainerStyle={styles.deckSelector}
             ListEmptyComponent={
               <View style={styles.noDecksContainer}>
-                <Text style={styles.noDecksText}>No decks available</Text>
+                <Text style={styles.noDecksText}>No collections available</Text>
               </View>
             }
           />
@@ -550,7 +550,7 @@ export default function SavedFlashcardsScreen() {
       {editingDeckId && (
         <View style={styles.renameModalContainer}>
           <View style={styles.renameModal}>
-            <Text style={styles.renameTitle}>Rename Deck</Text>
+            <Text style={styles.renameTitle}>Rename Collection</Text>
             <TextInput
               style={styles.renameInput}
               value={newDeckName}
@@ -582,7 +582,7 @@ export default function SavedFlashcardsScreen() {
         <View style={styles.renameModalContainer}>
           <View style={styles.sendModal}>
             <Text style={styles.renameTitle}>
-              {newDeckMode ? 'Create New Deck' : 'Send to Deck'}
+              {newDeckMode ? 'Create New Collection' : 'Send to Collection'}
             </Text>
             
             {newDeckMode ? (
@@ -590,7 +590,7 @@ export default function SavedFlashcardsScreen() {
                 style={styles.renameInput}
                 value={newDeckNameForSend}
                 onChangeText={setNewDeckNameForSend}
-                placeholder="Enter new deck name"
+                placeholder="Enter new collection name"
                 placeholderTextColor={COLORS.darkGray}
                 autoFocus
                 maxLength={30}
@@ -610,7 +610,7 @@ export default function SavedFlashcardsScreen() {
                   </TouchableOpacity>
                 )}
                 ListEmptyComponent={
-                  <Text style={styles.noDeckOptions}>No other decks available</Text>
+                  <Text style={styles.noDeckOptions}>No other collections available</Text>
                 }
               />
             )}
@@ -644,7 +644,7 @@ export default function SavedFlashcardsScreen() {
                     style={[styles.renameButton, styles.saveButton]} 
                     onPress={() => setNewDeckMode(true)}
                   >
-                    <Text style={[styles.renameButtonText, styles.saveButtonText]}>New Deck</Text>
+                    <Text style={[styles.renameButtonText, styles.saveButtonText]}>New Collection</Text>
                   </TouchableOpacity>
                 </>
               )}

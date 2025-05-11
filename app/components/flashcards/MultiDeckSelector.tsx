@@ -53,8 +53,8 @@ export default function MultiDeckSelector({
         setSelectedDeckIds(savedDecks.map(deck => deck.id));
       }
     } catch (error) {
-      console.error('Error loading decks:', error);
-      Alert.alert('Error', 'Failed to load decks. Please try again.');
+      console.error('Error loading collections:', error);
+      Alert.alert('Error', 'Failed to load collections. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -66,7 +66,7 @@ export default function MultiDeckSelector({
       if (prev.includes(deckId)) {
         // If this is the last selected deck, don't allow deselection
         if (prev.length === 1) {
-          Alert.alert('Required', 'At least one deck must be selected');
+          Alert.alert('Required', 'At least one collection must be selected');
           return prev;
         }
         return prev.filter(id => id !== deckId);
@@ -127,7 +127,7 @@ export default function MultiDeckSelector({
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.header}>
-              <Text style={styles.title}>Select Decks to Review</Text>
+              <Text style={styles.title}>Select Collections to Review</Text>
               <TouchableOpacity style={styles.closeButton} onPress={onClose}>
                 <Ionicons name="close" size={24} color={COLORS.primary} />
               </TouchableOpacity>
@@ -136,7 +136,7 @@ export default function MultiDeckSelector({
             {isLoading ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={COLORS.primary} />
-                <Text style={styles.loadingText}>Loading decks...</Text>
+                <Text style={styles.loadingText}>Loading collections...</Text>
               </View>
             ) : (
               <>
@@ -154,7 +154,7 @@ export default function MultiDeckSelector({
                   contentContainerStyle={styles.deckList}
                   ListEmptyComponent={
                     <View style={styles.emptyContainer}>
-                      <Text style={styles.emptyText}>No decks found. Create decks in the flashcards screen.</Text>
+                      <Text style={styles.emptyText}>No collections found. Create collections in the flashcards screen.</Text>
                     </View>
                   }
                 />
@@ -164,7 +164,7 @@ export default function MultiDeckSelector({
                   onPress={handleSaveSelection}
                 >
                   <Text style={styles.saveButtonText}>
-                    Save Selection ({selectedDeckIds.length} {selectedDeckIds.length === 1 ? 'Deck' : 'Decks'})
+                    Save Selection ({selectedDeckIds.length} {selectedDeckIds.length === 1 ? 'Collection' : 'Collections'})
                   </Text>
                 </TouchableOpacity>
               </>
