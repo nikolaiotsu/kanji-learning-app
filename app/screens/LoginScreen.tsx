@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import SocialAuth from '../components/SocialAuth';
 import { supabase } from '../services/supabaseClient';
 import { COLORS } from '../constants/colors';
+import PokedexLayout from '../components/shared/PokedexLayout';
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
@@ -71,7 +72,7 @@ const LoginScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <PokedexLayout>
       <View style={styles.form}>
         <Text style={styles.title}>Welcome Back</Text>
         
@@ -130,15 +131,11 @@ const LoginScreen = () => {
           </TouchableOpacity>
         </View>
       </View>
-    </SafeAreaView>
+    </PokedexLayout>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
   form: {
     padding: 20,
     flex: 1,

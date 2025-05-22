@@ -1,4 +1,6 @@
 import { supabase } from './supabaseClient';
+import * as WebBrowser from 'expo-web-browser';
+import { Platform } from 'react-native';
 
 // Sign up with email and password
 export const signUp = async (email: string, password: string) => {
@@ -69,6 +71,78 @@ export const signIn = async (email: string, password: string) => {
   }
 };
 
+// Sign in with Google OAuth
+export const signInWithGoogle = async () => {
+  try {
+    // Make sure we close any existing web browser sessions
+    WebBrowser.maybeCompleteAuthSession();
+    
+    // Start the OAuth flow with Supabase
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: 'kanjilearningapp://login',
+        skipBrowserRedirect: false,
+      }
+    });
+    
+    if (error) throw error;
+    
+    // On native platforms, we need to open the authorization URL in a web browser
+    if (data?.url && (Platform.OS === 'ios' || Platform.OS === 'android')) {
+      // Open the URL in an in-app browser
+      await WebBrowser.openAuthSessionAsync(data.url, 'kanjilearningapp://login');
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error signing in with Google:', error);
+    throw error;
+  }
+};
+
+// Sign in with Apple OAuth
+export const signInWithApple = async () => {
+  try {
+    // Make sure we close any existing web browser sessions
+    WebBrowser.maybeCompleteAuthSession();
+    
+    // Start the OAuth flow with Supabase
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'apple',
+      options: {
+        redirectTo: 'kanjilearningapp://login',
+        skipBrowserRedirect: false,
+      }
+    });
+    
+    if (error) throw error;
+    
+    // On native platforms, we need to open the authorization URL in a web browser
+    if (data?.url && (Platform.OS === 'ios' || Platform.OS === 'android')) {
+      // Open the URL in an in-app browser
+      await WebBrowser.openAuthSessionAsync(data.url, 'kanjilearningapp://login');
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error signing in with Apple:', error);
+    throw error;
+  }
+};
+
+// Get OAuth session from URL
+export const getOAuthSession = async () => {
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    return data.session;
+  } catch (error) {
+    console.error('Error getting OAuth session:', error);
+    return null;
+  }
+};
+
 // Sign out
 export const signOut = async () => {
   try {
@@ -96,7 +170,7 @@ export const getSession = async () => {
 export const resetPassword = async (email: string) => {
   try {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'kanjiapp://reset-password',
+      redirectTo: 'kanjilearningapp://reset-password',
     });
     
     if (error) throw error;
@@ -135,5 +209,8 @@ export default {
   getSession,
   resetPassword,
   updateProfile,
-  onAuthStateChange
+  onAuthStateChange,
+  signInWithGoogle,
+  signInWithApple,
+  getOAuthSession
 }; 

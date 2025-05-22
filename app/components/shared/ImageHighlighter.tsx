@@ -4,7 +4,6 @@ import {
   Image,
   StyleSheet,
   PanResponder,
-  useWindowDimensions,
   Platform,
   ActivityIndicator,
   TouchableOpacity,
@@ -12,32 +11,50 @@ import {
   GestureResponderEvent,
   PanResponderGestureState,
 } from 'react-native';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { detectJapaneseText } from '../../services/visionApi';
 import { router } from 'expo-router';
 import { COLORS } from '../../constants/colors';
 import { Ionicons, FontAwesome6 } from '@expo/vector-icons';
+import { processImage } from '../../services/ProcessImage';
 
 // Define the type for the forwarded ref handle
 export interface ImageHighlighterRef {
   getView: () => View | null;
   getTransformData: () => {
-    scale: number;
-    translateX: number;
-    translateY: number;
-    imageWidth: number;
-    imageHeight: number;
-    scaledWidth: number;
-    scaledHeight: number;
+    originalImageWidth: number;
+    originalImageHeight: number;
+    displayImageViewWidth: number;
+    displayImageViewHeight: number;
+    displayImageOffsetX: number;
+    displayImageOffsetY: number;
+    imageContainerWidth: number;
+    imageContainerHeight: number;
     rotation: number;
   };
   toggleCropMode: () => void;
   toggleRotateMode: () => void;
   applyCrop: () => void;
-  applyRotation: () => void;
   hasCropRegion: boolean;
-  hasRotation: boolean;
   clearHighlightBox: () => void;
+  clearCropBox: () => void;
+
+  // New rotation methods
+  undoRotationChange: () => boolean;
+  redoRotationChange: () => boolean;
+  confirmCurrentRotation: () => Promise<{ uri: string, width: number, height: number } | null>;
+  cancelRotationChanges: () => void;
+  getRotationState: () => {
+    currentRotation: number;
+    initialRotationOnEnter: number;
+    canUndo: boolean;
+    canRedo: boolean;
+    hasRotated: boolean;
+  };
 }
+
+// Export the type for the rotation state object
+export type ImageHighlighterRotationState = ReturnType<ImageHighlighterRef['getRotationState']>;
 
 interface ImageHighlighterProps {
   imageUri: string;
@@ -53,6 +70,7 @@ interface ImageHighlighterProps {
     detectedText?: string[];
     rotation?: number;
   }) => void;
+  onRotationStateChange?: (state: ImageHighlighterRotationState) => void;
 }
 
 // Let's define a type for our crop box to ensure type consistency
@@ -64,11 +82,9 @@ interface CropBox {
 }
 
 // Constants for layout calculations
-const BUTTON_CONTAINER_HEIGHT = 100; // Height reserved for buttons
-const VERTICAL_PADDING = 40; // Reduced padding to allow more space for image
-const BUTTON_HEIGHT = 60; // Height of the buttons
-const CROP_HANDLE_SIZE = 30; // Increased size of crop handles
-const CROP_HANDLE_TOUCH_AREA = 40; // Larger touch area for crop handles
+const CROP_HANDLE_SIZE = 30;
+const CROP_HANDLE_TOUCH_AREA = 40;
+const ROTATION_SMOOTHING_FACTOR = 0.4; // New, for smoothing rotation during drag
 
 const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(({
   imageUri,
@@ -77,7 +93,10 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   highlightModeActive = false,
   onActivateHighlightMode,
   onRegionSelected,
+  onRotationStateChange,
 }, ref) => {
+  const [measuredLayout, setMeasuredLayout] = useState<{width: number, height: number} | null>(null);
+
   const [highlightBox, setHighlightBox] = useState({
     startX: 0,
     startY: 0,
@@ -112,7 +131,16 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   const [rotateMode, setRotateMode] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [initialRotation, setInitialRotation] = useState(0);
-  const [rotateStartAngle, setRotateStartAngle] = useState(0);
+  
+  // Refs for gesture calculation
+  // imageRotationAtGestureStartRef: Stores the image's rotation at the very beginning of a PanResponder Grant event.
+  // This is the baseline rotation *before* the current gesture starts.
+  const imageRotationAtGestureStartRef = useRef<number>(0); 
+  const previousFingerAngleRef = useRef<number | null>(null);
+  // accumulatedAngleDeltaForGestureRef: Stores the *total* accumulated angular change OF THE FINGER MOVEMENT ITSELF since onPanResponderGrant.
+  const accumulatedAngleDeltaForGestureRef = useRef<number>(0); 
+  // lastVisuallyAppliedRotationRef: Stores the actual rotation value that was last commanded via setRotation (smoothed value).
+  const lastVisuallyAppliedRotationRef = useRef<number>(0);
 
   // Reference to the image view for capturing screenshots
   const imageViewRef = useRef<View>(null);
@@ -130,17 +158,98 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
     }
   }, [imageUri]);
   
+  // Calculate scaled dimensions for the image container (pan responder view)
+  // This will now depend on measuredLayout, so calculations move into the return or useEffect after layout is measured
+  let scaledContainerWidth = 0;
+  let scaledContainerHeight = 0;
+  let finalDisplayImageWidth = 0;
+  let finalDisplayImageHeight = 0;
+  let displayImageOffsetX = 0;
+  let displayImageOffsetY = 0;
+
+  if (measuredLayout && imageWidth > 0 && imageHeight > 0) {
+    // IMPORTANT CHANGE: Don't try to fit the image to the container dimensions
+    // Instead, use the actual image dimensions, and let the resizeMode='contain' handle fitting
+    
+    // For very large images, we'll still constrain the maximum size to the screen size
+    const maxContainerWidth = measuredLayout.width;
+    const maxContainerHeight = measuredLayout.height;
+    
+    if (imageWidth <= maxContainerWidth && imageHeight <= maxContainerHeight) {
+      // For images smaller than the container, use the actual image size
+      scaledContainerWidth = imageWidth;
+      scaledContainerHeight = imageHeight;
+    } else {
+      // For images larger than the container, scale down while maintaining aspect ratio
+      const aspectRatio = imageWidth / imageHeight;
+      scaledContainerWidth = maxContainerWidth;
+      scaledContainerHeight = scaledContainerWidth / aspectRatio;
+
+      if (scaledContainerHeight > maxContainerHeight) {
+        scaledContainerHeight = maxContainerHeight;
+        scaledContainerWidth = scaledContainerHeight * aspectRatio;
+      }
+    }
+    
+    // Update these values for other calculations in the component
+    finalDisplayImageWidth = scaledContainerWidth;
+    finalDisplayImageHeight = scaledContainerHeight;
+  }
+
+  // useEffect for logging rotation state changes
+  useEffect(() => {
+    if (rotateMode) {
+      console.log(`[DEBUG ImageHighlighter] rotation state CHANGED to: ${rotation.toFixed(2)}`);
+    }
+  }, [rotation, rotateMode]);
+
+  // Helper to get current rotation state for notifier
+  const getCurrentRotationStateForNotifier = (): ImageHighlighterRotationState => {
+    const EPSILON = 0.01;
+    return {
+      currentRotation: rotation,
+      initialRotationOnEnter: initialRotation,
+      canUndo: Math.abs(rotation - initialRotation) > EPSILON,
+      canRedo: false,
+      hasRotated: Math.abs(rotation - initialRotation) > 0.1,
+    };
+  };
+
+  // Helper to notify parent about rotation state changes
+  const _notifyRotationStateChanged = () => {
+    if (onRotationStateChange) {
+      onRotationStateChange(getCurrentRotationStateForNotifier());
+    }
+  };
+
+  // Effect to notify parent about rotation state changes
+  useEffect(() => {
+    if (rotateMode && onRotationStateChange) {
+      _notifyRotationStateChanged();
+    }
+    // If exiting rotate mode, parent might want to know too, but it will know 'rotateMode' is false.
+    // Parent can clear its own stored rotation state when it toggles rotateMode off.
+  }, [
+    rotation,
+    initialRotation,
+    rotateMode, 
+  ]);
+
   // Forward the imageViewRef and transform data to parent component
   useImperativeHandle(ref, () => ({
-    getView: () => imageViewRef.current, // Return View or null
+    getView: () => imageViewRef.current,
     getTransformData: () => ({
-      scale: 1, // We don't zoom anymore, but keep this for backward compatibility
-      translateX: 0,
-      translateY: 0,
-      imageWidth,
-      imageHeight,
-      scaledWidth,
-      scaledHeight,
+      originalImageWidth: imageWidth,
+      originalImageHeight: imageHeight,
+      // Actual dimensions of the visible image content on screen
+      displayImageViewWidth: finalDisplayImageWidth,
+      displayImageViewHeight: finalDisplayImageHeight,
+      // Offsets of the visible image content from the top-left of the pan responder view
+      displayImageOffsetX,
+      displayImageOffsetY,
+      // Dimensions of the pan responder view itself
+      imageContainerWidth: scaledContainerWidth,
+      imageContainerHeight: scaledContainerHeight,
       rotation,
     }),
     toggleCropMode: () => {
@@ -154,6 +263,8 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         }
         if (rotateMode) {
           setRotateMode(false);
+          // If rotating, and crop is activated, cancel current rotation session
+          setRotation(initialRotation); // Revert to rotation at start of mode
         }
         // Reset crop box to empty state
         setCropBox({ x: 0, y: 0, width: 0, height: 0 });
@@ -164,16 +275,20 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       const newRotateMode = !rotateMode;
       setRotateMode(newRotateMode);
       
-      if (newRotateMode) {
-        // Exit other modes if they're active
+      if (newRotateMode) { // ---- Entering Rotate Mode ----
         if (highlightModeActive && onActivateHighlightMode) {
           onActivateHighlightMode();
         }
         if (cropMode) {
           setCropMode(false);
         }
-        // Store the initial rotation when entering rotate mode
-        setInitialRotation(rotation);
+        // Initialize rotation session
+        setInitialRotation(rotation); // Capture the rotation state *before* this session starts
+        console.log('[ImageHighlighter] Entered rotate mode. Initial session rotation:', rotation);
+      } else { // ---- Exiting Rotate Mode (if toggled off directly by this call) ----
+        // This implies a cancellation if not preceded by a confirm/ API call.
+        console.log('[ImageHighlighter] Exited rotate mode via toggle. Reverting to initial session rotation:', initialRotation);
+        setRotation(initialRotation); // initialRotation holds the value from when mode was entered
       }
     },
     applyCrop: () => {
@@ -202,10 +317,10 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         // Convert crop box coordinates to be relative to the original image
         // The result will be the actual pixel coordinates in the original image
         const originalRegion = {
-          x: Math.round((validCrop.x / scaledWidth) * imageWidth),
-          y: Math.round((validCrop.y / scaledHeight) * imageHeight),
-          width: Math.round((validCrop.width / scaledWidth) * imageWidth),
-          height: Math.round((validCrop.height / scaledHeight) * imageHeight),
+          x: Math.round((validCrop.x / scaledContainerWidth) * imageWidth),
+          y: Math.round((validCrop.y / scaledContainerHeight) * imageHeight),
+          width: Math.round((validCrop.width / scaledContainerWidth) * imageWidth),
+          height: Math.round((validCrop.height / scaledContainerHeight) * imageHeight),
           rotation: rotation // Include current rotation
         };
         console.log('[ImageHighlighter] originalRegion (original image coordinates):', originalRegion);
@@ -233,83 +348,119 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         setIsProcessing(false);
       }
     },
-    applyRotation: () => {
-      if (!rotateMode || !onRegionSelected) return;
-      
-      try {
-        console.log('[ImageHighlighter] applyRotation called - Applying rotation:', rotation);
-        setIsProcessing(true);
-        
-        // Create a region covering the whole image to apply rotation
-        const fullImageRegion = {
-          x: 0,
-          y: 0,
-          width: imageWidth,
-          height: imageHeight,
-          rotation: rotation
-        };
-        
-        // Use the existing onRegionSelected callback to process the rotation
-        console.log('[ImageHighlighter] Calling onRegionSelected with rotation');
-        onRegionSelected(fullImageRegion);
-        console.log('[ImageHighlighter] onRegionSelected callback completed');
-        
-        // Exit rotate mode after applying
-        setRotateMode(false);
-        
-        // Note: We don't call setIsProcessing(false) here anymore
-        // Let the parent component (KanjiScanner) control this state
-        // through re-rendering with the new image
-      } catch (error) {
-        console.error("Error applying rotation:", error);
-        setIsProcessing(false); // Only clear on error
-      }
-    },
     // Computed property to check if a crop region exists
     get hasCropRegion() {
       // Check if there's a valid crop box with meaningful dimensions (at least 10x10 pixels)
       return cropMode && cropBox.width !== 0 && cropBox.height !== 0 && 
              Math.abs(cropBox.width) > 10 && Math.abs(cropBox.height) > 10;
     },
-    // Computed property to check if rotation has changed
-    get hasRotation() {
-      // Consider a rotation change of at least 1 degree as significant
-      // Also check if rotation mode is active
-      const rotationDelta = Math.abs(rotation - initialRotation);
-      const hasChanged = rotationDelta > 1;
-      console.log('[ImageHighlighter] Checking hasRotation:', { 
-        rotation, 
-        initialRotation, 
-        delta: rotationDelta,
-        hasChanged
-      });
-      return rotateMode && hasChanged;
-    },
     clearHighlightBox: () => {
       setIsDrawing(false);
       setHighlightBox({ startX: 0, startY: 0, endX: 0, endY: 0 });
       // Also reset any detected regions that might be displayed
       setDetectedRegions([]);
-    }
+    },
+    clearCropBox: () => {
+      console.log('[ImageHighlighter] clearCropBox called');
+      setCropBox({ x: 0, y: 0, width: 0, height: 0 });
+      setIsCropDrawing(false);
+      setActiveCropHandle(null);
+    },
+
+    // --- New Rotation Control Methods ---
+    undoRotationChange: () => {
+      const EPSILON = 0.01;
+      if (Math.abs(rotation - initialRotation) > EPSILON) {
+        console.log('[ImageHighlighter] Undo rotation from:', rotation, 'to (initial):', initialRotation);
+        setRotation(initialRotation);
+        return true;
+      }
+      console.log('[ImageHighlighter] Cannot undo rotation (already at initial session rotation).');
+      return false;
+    },
+    redoRotationChange: () => {
+      console.log('[ImageHighlighter] Redo not supported in this model.');
+      return false; // Redo is not supported in the simplified model
+    },
+    confirmCurrentRotation: async () => {
+      if (!imageUri) {
+        console.warn('[ImageHighlighter] Confirm rotation called without imageUri.');
+        return null;
+      }
+      
+      console.log('[ImageHighlighter] Starting rotation confirmation with image dimensions:', imageWidth, 'x', imageHeight);
+      
+      // Set processing state first thing to prevent UI flicker
+      setIsProcessing(true);
+      
+      // Check if there's any effective rotation compared to the start of the session
+      // Use a small epsilon for float comparison
+      const hasEffectiveRotation = Math.abs(rotation - initialRotation) > 0.1;
+
+      if (!hasEffectiveRotation) {
+        console.log('[ImageHighlighter] No significant rotation change to confirm.');
+        setRotation(0); 
+        setInitialRotation(0);
+        setRotateMode(false);  // Explicitly exit rotate mode
+        setIsProcessing(false);
+        // Return original dimensions
+        return { uri: imageUri, width: imageWidth, height: imageHeight };
+      }
+
+      console.log('[ImageHighlighter] Confirming rotation:', rotation);
+      
+      try {
+        // Perform the rotation directly using ImageManipulator for simplicity
+        // This avoids any potential dimension issues from complex processing chains
+        const result = await ImageManipulator.manipulateAsync(
+          imageUri,
+          [{ rotate: rotation }],
+          { 
+            format: ImageManipulator.SaveFormat.JPEG,
+            compress: 1.0,
+          }
+        );
+        
+        console.log('[ImageHighlighter] Rotation applied. New dimensions:', result.width, 'x', result.height, 
+          '(original was', imageWidth, 'x', imageHeight, ')');
+        
+        // After confirmation, reset rotation state for future operations
+        setRotation(0); 
+        setInitialRotation(0);
+        setRotateMode(false);  // Explicitly exit rotate mode
+        
+        // Return the dimensions directly from the result
+        return { 
+          uri: result.uri, 
+          width: result.width,
+          height: result.height
+        };
+      } catch (error) {
+        console.error('[ImageHighlighter] Failed to apply rotation:', error);
+        setRotation(initialRotation);
+        return null;
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    cancelRotationChanges: () => {
+      console.log('[ImageHighlighter] Cancelling rotation changes. Reverting from', rotation, 'to', initialRotation);
+      setRotation(initialRotation); // Revert to the rotation stored when mode was entered
+      // setRotationSessionHistory([]); // REMOVED
+      // setCurrentRotationSessionIndex(-1); // REMOVED
+      // Note: setRotateMode(false) will be called by KanjiScanner
+    },
+    getRotationState: () => {
+      const EPSILON = 0.01; // For float comparisons
+      return {
+        currentRotation: rotation,
+        initialRotationOnEnter: initialRotation,
+        canUndo: Math.abs(rotation - initialRotation) > EPSILON,
+        canRedo: false, // Redo is not supported in this model
+        hasRotated: Math.abs(rotation - initialRotation) > 0.1,
+      };
+    },
   }));
-
-  // Use window dimensions hook for more reliable screen measurements
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-
-  // Calculate available space for image
-  const availableHeight = screenHeight - BUTTON_CONTAINER_HEIGHT - (VERTICAL_PADDING * 2) - BUTTON_HEIGHT;
-  const availableWidth = screenWidth - (Platform.OS === 'ios' ? 20 : 16); // Reduced horizontal padding
-
-  // Calculate scaled dimensions while maintaining aspect ratio
-  const aspectRatio = imageWidth / imageHeight;
-  let scaledWidth = availableWidth;
-  let scaledHeight = scaledWidth / aspectRatio;
-
-  // If height exceeds available space, scale down based on height
-  if (scaledHeight > availableHeight) {
-    scaledHeight = availableHeight;
-    scaledWidth = scaledHeight * aspectRatio;
-  }
 
   // Helper function to check if a point is within a handle's touch area
   const isPointInHandleArea = (pointX: number, pointY: number, handleX: number, handleY: number) => {
@@ -322,15 +473,14 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
 
   // Helper function to calculate angle between two points relative to the center
   const calculateAngle = (x: number, y: number) => {
-    const centerX = scaledWidth / 2;
-    const centerY = scaledHeight / 2;
+    const centerX = scaledContainerWidth / 2;
+    const centerY = scaledContainerHeight / 2;
     return Math.atan2(y - centerY, x - centerX) * (180 / Math.PI);
   };
 
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: (evt, gestureState) => {
-      // Allow interaction based on active modes
       return highlightModeActive || cropMode || rotateMode || 
              Math.abs(gestureState.dx) > 10 || Math.abs(gestureState.dy) > 10;
     },
@@ -338,10 +488,12 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       const { locationX, locationY } = evt.nativeEvent;
       
       if (rotateMode) {
-        // Store the starting angle for rotation
-        const startAngle = calculateAngle(locationX, locationY);
-        setRotateStartAngle(startAngle);
-        console.log('[ImageHighlighter] Starting rotation from angle:', startAngle);
+        const currentFingerAngle = calculateAngle(locationX, locationY);
+        imageRotationAtGestureStartRef.current = rotation; // Image's rotation before this gesture
+        lastVisuallyAppliedRotationRef.current = rotation; // Sync with current visual state. This is the base for smoothing.
+        previousFingerAngleRef.current = currentFingerAngle;
+        accumulatedAngleDeltaForGestureRef.current = 0; // Reset finger movement accumulator for this new gesture
+        console.log(`[DEBUG IH] GRANT - Finger Angle: ${currentFingerAngle.toFixed(2)}, Rotation at Gesture Start: ${imageRotationAtGestureStartRef.current.toFixed(2)}, Last Visually Applied (for smoothing start): ${lastVisuallyAppliedRotationRef.current.toFixed(2)}`);
       }
       else if (cropMode) {
         if (activeCropHandle === null && !isCropDrawing && (cropBox.width === 0 && cropBox.height === 0)) {
@@ -377,7 +529,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       // If in highlight mode and not in other modes, start drawing
       else if (highlightModeActive) {
         console.log('[DEBUG][Highlight] Start touch:', 
-          { locationX, locationY, scaledWidth, scaledHeight });
+          { locationX, locationY, scaledContainerWidth, scaledContainerHeight });
 
         setIsDrawing(true);
         setHighlightBox({
@@ -392,21 +544,41 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       const { locationX, locationY } = evt.nativeEvent;
       
       if (rotateMode) {
-        // Calculate the current angle
-        const currentAngle = calculateAngle(locationX, locationY);
-        // Calculate the difference from the start angle
-        let angleDelta = currentAngle - rotateStartAngle;
+        if (previousFingerAngleRef.current === null) { 
+          const initAngle = calculateAngle(locationX, locationY);
+          previousFingerAngleRef.current = initAngle;
+          accumulatedAngleDeltaForGestureRef.current = 0; 
+          // Safety: ensure imageRotationAtGestureStartRef & lastVisuallyAppliedRotationRef are based on current rotation if grant was missed
+          imageRotationAtGestureStartRef.current = rotation;
+          lastVisuallyAppliedRotationRef.current = rotation;
+          console.log(`[DEBUG IH] MOVE - SAFETY INIT - PrevFingerAngle: ${initAngle.toFixed(2)}`);
+          return;
+        }
+
+        const currentFingerAngle = calculateAngle(locationX, locationY);
+        let incrementalAngleDiff = currentFingerAngle - previousFingerAngleRef.current;
         
-        // Normalize the angle delta to prevent large jumps
-        if (angleDelta > 180) angleDelta -= 360;
-        if (angleDelta < -180) angleDelta += 360;
+        if (incrementalAngleDiff > 180) incrementalAngleDiff -= 360;
+        if (incrementalAngleDiff < -180) incrementalAngleDiff += 360;
+
+        accumulatedAngleDeltaForGestureRef.current += incrementalAngleDiff; 
+        previousFingerAngleRef.current = currentFingerAngle; 
+
+        // Calculate the raw target rotation based on the gesture from its start
+        const targetRawRotation = imageRotationAtGestureStartRef.current + accumulatedAngleDeltaForGestureRef.current;
+
+        // Apply smoothing: new_value = old_value * (1 - alpha) + target_value * alpha
+        // Here, 'old_value' is the last rotation we commanded the UI to set.
+        const newSmoothedRotation =
+          lastVisuallyAppliedRotationRef.current * (1 - ROTATION_SMOOTHING_FACTOR) +
+          targetRawRotation * ROTATION_SMOOTHING_FACTOR;
         
-        // Apply rotation change with some damping for smoother control
-        const dampingFactor = 0.5;
-        const newRotation = initialRotation + (angleDelta * dampingFactor);
+        console.log(`[DEBUG IH] MOVE - AccDelta: ${accumulatedAngleDeltaForGestureRef.current.toFixed(2)}, TargetRaw: ${targetRawRotation.toFixed(2)}, LastApplied: ${lastVisuallyAppliedRotationRef.current.toFixed(2)}, SmoothedNew: ${newSmoothedRotation.toFixed(2)}`);
+
+        setRotation(newSmoothedRotation);
+        lastVisuallyAppliedRotationRef.current = newSmoothedRotation; // Update ref to the smoothed value we just set
         
-        // Update rotation state
-        setRotation(newRotation);
+        // ROTATION_THRESHOLD logic is removed. The old const ROTATION_THRESHOLD = 3.0; has been removed.
       }
       // Handle crop box drawing
       else if (cropMode && isCropDrawing) {
@@ -457,8 +629,8 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           case 'move':
             // Move the entire crop box, ensuring it stays within image bounds
             setCropBox({
-              x: Math.max(0, Math.min(x + dx, scaledWidth - width)),
-              y: Math.max(0, Math.min(y + dy, scaledHeight - height)),
+              x: Math.max(0, Math.min(x + dx, scaledContainerWidth - width)),
+              y: Math.max(0, Math.min(y + dy, scaledContainerHeight - height)),
               width,
               height
             });
@@ -478,21 +650,20 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         }));
       }
     },
-    onPanResponderRelease: async (evt) => {
+    onPanResponderRelease: async (evt, gestureState: PanResponderGestureState) => {
       if (rotateMode) {
-        // When done with rotation, update the initial rotation for next interaction
-        // but keep the difference between initial and current rotation to properly
-        // detect hasRotation even after the first interaction
-        const rotationDelta = rotation - initialRotation;
-        setInitialRotation(rotation - rotationDelta);
+        // On release, snap to the final raw target rotation for precision
+        const finalTargetRawRotation = imageRotationAtGestureStartRef.current + accumulatedAngleDeltaForGestureRef.current;
         
-        // Log the rotation change for debugging
-        console.log('[ImageHighlighter] Rotation updated:', {
-          rotation,
-          initialRotation,
-          delta: rotationDelta,
-          hasChanged: Math.abs(rotationDelta) > 1
-        });
+        console.log(`[DEBUG IH] RELEASE - Initial @ Grant: ${imageRotationAtGestureStartRef.current.toFixed(2)}, AccDelta Gest: ${accumulatedAngleDeltaForGestureRef.current.toFixed(2)}. Final Target Raw: ${finalTargetRawRotation.toFixed(2)}`);
+        
+        // Apply the final, non-smoothed rotation
+        setRotation(finalTargetRawRotation);
+        lastVisuallyAppliedRotationRef.current = finalTargetRawRotation; // Ensure this ref reflects the final state
+
+        previousFingerAngleRef.current = null; 
+        
+        console.log(`[DEBUG IH] RELEASE - Final visual rotation set to: ${finalTargetRawRotation.toFixed(2)}`);
       }
       // Reset active crop handle
       else if (cropMode) {
@@ -526,6 +697,12 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           const minY = Math.min(highlightBox.startY, highlightBox.endY);
           const maxY = Math.max(highlightBox.startY, highlightBox.endY);
           
+          console.log('[ImageHighlighter] Raw Touch Coords:', { minX, minY, maxX, maxY });
+          console.log('[ImageHighlighter] Container Dims:', { scaledContainerWidth, scaledContainerHeight });
+          console.log('[ImageHighlighter] Actual Display Dims:', { finalDisplayImageWidth, finalDisplayImageHeight });
+          console.log('[ImageHighlighter] Display Offsets:', { displayImageOffsetX, displayImageOffsetY });
+          console.log('[ImageHighlighter] Original Prop Dims:', { imageWidth, imageHeight });
+
           // Ensure we have a valid selection size
           if (maxX - minX < 10 || maxY - minY < 10) {
             console.log('Selection too small, ignoring');
@@ -540,15 +717,57 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
             return;
           }
 
-          // The coordinates are already in view-relative space
+          // Check for extremely wide selections that might cause issues
+          const selectionWidth = maxX - minX;
+          const selectionHeight = maxY - minY;
+          
+          // Log selection dimensions as percentage of container
+          const widthPercentage = (selectionWidth / scaledContainerWidth) * 100;
+          const heightPercentage = (selectionHeight / scaledContainerHeight) * 100;
+          console.log(`[ImageHighlighter] Selection dimensions: ${selectionWidth}x${selectionHeight} (${widthPercentage.toFixed(1)}% x ${heightPercentage.toFixed(1)}% of container)`);
+          
+          // Special handling for wide selections to ensure all text is captured
+          const isExtremelyWide = widthPercentage > 70;
+          if (isExtremelyWide) {
+            console.log('[ImageHighlighter] Extremely wide selection detected - using enhanced coordinate handling');
+          }
+          
+          // The coordinates are relative to the imageContainer (pan responder view).
+          // Adjust them to be relative to the actual visible image content.
+          // Add safety bounds checks to handle edge cases with wide selections
+          const offsetX = displayImageOffsetX || 0; // Default to 0 if undefined
+          const offsetY = displayImageOffsetY || 0; // Default to 0 if undefined
+          
+          // For very wide selections, we slightly expand the region
+          const horizontalExpansion = isExtremelyWide ? selectionWidth * 0.02 : 0; // 2% expansion for wide selections
+          
+          // Calculate the unscaled region with bounds checking
           const unscaledRegion = {
-            x: minX,
-            y: minY,
-            width: maxX - minX,
-            height: maxY - minY,
+            x: Math.max(0, minX - offsetX - (isExtremelyWide ? horizontalExpansion : 0)),
+            y: Math.max(0, minY - offsetY),
+            width: Math.min(selectionWidth + (isExtremelyWide ? horizontalExpansion * 2 : 0), 
+                          finalDisplayImageWidth - Math.max(0, minX - offsetX - (isExtremelyWide ? horizontalExpansion : 0))),
+            height: Math.min(selectionHeight, finalDisplayImageHeight - Math.max(0, minY - offsetY)),
           };
+          
+          // Log the expansion value for debugging
+          if (isExtremelyWide) {
+            console.log(`[ImageHighlighter] Applied horizontal expansion of ${horizontalExpansion.toFixed(1)}px to wide selection`);
+          }
+          
+          // Ensure we don't have a negative width/height due to bounds adjustments
+          if (unscaledRegion.width <= 0) unscaledRegion.width = 10;
+          if (unscaledRegion.height <= 0) unscaledRegion.height = 10;
+          
+          console.log('[ImageHighlighter] Calculated unscaledRegion (to be sent):', unscaledRegion);
+          console.log('[ImageHighlighter] Selection size in image space:', {
+            widthPx: unscaledRegion.width, 
+            heightPx: unscaledRegion.height,
+            widthRatio: unscaledRegion.width / finalDisplayImageWidth,
+            heightRatio: unscaledRegion.height / finalDisplayImageHeight
+          });
 
-          console.log('Sending coordinates for OCR:', unscaledRegion);
+          console.log('Sending coordinates for OCR (adjusted for display offset):', unscaledRegion);
           
           try {
             setIsProcessing(true);
@@ -716,9 +935,11 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   React.useEffect(() => {
     console.log('[ImageHighlighter] imageUri changed:', imageUri);
     setCropMode(false);
-    setRotateMode(false);
+    // setRotateMode(false); // Don't automatically exit rotate mode if image URI changes, let parent decide
     setCropBox({ x: 0, y: 0, width: 0, height: 0 });
     setRotation(0);
+    setInitialRotation(0); 
+    // If it was in rotate mode, the useEffect above will notify of the reset state due to dependency changes.
   }, [imageUri]);
   
   // Log when component renders with new props
@@ -727,12 +948,28 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       imageUri,
       imageWidth,
       imageHeight,
-      highlightModeActive
+      highlightModeActive,
+      measuredLayout
     });
-  }, [imageUri, imageWidth, imageHeight, highlightModeActive]);
+  }, [imageUri, imageWidth, imageHeight, highlightModeActive, measuredLayout]);
+
+  const onLayout = (event: import('react-native').LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    console.log('[ImageHighlighter] onLayout: width:', width, 'height:', height);
+    setMeasuredLayout({ width, height });
+  };
+
+  // Render null or a placeholder if layout hasn't been measured yet, or if image dimensions are invalid
+  if (!measuredLayout || scaledContainerWidth === 0 || scaledContainerHeight === 0) {
+    return (
+      <View style={styles.container} onLayout={onLayout}>
+        {/* Optional: Could render a loading spinner here if desired */}
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} onLayout={onLayout}>
       <View style={styles.imageWrapper}>
         <View 
           ref={imageViewRef}
@@ -740,8 +977,11 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           style={[
             styles.imageContainer,
             { 
-              width: scaledWidth,
-              height: scaledHeight,
+              width: scaledContainerWidth,
+              height: scaledContainerHeight,
+              // Add explicit dimensions to ensure the container maintains the right size
+              maxWidth: imageWidth,
+              maxHeight: imageHeight,
             }
           ]}
         >
@@ -750,9 +990,9 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
             style={[
               styles.image,
               {
-                width: scaledWidth,
-                height: scaledHeight,
-                transform: [{ rotate: `${rotation}deg` }]
+                transform: [{ rotate: `${rotation}deg` }],
+                width: scaledContainerWidth,
+                height: scaledContainerHeight,
               }
             ]}
             resizeMode="contain"
@@ -763,10 +1003,10 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
               style={[
                 styles.detectedRegion,
                 {
-                  left: (region.boundingBox.x / imageWidth) * scaledWidth,
-                  top: (region.boundingBox.y / imageHeight) * scaledHeight,
-                  width: (region.boundingBox.width / imageWidth) * scaledWidth,
-                  height: (region.boundingBox.height / imageHeight) * scaledHeight,
+                  left: (region.boundingBox.x / imageWidth) * scaledContainerWidth,
+                  top: (region.boundingBox.y / imageHeight) * scaledContainerHeight,
+                  width: (region.boundingBox.width / imageWidth) * scaledContainerWidth,
+                  height: (region.boundingBox.height / imageHeight) * scaledContainerHeight,
                 }
               ]}
             />
@@ -788,7 +1028,9 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           
           {isProcessing && (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#007AFF" />
+              <View style={styles.loadingIndicator}>
+                <ActivityIndicator size="large" color="#007AFF" />
+              </View>
             </View>
           )}
         </View>
@@ -820,27 +1062,35 @@ ImageHighlighter.displayName = 'ImageHighlighter';
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    width: '100%',
-    position: 'relative',
+    flex: 1, // Important: allows onLayout to measure space given by parent
+    width: '100%', // Takes width from parent
+    overflow: 'visible',
+    // Removed position: relative, as it might not be needed if flex is handled by parent
+    // backgroundColor: 'rgba(0,255,0,0.1)', // DEBUG: to see the container bounds
   },
   imageWrapper: {
-    flex: 1,
+    flex: 1, // Fill the container
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
-    paddingBottom: BUTTON_HEIGHT + 10, // Reduced bottom padding
-    paddingHorizontal: Platform.OS === 'ios' ? 10 : 8, // Reduced horizontal padding
+    height: '100%',
+    overflow: 'visible',
+    // padding: VERTICAL_PADDING, // REMOVED - parent should handle margins/padding to this component
+    // backgroundColor: 'rgba(255,0,0,0.1)', // DEBUG: to see the wrapper bounds
   },
   imageContainer: {
     position: 'relative',
     alignSelf: 'center',
-    overflow: 'hidden',
-    maxWidth: '100%', // Ensure it doesn't overflow the screen width
-    maxHeight: '95%', // Take up to 95% of available height
+    overflow: 'visible',
+    maxWidth: '100%', 
+    maxHeight: '100%',
+    backgroundColor: 'transparent', // Explicitly set background to transparent
   },
   image: {
     backgroundColor: 'transparent',
+    // Don't use percentage values which can cause resizing
+    // The explicit dimensions will be set in the style props
+    overflow: 'visible',
   },
   highlight: {
     position: 'absolute',
@@ -891,7 +1141,11 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    backgroundColor: 'transparent',
+  },
+  loadingIndicator: {
+    backgroundColor: 'transparent',
+    padding: 10,
   },
   instructionContainer: {
     position: 'absolute',

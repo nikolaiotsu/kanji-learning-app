@@ -6,6 +6,7 @@ import { useAuth } from './context/AuthContext';
 import { useSettings, AVAILABLE_LANGUAGES, DETECTABLE_LANGUAGES } from './context/SettingsContext';
 import { useRouter } from 'expo-router';
 import { COLORS } from './constants/colors';
+import PokedexLayout from './components/shared/PokedexLayout';
 
 export default function SettingsScreen() {
   const { user, signOut } = useAuth();
@@ -78,7 +79,7 @@ export default function SettingsScreen() {
   }));
 
   return (
-    <SafeAreaView style={styles.container}>
+    <PokedexLayout>
       <ScrollView>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
@@ -260,7 +261,7 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </PokedexLayout>
   );
 }
 

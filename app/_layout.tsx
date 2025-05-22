@@ -5,8 +5,16 @@ import SettingsProvider from './context/SettingsContext';
 import AuthGuard from './components/auth/AuthGuard';
 import { StyleSheet, View } from 'react-native';
 import { COLORS } from './constants/colors';
+import * as WebBrowser from 'expo-web-browser';
+import { useEffect } from 'react';
 
 export default function RootLayout() {
+  // Initialize WebBrowser to handle OAuth redirects
+  useEffect(() => {
+    // This enables redirect handling for Google and Apple auth
+    WebBrowser.maybeCompleteAuthSession();
+  }, []);
+
   return (
     <View style={styles.container}>
       <SafeAreaProvider>
@@ -17,14 +25,18 @@ export default function RootLayout() {
                 screenOptions={{
                   headerShown: true,
                   headerStyle: {
-                    backgroundColor: COLORS.darkSurface, // Dark navy for header
+                    backgroundColor: COLORS.background,
                   },
-                  headerTintColor: COLORS.text, // Pale blue for header text
+                  headerTintColor: COLORS.text,
                   headerTitleStyle: {
                     fontWeight: 'bold',
                   },
-                  // Set back button text to 'Back'
                   headerBackTitle: 'Back',
+                  contentStyle: {
+                    backgroundColor: COLORS.background,
+                  },
+                  // Add border and shadow to make headers pop
+                  headerShadowVisible: true,
                 }}
               >
                 <Stack.Screen name="(screens)" options={{ headerShown: false }} />
@@ -52,5 +64,6 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: COLORS.background,
   },
 });

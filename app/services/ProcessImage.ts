@@ -120,44 +120,22 @@ export async function processImage(
     const isRotationOnly = !operations.crop && operations.rotate !== undefined;
     
     if (isRotationOnly) {
-      // For rotation-only operations, we'll rotate and then maintain original dimensions
+      // For rotation-only operations, ensure the entire image is preserved without resizing
+      console.log('[ProcessImage] Performing rotation-only operation');
       
-      // Step 1: Rotate the image with high quality
+      // Rotate the image with high quality and preserving full dimensions
       const rotatedResult = await ImageManipulator.manipulateAsync(
         imageUri,
         [{ rotate: operations.rotate! }],
-        { format: ImageManipulator.SaveFormat.JPEG, compress: 1.0 }
+        { 
+          format: ImageManipulator.SaveFormat.JPEG, 
+          compress: 1.0,
+          // Keep it simple - no additional options that might cause resizing
+        }
       );
       
       console.log('[ProcessImage] Rotated image dimensions:', rotatedResult.width, 'x', rotatedResult.height);
-      
-      // Step 2: Scale and crop to original dimensions
-      // Calculate the scale factor needed to ensure the entire original content remains visible
-      const widthRatio = originalInfo.width / rotatedResult.width;
-      const heightRatio = originalInfo.height / rotatedResult.height;
-      
-      // Use the smaller ratio to ensure the entire image fits
-      const scaleFactor = Math.min(widthRatio, heightRatio);
-      
-      // Create a center crop that maintains the exact original dimensions
-      const centerCrop = {
-        originX: Math.max(0, Math.round((rotatedResult.width - originalInfo.width) / 2)),
-        originY: Math.max(0, Math.round((rotatedResult.height - originalInfo.height) / 2)),
-        width: originalInfo.width,
-        height: originalInfo.height
-      };
-      
-      console.log('[ProcessImage] Applying center crop to maintain original dimensions:', centerCrop);
-      
-      // Apply the crop to match original dimensions
-      const finalResult = await ImageManipulator.manipulateAsync(
-        rotatedResult.uri,
-        [{ crop: centerCrop }],
-        { format: ImageManipulator.SaveFormat.JPEG, compress: 1.0 }
-      );
-      
-      console.log('[ProcessImage] Final processed dimensions:', finalResult.width, 'x', finalResult.height);
-      return finalResult.uri;
+      return rotatedResult.uri;
     } else {
       // For other operations (crop + optional rotate, or just crop)
       const manipulations = [];

@@ -23,6 +23,7 @@ import { useAuth } from './context/AuthContext';
 import { useSettings, AVAILABLE_LANGUAGES } from './context/SettingsContext';
 import { COLORS } from './constants/colors';
 import { FontAwesome6 } from '@expo/vector-icons';
+import PokedexLayout from './components/shared/PokedexLayout';
 
 export default function LanguageFlashcardsScreen() {
   const { user } = useAuth();
@@ -337,248 +338,252 @@ export default function LanguageFlashcardsScreen() {
   const translatedLanguageName = AVAILABLE_LANGUAGES[targetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'English';
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Flashcard Input</Text>
-        <TouchableOpacity 
-          style={styles.homeButton}
-          onPress={handleGoHome}
+    <PokedexLayout variant="flashcards">
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Flashcard Input</Text>
+          <TouchableOpacity 
+            style={styles.homeButton}
+            onPress={handleGoHome}
+          >
+            <Ionicons name="home-outline" size={24} color={COLORS.text} />
+          </TouchableOpacity>
+        </View>
+        
+        <ScrollView 
+          style={styles.scrollView} 
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={true}
         >
-          <Ionicons name="home-outline" size={24} color={COLORS.text} />
-        </TouchableOpacity>
-      </View>
-      
-      <ScrollView 
-        style={styles.scrollView} 
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={true}
-      >
-        <View style={styles.textContainer}>
-          <Text style={styles.originalText} numberOfLines={0}>{editedText}</Text>
-          
-          {/* Show image thumbnail and preview button if image is available */}
-          {imageUri && (
-            <View style={styles.imagePreviewContainer}>
+          <View style={styles.textContainer}>
+            <Text style={styles.originalText} numberOfLines={0}>{editedText}</Text>
+            
+            {/* Show image thumbnail and preview button if image is available */}
+            {imageUri && (
+              <View style={styles.imagePreviewContainer}>
+                <TouchableOpacity 
+                  style={styles.previewButton}
+                  onPress={toggleImagePreview}
+                >
+                  <FontAwesome6 
+                    name="image" 
+                    size={24} 
+                    color="#ffffff" 
+                  />
+                </TouchableOpacity>
+              
+                {showImagePreview && (
+                  <View style={styles.imagePreviewWrap}>
+                    <Image 
+                      source={{ uri: imageUri }} 
+                      style={styles.previewImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
+
+          {/* Edit and Translate buttons */}
+          {!isLoading && !textProcessed && (
+            <View style={styles.actionButtonsContainer}>
               <TouchableOpacity 
-                style={styles.previewButton}
-                onPress={toggleImagePreview}
+                style={styles.editButton} 
+                onPress={handleEditText}
               >
-                <FontAwesome6 
-                  name="image" 
-                  size={24} 
-                  color="#ffffff" 
-                />
+                <Ionicons name="pencil" size={20} color="#ffffff" style={styles.buttonIcon} />
+                <Text style={styles.buttonText}>Edit Text</Text>
               </TouchableOpacity>
               
-              {showImagePreview && (
-                <View style={styles.imagePreviewWrap}>
-                  <Image 
-                    source={{ uri: imageUri }} 
-                    style={styles.previewImage}
-                    resizeMode="contain"
-                  />
-                </View>
-              )}
+              <TouchableOpacity 
+                style={styles.translateButton} 
+                onPress={handleTranslate}
+              >
+                <Ionicons name="language" size={20} color="#ffffff" style={styles.buttonIcon} />
+                <Text style={styles.buttonText}>Translate</Text>
+              </TouchableOpacity>
             </View>
           )}
-        </View>
 
-        {/* Edit and Translate buttons */}
-        {!isLoading && !textProcessed && (
-          <View style={styles.actionButtonsContainer}>
-            <TouchableOpacity 
-              style={styles.editButton} 
-              onPress={handleEditText}
-            >
-              <Ionicons name="pencil" size={20} color="#ffffff" style={styles.buttonIcon} />
-              <Text style={styles.buttonText}>Edit Text</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.translateButton} 
-              onPress={handleTranslate}
-            >
-              <Ionicons name="language" size={20} color="#ffffff" style={styles.buttonIcon} />
-              <Text style={styles.buttonText}>Translate</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#007AFF" />
+              <Text style={styles.loadingText}>Processing...</Text>
+            </View>
+          ) : (
+            <>
+              {error ? (
+                <View style={styles.errorContainer}>
+                  <Text style={styles.errorText}>{error}</Text>
+                  <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
+                    <Ionicons name={error.includes("Forced language not detected") ? "arrow-back" : "refresh"} size={18} color="#ffffff" style={styles.buttonIcon} />
+                    <Text style={styles.retryButtonText}>
+                      {error.includes("Forced language not detected") ? "Go Back" : "Try Again"}
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  {error.includes("Forced language not detected") && (
+                    <TouchableOpacity 
+                      style={styles.settingsButton}
+                      onPress={() => router.push('/settings')}
+                    >
+                      <Ionicons name="settings-outline" size={20} color="#ffffff" style={styles.buttonIcon} />
+                      <Text style={styles.buttonText}>Go to Settings</Text>
+                    </TouchableOpacity>
+                  )}
+                  
+                  {error.includes("Forced language not detected") && (
+                    <TouchableOpacity 
+                      style={styles.translateAgainButton}
+                      onPress={handleRetryWithValidation}
+                    >
+                      <Ionicons name="language" size={20} color="#ffffff" style={styles.buttonIcon} />
+                      <Text style={styles.buttonText}>Try Again</Text>
+                    </TouchableOpacity>
+                  )}
+                  
+                  <TouchableOpacity 
+                    style={styles.viewButton}
+                    onPress={handleViewSavedFlashcards}
+                    >
+                    <Ionicons name="albums-outline" size={20} color="#ffffff" style={styles.buttonIcon} />
+                    <Text style={styles.buttonText}>View Saved Flashcards</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <>
+                  {furiganaText && needsRomanization && (
+                    <View style={styles.resultContainer}>
+                      <Text style={styles.sectionTitle}>
+                        {detectedLanguage === 'Japanese' ? 'With Furigana' :
+                         detectedLanguage === 'Chinese' ? 'With Pinyin' :
+                         detectedLanguage === 'Korean' ? 'With Revised Romanization' :
+                         detectedLanguage === 'Russian' ? 'With Practical Romanization' :
+                         detectedLanguage === 'Arabic' ? 'With Arabic Chat Alphabet' :
+                         detectedLanguage === 'Italian' ? 'Original Text' :
+                         detectedLanguage === 'Tagalog' ? 'Original Text' :
+                         'With Pronunciation Guide'}
+                      </Text>
+                      <Text style={styles.furiganaText} numberOfLines={0}>{furiganaText}</Text>
+                    </View>
+                  )}
+                  
+                  {translatedText && (
+                    <View style={styles.resultContainer}>
+                      <Text style={styles.sectionTitle}>{translatedLanguageName} Translation</Text>
+                      <Text style={styles.translatedText} numberOfLines={0}>{translatedText}</Text>
+                    </View>
+                  )}
 
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#007AFF" />
-            <Text style={styles.loadingText}>Processing...</Text>
-          </View>
-        ) : (
-          <>
-            {error ? (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
-                <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
-                  <Ionicons name={error.includes("Forced language not detected") ? "arrow-back" : "refresh"} size={18} color="#ffffff" style={styles.buttonIcon} />
-                  <Text style={styles.retryButtonText}>
-                    {error.includes("Forced language not detected") ? "Go Back" : "Try Again"}
-                  </Text>
-                </TouchableOpacity>
-                
-                {error.includes("Forced language not detected") && (
-                  <TouchableOpacity 
-                    style={styles.settingsButton}
-                    onPress={() => router.push('/settings')}
-                  >
-                    <Ionicons name="settings-outline" size={20} color="#ffffff" style={styles.buttonIcon} />
-                    <Text style={styles.buttonText}>Go to Settings</Text>
-                  </TouchableOpacity>
-                )}
-                
-                {error.includes("Forced language not detected") && (
-                  <TouchableOpacity 
-                    style={styles.translateAgainButton}
-                    onPress={handleRetryWithValidation}
-                  >
-                    <Ionicons name="language" size={20} color="#ffffff" style={styles.buttonIcon} />
-                    <Text style={styles.buttonText}>Try Again</Text>
-                  </TouchableOpacity>
-                )}
-                
+                  {/* Save Flashcard Button */}
+                  {textProcessed && translatedText && (
+                    <View style={styles.buttonContainer}>
+                      <TouchableOpacity 
+                        style={[
+                          styles.saveButton, 
+                          isSaved ? styles.savedButton : null,
+                          isSaving ? styles.disabledButton : null
+                        ]}
+                        onPress={handleShowDeckSelector}
+                        disabled={isSaving || isSaved}
+                      >
+                        {isSaving ? (
+                          <ActivityIndicator size="small" color="#ffffff" />
+                        ) : (
+                          <>
+                            <Ionicons 
+                              name={isSaved ? "checkmark-circle" : "bookmark-outline"} 
+                              size={20} 
+                              color="#ffffff" 
+                              style={styles.buttonIcon} 
+                            />
+                            <Text style={styles.buttonText}>
+                              {isSaved ? "Saved as Flashcard" : "Save as Flashcard"}
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+
+                      {/* Deck Selector Modal */}
+                      <DeckSelector
+                        visible={showDeckSelector}
+                        onClose={() => setShowDeckSelector(false)}
+                        onSelectDeck={(deckId) => {
+                          setSelectedDeckId(deckId);
+                          handleSaveFlashcard(deckId);
+                        }}
+                      />
+                      
+                      <TouchableOpacity 
+                        style={styles.viewButton}
+                        onPress={handleViewSavedFlashcards}
+                        >
+                        <Ionicons name="albums-outline" size={20} color="#ffffff" style={styles.buttonIcon} />
+                        <Text style={styles.buttonText}>View Saved Flashcards</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </>
+              )}
+            </>
+          )}
+        </ScrollView>
+
+        {/* Edit Text Modal */}
+        <Modal
+          visible={showEditModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowEditModal(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Edit Text</Text>
+              <TextInput
+                style={styles.textInput}
+                value={editedText}
+                onChangeText={setEditedText}
+                multiline
+                placeholder="Edit text here..."
+                placeholderTextColor="#aaa"
+              />
+              <View style={styles.modalButtonsContainer}>
                 <TouchableOpacity 
-                  style={styles.viewButton}
-                  onPress={handleViewSavedFlashcards}
-                  >
-                  <Ionicons name="albums-outline" size={20} color="#ffffff" style={styles.buttonIcon} />
-                  <Text style={styles.buttonText}>View Saved Flashcards</Text>
+                  style={styles.modalCancelButton} 
+                  onPress={() => setShowEditModal(false)}
+                >
+                  <Text style={styles.modalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.modalSaveButton} 
+                  onPress={handleSaveEdit}
+                >
+                  <Text style={styles.modalButtonText}>Save</Text>
                 </TouchableOpacity>
               </View>
-            ) : (
-              <>
-                {furiganaText && needsRomanization && (
-                  <View style={styles.resultContainer}>
-                    <Text style={styles.sectionTitle}>
-                      {detectedLanguage === 'Japanese' ? 'With Furigana' :
-                       detectedLanguage === 'Chinese' ? 'With Pinyin' :
-                       detectedLanguage === 'Korean' ? 'With Revised Romanization' :
-                       detectedLanguage === 'Russian' ? 'With Practical Romanization' :
-                       detectedLanguage === 'Arabic' ? 'With Arabic Chat Alphabet' :
-                       detectedLanguage === 'Italian' ? 'Original Text' :
-                       detectedLanguage === 'Tagalog' ? 'Original Text' :
-                       'With Pronunciation Guide'}
-                    </Text>
-                    <Text style={styles.furiganaText} numberOfLines={0}>{furiganaText}</Text>
-                  </View>
-                )}
-                
-                {translatedText && (
-                  <View style={styles.resultContainer}>
-                    <Text style={styles.sectionTitle}>{translatedLanguageName} Translation</Text>
-                    <Text style={styles.translatedText} numberOfLines={0}>{translatedText}</Text>
-                  </View>
-                )}
-
-                {/* Save Flashcard Button */}
-                {textProcessed && translatedText && (
-                  <View style={styles.buttonContainer}>
-                    <TouchableOpacity 
-                      style={[
-                        styles.saveButton, 
-                        isSaved ? styles.savedButton : null,
-                        isSaving ? styles.disabledButton : null
-                      ]}
-                      onPress={handleShowDeckSelector}
-                      disabled={isSaving || isSaved}
-                    >
-                      {isSaving ? (
-                        <ActivityIndicator size="small" color="#ffffff" />
-                      ) : (
-                        <>
-                          <Ionicons 
-                            name={isSaved ? "checkmark-circle" : "bookmark-outline"} 
-                            size={20} 
-                            color="#ffffff" 
-                            style={styles.buttonIcon} 
-                          />
-                          <Text style={styles.buttonText}>
-                            {isSaved ? "Saved as Flashcard" : "Save as Flashcard"}
-                          </Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
-
-                    {/* Deck Selector Modal */}
-                    <DeckSelector
-                      visible={showDeckSelector}
-                      onClose={() => setShowDeckSelector(false)}
-                      onSelectDeck={(deckId) => {
-                        setSelectedDeckId(deckId);
-                        handleSaveFlashcard(deckId);
-                      }}
-                    />
-                    
-                    <TouchableOpacity 
-                      style={styles.viewButton}
-                      onPress={handleViewSavedFlashcards}
-                      >
-                      <Ionicons name="albums-outline" size={20} color="#ffffff" style={styles.buttonIcon} />
-                      <Text style={styles.buttonText}>View Saved Flashcards</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </>
-            )}
-          </>
-        )}
-      </ScrollView>
-
-      {/* Edit Text Modal */}
-      <Modal
-        visible={showEditModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowEditModal(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Edit Text</Text>
-            <TextInput
-              style={styles.textInput}
-              value={editedText}
-              onChangeText={setEditedText}
-              multiline
-              placeholder="Edit text here..."
-              placeholderTextColor="#aaa"
-            />
-            <View style={styles.modalButtonsContainer}>
-              <TouchableOpacity 
-                style={styles.modalCancelButton} 
-                onPress={() => setShowEditModal(false)}
-              >
-                <Text style={styles.modalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.modalSaveButton} 
-                onPress={handleSaveEdit}
-              >
-                <Text style={styles.modalButtonText}>Save</Text>
-              </TouchableOpacity>
             </View>
           </View>
-        </View>
-      </Modal>
-    </SafeAreaView>
+        </Modal>
+      </SafeAreaView>
+    </PokedexLayout>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    // Removed backgroundColor: COLORS.screenBackground to allow PokedexLayout to control it
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.darkGray,
+    backgroundColor: COLORS.pokedexBlack,
   },
   homeButton: {
     padding: 8,
@@ -616,30 +621,35 @@ const styles = StyleSheet.create({
   },
   actionButtonsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     marginBottom: 20,
+    alignItems: 'flex-start',
   },
   editButton: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#A0A0B9',
+    backgroundColor: COLORS.mediumSurface,
     borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    flex: 1,
-    marginRight: 10,
+    width: 90,
+    height: 90,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
   },
   translateButton: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.accentMedium,
+    backgroundColor: COLORS.mediumSurface,
     borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    flex: 1,
-    marginLeft: 10,
+    width: 90,
+    height: 90,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
   },
   loadingContainer: {
     marginTop: 20,
@@ -688,7 +698,7 @@ const styles = StyleSheet.create({
     width: '100%',
     minHeight: 100,
     borderWidth: 1,
-    borderColor: COLORS.accentLight,
+    borderColor: COLORS.royalBlue,
   },
   sectionTitle: {
     fontSize: 18,
@@ -713,43 +723,46 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 16,
     width: '100%',
+    alignItems: 'center',
   },
   saveButton: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.secondary,
+    backgroundColor: COLORS.mediumSurface,
     borderRadius: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    elevation: 2,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.5,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
     marginBottom: 12,
+    width: '90%',
   },
   viewButton: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.mediumSurface,
     borderRadius: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    elevation: 2,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.5,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    width: '90%',
   },
   buttonText: {
     color: COLORS.text,
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 4,
   },
   buttonIcon: {
-    marginRight: 8,
+    marginBottom: 4,
   },
   savedButton: {
     backgroundColor: COLORS.secondary,

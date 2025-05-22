@@ -7,10 +7,11 @@ import { COLORS } from '../../constants/colors';
 import MultiDeckSelector from './MultiDeckSelector';
 
 interface RandomCardReviewerProps {
-  // No props needed
+  // Add onCardSwipe callback prop
+  onCardSwipe?: () => void;
 }
 
-const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
+const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) => {
   const {
     currentCard,
     isLoading,
@@ -120,6 +121,11 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
       return;
     }
     setIsProcessing(true);
+    
+    // Trigger the light animation if a callback was provided
+    if (onCardSwipe) {
+      onCardSwipe();
+    }
     
     const targetValue = direction === 'left' ? -400 : 400;
     
@@ -240,7 +246,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = () => {
             </TouchableOpacity>
           </View>
           <Text style={styles.noCardsText}>Nothing to review</Text>
-          <Text style={styles.guidanceText}>Go scan some text to make new flashcards!</Text>
+          <Text style={styles.guidanceText}>Go scan some text to add to your collection!</Text>
           {deckSelector}
         </View>
       );
@@ -325,20 +331,23 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
     borderRadius: 12,
-    padding: 10,
-    paddingBottom: 30,
-    marginBottom: -60,
+    paddingVertical: 15,
+    paddingHorizontal: 5,
+    paddingBottom: 15,
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 5, // Add elevation for Android
-    shadowColor: '#000', // Shadow for iOS
+    elevation: 5,
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+    minHeight: 450,
+    maxHeight: 600,
+    flexShrink: 1,
   },
   header: {
     width: '100%',
@@ -366,6 +375,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 10,
   },
   cardContainer: {
     width: '100%',
@@ -415,11 +425,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   reviewAgainButton: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    backgroundColor: COLORS.mediumSurface,
+    paddingHorizontal: 25,
+    paddingVertical: 15,
     borderRadius: 8,
-    marginTop: 10,
+    marginTop: 20,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   reviewAgainText: {
     color: COLORS.text,

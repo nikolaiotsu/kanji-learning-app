@@ -4,6 +4,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { cleanJapaneseText } from '../utils/textFormatting';
 import { COLORS } from '../constants/colors';
+import PokedexLayout from '../components/shared/PokedexLayout';
 
 export default function FlashcardsScreen() {
   const params = useLocalSearchParams();
@@ -18,7 +19,7 @@ export default function FlashcardsScreen() {
   const cleanedText = cleanJapaneseText(displayText);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <PokedexLayout>
       <View style={styles.content}>
         <Text style={styles.title}>Detected Japanese Text</Text>
         
@@ -26,15 +27,11 @@ export default function FlashcardsScreen() {
           <Text style={styles.japaneseText}>{cleanedText}</Text>
         </View>
       </View>
-    </SafeAreaView>
+    </PokedexLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
   content: {
     padding: 20,
     flex: 1,

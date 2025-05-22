@@ -1,43 +1,53 @@
-import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
-import { supabase } from '../services/supabaseClient';
+import React, { useState } from 'react';
+import { View, StyleSheet, TouchableOpacity, Text, Alert, ActivityIndicator } from 'react-native';
+import { signInWithGoogle, signInWithApple } from '../services/authService';
 import { COLORS } from '../constants/colors';
 import { AntDesign, FontAwesome } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 interface SocialAuthProps {
   mode: 'login' | 'signup';
 }
 
 const SocialAuth = ({ mode }: SocialAuthProps) => {
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isAppleLoading, setIsAppleLoading] = useState(false);
+
   const handleGoogleSignIn = async () => {
+    setIsGoogleLoading(true);
     try {
-      // This will trigger the Google OAuth flow
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: 'kanjiapp://login', // Make sure this matches your app's scheme
-        }
-      });
-      
-      if (error) throw error;
+      console.log('Starting Google OAuth flow');
+      await signInWithGoogle();
+      console.log('Google auth flow initiated');
+      // The actual auth completion will be handled by the deep linking and AuthContext
     } catch (error: any) {
+      console.error('Google sign-in error:', error);
       Alert.alert('Google Sign In Failed', error.message || 'Please try again');
+    } finally {
+      // Don't set loading to false immediately as the browser will open
+      // It will be reset when the component unmounts or when returning to the app
+      setTimeout(() => {
+        setIsGoogleLoading(false);
+      }, 5000);
     }
   };
   
   const handleAppleSignIn = async () => {
+    setIsAppleLoading(true);
     try {
-      // This will trigger the Apple OAuth flow
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'apple',
-        options: {
-          redirectTo: 'kanjiapp://login', // Make sure this matches your app's scheme
-        }
-      });
-      
-      if (error) throw error;
+      console.log('Starting Apple OAuth flow');
+      await signInWithApple();
+      console.log('Apple auth flow initiated');
+      // The actual auth completion will be handled by the deep linking and AuthContext
     } catch (error: any) {
+      console.error('Apple sign-in error:', error);
       Alert.alert('Apple Sign In Failed', error.message || 'Please try again');
+    } finally {
+      // Don't set loading to false immediately as the browser will open
+      // It will be reset when the component unmounts or when returning to the app
+      setTimeout(() => {
+        setIsAppleLoading(false);
+      }, 5000);
     }
   };
   
@@ -46,21 +56,35 @@ const SocialAuth = ({ mode }: SocialAuthProps) => {
       <TouchableOpacity 
         style={[styles.button, styles.googleButton]}
         onPress={handleGoogleSignIn}
+        disabled={isGoogleLoading || isAppleLoading}
       >
-        <AntDesign name="google" size={20} color="#4285F4" style={styles.buttonIcon} />
-        <Text style={styles.googleButtonText}>
-          {mode === 'login' ? 'Continue with Google' : 'Sign up with Google'}
-        </Text>
+        {isGoogleLoading ? (
+          <ActivityIndicator color="#4285F4" size="small" />
+        ) : (
+          <>
+            <AntDesign name="google" size={20} color="#4285F4" style={styles.buttonIcon} />
+            <Text style={styles.googleButtonText}>
+              {mode === 'login' ? 'Continue with Google' : 'Sign up with Google'}
+            </Text>
+          </>
+        )}
       </TouchableOpacity>
       
       <TouchableOpacity 
         style={[styles.button, styles.appleButton]}
         onPress={handleAppleSignIn}
+        disabled={isAppleLoading || isGoogleLoading}
       >
-        <AntDesign name="apple1" size={20} color="white" style={styles.buttonIcon} />
-        <Text style={styles.appleButtonText}>
-          {mode === 'login' ? 'Continue with Apple' : 'Sign up with Apple'}
-        </Text>
+        {isAppleLoading ? (
+          <ActivityIndicator color="white" size="small" />
+        ) : (
+          <>
+            <AntDesign name="apple1" size={20} color="white" style={styles.buttonIcon} />
+            <Text style={styles.appleButtonText}>
+              {mode === 'login' ? 'Continue with Apple' : 'Sign up with Apple'}
+            </Text>
+          </>
+        )}
       </TouchableOpacity>
     </View>
   );

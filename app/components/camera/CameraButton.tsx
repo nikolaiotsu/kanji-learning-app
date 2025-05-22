@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { TouchableOpacity, View, StyleSheet, Alert } from 'react-native';
+import { View, StyleSheet, Alert, ViewStyle } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import PokedexButton from '../shared/PokedexButton';
 
 interface CameraButtonProps {
   onPhotoCapture: (imageInfo: {
@@ -10,9 +10,10 @@ interface CameraButtonProps {
     width: number;
     height: number;
   } | null) => void;
+  style?: ViewStyle;
 }
 
-export default function CameraButton({ onPhotoCapture }: CameraButtonProps) {
+export default function CameraButton({ onPhotoCapture, style }: CameraButtonProps) {
   const [hasPhoto, setHasPhoto] = useState(false);
 
   useEffect(() => {
@@ -52,15 +53,21 @@ export default function CameraButton({ onPhotoCapture }: CameraButtonProps) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       {hasPhoto ? (
-        <TouchableOpacity style={styles.button} onPress={handleBack}>
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
+        <PokedexButton
+          onPress={handleBack}
+          icon="arrow-back"
+          size="medium"
+          shape="square"
+        />
       ) : (
-        <TouchableOpacity style={styles.button} onPress={takePhoto}>
-          <Ionicons name="camera" size={24} color="white" />
-        </TouchableOpacity>
+        <PokedexButton
+          onPress={takePhoto}
+          icon="camera"
+          size="medium"
+          shape="square"
+        />
       )}
     </View>
   );
@@ -72,20 +79,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  button: {
-    backgroundColor: COLORS.danger,
-    borderRadius: 8,
-    width: 80,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  }
 }); 

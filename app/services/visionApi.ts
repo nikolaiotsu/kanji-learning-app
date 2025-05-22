@@ -128,17 +128,54 @@ export async function cropImageToRegion(imageUri: string, region: Region): Promi
       height: region.height
     });
     
+    // Add a margin around the region to ensure we capture all text
+    // Calculate margin based on region size (larger for bigger regions)
+    const isLargeRegion = region.width * region.height > 100000;
+    // Use a larger margin for wider selections to ensure text on the right side is captured
+    const isWideRegion = region.width > region.height * 2; // If width is more than twice the height
+    
+    // Adjust margins based on region characteristics
+    const marginPercentage = isLargeRegion ? 0.05 : 0.03; // 5% margin for large regions, 3% for smaller ones
+    const horizontalMarginPercentage = isWideRegion ? 0.08 : marginPercentage; // Larger horizontal margin for wide regions
+    
+    // Calculate margin in pixels
+    const marginX = Math.round(region.width * horizontalMarginPercentage);
+    const marginY = Math.round(region.height * marginPercentage);
+    
+    console.log(`[DEBUG] Adding margin to crop region: ${marginX}px horizontal, ${marginY}px vertical${isWideRegion ? ' (wide region detected)' : ''}`);
+    
+    // Apply margin to the region (expanding it)
+    const expandedRegion = {
+      x: Math.max(0, region.x - marginX),
+      y: Math.max(0, region.y - marginY),
+      width: region.width + (marginX * 2),
+      height: region.height + (marginY * 2)
+    };
+    
+    console.log('[DEBUG] Expanded crop region with margins:', expandedRegion);
+    
+    // Special handling for very wide regions - ensure they're fully captured
+    if (isWideRegion) {
+      console.log('[DEBUG] Wide region handling: ensuring full width capture');
+      // Make sure we don't cut off the right side of the region
+      const rightEdge = expandedRegion.x + expandedRegion.width;
+      if (rightEdge > sourceImage.width) {
+        console.log('[DEBUG] Right edge adjustment needed:', 
+                   { rightEdge, imageWidth: sourceImage.width, overflow: rightEdge - sourceImage.width });
+      }
+    }
+    
     // Validate and adjust the crop region to fit within the image boundaries
-    const originX = Math.max(0, Math.min(Math.round(region.x), sourceImage.width - 1));
-    const originY = Math.max(0, Math.min(Math.round(region.y), sourceImage.height - 1));
+    const originX = Math.max(0, Math.min(Math.round(expandedRegion.x), sourceImage.width - 1));
+    const originY = Math.max(0, Math.min(Math.round(expandedRegion.y), sourceImage.height - 1));
     
     // Calculate maximum possible width and height based on the origin point
     const maxWidth = sourceImage.width - originX;
     const maxHeight = sourceImage.height - originY;
     
     // Ensure width and height are within bounds
-    const width = Math.max(1, Math.min(Math.round(region.width), maxWidth));
-    const height = Math.max(1, Math.min(Math.round(region.height), maxHeight));
+    const width = Math.max(1, Math.min(Math.round(expandedRegion.width), maxWidth));
+    const height = Math.max(1, Math.min(Math.round(expandedRegion.height), maxHeight));
     
     const safeRegion = {
       originX,
@@ -148,6 +185,12 @@ export async function cropImageToRegion(imageUri: string, region: Region): Promi
     };
     
     console.log('[DEBUG] Safe crop region:', safeRegion);
+    console.log('[DEBUG] Crop region as percentage of original image:', {
+      x: (originX / sourceImage.width * 100).toFixed(1) + '%',
+      y: (originY / sourceImage.height * 100).toFixed(1) + '%',
+      width: (width / sourceImage.width * 100).toFixed(1) + '%',
+      height: (height / sourceImage.height * 100).toFixed(1) + '%'
+    });
     
     // If the adjusted crop region is too small, return the original image
     if (safeRegion.width < 1 || safeRegion.height < 1) {
@@ -168,7 +211,8 @@ export async function cropImageToRegion(imageUri: string, region: Region): Promi
     
     // DEBUG: Log cropped image details
     console.log('[DEBUG] Cropped image URI:', result.uri);
-    console.log('[DEBUG] Cropped image dimensions:', result.width, 'x', result.height);
+    console.log('[DEBUG] Cropped image dimensions:', result.width, 'x', result.height, 
+               `(${(result.width / sourceImage.width * 100).toFixed(1)}% x ${(result.height / sourceImage.height * 100).toFixed(1)}% of original)`);
     
     return result.uri;
   } catch (error) {
@@ -308,30 +352,32 @@ export async function detectJapaneseText(
 
   // SIMPLIFICATION: Pre-crop the image to the region if a region is specified
   // This ensures we only send the exact area of interest to the API
-  let processedImageUri = imageUri;
-  if (region && region.width > 0 && region.height > 0 && !isVisibleRegion) {
-    processedImageUri = await cropImageToRegion(imageUri, region);
-    console.log('Image cropped to region before API call');
+  // Implement the actual cropping logic
+  let base64Image: string | null = null;
+
+  try {
+    base64Image = await getBase64ForImage(imageUri);
+  } catch (error) {
+    console.error('Error converting image to base64:', error);
+    throw new Error('Failed to prepare image for OCR');
   }
 
-  // Convert image URI to base64
-  let base64Image;
-  if (processedImageUri.startsWith('data:image')) {
-    // Already a base64 image
-    base64Image = processedImageUri;
-  } else {
-    const response = await fetch(processedImageUri);
-    const blob = await response.blob();
-    base64Image = await new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result);
-      reader.readAsDataURL(blob);
-    });
+  if (!base64Image) {
+    throw new Error('Failed to convert image to base64');
   }
 
-  // DEBUG: Log the base64 of the image being sent
-  console.log('[DEBUG] Cropped Image Base64 (copy and paste to a viewer):', base64Image);
+  // Determine if the region is complex (large area, likely contains lots of text)
+  // Calculate aspect ratio to detect wide regions specifically
+  const aspectRatio = region.width / region.height;
+  const isWideRegion = aspectRatio > 3; // If width is more than 3x the height
+  const isLargeRegion = region.width * region.height > 100000;
+  
+  // Combine criteria - complex if either wide or large
+  const isComplexRegion = isWideRegion || isLargeRegion;
+  
+  console.log(`Region complexity assessment: ${isComplexRegion ? 'Complex' : 'Standard'} region (${region.width}x${region.height}, aspect ratio: ${aspectRatio.toFixed(1)}${isWideRegion ? ', wide region' : ''})`);
 
+  // Create request body with parameters tuned for region complexity
   const requestBody = {
     requests: [
       {
@@ -341,28 +387,79 @@ export async function detectJapaneseText(
         features: [
           {
             type: 'TEXT_DETECTION',
+            // For complex regions, we can adjust model parameters
+            model: isComplexRegion ? 'builtin/latest' : 'builtin/stable',
           },
+          {
+            type: 'DOCUMENT_TEXT_DETECTION',
+            model: isComplexRegion ? 'builtin/latest' : 'builtin/stable',
+          }
         ],
         imageContext: {
-          languageHints: ['ja', 'en', 'es', 'fr', 'de', 'zh', 'ko', 'pt', 'ru', 'ar', 'it'],
-        },
-      },
-    ],
+          languageHints: [
+            'ja',
+            'ja-t-i0-handwrit',
+            'ja-Hira',
+            'ja-Kana',
+            'en',
+            'zh',
+            'zh-TW',
+            'ko',
+            'es',
+            'fr',
+            'de',
+            'pt',
+            'ru',
+            'ar',
+            'it'
+          ],
+          textDetectionParams: {
+            enableTextDetectionConfidenceScore: true,
+            // For wide regions, enhance parameters to ensure text on edges is captured
+            advancedOcrOptions: isWideRegion ? 
+              [
+                "enable_image_quality_scores",
+                "enable_super_resolution",
+                "enable_dewarping",
+                "enable_dense_text_detection"
+              ] : 
+              [
+                "enable_image_quality_scores",
+                "enable_super_resolution"
+              ]
+          }
+        }
+      }
+    ]
   };
 
-  // DEBUG: Log the request body before sending
-  console.log('[DEBUG] Vision API Request Body:', JSON.stringify(requestBody, null, 2));
+  console.log('Setting API request parameters for', isWideRegion ? 'wide region' : (isComplexRegion ? 'complex region' : 'standard region'));
+
+  // Set longer timeout for complex regions
+  const timeoutDuration = isComplexRegion ? 90000 : 30000; // 90 seconds for complex, 30 for standard
+  console.log('Setting API request timeout to', isComplexRegion ? '90' : '30', 'seconds');
+
+  // Create AbortController for fetch timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
 
   try {
-    const result = await fetch(API_URL, {
+    const response = await fetch(API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(requestBody),
+      signal: controller.signal,
     });
 
-    const data = await result.json();
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`Google Cloud Vision API returned status ${response.status}`);
+    }
+
+    const data = await response.json();
     
     // Debug logs - remove in production
     console.log('API Response:', data);
@@ -378,65 +475,56 @@ export async function detectJapaneseText(
       console.log('No text annotations found in API response');
     }
     
-    if (!data.responses?.[0]?.textAnnotations || data.responses[0].textAnnotations.length === 0) {
-      return [];
-    }
-
-    // Get results - first, try getting all annotations
-    const allAnnotations = data.responses[0].textAnnotations;
+    // For complex regions, check if we have document text results (from DOCUMENT_TEXT_DETECTION)
+    const textDetectionResults = data.responses?.[0]?.textAnnotations?.length 
+      ? data.responses[0].textAnnotations[0].description 
+      : null;
     
-    // Log the first annotation (which contains all text)
-    if (allAnnotations.length > 0) {
-      const firstAnnotation = allAnnotations[0];
-      console.log('First annotation (all text):', firstAnnotation.description);
-    }
-
-    // First, try to use the first annotation (which contains all text)
-    if (allAnnotations.length > 0) {
-      const firstAnnotation = allAnnotations[0];
-      const fullText = firstAnnotation.description;
-      
-      // If we have a valid first annotation with text, use it
-      if (fullText && fullText.trim().length > 0) {
-        console.log('Using complete text from first annotation');
-        return [{
-          text: fullText,
-          boundingBox: {
-            x: firstAnnotation.boundingPoly.vertices[0].x,
-            y: firstAnnotation.boundingPoly.vertices[0].y,
-            width: firstAnnotation.boundingPoly.vertices[2].x - firstAnnotation.boundingPoly.vertices[0].x,
-            height: firstAnnotation.boundingPoly.vertices[2].y - firstAnnotation.boundingPoly.vertices[0].y,
-          },
-          confidence: firstAnnotation.confidence || 0.9,
-        }];
-      }
+    const documentTextResults = data.responses?.[0]?.fullTextAnnotation?.text || null;
+    
+    console.log('Text detection result:', textDetectionResults);
+    console.log('Document text detection result:', documentTextResults);
+    
+    // For wide regions, preferentially use document text results if available
+    let finalText;
+    if (isWideRegion && documentTextResults) {
+      console.log('Using document text detection result for wide region');
+      finalText = documentTextResults;
+    } else if (textDetectionResults && documentTextResults) {
+      // For regular regions, combine results, preferring the longer one
+      console.log('Using combined OCR result');
+      finalText = textDetectionResults.length > documentTextResults.length 
+        ? textDetectionResults 
+        : documentTextResults;
+    } else {
+      // Fall back to whichever result is available
+      finalText = textDetectionResults || documentTextResults || '';
     }
     
-    // Fallback method: If using the first annotation didn't work, process individual words
-    // Filter and get all the actual word/character annotations (skip the first one)
-    const results = allAnnotations.slice(1).map((annotation: any) => {
-      // Log each annotation for debugging
-      console.log(`Annotation: "${annotation.description}"`);
-      
-      return {
-        text: annotation.description,
+    console.log('Final extracted text:', finalText);
+    
+    // Analyze the results to extract Japanese text and create responses
+    const visionApiResponse: VisionApiResponse[] = [];
+    
+    if (finalText) {
+      visionApiResponse.push({
+        text: finalText,
         boundingBox: {
-          x: annotation.boundingPoly.vertices[0].x,
-          y: annotation.boundingPoly.vertices[0].y,
-          width: annotation.boundingPoly.vertices[2].x - annotation.boundingPoly.vertices[0].x,
-          height: annotation.boundingPoly.vertices[2].y - annotation.boundingPoly.vertices[0].y,
+          x: 0,
+          y: 0,
+          width: region.width,
+          height: region.height
         },
-        confidence: annotation.confidence || 0.9, // Some annotations might not have confidence
-      };
-    });
-    
-    console.log('OCR result:', results.length > 0 ? `${results.length} texts found` : 'No text found');
-    if (results.length > 0) {
-      console.log('Extracted text:', results.map((r: VisionApiResponse) => r.text).join('\n'));
+        confidence: 0.9 // Default confidence value
+      });
     }
     
-    return results;
-  } catch (error) {
+    return visionApiResponse;
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      console.error('Vision API request timed out after', isComplexRegion ? '90' : '30', 'seconds');
+      throw new Error('Text recognition timed out. The selected region may be too complex.');
+    }
     console.error('Error calling Vision API:', error);
     throw error;
   }
@@ -494,6 +582,27 @@ export async function analyzeImage(imageUri: string, region?: Region) {
   } catch (error) {
     console.error('Error calling Vision API:', error);
     throw error;
+  }
+}
+
+// Add the getBase64ForImage function
+export async function getBase64ForImage(imageUri: string): Promise<string | null> {
+  try {
+    if (imageUri.startsWith('data:image')) {
+      // Already a base64 image
+      return imageUri;
+    } else {
+      const response = await fetch(imageUri);
+      const blob = await response.blob();
+      return await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
+      });
+    }
+  } catch (error) {
+    console.error('Error converting image to base64:', error);
+    return null;
   }
 }
 

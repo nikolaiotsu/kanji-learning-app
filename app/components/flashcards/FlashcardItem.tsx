@@ -345,19 +345,19 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
       <View style={styles.actionButtonsContainer}>
         {onDelete && (
           <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-            <Ionicons name="trash-outline" size={22} color={COLORS.danger} />
+            <Ionicons name="trash-outline" size={22} color={COLORS.royalBlue} />
           </TouchableOpacity>
         )}
         
         {onEdit && (
           <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
-            <Ionicons name="pencil" size={22} color={COLORS.accentLight} />
+            <Ionicons name="pencil" size={22} color={COLORS.royalBlue} />
           </TouchableOpacity>
         )}
         
         {onSend && (
           <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
-            <MaterialIcons name="drive-file-move-outline" size={22} color={COLORS.secondary} />
+            <MaterialIcons name="drive-file-move-outline" size={22} color={COLORS.royalBlue} />
           </TouchableOpacity>
         )}
       </View>
@@ -370,14 +370,13 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
             <FontAwesome6 
               name="image" 
               size={20} 
-              color={COLORS.accentMedium} 
-            />
+              color={COLORS.royalBlue} />
           </TouchableOpacity>
         )}
         
         {/* Flip button */}
         <TouchableOpacity style={styles.bottomActionButton} onPress={handleFlip}>
-          <MaterialIcons name="flip" size={22} color={COLORS.accentMedium} />
+          <MaterialIcons name="flip" size={22} color={COLORS.royalBlue} />
         </TouchableOpacity>
       </View>
     </View>
@@ -392,6 +391,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: '100%',
     marginVertical: 10,
+    paddingHorizontal: 0, // Removed padding, deckPage now handles horizontal spacing
     borderRadius: 16,
     overflow: 'visible', // Allow overflow for the flip button
   },
@@ -409,7 +409,7 @@ const styles = StyleSheet.create({
   },
   expandedCardWrapper: {
     // This expands the card height when an image is displayed
-    minHeight: 650, // Larger to accommodate the image
+    minHeight: 550,
   },
   cardContent: {
     position: 'absolute',
@@ -422,7 +422,7 @@ const styles = StyleSheet.create({
     backfaceVisibility: 'hidden',
     backgroundColor: COLORS.darkSurface,
     borderWidth: 1,
-    borderColor: COLORS.accentLight,
+    borderColor: COLORS.royalBlue,
   },
   cardSide: {
     width: '100%',
@@ -431,14 +431,14 @@ const styles = StyleSheet.create({
   cardFront: {
     flex: 1,
     padding: 20,
-    paddingTop: 50, // Extra padding at top for action buttons
-    paddingBottom: 50, // Extra padding at the bottom for flip/image buttons
+    paddingTop: 50,
+    paddingBottom: 50,
   },
   cardBack: {
     flex: 1,
     padding: 20,
-    paddingTop: 50, // Extra padding at top for action buttons
-    paddingBottom: 50, // Extra padding at the bottom for flip/image buttons
+    paddingTop: 50,
+    paddingBottom: 50,
   },
   scrollContainer: {
     flex: 1,
@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
   },
   japaneseText: {
     fontSize: 24,
-    textAlign: 'center', // Center the text
+    textAlign: 'center',
     color: COLORS.text,
     lineHeight: 36,
   },
@@ -534,7 +534,7 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '100%',
-    height: 500,
+    height: 400,
     borderRadius: 8,
     backgroundColor: COLORS.background,
   },

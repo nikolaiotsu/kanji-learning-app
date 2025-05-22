@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, ActivityIndicator } from 'react-native';
 import { Ionicons, MaterialIcons, FontAwesome5, AntDesign, FontAwesome6, Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
@@ -11,13 +11,18 @@ import { COLORS } from '../../constants/colors';
 import { CapturedImage, TextAnnotation } from '../../../types';
 import { captureRef } from 'react-native-view-shot';
 import { detectJapaneseText, convertToOriginalImageCoordinates, cropImageToRegion, resizeImageToRegion } from '../../services/visionApi';
-import { ImageHighlighterRef } from '../shared/ImageHighlighter';
+import { ImageHighlighterRef, ImageHighlighterRotationState } from '../shared/ImageHighlighter';
 import * as ImageManipulator from 'expo-image-manipulator';
 import RandomCardReviewer from '../flashcards/RandomCardReviewer';
 import { useFocusEffect } from 'expo-router';
 import * as ProcessImage from '../../services/ProcessImage';
+import PokedexButton from '../shared/PokedexButton';
 
-export default function KanjiScanner() {
+interface KanjiScannerProps {
+  onCardSwipe?: () => void;
+}
+
+export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
   const [capturedImage, setCapturedImage] = useState<CapturedImage | null>(null);
   const [imageHistory, setImageHistory] = useState<CapturedImage[]>([]);
   const [forwardHistory, setForwardHistory] = useState<CapturedImage[]>([]);
@@ -36,11 +41,12 @@ export default function KanjiScanner() {
     height: number;
   } | null>(null);
   
-  // Add state for rotate mode
+  // State for rotate mode
   const [rotateModeActive, setRotateModeActive] = useState(false);
-  const [hasRotation, setHasRotation] = useState(false);
-  // Add local error state for rotate errors
   const [rotateError, setRotateError] = useState<string | null>(null);
+
+  // New state for rotation controls via callback
+  const [currentRotationUIState, setCurrentRotationUIState] = useState<ImageHighlighterRotationState | null>(null);
   
   const router = useRouter();
   const { signOut } = useAuth();
@@ -52,6 +58,12 @@ export default function KanjiScanner() {
   // Instead of setting initialRotation to rotation, we'll store a reference
   // to track rotation changes better
   const rotationRef = useRef<number>(0);
+
+  // Callback for ImageHighlighter to update rotation UI state
+  const handleRotationStateChange = React.useCallback((newState: ImageHighlighterRotationState) => {
+    console.log('[KanjiScanner] Rotation state update from IH:', newState);
+    setCurrentRotationUIState(newState);
+  }, []); // Empty dependency array as setCurrentRotationUIState is stable
 
   const handleLogout = async () => {
     setSettingsMenuVisible(false);
@@ -105,22 +117,34 @@ export default function KanjiScanner() {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 1,
+        quality: 1, // Keep quality high for manipulation
+        // exif: true, // We don't strictly need to request it, manipulateAsync handles it
       });
 
       if (!result.canceled) {
         const asset = result.assets[0];
+
+        // Normalize the image orientation and get its new URI and dimensions
+        console.log('[KanjiScanner pickImage] Normalizing image orientation for:', asset.uri);
+        const normalizedImage = await ImageManipulator.manipulateAsync(
+          asset.uri,
+          [], // No explicit transform actions, just normalize orientation based on EXIF
+          { compress: 1, format: ImageManipulator.SaveFormat.PNG } // Using PNG to preserve quality
+        );
+        console.log('[KanjiScanner pickImage] Normalized image data:', { uri: normalizedImage.uri, width: normalizedImage.width, height: normalizedImage.height });
+
         setCapturedImage({
-          uri: asset.uri,
-          width: asset.width,
-          height: asset.height,
+          uri: normalizedImage.uri, // Use the URI of the normalized image
+          width: normalizedImage.width, // Use dimensions from the normalized image
+          height: normalizedImage.height,
         });
         setImageHistory([]);
         setForwardHistory([]);
         setHighlightModeActive(false);
       }
     } catch (error) {
-      console.error('Error picking image:', error);
+      console.error('Error picking or normalizing image:', error);
+      Alert.alert("Image Error", "Failed to load or process the image. Please try again.");
     }
   };
 
@@ -129,177 +153,70 @@ export default function KanjiScanner() {
     y: number;
     width: number;
     height: number;
-    rotation?: number;
+    rotation?: number; // This rotation is for context if a crop is applied on an already rotated image
   }) => {
     if (!capturedImage || !imageHighlighterRef.current) return;
     
     try {
-      console.log('[KanjiScanner] Received region:', region);
-      console.log('[KanjiScanner] Original image dimensions:', {
-        width: capturedImage.width,
-        height: capturedImage.height
-      });
-      
-      // Ensure the region is valid
-      if (region.width < 5 || region.height < 5) {
-        Alert.alert("Selection too small", "Please select a slightly larger area of text");
-        return;
-      }
+      console.log('[KanjiScanner] Received region for selection/crop:', region);
 
-      // For highlight mode, store the region for later confirmation
       if (highlightModeActive) {
-        setHighlightRegion(region);
+        setHighlightRegion(region); 
         setHasHighlightSelection(true);
-        return;
+        console.log('[KanjiScanner] Highlight region selected (screen/IH coords):', region);
+        return; 
       }
 
-      setLocalProcessing(true);
-      
-      // Get the transform data which includes scaling information
-      const transformData = imageHighlighterRef.current.getTransformData();
-      console.log('[KanjiScanner] Transform data:', transformData);
-      
-      // Get original image dimensions
-      const { uri, width, height } = capturedImage;
-      
-      // First, ensure the input region has non-negative values
-      const validRegion = {
-        x: Math.max(0, region.x),
-        y: Math.max(0, region.y),
-        width: Math.max(5, region.width),
-        height: Math.max(5, region.height)
-      };
-      
-      // Calculate the scaling ratio between the original image and how it's displayed
-      const widthRatio = width / transformData.scaledWidth;
-      const heightRatio = height / transformData.scaledHeight;
-      console.log('[KanjiScanner] Scaling ratios:', { widthRatio, heightRatio });
-      
-      // Convert the selected region to original image coordinates
-      const originalRegion = {
-        x: Math.round(validRegion.x * widthRatio),
-        y: Math.round(validRegion.y * heightRatio),
-        width: Math.round(validRegion.width * widthRatio),
-        height: Math.round(validRegion.height * heightRatio)
-      };
-      
-      console.log('[KanjiScanner] Original image coordinates:', originalRegion);
-      
-      // Handle rotation when provided
-      if (region.rotation !== undefined && rotateModeActive) {
-        try {
-          // Set local processing to show loading state and prevent flicker
-          setLocalProcessing(true);
-          
-          // Push current image to history before modifying
-          if (capturedImage) {
-            setImageHistory(prev => [...prev, capturedImage]);
-            setForwardHistory([]);
-          }
-          
-          console.log('[KanjiScanner] Rotating image with angle:', region.rotation);
-          console.log('[KanjiScanner] Original dimensions:', capturedImage.width, 'x', capturedImage.height);
-          
-          // Apply rotation to the image - use the processImage function to better preserve dimensions
-          const rotatedImageUri = await ProcessImage.processImage(
-            capturedImage.uri, 
-            { rotate: region.rotation }
-          );
-          
-          if (rotatedImageUri) {
-            // Update image with rotated version
-            const imageInfo = await ProcessImage.getImageInfo(rotatedImageUri);
-            console.log('[KanjiScanner] Rotated dimensions:', imageInfo.width, 'x', imageInfo.height);
-            
-            setCapturedImage({
-              uri: rotatedImageUri,
-              width: imageInfo.width,
-              height: imageInfo.height
-            });
-            
-            // Reset rotate mode after applying
-            setRotateModeActive(false);
-            setHasRotation(false);
-            setRotateError(null);
-          }
-        } catch (error) {
-          console.error('Error rotating image:', error);
-          setRotateError('Failed to rotate image');
-        } finally {
-          // Always clear the loading state
-          setLocalProcessing(false);
+      if (cropModeActive) { 
+        console.log('[KanjiScanner] Crop operation initiated via onRegionSelected. Region from IH:', region);
+        setLocalProcessing(true);
+        
+        if (capturedImage) {
+          setImageHistory(prev => [...prev, capturedImage]);
+          setForwardHistory([]);
         }
-        return;
-      }
 
-      setLocalProcessing(true);
-      
-      try {
-        if (highlightModeActive) {
-          // This should not be reachable with the confirmation flow, 
-          // but kept for safety if the flow changes
-          processHighlightRegion(originalRegion);
-        } else {
-          // This is a crop operation - just resize the image without text detection
-          console.log('[KanjiScanner] CROP MODE: Starting crop operation');
-          
-          // Save the current image to history before cropping
-          if (capturedImage) {
-            setImageHistory(prev => [...prev, capturedImage]);
-            // Clear forward history when making a new crop
-            setForwardHistory([]);
-          }
-          
-          // For crop operations, we'll use the originalRegion directly from ImageHighlighter
-          // without applying our own scaling again
-          const resizedUri = await resizeImageToRegion(uri, region);
-          console.log('[KanjiScanner] Resized image URI:', resizedUri);
-          
-          // Get the actual dimensions of the resized image instead of using the requested dimensions
-          console.log('[KanjiScanner] Getting dimensions of resized image');
-          const resizedImage = await ImageManipulator.manipulateAsync(
-            resizedUri,
-            [],
-            { format: ImageManipulator.SaveFormat.JPEG }
-          );
-          console.log('[KanjiScanner] Resized image dimensions:', resizedImage.width, 'x', resizedImage.height);
-          
-          // Update the captured image with the resized version using actual dimensions
-          console.log('[KanjiScanner] Updating captured image with resized version');
-          setCapturedImage({
-            uri: resizedUri,
-            width: resizedImage.width,
-            height: resizedImage.height
-          });
-          
-          // Reset crop mode
-          setCropModeActive(false);
-          
-          console.log('[KanjiScanner] Crop operation completed successfully');
-        }
-      } catch (error) {
-        console.error('Error processing image:', error);
-        Alert.alert(
-          "Processing Error",
-          "There was a problem processing the selected area. Please try again.",
-          [{ text: "OK" }]
+        const { x, y, width, height, rotation } = region; // Destructure from IH-provided region
+        const cropDetails: { x: number; y: number; width: number; height: number; } = { x, y, width, height };
+        
+        // Use ProcessImage.processImage to handle crop and potential rotation context
+        const processedUri = await ProcessImage.processImage(
+            capturedImage.uri,
+            { crop: cropDetails, rotate: rotation } // rotation might be 0 or undefined if not rotated
         );
-      } finally {
+        
+        if (processedUri) {
+          // Get dimensions of the newly processed (cropped, possibly rotated) image
+          const imageInfo = await ProcessImage.getImageInfo(processedUri);
+          setCapturedImage({
+            uri: processedUri,
+            width: imageInfo.width,
+            height: imageInfo.height
+          });
+          console.log('[KanjiScanner] Crop (and rotation if any) applied. New image:', processedUri, 'New Dims:', imageInfo);
+        } else {
+          console.warn('[KanjiScanner] ProcessImage.processImage did not return a URI for crop operation.');
+          // Potentially revert to previous image from history if capturedImage was pushed too early
+          // or show an error. For now, localProcessing will be set to false.
+        }
+        setCropModeActive(false); 
         setLocalProcessing(false);
+        return; 
       }
-    } catch (error) {
-      console.error('Error capturing region:', error);
+      
+      console.warn('[KanjiScanner] handleRegionSelected called unexpectedly. Active modes:', 
+        { highlightModeActive, cropModeActive, rotateModeActive });
       setLocalProcessing(false);
-      Alert.alert(
-        "Capture Error",
-        "There was a problem with the selected area. Please try again.",
-        [{ text: "OK" }]
-      );
+
+    } catch (error) {
+      console.error('[KanjiScanner] Error in handleRegionSelected:', error);
+      Alert.alert("Processing Error", "Could not process the selected region.");
+      setLocalProcessing(false);
     }
   };
 
   // New function to process the highlight region
-  const processHighlightRegion = async (originalRegion: {
+  const processHighlightRegion = async (originalRegionFromConfirm: {
     x: number;
     y: number;
     width: number;
@@ -307,18 +224,20 @@ export default function KanjiScanner() {
   }) => {
     if (!capturedImage) return;
     
-    setLocalProcessing(true);
+    console.log('[KanjiScanner PHR] Received originalRegionForProcessing:', originalRegionFromConfirm);
+    console.log('[KanjiScanner PHR] Full image URI for cropping:', capturedImage.uri);
+
+    setLocalProcessing(true); // Restore local processing state
     try {
       const { uri } = capturedImage;
       
       // Crop the exact highlighted region for OCR only
-      const exactCropUri = await cropImageToRegion(uri, originalRegion);
-      console.log('[KanjiScanner] Exact cropped image URI for OCR:', exactCropUri);
-      
-      // Use the original full image for context instead of cropping
-      console.log('[KanjiScanner] Using full original image for context:', uri);
-      
-      // Use the EXACT crop for OCR to ensure we only process the highlighted text
+      const exactCropUri = await cropImageToRegion(uri, originalRegionFromConfirm);
+      // console.log('[KanjiScanner PHR] Exact cropped URI (for diagnostic display):', exactCropUri); // No longer needed
+
+      // --- Restore OCR and navigation --- 
+      console.log('[KanjiScanner PHR] Calling detectJapaneseText with exactCropUri and full region for OCR.');
+
       const textRegions = await detectJapaneseText(
         exactCropUri,
         { x: 0, y: 0, width: 1000, height: 1000 }, // Use entire cropped image
@@ -350,41 +269,120 @@ export default function KanjiScanner() {
           [{ text: "OK" }]
         );
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error processing highlight region:', error);
-      Alert.alert(
-        "OCR Error",
-        "There was a problem recognizing text in the selected area. Please try again.",
-        [{ text: "OK" }]
-      );
+      
+      // Check if it's a timeout error from our OCR service
+      if (error.message && error.message.includes('timed out')) {
+        Alert.alert(
+          "Processing Limit Reached",
+          "The selected text area is too large or complex. Please try selecting a smaller section of text.",
+          [{ text: "OK" }]
+        );
+      } else {
+        Alert.alert(
+          "OCR Error",
+          "There was a problem recognizing text in the selected area. Please try again.",
+          [{ text: "OK" }]
+        );
+      }
     } finally {
-      setLocalProcessing(false);
+      setLocalProcessing(false); // Ensure this is always called
       setHighlightRegion(null);
       setHasHighlightSelection(false);
       setHighlightModeActive(false);
-      
-      // Ensure highlight box is cleared
-      imageHighlighterRef.current?.clearHighlightBox?.();
+      imageHighlighterRef.current?.clearHighlightBox?.(); // Ensure highlight box is cleared
     }
   };
 
   const confirmHighlightSelection = async () => {
-    if (!highlightRegion || !imageHighlighterRef.current) return;
+    if (!highlightRegion || !imageHighlighterRef.current || !capturedImage) return;
     
+    console.log('[KanjiScanner CnfHS] Current capturedImage URI:', capturedImage.uri);
+    console.log('[KanjiScanner CnfHS] Received highlightRegion from state:', highlightRegion);
     const transformData = imageHighlighterRef.current.getTransformData();
-    const { width, height } = capturedImage as CapturedImage;
+    console.log('[KanjiScanner CnfHS] TransformData from ImageHighlighter:', transformData);
+
+    // Use the new properties from transformData
+    const {
+      originalImageWidth,
+      originalImageHeight,
+      displayImageViewWidth,
+      displayImageViewHeight,
+    } = transformData;
     
-    // Calculate the scaling ratio between the original image and how it's displayed
-    const widthRatio = width / transformData.scaledWidth;
-    const heightRatio = height / transformData.scaledHeight;
+    // Log the selection dimensions as percentages of the display
+    const widthPercentage = (highlightRegion.width / displayImageViewWidth) * 100;
+    const heightPercentage = (highlightRegion.height / displayImageViewHeight) * 100;
+    console.log(`[KanjiScanner CnfHS] Selection dimensions: ${highlightRegion.width}x${highlightRegion.height} (${widthPercentage.toFixed(1)}% x ${heightPercentage.toFixed(1)}% of view)`);
+    
+    // Detect wide selections that might need special handling
+    const isWideSelection = widthPercentage > 60; // If selection takes up more than 60% of the view width
+    if (isWideSelection) {
+      console.log('[KanjiScanner CnfHS] Wide selection detected, ensuring proper processing');
+    }
+    
+    // The highlightRegion state has its x,y already adjusted by ImageHighlighter
+    // to be relative to the visible image content's top-left.
+    // Clamp it against the displayImageView dimensions before scaling.
+    const clampedHighlightRegion = {
+      x: Math.max(0, Math.min(highlightRegion.x, displayImageViewWidth)),
+      y: Math.max(0, Math.min(highlightRegion.y, displayImageViewHeight)),
+      width: Math.max(5, highlightRegion.width),
+      height: Math.max(5, highlightRegion.height)
+    };
+    
+    // Additional bounds check to handle wide/tall selections 
+    clampedHighlightRegion.width = Math.min(clampedHighlightRegion.width, 
+                                           displayImageViewWidth - clampedHighlightRegion.x);
+    clampedHighlightRegion.height = Math.min(clampedHighlightRegion.height, 
+                                            displayImageViewHeight - clampedHighlightRegion.y);
+    
+    // Safety check to ensure width/height are positive
+    if (clampedHighlightRegion.width <= 0) clampedHighlightRegion.width = 5;
+    if (clampedHighlightRegion.height <= 0) clampedHighlightRegion.height = 5;
+
+    // Calculate the scaling ratio using displayImageView dimensions
+    const widthRatio = originalImageWidth / displayImageViewWidth;
+    const heightRatio = originalImageHeight / displayImageViewHeight;
+    console.log('[KanjiScanner CnfHS] Clamped Region:', clampedHighlightRegion);
+    console.log('[KanjiScanner CnfHS] Scaling Ratios:', { widthRatio, heightRatio });
+    
+    // For wide selections, add a small horizontal margin to ensure capturing all text
+    // This helps with the bias toward left side text detection
+    let horizontalMargin = 0;
+    if (isWideSelection) {
+      // Add a margin proportional to the width of the selection
+      horizontalMargin = Math.round(clampedHighlightRegion.width * 0.03); // 3% of width
+      console.log('[KanjiScanner CnfHS] Adding horizontal margin for wide selection:', horizontalMargin);
+    }
     
     // Convert the selected region to original image coordinates
     const originalRegion = {
-      x: Math.round(highlightRegion.x * widthRatio),
-      y: Math.round(highlightRegion.y * heightRatio),
-      width: Math.round(highlightRegion.width * widthRatio),
-      height: Math.round(highlightRegion.height * heightRatio)
+      x: Math.round((clampedHighlightRegion.x - horizontalMargin) * widthRatio),
+      y: Math.round(clampedHighlightRegion.y * heightRatio),
+      width: Math.round((clampedHighlightRegion.width + (horizontalMargin * 2)) * widthRatio),
+      height: Math.round(clampedHighlightRegion.height * heightRatio)
     };
+    
+    // Ensure coordinates are within image bounds
+    originalRegion.x = Math.max(0, originalRegion.x);
+    originalRegion.y = Math.max(0, originalRegion.y);
+    originalRegion.width = Math.min(originalRegion.width, originalImageWidth - originalRegion.x);
+    originalRegion.height = Math.min(originalRegion.height, originalImageHeight - originalRegion.y);
+    
+    console.log('[KanjiScanner CnfHS] Calculated originalRegion (to be sent to processHighlightRegion):', originalRegion);
+    console.log('[KanjiScanner CnfHS] Region as percentage of original image:', {
+      x: (originalRegion.x / originalImageWidth * 100).toFixed(1) + '%',
+      y: (originalRegion.y / originalImageHeight * 100).toFixed(1) + '%',
+      width: (originalRegion.width / originalImageWidth * 100).toFixed(1) + '%',
+      height: (originalRegion.height / originalImageHeight * 100).toFixed(1) + '%'
+    });
+    
+    // Final safety check for very large regions that might strain OCR
+    if (originalRegion.width * originalRegion.height > 4000000) { // 4 megapixels
+      console.log('[KanjiScanner CnfHS] Warning: Very large region selected, OCR processing may take longer');
+    }
     
     await processHighlightRegion(originalRegion);
   };
@@ -396,17 +394,74 @@ export default function KanjiScanner() {
   };
 
   const activateHighlightMode = () => {
+    // First, exit other modes if they're active
+    if (rotateModeActive) {
+      imageHighlighterRef.current?.toggleRotateMode(); // Exit rotate mode in ImageHighlighter
+      setRotateModeActive(false);
+    }
+    if (cropModeActive) {
+      setCropModeActive(false);
+      imageHighlighterRef.current?.toggleCropMode();
+    }
+    
+    // Then activate highlight mode
     setHighlightModeActive(true);
-    setCropModeActive(false);
     setHasHighlightSelection(false);
     setHighlightRegion(null);
   };
 
-  const cancelHighlightMode = () => {
-    setHighlightModeActive(false);
-    setHasHighlightSelection(false);
-    setHighlightRegion(null);
-    imageHighlighterRef.current?.clearHighlightBox?.();
+  // Renamed from cancelHighlightMode and made more generic
+  const cancelActiveMode = () => {
+    if (highlightModeActive) {
+      setHighlightModeActive(false);
+      setHasHighlightSelection(false);
+      setHighlightRegion(null);
+      imageHighlighterRef.current?.clearHighlightBox?.();
+      console.log('[KanjiScanner] Highlight mode cancelled');
+    } else if (cropModeActive) {
+      setCropModeActive(false);
+      imageHighlighterRef.current?.toggleCropMode(); // Syncs IH internal mode & clears box
+      imageHighlighterRef.current?.clearCropBox?.(); 
+      console.log('[KanjiScanner] Crop mode cancelled');
+    } else if (rotateModeActive) {
+      imageHighlighterRef.current?.cancelRotationChanges(); // 1. IH reverts visual rotation & clears its session
+      imageHighlighterRef.current?.toggleRotateMode();    // 2. IH formally exits rotate mode
+      setRotateModeActive(false);                           // 3. KS updates its state (triggers effect cleanup)
+      console.log('[KanjiScanner] Rotate mode cancelled');
+    }
+  };
+
+  const confirmCrop = () => {
+    if (cropModeActive && hasCropSelection && imageHighlighterRef.current) {
+      console.log('[KanjiScanner] Confirming crop...');
+      imageHighlighterRef.current.applyCrop();
+      // ImageHighlighter's applyCrop calls onRegionSelected, which is handleRegionSelected here.
+      // handleRegionSelected already sets cropModeActive to false after processing.
+      // It also sets localProcessing to true/false.
+      // We might not need to do much else here as handleRegionSelected should take over.
+    } else {
+      console.warn('[KanjiScanner] confirmCrop called in invalid state');
+    }
+  };
+
+  const discardCropSelection = () => {
+    if (cropModeActive && imageHighlighterRef.current) {
+      console.log('[KanjiScanner] Discarding crop selection...');
+      imageHighlighterRef.current.clearCropBox();
+      setHasCropSelection(false); // Manually update as the mode is still active
+    } else {
+      console.warn('[KanjiScanner] discardCropSelection called in invalid state');
+    }
+  };
+
+  const discardHighlightSelection = () => {
+    if (highlightModeActive && imageHighlighterRef.current) {
+      console.log('[KanjiScanner] Discarding highlight selection...');
+      imageHighlighterRef.current.clearHighlightBox();
+      setHasHighlightSelection(false); // Manually update as the mode is still active
+    } else {
+      console.warn('[KanjiScanner] discardHighlightSelection called in invalid state');
+    }
   };
 
   const toggleCropMode = () => {
@@ -556,87 +611,99 @@ export default function KanjiScanner() {
 
   // Toggle rotate mode
   const toggleRotateMode = () => {
-    if (imageHighlighterRef.current) {
-      // Call the toggleRotateMode method on the ImageHighlighter
-      imageHighlighterRef.current.toggleRotateMode();
-      
-      // Update local state
-      const newRotateMode = !rotateModeActive;
-      setRotateModeActive(newRotateMode);
-      
-      // Reset rotation tracking when entering rotate mode
-      setHasRotation(false);
-      setRotateError(null); // Clear any rotation errors when toggling
-      
-      // Save current rotation reference value when toggling mode
-      if (newRotateMode) {
-        // Get current rotation value when entering rotate mode
-        const transformData = imageHighlighterRef.current.getTransformData();
-        rotationRef.current = transformData.rotation;
-        console.log('[KanjiScanner] Entered rotate mode, initial rotation:', rotationRef.current);
-      }
-      
-      // Exit other modes
+    // If already in rotate mode, calling this will turn it off.
+    // If in another mode, it will switch to rotate mode.
+    const newRotateMode = !rotateModeActive;
+
+    if (newRotateMode) {
+      // Exit other modes if they're active before entering rotate mode
       if (highlightModeActive) {
         setHighlightModeActive(false);
+        // Potentially clear highlight selection if needed
         setHasHighlightSelection(false);
+        setHighlightRegion(null);
+        imageHighlighterRef.current?.clearHighlightBox?.(); 
       }
-      
       if (cropModeActive) {
         setCropModeActive(false);
-        setHasCropSelection(false);
+        imageHighlighterRef.current?.toggleCropMode(); // Ensure IH exits crop mode
+        imageHighlighterRef.current?.clearCropBox?.();
       }
+    }
+    // else: if turning OFF rotate mode, cancelActiveMode is typically used for explicit cancel.
+    // If toggled off by activating another mode, IH.toggleRotateMode will handle IH state.
+
+    setRotateModeActive(newRotateMode);
+    imageHighlighterRef.current?.toggleRotateMode(); // Tell ImageHighlighter to toggle its internal state
+
+    // Button states (currentRotationUIState, etc.) will be updated by the useEffect
+  };
+
+  // New Rotation Handlers
+  const handleConfirmRotation = async () => {
+    if (!imageHighlighterRef.current || !capturedImage) return;
+    console.log('[KanjiScanner] Confirming rotation...', 'Current image dimensions:', capturedImage.width, 'x', capturedImage.height);
+    
+    // Set loading state before starting the rotation process
+    setLocalProcessing(true);
+    
+    try {
+      const result = await imageHighlighterRef.current.confirmCurrentRotation();
+      if (result && result.uri !== capturedImage.uri) { // Check if image actually changed
+        // First add current image to history
+        setImageHistory(prev => [...prev, capturedImage]);
+        setForwardHistory([]);
+        
+        // Determine if we're rotating by 90 or 270 degrees, which would swap width/height
+        const isOrientationChange = 
+          Math.abs(Math.abs(result.width - capturedImage.width) - Math.abs(result.height - capturedImage.height)) < 10;
+        
+        // Simple direct replacement - preserve exact dimensions from result
+        console.log('[KanjiScanner] Setting new image with UNMODIFIED dimensions:', result.width, 'x', result.height);
+        
+        setCapturedImage({
+          uri: result.uri,
+          width: result.width,
+          height: result.height 
+        });
+        
+        console.log('[KanjiScanner] Rotation confirmed with dimensions:', 
+          result.width, 'x', result.height, 
+          isOrientationChange ? '(orientation changed)' : '(orientation preserved)');
+      }
+    } catch (error) {
+      console.error('[KanjiScanner] Error confirming rotation:', error);
+      Alert.alert('Rotation Error', 'Could not apply rotation.');
+    } finally {
+      // Always clean up state regardless of success or failure
+      imageHighlighterRef.current?.toggleRotateMode(); // Explicitly exit rotate mode in ImageHighlighter
+      setRotateModeActive(false); // Exit rotate mode in KanjiScanner state
+      setLocalProcessing(false);
     }
   };
-  
-  // Check for rotation changes
-  useEffect(() => {
-    if (rotateModeActive && imageHighlighterRef.current) {
-      // Create an interval to continuously check for rotation changes
-      const intervalId = setInterval(() => {
-        if (imageHighlighterRef.current) {
-          const transformData = imageHighlighterRef.current.getTransformData();
-          const currentRotation = transformData.rotation;
-          
-          // Check if rotation has changed enough to enable the button
-          const rotationDelta = Math.abs(currentRotation - rotationRef.current);
-          const hasChanged = rotationDelta > 1;
-          
-          if (hasChanged !== hasRotation) {
-            console.log('[KanjiScanner] Detected rotation change:', {
-              initial: rotationRef.current,
-              current: currentRotation,
-              delta: rotationDelta,
-              hasChanged
-            });
-            setHasRotation(hasChanged);
-          }
-        }
-      }, 100); // Check every 100ms
-      
-      // Initial check
-      if (imageHighlighterRef.current.hasRotation) {
-        setHasRotation(true);
-      }
-      
-      // Clean up interval on unmount or when leaving rotate mode
-      return () => {
-        clearInterval(intervalId);
-      };
-    }
-  }, [rotateModeActive, hasRotation]);
+
+  const handleUndoRotation = () => {
+    imageHighlighterRef.current?.undoRotationChange();
+    // Button states will be updated by the useEffect
+  };
+
+  const handleRedoRotation = () => {
+    imageHighlighterRef.current?.redoRotationChange();
+    // Button states will be updated by the useEffect
+  };
 
   return (
     <View style={styles.container}>
       {!capturedImage ? (
         <>
           {/* Settings Menu Button */}
-          <TouchableOpacity 
-            style={styles.settingsButton} 
+          <PokedexButton
             onPress={toggleSettingsMenu}
-          >
-            <Feather name="menu" size={24} color="white" />
-          </TouchableOpacity>
+            icon="menu"
+            size="small"
+            shape="square"
+            style={styles.settingsButton}
+          />
           
           {/* Settings Menu Modal */}
           {settingsMenuVisible && (
@@ -668,26 +735,36 @@ export default function KanjiScanner() {
           
           {/* Random Card Reviewer */}
           <View style={styles.reviewerContainer}>
-            <RandomCardReviewer />
+            <RandomCardReviewer onCardSwipe={onCardSwipe} />
           </View>
           
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity 
-              style={styles.textInputButton} 
+          {/* Button Row - moved below the reviewer */}
+          <View style={styles.buttonRow}>
+            <PokedexButton
               onPress={handleTextInput}
-            >
-              <Ionicons name="add" size={24} color="white" />
-            </TouchableOpacity>
-            <CameraButton onPhotoCapture={handlePhotoCapture} />
-            <TouchableOpacity style={styles.galleryButton} onPress={pickImage}>
-              <FontAwesome6 name="images" size={24} color="white" />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.viewFlashcardsButton} 
+              icon="add"
+              size="medium"
+              shape="square"
+              style={styles.rowButton}
+            />
+            <PokedexButton
               onPress={() => router.push('/saved-flashcards')}
-            >
-              <MaterialIcons name="library-books" size={24} color="white" />
-            </TouchableOpacity>
+              materialCommunityIcon="cards"
+              size="medium"
+              shape="square"
+              style={styles.rowButton}
+            />
+            <PokedexButton
+              onPress={pickImage}
+              icon="images"
+              size="medium"
+              shape="square"
+              style={styles.rowButton}
+            />
+            <CameraButton 
+              onPhotoCapture={handlePhotoCapture} 
+              style={styles.rowButton} 
+            />
           </View>
         </>
       ) : (
@@ -700,6 +777,7 @@ export default function KanjiScanner() {
             highlightModeActive={highlightModeActive}
             onActivateHighlightMode={activateHighlightMode}
             onRegionSelected={handleRegionSelected}
+            onRotationStateChange={handleRotationStateChange}
           />
           
           {highlightModeActive && (
@@ -710,135 +788,149 @@ export default function KanjiScanner() {
             </View>
           )}
           
-          <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-            <AntDesign name="back" size={24} color="white" />
-          </TouchableOpacity>
+          <View style={styles.toolbar}>
+            {/* Back Button (far left) */}
+            <PokedexButton
+              onPress={handleCancel}
+              icon="arrow-back"
+              color={COLORS.pokedexGreen}
+              size="small"
+              shape="square"
+              style={styles.toolbarFarButton}
+            />
+
+            {/* Flexible spacer to push center controls to the right */}
+            <View style={{ flex: 1 }} />
+
+            {/* Center Controls Column */}
+            <View style={styles.toolbarCenterControls}>
+              {/* Image History Undo/Redo Buttons (Top row in center) */}
+              {!localProcessing && 
+               (!highlightModeActive && !cropModeActive && !rotateModeActive) && 
+               (imageHistory.length > 0 || forwardHistory.length > 0) && (
+                <View style={[styles.toolbarButtonGroup, styles.historyButtonsContainer]}>
+                  <PokedexButton
+                    onPress={handleBackToPreviousImage}
+                    icon="arrow-undo"
+                    size="small"
+                    shape="square"
+                    disabled={imageHistory.length === 0}
+                  />
+                  <PokedexButton
+                    onPress={handleForwardToNextImage}
+                    icon="arrow-redo"
+                    size="small"
+                    shape="square"
+                    disabled={forwardHistory.length === 0}
+                  />
+                </View>
+              )}
+
+              {/* Mode Activation / Confirmation Buttons (Bottom row in center or replaces history) */}
+              <View style={styles.toolbarButtonGroup}>
+                {/* Mode Activation Buttons (Highlight, Crop, Rotate) */}
+                {!highlightModeActive && !cropModeActive && !rotateModeActive && !localProcessing && (
+                  <>
+                    <PokedexButton
+                      onPress={activateHighlightMode}
+                      icon="create-outline"
+                      size="small"
+                      shape="square"
+                    />
+                    <PokedexButton
+                      onPress={toggleCropMode}
+                      icon="crop"
+                      size="small"
+                      shape="square"
+                    />
+                    <PokedexButton
+                      onPress={toggleRotateMode}
+                      icon="refresh"
+                      size="small"
+                      shape="square"
+                    />
+                  </>
+                )}
+                
+                {/* Confirmation buttons when a mode IS active */}
+                {(highlightModeActive || cropModeActive || rotateModeActive) && !localProcessing && (
+                  <>
+                    <PokedexButton
+                      onPress={cancelActiveMode} 
+                      icon="close"
+                      size="small"
+                      shape="square"
+                    />
+                    
+                    {hasHighlightSelection && highlightModeActive && (
+                      <>
+                        <PokedexButton
+                          onPress={discardHighlightSelection} 
+                          icon="refresh-outline" 
+                          size="small"
+                          shape="square"
+                        />
+                        <PokedexButton
+                          onPress={confirmHighlightSelection}
+                          icon="checkmark"
+                          size="small"
+                          shape="square"
+                        />
+                      </>
+                    )}
+  
+                    {cropModeActive && hasCropSelection && (
+                      <>
+                        <PokedexButton
+                          onPress={discardCropSelection}
+                          icon="refresh-outline" 
+                          size="small"
+                          shape="square"
+                        />
+                        <PokedexButton
+                          onPress={confirmCrop}
+                          icon="checkmark"
+                          size="small"
+                          shape="square"
+                        />
+                      </>
+                    )}
+
+                    {/* Rotate Mode Specific Buttons */}
+                    {rotateModeActive && currentRotationUIState && (
+                      <>
+                        {currentRotationUIState.canUndo && (
+                          <PokedexButton
+                            onPress={handleUndoRotation}
+                            icon="arrow-undo"
+                            size="small"
+                            shape="square"
+                          />
+                        )}
+                        {currentRotationUIState.canRedo && (
+                          <PokedexButton
+                            onPress={handleRedoRotation}
+                            icon="arrow-redo"
+                            size="small"
+                            shape="square"
+                          />
+                        )}
+                        {currentRotationUIState.hasRotated && (
+                          <PokedexButton
+                            onPress={handleConfirmRotation}
+                            icon="checkmark"
+                            size="small"
+                            shape="square"
+                          />
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
+              </View>
+            </View>
+          </View>
           
-          {/* Highlight, Crop and Rotate buttons - only shown when no active mode */}
-          {!highlightModeActive && !cropModeActive && !rotateModeActive && (
-            <>
-              <TouchableOpacity 
-                style={styles.highlightButton} 
-                onPress={activateHighlightMode}
-              >
-                <FontAwesome6 name="highlighter" size={24} color="white" />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.cropButton} 
-                onPress={toggleCropMode}
-              >
-                <FontAwesome6 name="crop" size={24} color="white" />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.rotateButton} 
-                onPress={toggleRotateMode}
-              >
-                <FontAwesome6 name="rotate" size={24} color="white" />
-              </TouchableOpacity>
-            </>
-          )}
-          
-          {/* Highlight mode buttons - before selection */}
-          {highlightModeActive && !hasHighlightSelection && (
-            <>
-              <TouchableOpacity 
-                style={styles.cancelHighlightButton} 
-                onPress={cancelHighlightMode}
-              >
-                <FontAwesome6 name="xmark" size={24} color="white" />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                disabled={true}
-                style={[
-                  styles.confirmHighlightButton, 
-                  { opacity: 0.5 } // Dim the button to indicate it's not active yet
-                ]}
-              >
-                <FontAwesome6 name="check" size={24} color="white" />
-              </TouchableOpacity>
-            </>
-          )}
-          
-          {/* Highlight selection confirmation buttons - after selection */}
-          {highlightModeActive && hasHighlightSelection && (
-            <>
-              <TouchableOpacity 
-                style={styles.cancelHighlightButton} 
-                onPress={cancelHighlightSelection}
-              >
-                <FontAwesome6 name="xmark" size={24} color="white" />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.confirmHighlightButton}
-                onPress={confirmHighlightSelection}
-              >
-                <FontAwesome6 name="check" size={24} color="white" />
-              </TouchableOpacity>
-            </>
-          )}
-          
-          {/* Crop mode buttons */}
-          {cropModeActive && (
-            <>
-              <TouchableOpacity 
-                style={styles.cancelHighlightButton} 
-                onPress={toggleCropMode}
-              >
-                <FontAwesome6 name="xmark" size={24} color="white" />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[
-                  styles.confirmHighlightButton, 
-                  !hasCropSelection ? { opacity: 0.5 } : {}
-                ]} 
-                disabled={!hasCropSelection}
-                onPress={() => imageHighlighterRef.current?.applyCrop?.()}
-              >
-                <FontAwesome6 name="check" size={24} color="white" />
-              </TouchableOpacity>
-            </>
-          )}
-          
-          {/* Rotate mode buttons */}
-          {rotateModeActive && (
-            <>
-              <TouchableOpacity 
-                style={styles.cancelHighlightButton} 
-                onPress={toggleRotateMode}
-              >
-                <FontAwesome6 name="xmark" size={24} color="white" />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[
-                  styles.confirmHighlightButton, 
-                  !hasRotation ? { opacity: 0.5 } : {}
-                ]} 
-                disabled={!hasRotation}
-                onPress={() => imageHighlighterRef.current?.applyRotation?.()}
-              >
-                <FontAwesome6 name="check" size={24} color="white" />
-              </TouchableOpacity>
-            </>
-          )}
-          
-          {/* Back button to revert to previous image */}
-          {imageHistory.length > 0 && (
-            <TouchableOpacity 
-              style={styles.backButton} 
-              onPress={handleBackToPreviousImage}
-            >
-              <MaterialIcons name="arrow-back-ios" size={24} color="white" />
-            </TouchableOpacity>
-          )}
-          {/* Forward button to go to next image */}
-          {forwardHistory.length > 0 && (
-            <TouchableOpacity 
-              style={styles.forwardButton} 
-              onPress={handleForwardToNextImage}
-            >
-              <MaterialIcons name="arrow-forward-ios" size={24} color="white" />
-            </TouchableOpacity>
-          )}
           {/* Display either rotation error or general error */}
           {(error || rotateError) && (
             <View style={styles.errorContainer}>
@@ -901,179 +993,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'absolute',
-    bottom: 40,
-    left: 20,
-    right: 20,
-    gap: 16,
-    flexWrap: 'wrap',
-    paddingHorizontal: 10,
-  },
-  galleryButton: {
-    backgroundColor: COLORS.secondary,
-    borderRadius: 8,
-    width: 80,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
   imageContainer: {
     flex: 1,
     width: '100%',
     height: '100%',
     position: 'relative',
-  },
-  cancelButton: {
-    backgroundColor: COLORS.danger,
-    borderRadius: 8,
-    width: 80,
-    height: 50,
+    overflow: 'visible',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    zIndex: 999,
-  },
-  highlightButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 8,
-    width: 80,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    zIndex: 999,
-  },
-  cropButton: {
-    backgroundColor: COLORS.secondary,
-    borderRadius: 8,
-    width: 80,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    position: 'absolute',
-    bottom: 20,
-    right: 110, // Position it to the left of the highlight button
-    zIndex: 999,
-  },
-  cancelHighlightButton: {
-    backgroundColor: '#B3B3B3',
-    borderRadius: 8,
-    width: 80,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    position: 'absolute',
-    bottom: 20,
-    right: 110,
-    zIndex: 1000,
-  },
-  confirmHighlightButton: {
-    backgroundColor: '#2CB67D',
-    borderRadius: 8,
-    width: 80,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    zIndex: 1000,
-  },
-  backButton: {
-    backgroundColor: COLORS.secondary,
-    borderRadius: 8,
-    width: 80,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    position: 'absolute',
-    bottom: 100,
-    right: 20,
-    zIndex: 999,
-  },
-  forwardButton: {
-    backgroundColor: COLORS.secondary,
-    borderRadius: 8,
-    width: 80,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    position: 'absolute',
-    bottom: 180,
-    right: 20,
-    zIndex: 999,
   },
   errorContainer: {
     backgroundColor: 'rgba(255, 45, 85, 0.8)',
@@ -1091,32 +1018,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
   },
-  viewFlashcardsButton: {
-    backgroundColor: COLORS.accentMedium,
-    borderRadius: 8,
-    width: 80,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
   settingsButton: {
     position: 'absolute',
     top: 10,
     right: 10,
-    backgroundColor: COLORS.accentMedium,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
     zIndex: 1001,
   },
   settingsMenu: {
@@ -1155,11 +1060,12 @@ const styles = StyleSheet.create({
   // Reviewer container style
   reviewerContainer: {
     position: 'absolute',
-    top: '40%', // Position it at 40% instead of 50% to move it higher up
-    transform: [{ translateY: -150 }], // Offset by half the height of the container
+    top: '15%', // Adjusted from 10% to center it better in the available space
+    transform: [{ translateY: 0 }],
     left: 10,
     right: 10,
     zIndex: 900,
+    maxHeight: '60%', // Increased from 40% to allow for the larger card size
   },
   backdrop: {
     position: 'absolute',
@@ -1292,5 +1198,50 @@ const styles = StyleSheet.create({
     bottom: 20,
     right: 200, // Position it to the left of the crop button
     zIndex: 999,
+  },
+  toolbar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+  },
+  toolbarCenterControls: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 8,
+  },
+  toolbarButtonGroup: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  historyButtonsContainer: {
+  },
+  toolbarFarButton: {
+  },
+  buttonGrid: {
+    position: 'absolute',
+    bottom: 50,
+    left: 50,
+    right: 50,
+    flexDirection: 'column',
+  },
+  buttonRow: {
+    position: 'absolute',
+    bottom: 25, // Adjusted from 40 to ensure buttons are above Pokedex bottom decorations
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    zIndex: 800,
+  },
+  rowButton: {
+    marginHorizontal: 12, // Keep the spacing between buttons
+    width: 65, // Keep the button size
+    height: 65, // Keep the button size
+  },
+  gridButton: {
+    marginHorizontal: 0,
   },
 }); 

@@ -4,6 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { router } from 'expo-router';
 import SocialAuth from '../components/SocialAuth';
+import PokedexLayout from '../components/shared/PokedexLayout';
+import { COLORS } from '../constants/colors';
 
 const SignupScreen = () => {
   const [email, setEmail] = useState('');
@@ -116,7 +118,7 @@ const SignupScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <PokedexLayout>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.form}>
           <Text style={styles.title}>Create Your Account</Text>
@@ -204,7 +206,7 @@ const SignupScreen = () => {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </PokedexLayout>
   );
 };
 

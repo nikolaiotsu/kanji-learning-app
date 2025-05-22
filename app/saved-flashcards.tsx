@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, Alert, TouchableOpacity, ActivityIndicator, TextInput, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Alert, TouchableOpacity, ActivityIndicator, TextInput, Dimensions, Platform } from 'react-native';
 import { Flashcard } from './types/Flashcard';
 import { Deck } from './types/Deck';
 import { 
@@ -20,6 +20,9 @@ import { useAuth } from './context/AuthContext';
 import { supabase } from './services/supabaseClient';
 import { COLORS } from './constants/colors';
 import { useRouter } from 'expo-router';
+import PokedexLayout from './components/shared/PokedexLayout';
+
+const POKEDEX_LAYOUT_HORIZONTAL_REDUCTION = 20; // Updated: (padding 10) * 2
 
 export default function SavedFlashcardsScreen() {
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
@@ -36,12 +39,28 @@ export default function SavedFlashcardsScreen() {
   const [newDeckNameForSend, setNewDeckNameForSend] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
   const [flashcardToEdit, setFlashcardToEdit] = useState<Flashcard | null>(null);
+  const [triggerLightAnimation, setTriggerLightAnimation] = useState(false);
   const { user } = useAuth();
   const router = useRouter();
 
   const flashcardsListRef = useRef<FlatList>(null);
   const deckSelectorRef = useRef<FlatList>(null);
   const screenWidth = Dimensions.get('window').width;
+  const contentWidth = screenWidth - POKEDEX_LAYOUT_HORIZONTAL_REDUCTION;
+
+  // Reset animation trigger after it's been activated
+  useEffect(() => {
+    if (triggerLightAnimation) {
+      // Instead of directly modifying state inside a timer which might cause issues,
+      // we'll use a safe approach with cleanup
+      const timer = setTimeout(() => {
+        setTriggerLightAnimation(false);
+      }, 1500); // Allow more time for the animation to complete
+      
+      // Clean up timer on unmount or when triggerLightAnimation changes
+      return () => clearTimeout(timer);
+    }
+  }, [triggerLightAnimation]);
 
   // Load decks and flashcards on mount
   useEffect(() => {
@@ -386,6 +405,9 @@ export default function SavedFlashcardsScreen() {
     if (index >= 0 && index < decks.length) {
       const deck = decks[index];
       
+      // Trigger the light animation
+      setTriggerLightAnimation(true);
+      
       // Set loading state first to prevent showing stale content
       setIsLoadingFlashcards(true);
       
@@ -483,12 +505,15 @@ export default function SavedFlashcardsScreen() {
 
   // Function to render a deck page with its flashcards
   const renderDeckPage = ({ item, index }: { item: Deck, index: number }) => {
+    const pageKey = `${item.id}_${index}_${selectedDeckId === item.id ? 'selected' : 'idle'}`;
     // Return a container with consistent width
     return (
-      <View style={[styles.deckPage, { width: screenWidth }]}>
-        {selectedDeckId === item.id && (
-          <View style={styles.deckContentContainer}>
-            {isLoadingFlashcards ? (
+      <View key={pageKey} style={[styles.deckPage, { width: contentWidth }]}>
+        {/* Always render deckContentContainer to stabilize layout */}
+        <View style={styles.deckContentContainer}>
+          {/* Conditionally render content based on selection and loading state */}
+          {selectedDeckId === item.id ? (
+            isLoadingFlashcards ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#007AFF" />
                 <Text style={styles.loadingText}>Loading flashcards...</Text>
@@ -504,11 +529,13 @@ export default function SavedFlashcardsScreen() {
                 scrollEnabled={true}
                 initialNumToRender={4}
                 windowSize={5}
-                removeClippedSubviews={true}
+                removeClippedSubviews={true} // Keep as true for performance on inner lists
               />
-            )}
-          </View>
-        )}
+            )
+          ) : (
+            null 
+          )}
+        </View>
       </View>
     );
   };
@@ -522,7 +549,10 @@ export default function SavedFlashcardsScreen() {
   }, [selectedDeckId]);
 
   return (
-    <View style={styles.container}>
+    <PokedexLayout 
+      variant="flashcards"
+      triggerLightAnimation={triggerLightAnimation}
+    >
       {isLoadingDecks ? (
         <View style={styles.deckSelectorPlaceholder}>
           <ActivityIndicator size="small" color="#007AFF" />
@@ -579,15 +609,15 @@ export default function SavedFlashcardsScreen() {
       
       {/* Send Flashcard Modal */}
       {showSendModal && (
-        <View style={styles.renameModalContainer}>
-          <View style={styles.sendModal}>
-            <Text style={styles.renameTitle}>
+        <View style={styles.sendModalContainer}>
+          <View style={styles.sendModalContent}>
+            <Text style={styles.sendModalTitle}>
               {newDeckMode ? 'Create New Collection' : 'Send to Collection'}
             </Text>
             
             {newDeckMode ? (
               <TextInput
-                style={styles.renameInput}
+                style={styles.newDeckInput}
                 value={newDeckNameForSend}
                 onChangeText={setNewDeckNameForSend}
                 placeholder="Enter new collection name"
@@ -602,11 +632,10 @@ export default function SavedFlashcardsScreen() {
                 style={styles.deckList}
                 renderItem={({ item }) => (
                   <TouchableOpacity 
-                    style={styles.deckListItem}
+                    style={styles.deckOptionButton}
                     onPress={() => moveFlashcard(item.id)}
                   >
-                    <Text style={styles.deckListItemText}>{item.name}</Text>
-                    <Ionicons name="chevron-forward" size={20} color={COLORS.darkGray} />
+                    <Text style={styles.deckOptionText}>{item.name}</Text>
                   </TouchableOpacity>
                 )}
                 ListEmptyComponent={
@@ -615,7 +644,7 @@ export default function SavedFlashcardsScreen() {
               />
             )}
             
-            <View style={styles.sendModalButtons}>
+            <View style={styles.modalButtonContainer}>
               {newDeckMode ? (
                 <>
                   <TouchableOpacity 
@@ -665,12 +694,12 @@ export default function SavedFlashcardsScreen() {
           showsHorizontalScrollIndicator={false}
           initialScrollIndex={selectedDeckIndex}
           getItemLayout={(_, index) => ({
-            length: screenWidth,
-            offset: screenWidth * index,
+            length: contentWidth,
+            offset: contentWidth * index,
             index,
           })}
           onMomentumScrollEnd={(e) => {
-            const newIndex = Math.floor(e.nativeEvent.contentOffset.x / screenWidth);
+            const newIndex = Math.round(e.nativeEvent.contentOffset.x / contentWidth);
             if (newIndex !== selectedDeckIndex) {
               handleDeckSwipe(newIndex);
             }
@@ -678,8 +707,8 @@ export default function SavedFlashcardsScreen() {
           scrollEnabled={true}
           style={styles.deckPager}
           removeClippedSubviews={false}
-          maxToRenderPerBatch={1}
-          windowSize={3}
+          maxToRenderPerBatch={5}
+          windowSize={11}
           decelerationRate="fast"
           snapToAlignment="start"
         />
@@ -699,7 +728,7 @@ export default function SavedFlashcardsScreen() {
         onClose={() => setShowEditModal(false)}
         onSave={handleSaveEditedFlashcard}
       />
-    </View>
+    </PokedexLayout>
   );
 }
 
@@ -759,7 +788,7 @@ const styles = StyleSheet.create({
     color: COLORS.darkGray,
   },
   listContent: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 0,
     paddingTop: 4,
     paddingBottom: 80,
     flexGrow: 1,
@@ -768,11 +797,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: COLORS.screenBackground,
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 10,
     fontSize: 16,
-    color: COLORS.darkGray,
+    color: COLORS.text,
   },
   emptyContainer: {
     flex: 1,
@@ -820,18 +850,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
   },
-  sendModal: {
-    width: '90%',
-    backgroundColor: COLORS.darkSurface,
-    borderRadius: 12,
-    padding: 20,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    maxHeight: '80%',
-  },
   renameTitle: {
     fontSize: 18,
     fontWeight: 'bold',
@@ -846,10 +864,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.text,
     marginBottom: 16,
+    textAlign: 'center',
   },
   renameButtonsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginTop: 10,
   },
   renameButton: {
     flex: 1,
@@ -872,74 +892,96 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: COLORS.text,
   },
-  deckList: {
-    maxHeight: 250,
-    marginBottom: 16,
+  deckPager: {
+    flex: 1,
   },
-  deckListItem: {
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'android' ? 10 : 12,
+    paddingBottom: 10,
+    backgroundColor: COLORS.background,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    textAlign: 'center',
+    flex: 1,
+  },
+  homeButton: {
+    padding: 5,
+    position: 'absolute',
+    right: 16,
+    top: Platform.OS === 'android' ? 10 : 12,
+  },
+  deckPage: {
+    alignItems: 'center', 
+    justifyContent: 'center',
+    paddingHorizontal: 8, 
+  },
+  deckContentContainer: {
+    flex: 1,
+    width: '100%',
+  },
+  deckOptionButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 10,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.mediumSurface,
+    width: '100%',
+    alignItems: 'center',
   },
-  deckListItemText: {
+  deckOptionText: {
     fontSize: 16,
     color: COLORS.text,
+  },
+  newDeckInputContainer: {
+    marginTop: 10,
+    width: '100%',
+  },
+  newDeckInput: {
+    backgroundColor: COLORS.darkSurface,
+    color: COLORS.text,
+    padding: 10,
+    borderRadius: 5,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  sendModalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+  },
+  sendModalContent: {
+    backgroundColor: COLORS.surface,
+    padding: 20,
+    borderRadius: 10,
+    width: '80%',
+    alignItems: 'center',
+  },
+  sendModalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 15,
+  },
+  deckList: {
+    maxHeight: 250,
+    marginBottom: 16,
   },
   noDeckOptions: {
     textAlign: 'center',
     color: COLORS.darkGray,
     padding: 16,
   },
-  sendModalButtons: {
+  modalButtonContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 16,
-  },
-  backButtonContainer: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    zIndex: 1000,
-  },
-  backButton: {
-    padding: 8,
-  },
-  backButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginLeft: 8,
-  },
-  customHeaderContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    height: 60,
-    backgroundColor: '#1e293b',
-    paddingHorizontal: 15,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    flex: 1,
-    textAlign: 'center',
-  },
-  placeholderRight: {
-    width: 35,
-  },
-  deckPage: {
-    flex: 1,
+    justifyContent: 'space-around',
     width: '100%',
-  },
-  deckContentContainer: {
-    flex: 1,
-    width: '100%',
-  },
-  deckPager: {
-    flex: 1,
+    marginTop: 10,
   },
 }); 
