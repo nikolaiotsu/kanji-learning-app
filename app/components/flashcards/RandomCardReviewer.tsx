@@ -330,9 +330,9 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
 const styles = StyleSheet.create({
   container: {
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    borderRadius: 12,
+    borderRadius: 0, // Removed border radius to reach screen edges
     paddingVertical: 15,
-    paddingHorizontal: 5,
+    paddingHorizontal: 0, // Removed horizontal padding to reach screen edges
     paddingBottom: 15,
     width: '100%',
     alignItems: 'center',
@@ -345,8 +345,8 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    minHeight: 450,
-    maxHeight: 600,
+    minHeight: 500, // Increased minimum height for larger cards
+    maxHeight: 700, // Increased maximum height for larger cards
     flexShrink: 1,
   },
   header: {
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     alignItems: 'center',
     marginBottom: 10,
-    paddingHorizontal: 5,
+    paddingHorizontal: 15, // Added padding since container no longer has horizontal padding
   },
   deckButton: {
     flexDirection: 'row',
@@ -371,11 +371,11 @@ const styles = StyleSheet.create({
   },
   cardStage: {
     width: '100%',
-    height: 320,
+    height: 380, // Increased height for larger cards
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: 15, // Adjusted padding for better card display
   },
   cardContainer: {
     width: '100%',

@@ -659,7 +659,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: COLORS.accentMedium,
+    color: COLORS.darkGray,
   },
   errorContainer: {
     marginTop: 20,
@@ -704,7 +704,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 8,
-    color: COLORS.accentLight,
+    color: COLORS.darkGray,
   },
   furiganaText: {
     fontSize: 20,
@@ -797,7 +797,7 @@ const styles = StyleSheet.create({
   },
   textInput: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: COLORS.lightGray,
     borderRadius: 8,
     padding: 12,
     fontSize: 18,
@@ -812,7 +812,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   modalCancelButton: {
-    backgroundColor: '#F44336',
+    backgroundColor: COLORS.mediumSurface,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -821,7 +821,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalSaveButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: COLORS.mediumSurface,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -839,7 +839,7 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: COLORS.accentLight,
+    borderColor: COLORS.darkGray,
     backgroundColor: COLORS.darkSurface,
   },
   imagePreviewWrap: {

@@ -40,7 +40,13 @@ export default function App() {
       }}
       triggerLightAnimation={triggerLightAnimation}
     >
-      <View style={styles.container}>
+      <View
+        style={styles.container}
+        onLayout={(event) => {
+          // const { x, y, width, height } = event.nativeEvent.layout;
+          // console.log(`[AppIndexRootView] onLayout: x:${x}, y:${y}, width:${width}, height:${height}`);
+        }}
+      >
         <KanjiScanner onCardSwipe={handleCardSwipe} />
       </View>
     </PokedexLayout>

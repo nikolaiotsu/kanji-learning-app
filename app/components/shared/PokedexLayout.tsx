@@ -65,13 +65,13 @@ export default function PokedexLayout({
   const screenVariantStyle = variant === 'flashcards' ? styles.flashcardsScreen : {};
 
   // Determine light colors based on variant
-  const mainLightBaseColor = variant === 'flashcards' ? COLORS.pokedexAmber : '#0A64BC';
-  const mainLightInnerColor = variant === 'flashcards' ? COLORS.pokedexAmberGlow : '#4AA5F0';
-  const mainLightPulseColor = variant === 'flashcards' ? COLORS.pokedexAmberPulse : '#61DBFB';
+  const mainLightBaseColor = variant === 'flashcards' ? COLORS.pokedexAmber : '#F22E27';
+  const mainLightInnerColor = variant === 'flashcards' ? COLORS.pokedexAmberGlow : '#F22E27';
+  const mainLightPulseColor = variant === 'flashcards' ? COLORS.pokedexAmberPulse : '#F22E27';
 
   const smallLightColors = variant === 'flashcards' ? 
     [COLORS.lightGray, COLORS.mediumSurface, COLORS.pokedexYellow, COLORS.pokedexGreen] :
-    [COLORS.pokedexYellow, COLORS.pokedexGreen, COLORS.pokedexBlue, COLORS.royalBlue];
+    ['#DDAD43', '#01A84F', '#4FC3F7'];
   
   const flashcardsControlIconSize = 18;
 
@@ -121,15 +121,31 @@ export default function PokedexLayout({
 
   // Pre-compute animated styles to avoid creating new ones during render
   const mainLightAnimatedStyle = {
-    shadowOpacity: mainLightAnim,
-    opacity: Animated.add(0.7, Animated.multiply(mainLightAnim, 0.3))
+    shadowColor: variant === 'flashcards' ? '#FFA500' : '#F22E27',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: Animated.multiply(mainLightAnim, variant === 'flashcards' ? 1.5 : 1.2),
+    shadowRadius: mainLightAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, variant === 'flashcards' ? 25 : 20]
+    }),
+    opacity: Animated.add(0.6, Animated.multiply(mainLightAnim, variant === 'flashcards' ? 0.4 : 0.3))
   };
 
   // Create a simpler way to render the small lights without interpolation
   const renderSmallLight = (color: string, index: number) => {
+    // Use golden glow for the blue light (index 2) to make it more visible
+    const glowColor = variant === 'flashcards' ? '#FFA500' : 
+                     (index === 2 ? '#FFD700' : color);
+    
     const animStyle = {
-      shadowOpacity: smallLightsAnim[index],
-      opacity: Animated.add(0.7, Animated.multiply(smallLightsAnim[index], 0.3))
+      shadowColor: glowColor,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: Animated.multiply(smallLightsAnim[index], variant === 'flashcards' ? 1.5 : 1.2),
+      shadowRadius: smallLightsAnim[index].interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, variant === 'flashcards' ? 15 : 12]
+      }),
+      opacity: Animated.add(0.6, Animated.multiply(smallLightsAnim[index], variant === 'flashcards' ? 0.4 : 0.3))
     };
     
     return (
@@ -140,7 +156,11 @@ export default function PokedexLayout({
           { backgroundColor: color },
           animStyle
         ]}
-      />
+      >
+        {variant !== 'flashcards' && (
+          <View style={styles.smallLightReflection} />
+        )}
+      </Animated.View>
     );
   };
 
@@ -168,7 +188,7 @@ export default function PokedexLayout({
             </>
           ) : (
             <>
-              {/* Main Variant: Circle lights with animation */}
+              {/* Main Variant: Simple bulbous light with animation */}
               <Animated.View 
                 style={[
                   styles.mainLight, 
@@ -178,33 +198,13 @@ export default function PokedexLayout({
                   mainLightAnimatedStyle
                 ]}
               >
-                <View style={[styles.mainLightRing, { borderColor: '#084A8B' }]} />
-                <Animated.View 
-                  style={[
-                    styles.mainLightInner, 
-                    { 
-                      backgroundColor: mainLightInnerColor,
-                    },
-                    { opacity: Animated.add(0.8, Animated.multiply(mainLightAnim, 0.2)) }
-                  ]} 
-                />
+                <View style={[styles.mainLightHighlight, { backgroundColor: `${mainLightBaseColor}60` }]} />
                 <View style={styles.mainLightReflection} />
-                <Animated.View 
-                  style={[
-                    styles.pulseIndicator, 
-                    { 
-                      backgroundColor: mainLightPulseColor, 
-                      borderColor: '#084A8B',
-                    },
-                    { opacity: mainLightAnim }
-                  ]} 
-                />
               </Animated.View>
-              <View style={styles.smallLights}>
+                              <View style={styles.smallLights}>
                 {smallLightColors.map((color, index) => (
                   <View key={index} style={styles.smallLightContainer}>
                     {renderSmallLight(color, index)}
-                    <View style={styles.lightReflection} />
                   </View>
                 ))}
               </View>
@@ -272,14 +272,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 15,
-    // Futuristic style with enhanced glow effect
-    shadowColor: '#61DBFB',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 8,
     elevation: 5,
     position: 'relative',
-    borderColor: '#084A8B',
+    borderColor: '#000000',
+    // Add inset shadow effect
+    shadowColor: '#000000',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   mainLightRing: {
     position: 'absolute',
@@ -294,22 +294,21 @@ const styles = StyleSheet.create({
     height: 30,
     borderRadius: 15, // Changed to make it circular
     borderWidth: 1,
-    shadowColor: '#FFFFFF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 10,
     elevation: 3,
   },
   mainLightReflection: {
     position: 'absolute',
-    width: 15,
-    height: 15,
-    borderRadius: 7.5, // Changed to make it circular
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: '#FFFFFF90',
-    top: 8,
-    left: 8,
-    transform: [{ scale: 0.6 }], // Added scale transform for futuristic look
-    opacity: 0.9,
+    top: 6,
+    left: 6,
+    opacity: 0.8,
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 3,
   },
   pulseIndicator: {
     position: 'absolute',
@@ -319,11 +318,6 @@ const styles = StyleSheet.create({
     bottom: 5,
     right: 5,
     borderWidth: 1,
-    // Futuristic pulsing glow effect
-    shadowColor: '#61DBFB',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 5,
   },
   smallLights: {
     flexDirection: 'row',
@@ -335,14 +329,14 @@ const styles = StyleSheet.create({
     height: 18, // Changed from 8 to 18 to make it circular
     borderRadius: 9, // Changed to make it circular
     marginHorizontal: 4,
-    borderWidth: 1.5,
-    borderColor: COLORS.pokedexBlack,
-    // Futuristic style with glow
-    shadowColor: '#61DBFB',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 3,
+    borderWidth: 2,
+    borderColor: '#000000',
     elevation: 3,
+    // Add depth shadow effect
+    shadowColor: '#000000',
+    shadowOffset: { width: 1, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
   },
   screen: {
     flex: 1,
@@ -480,12 +474,18 @@ const styles = StyleSheet.create({
   },
   lightReflection: {
     position: 'absolute',
-    width: 10,
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: '#FFFFFF80',
-    top: 6, // Adjusted for circular lights
-    left: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FFFFFF90',
+    top: 4,
+    left: 6,
+    borderWidth: 0.5,
+    borderColor: '#FFFFFF60',
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 2,
   },
   flashcardsMainStatusBar: {
     height: 20,
@@ -545,5 +545,28 @@ const styles = StyleSheet.create({
     width: 100,
     height: 30,
     zIndex: 5,
+  },
+  mainLightHighlight: {
+    position: 'absolute',
+    width: 35,
+    height: 35,
+    borderRadius: 17.5,
+    top: 4,
+    left: 4,
+    opacity: 0.6,
+  },
+  smallLightReflection: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FFFFFF90',
+    top: 1,
+    left: 1,
+    opacity: 0.7,
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 2,
   },
 }); 

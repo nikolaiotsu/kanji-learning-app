@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.mediumSurface,
     padding: 16,
     margin: 16,
     marginBottom: 16,
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   createButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.mediumSurface,
     marginLeft: 8,
   },
   cancelButtonText: {

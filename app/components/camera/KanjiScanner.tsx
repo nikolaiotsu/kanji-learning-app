@@ -693,7 +693,13 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
   };
 
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      onLayout={(event) => {
+        // const { x, y, width, height } = event.nativeEvent.layout;
+        // console.log(`[KanjiScannerRootView] onLayout: x:${x}, y:${y}, width:${width}, height:${height}`);
+      }}
+    >
       {!capturedImage ? (
         <>
           {/* Settings Menu Button */}
@@ -793,7 +799,7 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
             <PokedexButton
               onPress={handleCancel}
               icon="arrow-back"
-              color={COLORS.pokedexGreen}
+              color={COLORS.secondary}
               size="small"
               shape="square"
               style={styles.toolbarFarButton}
@@ -1020,20 +1026,20 @@ const styles = StyleSheet.create({
   },
   settingsButton: {
     position: 'absolute',
-    top: 10,
+    top: 5, // Moved slightly higher from the edge
     right: 10,
-    zIndex: 1001,
+    zIndex: 800, // Reduced z-index to be below the card reviewer
   },
   settingsMenu: {
     position: 'absolute',
-    top: 55,
+    top: 50, // Adjusted to match the new button position
     right: 10,
     backgroundColor: COLORS.darkSurface,
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 4,
     width: 150,
-    zIndex: 1002,
+    zIndex: 1000, // High enough to appear above everything when opened
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -1060,12 +1066,12 @@ const styles = StyleSheet.create({
   // Reviewer container style
   reviewerContainer: {
     position: 'absolute',
-    top: '15%', // Adjusted from 10% to center it better in the available space
+    top: '10%', // Moved closer to top to maximize screen usage
     transform: [{ translateY: 0 }],
-    left: 10,
-    right: 10,
+    left: 0, // Removed left margin to reach screen edge
+    right: 0, // Removed right margin to reach screen edge
     zIndex: 900,
-    maxHeight: '60%', // Increased from 40% to allow for the larger card size
+    maxHeight: '70%', // Increased to allow for larger card size
   },
   backdrop: {
     position: 'absolute',
@@ -1073,7 +1079,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 1000,
+    zIndex: 999, // Just below the settings menu
   },
   textInputButton: {
     backgroundColor: '#E53170',
@@ -1121,7 +1127,7 @@ const styles = StyleSheet.create({
   },
   textInput: {
     borderWidth: 1,
-    borderColor: COLORS.accentLight,
+    borderColor: COLORS.lightGray,
     borderRadius: 8,
     padding: 12,
     fontSize: 18,
@@ -1136,7 +1142,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   modalCancelButton: {
-    backgroundColor: COLORS.danger,
+    backgroundColor: COLORS.mediumSurface,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -1145,7 +1151,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalSaveButton: {
-    backgroundColor: COLORS.secondary,
+    backgroundColor: COLORS.mediumSurface,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,

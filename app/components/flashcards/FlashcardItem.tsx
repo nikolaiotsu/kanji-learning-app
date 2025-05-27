@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
   },
   cardWrapper: {
     width: '100%',
-    minHeight: 280,
+    minHeight: 350, // Increased from 280 to make cards larger
     borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: COLORS.darkSurface,
@@ -409,7 +409,7 @@ const styles = StyleSheet.create({
   },
   expandedCardWrapper: {
     // This expands the card height when an image is displayed
-    minHeight: 550,
+    minHeight: 650, // Increased from 550 to accommodate larger base size
   },
   cardContent: {
     position: 'absolute',
@@ -451,31 +451,31 @@ const styles = StyleSheet.create({
     alignItems: 'center', // Center the text
   },
   japaneseText: {
-    fontSize: 24,
+    fontSize: 28, // Increased from 24 for better visibility on larger cards
     textAlign: 'center',
     color: COLORS.text,
-    lineHeight: 36,
+    lineHeight: 42, // Increased proportionally
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.accentMedium,
+    color: COLORS.darkGray,
     marginBottom: 5,
     marginTop: 15,
     textAlign: 'center', // Center the title
   },
   furiganaText: {
-    fontSize: 18,
+    fontSize: 20, // Increased from 18 for better visibility on larger cards
     textAlign: 'center', // Center the text
     color: COLORS.text,
     marginBottom: 15,
-    lineHeight: 28,
+    lineHeight: 30, // Increased proportionally
   },
   translatedText: {
-    fontSize: 18,
+    fontSize: 20, // Increased from 18 for better visibility on larger cards
     textAlign: 'center', // Center the text
     color: COLORS.text,
-    lineHeight: 28,
+    lineHeight: 30, // Increased proportionally
   },
   actionButtonsContainer: {
     position: 'absolute',
@@ -543,17 +543,17 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: COLORS.accentLight,
+    borderColor: COLORS.darkGray,
     backgroundColor: COLORS.darkSurface,
   },
   deckLabel: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.accentMedium,
+    color: COLORS.darkGray,
   },
   deckName: {
     fontSize: 16,
-    color: COLORS.accentLight,
+    color: COLORS.darkGray,
   },
 });
 
