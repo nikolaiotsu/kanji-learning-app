@@ -161,8 +161,8 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       // Clear processing state when image changes
       setIsProcessing(false);
       prevImageUriRef.current = imageUri;
-      // Reset containerScreenOffset when image changes as layout might change
-      setContainerScreenOffset(null);
+      // Don't reset containerScreenOffset when image changes - layout dimensions remain the same
+      // Only reset it if we actually need to remeasure (which onLayout will handle)
     }
   }, [imageUri]);
   
@@ -249,6 +249,24 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
     initialRotation,
     rotateMode, 
   ]);
+
+  // Use a useEffect to handle remeasuring when containerScreenOffset is missing
+  useEffect(() => {
+    if (!containerScreenOffset && panResponderViewRef.current && measuredLayout) {
+      console.log('[ImageHighlighter] containerScreenOffset is null, attempting to remeasure...');
+      // Small delay to ensure the component is fully rendered
+      const timeoutId = setTimeout(() => {
+        if (panResponderViewRef.current) {
+          panResponderViewRef.current.measure((fx, fy, w, h, px, py) => {
+            console.log(`[ImageHighlighter] Delayed remeasure: screenX:${px}, screenY:${py}, width:${w}, height:${h}`);
+            setContainerScreenOffset({ x: px, y: py });
+          });
+        }
+      }, 50);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [containerScreenOffset, measuredLayout]);
 
   // Forward the imageViewRef and transform data to parent component
   useImperativeHandle(ref, () => ({
@@ -985,7 +1003,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
 
   // Render null or a placeholder if imageWrapper layout hasn't been measured yet
   // This ensures measuredLayout is set before attempting to calculate image scaling
-  if (!measuredLayout || !containerScreenOffset) { // Also wait for containerScreenOffset
+  if (!measuredLayout) {
     return (
       <View 
         ref={panResponderViewRef} 
@@ -996,6 +1014,15 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         <ActivityIndicator size="large" color={COLORS.primary} style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}/>
       </View>
     );
+  }
+
+  // If we don't have containerScreenOffset yet, trigger a remeasure but still render the image
+  if (!containerScreenOffset && panResponderViewRef.current) {
+    // Trigger a remeasure to get the screen offset
+    panResponderViewRef.current.measure((fx, fy, w, h, px, py) => {
+      console.log(`[ImageHighlighter] Remeasuring panResponderViewRef: screenX:${px}, screenY:${py}, width:${w}, height:${h}`);
+      setContainerScreenOffset({ x: px, y: py });
+    });
   }
 
   // This is the main rendering path once initial layout is known.
