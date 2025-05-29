@@ -124,6 +124,24 @@ export function containsText(text: string): boolean {
   return textRegex.test(text);
 }
 
+/**
+ * Checks if Japanese text contains kanji characters that would need furigana
+ */
+export function containsKanji(text: string): boolean {
+  // Regex for kanji characters (CJK unified ideographs)
+  const kanjiRegex = /[\u4e00-\u9fff]/;
+  return kanjiRegex.test(text);
+}
+
+/**
+ * Counts the number of kanji characters in text
+ */
+export function countKanji(text: string): number {
+  const kanjiRegex = /[\u4e00-\u9fff]/g;
+  const matches = text.match(kanjiRegex);
+  return matches ? matches.length : 0;
+}
+
 // For backward compatibility
 export const cleanJapaneseText = cleanText;
 
@@ -139,6 +157,8 @@ const TextFormatting = {
   containsRussianText,
   containsArabicText,
   containsItalianText,
-  containsTagalogText
+  containsTagalogText,
+  containsKanji,
+  countKanji
 };
 export default TextFormatting; 

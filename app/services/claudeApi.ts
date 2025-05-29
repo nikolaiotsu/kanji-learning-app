@@ -5,7 +5,8 @@ import {
   containsChinese, 
   containsKoreanText,
   containsItalianText,
-  containsTagalogText 
+  containsTagalogText,
+  containsKanji
 } from '../utils/textFormatting';
 
 // Define response structure
@@ -488,30 +489,47 @@ Format your response as valid JSON with these exact keys:
 }
 `;
       } else if (primaryLanguage === "Japanese") {
-        // Japanese prompt
+        // Japanese prompt - Enhanced for better furigana reliability
         userMessage = `
 ${promptTopSection}
-You are a Japanese language expert. I need you to analyze this text and add furigana to words containing kanji: "${text}"
+You are a Japanese language expert. I need you to analyze this text and add furigana to ALL words containing kanji: "${text}"
 
-IMPORTANT FORMATTING REQUIREMENTS FOR JAPANESE TEXT:
-- Keep all original text as is (including any English words, numbers, or punctuation)
-- For each word containing kanji, add the hiragana reading in parentheses immediately after the COMPLETE word
-- The reading should cover the entire word (including any hiragana parts)
-- Add readings only for words containing kanji
-- Non-kanji words, English words, and numbers should remain unchanged
-- Translate into ${targetLangName} language, NOT English (unless English is specifically requested)
+CRITICAL REQUIREMENTS FOR JAPANESE TEXT - THESE ARE MANDATORY:
+1. Keep all original text exactly as is (including any English words, numbers, or punctuation)
+2. For EVERY word containing kanji, you MUST add the complete hiragana reading in parentheses immediately after the word
+3. The reading should cover the entire word (including any hiragana/katakana parts attached to the kanji)
+4. You MUST NOT skip any kanji - every single kanji character must have furigana
+5. Non-kanji words (pure hiragana/katakana), English words, and numbers should remain unchanged
+6. Translate into ${targetLangName} language, NOT English (unless English is specifically requested)
 
-Examples of correct Japanese furigana formatting:
-- "東京" should become "東京(とうきょう)"
-- "日本語" should become "日本語(にほんご)"
-- "勉強する" should become "勉強する(べんきょうする)"
-- "iPhone 15" should remain "iPhone 15"
+VALIDATION REQUIREMENT:
+Before providing your response, verify that EVERY kanji character in the original text has corresponding furigana in your output. If you cannot determine the reading for any kanji, use the most common reading and mark it with [?].
+
+Examples of MANDATORY correct Japanese furigana formatting:
+- "東京" → "東京(とうきょう)" [REQUIRED - not optional]
+- "日本語" → "日本語(にほんご)" [REQUIRED - not optional]  
+- "勉強する" → "勉強する(べんきょうする)" [REQUIRED - covers entire word]
+- "お疲れ様" → "お疲(つか)れ様(さま)" [REQUIRED - each kanji gets furigana]
+- "食べ物" → "食(た)べ物(もの)" [REQUIRED - each kanji separately]
+- "iPhone 15" → "iPhone 15" [NO CHANGE - no kanji]
+- "ひらがな" → "ひらがな" [NO CHANGE - no kanji]
+- "カタカナ" → "カタカナ" [NO CHANGE - no kanji]
+
+COMPLEX EXAMPLES:
+- "今日は良い天気ですね" → "今日(きょう)は良(よ)い天気(てんき)ですね"
+- "新しい本を読みました" → "新(あたら)しい本(ほん)を読(よ)みました"
+- "駅まで歩いて行きます" → "駅(えき)まで歩(ある)いて行(い)きます"
+
+ERROR HANDLING:
+If you encounter a kanji whose reading you're uncertain about, use the most common reading and add [?] after the furigana like this: "難(むずか)[?]しい"
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "Japanese text with furigana after each kanji word as shown in examples",
+  "furiganaText": "Japanese text with furigana after EVERY kanji word as shown in examples - THIS IS MANDATORY",
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
+
+FINAL CHECK: Before responding, count the kanji in the original text and ensure your furiganaText has the same number of kanji with furigana readings.
 `;
       } else {
         // Default prompt for other languages
@@ -579,8 +597,109 @@ Format your response as valid JSON with these exact keys:
             const translatedPreview = translatedText.substring(0, 60) + (translatedText.length > 60 ? "..." : "");
             console.log(`Translation complete: "${translatedPreview}"`);
             
+            // For Japanese text, validate furigana coverage
+            let furiganaText = parsedContent.furiganaText || "";
+            if (primaryLanguage === "Japanese" && furiganaText) {
+              const validation = validateJapaneseFurigana(text, furiganaText);
+              console.log(`Furigana validation: ${validation.details}`);
+              
+              if (!validation.isValid) {
+                console.warn(`Incomplete furigana coverage: ${validation.details}`);
+                
+                // If this is the first attempt and we have significant missing furigana, retry with more aggressive prompt
+                if (retryCount === 0 && validation.missingKanjiCount > 0) {
+                  console.log("Retrying with more aggressive furigana prompt...");
+                  retryCount++;
+                  
+                  // Create a more aggressive prompt for retry
+                  const aggressivePrompt = `
+${promptTopSection}
+CRITICAL FURIGANA RETRY - PREVIOUS ATTEMPT FAILED
+
+You are a Japanese language expert. The previous attempt failed to add furigana to ALL kanji. You MUST fix this.
+
+Original text: "${text}"
+Previous result had ${validation.missingKanjiCount} missing furigana out of ${validation.totalKanjiCount} total kanji.
+
+ABSOLUTE REQUIREMENTS - NO EXCEPTIONS:
+1. EVERY SINGLE KANJI CHARACTER must have furigana in parentheses
+2. Count the kanji in the original text: ${validation.totalKanjiCount} kanji total
+3. Your response must have exactly ${validation.totalKanjiCount} kanji with furigana
+4. If you're unsure of a reading, use the most common one and add [?]
+5. DO NOT SKIP ANY KANJI - this is mandatory
+
+MANDATORY FORMAT for each kanji word:
+- Single kanji: 本(ほん), 人(ひと), 車(くるま)
+- Multiple kanji: 東京(とうきょう), 日本語(にほんご)
+- Mixed words: 勉強する(べんきょうする), 食べ物(たべもの)
+
+VERIFICATION STEP: Before responding, manually count:
+- Original kanji count: ${validation.totalKanjiCount}
+- Your furigana count: [must equal ${validation.totalKanjiCount}]
+
+Format as JSON:
+{
+  "furiganaText": "Text with furigana for ALL ${validation.totalKanjiCount} kanji - MANDATORY",
+  "translatedText": "Translation in ${targetLangName}"
+}`;
+
+                  // Make retry request
+                  const retryResponse = await axios.post(
+                    'https://api.anthropic.com/v1/messages',
+                    {
+                      model: "claude-3-haiku-20240307",
+                      max_tokens: 1000,
+                      temperature: 0,
+                      messages: [
+                        {
+                          role: "user",
+                          content: aggressivePrompt
+                        }
+                      ]
+                    },
+                    {
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'anthropic-version': '2023-06-01',
+                        'x-api-key': apiKey
+                      }
+                    }
+                  );
+
+                  // Process retry response
+                  if (retryResponse.data && retryResponse.data.content && Array.isArray(retryResponse.data.content)) {
+                    const retryTextContent = retryResponse.data.content.find((item: ClaudeContentItem) => item.type === "text");
+                    
+                    if (retryTextContent && retryTextContent.text) {
+                      try {
+                        const retryJsonMatch = retryTextContent.text.match(/\{[\s\S]*\}/);
+                        const retryJsonString = retryJsonMatch ? retryJsonMatch[0] : retryTextContent.text;
+                        const retryParsedContent = JSON.parse(retryJsonString);
+                        
+                        const retryFuriganaText = retryParsedContent.furiganaText || "";
+                        const retryValidation = validateJapaneseFurigana(text, retryFuriganaText);
+                        
+                        console.log(`Retry furigana validation: ${retryValidation.details}`);
+                        
+                        if (retryValidation.isValid || retryValidation.missingKanjiCount < validation.missingKanjiCount) {
+                          // Use retry result if it's better
+                          furiganaText = retryFuriganaText;
+                          console.log("Retry successful - using improved furigana result");
+                        } else {
+                          console.log("Retry did not improve furigana coverage - using original result");
+                        }
+                      } catch (retryParseError) {
+                        console.error("Error parsing retry response:", retryParseError);
+                        // Continue with original result
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            
             return {
-              furiganaText: parsedContent.furiganaText || "",
+              furiganaText: furiganaText,
               translatedText: translatedText
             };
           } catch (parseError) {
@@ -653,4 +772,63 @@ Format your response as valid JSON with these exact keys:
 // Add default export to satisfy Expo Router's requirement
 export default {
   processWithClaude
-}; 
+};
+
+/**
+ * Validates that Japanese text with furigana has proper coverage of all kanji
+ * @param originalText The original Japanese text
+ * @param furiganaText The text with furigana added
+ * @returns Object with validation result and details
+ */
+function validateJapaneseFurigana(originalText: string, furiganaText: string): {
+  isValid: boolean;
+  missingKanjiCount: number;
+  totalKanjiCount: number;
+  details: string;
+} {
+  // Extract all kanji from original text
+  const kanjiRegex = /[\u4e00-\u9fff]/g;
+  const originalKanji = originalText.match(kanjiRegex) || [];
+  const totalKanjiCount = originalKanji.length;
+  
+  if (totalKanjiCount === 0) {
+    return {
+      isValid: true,
+      missingKanjiCount: 0,
+      totalKanjiCount: 0,
+      details: "No kanji found in text"
+    };
+  }
+  
+  // Count kanji that have furigana in the furigana text
+  // Look for patterns like 漢字(かんじ) where kanji is followed by hiragana in parentheses
+  const furiganaPattern = /[\u4e00-\u9fff]+\([ぁ-ゟ\?]+\)/g;
+  const furiganaMatches = furiganaText.match(furiganaPattern) || [];
+  
+  // Extract kanji from furigana matches
+  const kanjiWithFurigana: string[] = [];
+  furiganaMatches.forEach(match => {
+    const kanjiPart = match.split('(')[0];
+    const kanjiInMatch = kanjiPart.match(kanjiRegex) || [];
+    kanjiWithFurigana.push(...kanjiInMatch);
+  });
+  
+  const missingKanjiCount = Math.max(0, totalKanjiCount - kanjiWithFurigana.length);
+  const isValid = missingKanjiCount === 0;
+  
+  const details = isValid 
+    ? `All ${totalKanjiCount} kanji have furigana`
+    : `${missingKanjiCount} out of ${totalKanjiCount} kanji are missing furigana`;
+  
+  return {
+    isValid,
+    missingKanjiCount,
+    totalKanjiCount,
+    details
+  };
+}
+
+/**
+ * Exported validation function for use in other parts of the app
+ */
+export { validateJapaneseFurigana }; 

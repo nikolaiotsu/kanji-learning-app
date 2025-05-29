@@ -126,11 +126,13 @@ export default function PokedexButton({
           )}
         </View>
       </Pressable>
+      {/* Removed 3D shadow effect to eliminate circular shadow underneath square buttons
       {!disabled && (
         <View style={[
           buttonStyles.shadow,
         ]} />
       )}
+      */}
     </View>
   );
 }

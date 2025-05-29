@@ -1,4 +1,4 @@
-import React, { ReactNode, useRef, useEffect, useMemo } from 'react';
+import React, { ReactNode, useRef, useEffect, useMemo, memo } from 'react';
 import { 
   View, 
   StyleSheet, 
@@ -23,7 +23,7 @@ interface PokedexLayoutProps {
   triggerLightAnimation?: boolean;
 }
 
-export default function PokedexLayout({
+export default memo(function PokedexLayout({
   children,
   style,
   screenStyle,
@@ -216,6 +216,7 @@ export default function PokedexLayout({
               source={logoSource}
               style={[styles.logoImage, logoStyle]}
               resizeMode="contain"
+              fadeDuration={0}
             />
           )}
         </View>
@@ -235,7 +236,7 @@ export default function PokedexLayout({
       <View style={styles.rightBorderDetail} />
     </SafeAreaView>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

@@ -14,7 +14,12 @@ export default function ScreensLayout() {
         }}
       >
         <Stack.Screen name="index" />
-        <Stack.Screen name="camera" />
+        <Stack.Screen 
+          name="camera" 
+          options={{ 
+            gestureEnabled: false 
+          }} 
+        />
         <Stack.Screen name="flashcards" />
       </Stack>
     </SafeAreaProvider>

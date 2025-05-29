@@ -12,7 +12,8 @@ import {
   containsRussianText,
   containsArabicText,
   containsItalianText,
-  containsTagalogText
+  containsTagalogText,
+  containsKanji
 } from './utils/textFormatting';
 import { saveFlashcard, uploadImageToStorage } from './services/supabaseStorage';
 import { Flashcard } from './types/Flashcard';
@@ -59,6 +60,12 @@ export default function LanguageFlashcardsScreen() {
   const [editedText, setEditedText] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
   const [textProcessed, setTextProcessed] = useState(false);
+  const [showEditTranslationModal, setShowEditTranslationModal] = useState(false);
+  
+  // Temporary state to store previous translation results when editing
+  const [previousTranslatedText, setPreviousTranslatedText] = useState('');
+  const [previousFuriganaText, setPreviousFuriganaText] = useState('');
+  const [previousTextProcessed, setPreviousTextProcessed] = useState(false);
 
   // State for language detection
   const [detectedLanguage, setDetectedLanguage] = useState('');
@@ -152,7 +159,12 @@ export default function LanguageFlashcardsScreen() {
           setFuriganaText(result.furiganaText);
           // Show error if romanization is missing for languages that should have it
           if (!result.furiganaText) {
-            setError('Failed to get proper romanization for this text. The translation is still available.');
+            // For Japanese text, provide more specific error message if kanji is present
+            if (hasJapanese && containsKanji(text)) {
+              setError('Failed to generate furigana for kanji characters. This may affect readability. The translation is still available.');
+            } else {
+              setError('Failed to get proper romanization for this text. The translation is still available.');
+            }
           }
         }
         
@@ -322,6 +334,42 @@ export default function LanguageFlashcardsScreen() {
       setTranslatedText('');
       setTextProcessed(false);
     }
+    
+    // Clear the temporary state since user is committing to the new text
+    setPreviousTranslatedText('');
+    setPreviousFuriganaText('');
+    setPreviousTextProcessed(false);
+  };
+
+  // Function to handle editing input and retranslating
+  const handleEditInputAndRetranslate = () => {
+    // Store current translation state before clearing it
+    setPreviousTranslatedText(translatedText);
+    setPreviousFuriganaText(furiganaText);
+    setPreviousTextProcessed(textProcessed);
+    
+    // Reset the translation state and show the edit modal
+    setTextProcessed(false);
+    setFuriganaText('');
+    setTranslatedText('');
+    setError('');
+    setShowEditModal(true);
+  };
+
+  // Function to handle canceling edit modal
+  const handleCancelEdit = () => {
+    setShowEditModal(false);
+    // Restore previous translation results if they existed
+    if (previousTextProcessed) {
+      setTranslatedText(previousTranslatedText);
+      setFuriganaText(previousFuriganaText);
+      setTextProcessed(previousTextProcessed);
+      
+      // Clear the temporary state
+      setPreviousTranslatedText('');
+      setPreviousFuriganaText('');
+      setPreviousTextProcessed(false);
+    }
   };
 
   // Function to handle going back to home
@@ -479,6 +527,25 @@ export default function LanguageFlashcardsScreen() {
                   {/* Save Flashcard Button */}
                   {textProcessed && translatedText && (
                     <View style={styles.buttonContainer}>
+                      {/* Edit buttons for post-translation editing */}
+                      <View style={styles.editButtonsContainer}>
+                        <TouchableOpacity 
+                          style={styles.editTranslationButton} 
+                          onPress={() => setShowEditTranslationModal(true)}
+                        >
+                          <Ionicons name="pencil" size={18} color="#ffffff" style={styles.buttonIcon} />
+                          <Text style={styles.editButtonText}>Edit Translation</Text>
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity 
+                          style={styles.editInputButton} 
+                          onPress={handleEditInputAndRetranslate}
+                        >
+                          <Ionicons name="refresh" size={18} color="#ffffff" style={styles.buttonIcon} />
+                          <Text style={styles.editButtonText}>Edit Input & Retranslate</Text>
+                        </TouchableOpacity>
+                      </View>
+
                       <TouchableOpacity 
                         style={[
                           styles.saveButton, 
@@ -535,7 +602,7 @@ export default function LanguageFlashcardsScreen() {
           visible={showEditModal}
           transparent={true}
           animationType="slide"
-          onRequestClose={() => setShowEditModal(false)}
+          onRequestClose={handleCancelEdit}
         >
           <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
@@ -551,13 +618,69 @@ export default function LanguageFlashcardsScreen() {
               <View style={styles.modalButtonsContainer}>
                 <TouchableOpacity 
                   style={styles.modalCancelButton} 
-                  onPress={() => setShowEditModal(false)}
+                  onPress={handleCancelEdit}
                 >
                   <Text style={styles.modalButtonText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.modalSaveButton} 
                   onPress={handleSaveEdit}
+                >
+                  <Text style={styles.modalButtonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Edit Translation Modal */}
+        <Modal
+          visible={showEditTranslationModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowEditTranslationModal(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Edit Translation</Text>
+              <TextInput
+                style={styles.textInput}
+                value={translatedText}
+                onChangeText={setTranslatedText}
+                multiline
+                placeholder="Edit translation here..."
+                placeholderTextColor="#aaa"
+              />
+              {needsRomanization && (
+                <>
+                  <Text style={styles.modalTitle}>
+                    {detectedLanguage === 'Japanese' ? 'Edit Furigana' :
+                     detectedLanguage === 'Chinese' ? 'Edit Pinyin' :
+                     detectedLanguage === 'Korean' ? 'Edit Romanization' :
+                     detectedLanguage === 'Russian' ? 'Edit Romanization' :
+                     detectedLanguage === 'Arabic' ? 'Edit Transliteration' :
+                     'Edit Romanization'}
+                  </Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={furiganaText}
+                    onChangeText={setFuriganaText}
+                    multiline
+                    placeholder="Edit romanization here..."
+                    placeholderTextColor="#aaa"
+                  />
+                </>
+              )}
+              <View style={styles.modalButtonsContainer}>
+                <TouchableOpacity 
+                  style={styles.modalCancelButton} 
+                  onPress={() => setShowEditTranslationModal(false)}
+                >
+                  <Text style={styles.modalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.modalSaveButton} 
+                  onPress={() => setShowEditTranslationModal(false)}
                 >
                   <Text style={styles.modalButtonText}>Save</Text>
                 </TouchableOpacity>
@@ -881,5 +1004,37 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 20,
     marginBottom: 12,
+  },
+  editButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    gap: 10,
+  },
+  editTranslationButton: {
+    backgroundColor: '#2CB67D',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  editInputButton: {
+    backgroundColor: '#FF6B6B',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  editButtonText: {
+    color: COLORS.text,
+    fontWeight: 'bold',
+    fontSize: 14,
+    marginLeft: 6,
   },
 });

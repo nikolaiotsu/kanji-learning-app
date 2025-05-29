@@ -338,43 +338,70 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         const normalizedWidth = Math.abs(width);
         const normalizedHeight = Math.abs(height);
         
-        // Ensure valid crop box values (no negative dimensions)
-        const validCrop = {
-          x: Math.max(0, normalizedX),
-          y: Math.max(0, normalizedY),
-          width: Math.max(1, normalizedWidth),
-          height: Math.max(1, normalizedHeight)
-        };
-        console.log('[ImageHighlighter] validCrop (screen coordinates):', validCrop);
+        console.log('[ImageHighlighter] Normalized crop box (wrapper coordinates):', {
+          x: normalizedX, y: normalizedY, width: normalizedWidth, height: normalizedHeight
+        });
         
         // Convert crop box coordinates from wrapper coordinates to image container coordinates
-        const imageContainerX = validCrop.x - displayImageOffsetX;
-        const imageContainerY = validCrop.y - displayImageOffsetY;
+        const imageContainerX = normalizedX - displayImageOffsetX;
+        const imageContainerY = normalizedY - displayImageOffsetY;
+        const imageContainerEndX = imageContainerX + normalizedWidth;
+        const imageContainerEndY = imageContainerY + normalizedHeight;
         
-        // Convert crop box coordinates to be relative to the original image
-        // The result will be the actual pixel coordinates in the original image
+        console.log('[ImageHighlighter] Image container coordinates:', {
+          startX: imageContainerX, startY: imageContainerY,
+          endX: imageContainerEndX, endY: imageContainerEndY,
+          containerWidth: scaledContainerWidth, containerHeight: scaledContainerHeight
+        });
+        
+        // Clamp the crop region to the actual image container bounds
+        const clampedStartX = Math.max(0, imageContainerX);
+        const clampedStartY = Math.max(0, imageContainerY);
+        const clampedEndX = Math.min(scaledContainerWidth, imageContainerEndX);
+        const clampedEndY = Math.min(scaledContainerHeight, imageContainerEndY);
+        
+        // Calculate the clamped dimensions
+        const clampedWidth = clampedEndX - clampedStartX;
+        const clampedHeight = clampedEndY - clampedStartY;
+        
+        console.log('[ImageHighlighter] Clamped to image bounds:', {
+          x: clampedStartX, y: clampedStartY, width: clampedWidth, height: clampedHeight
+        });
+        
+        // Ensure we have a valid crop region after clamping
+        if (clampedWidth <= 0 || clampedHeight <= 0) {
+          console.warn('[ImageHighlighter] Crop region is completely outside image bounds, ignoring');
+          return;
+        }
+        
+        // Convert the clamped coordinates to original image coordinates
         const originalRegion = {
-          x: Math.round((imageContainerX / scaledContainerWidth) * imageWidth),
-          y: Math.round((imageContainerY / scaledContainerHeight) * imageHeight),
-          width: Math.round((validCrop.width / scaledContainerWidth) * imageWidth),
-          height: Math.round((validCrop.height / scaledContainerHeight) * imageHeight),
+          x: Math.round((clampedStartX / scaledContainerWidth) * imageWidth),
+          y: Math.round((clampedStartY / scaledContainerHeight) * imageHeight),
+          width: Math.round((clampedWidth / scaledContainerWidth) * imageWidth),
+          height: Math.round((clampedHeight / scaledContainerHeight) * imageHeight),
           rotation: rotation // Include current rotation
         };
-        console.log('[ImageHighlighter] originalRegion (original image coordinates):', originalRegion);
+        console.log('[ImageHighlighter] Original image coordinates:', originalRegion);
         
-        // Ensure no negative values and dimensions don't exceed image bounds
+        // Final safety check to ensure coordinates are within image bounds
         const safeRegion = {
           x: Math.max(0, Math.min(originalRegion.x, imageWidth - 1)),
           y: Math.max(0, Math.min(originalRegion.y, imageHeight - 1)),
-          width: Math.max(5, Math.min(originalRegion.width, imageWidth - originalRegion.x)),
-          height: Math.max(5, Math.min(originalRegion.height, imageHeight - originalRegion.y)),
+          width: Math.max(1, Math.min(originalRegion.width, imageWidth - Math.max(0, originalRegion.x))),
+          height: Math.max(1, Math.min(originalRegion.height, imageHeight - Math.max(0, originalRegion.y))),
           rotation: originalRegion.rotation
         };
         
-        console.log('[ImageHighlighter] safeRegion (final image coordinates for crop):', safeRegion);
+        console.log('[ImageHighlighter] Final safe region:', safeRegion);
+        
+        // Validate that the final region is within bounds
+        if (safeRegion.x + safeRegion.width > imageWidth || safeRegion.y + safeRegion.height > imageHeight) {
+          console.error('[ImageHighlighter] Final region still exceeds image bounds, this should not happen');
+          return;
+        }
         
         // Use the existing onRegionSelected callback to process the crop
-        // We're still in crop mode (not highlight mode) when calling this
         console.log('[ImageHighlighter] Calling onRegionSelected with safeRegion');
         onRegionSelected(safeRegion);
         console.log('[ImageHighlighter] onRegionSelected callback completed');
@@ -516,9 +543,32 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   };
 
   const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => !!containerScreenOffset, // Only allow if layout is measured
+    onStartShouldSetPanResponder: (evt) => {
+      if (!containerScreenOffset) return false; // Only allow if layout is measured
+      
+      const { pageX } = evt.nativeEvent;
+      const currentX = pageX - containerScreenOffset.x;
+      
+      // Don't capture gestures that start very close to the left edge to avoid interfering with back swipe
+      // Allow a 30px margin from the left edge for back swipe gestures
+      if (currentX < 30 && !cropMode && !rotateMode) {
+        return false;
+      }
+      
+      return true;
+    },
     onMoveShouldSetPanResponder: (evt, gestureState) => {
-      return !!containerScreenOffset && (highlightModeActive || cropMode || rotateMode ||
+      if (!containerScreenOffset) return false;
+      
+      const { pageX } = evt.nativeEvent;
+      const currentX = pageX - containerScreenOffset.x;
+      
+      // Don't capture gestures that start very close to the left edge to avoid interfering with back swipe
+      if (currentX < 30 && !cropMode && !rotateMode) {
+        return false;
+      }
+      
+      return (highlightModeActive || cropMode || rotateMode ||
              Math.abs(gestureState.dx) > 10 || Math.abs(gestureState.dy) > 10);
     },
     onPanResponderGrant: (evt) => {
@@ -769,7 +819,6 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           const heightPercentage = (selectionHeight / (measuredLayout?.height || 1)) * 100;
           console.log(`[ImageHighlighter] Selection dimensions: ${selectionWidth}x${selectionHeight} (${widthPercentage.toFixed(1)}% x ${heightPercentage.toFixed(1)}% of wrapper)`);
           
-          const isExtremelyWide = widthPercentage > 70;
           const offsetX = displayImageOffsetX || 0; 
           const offsetY = displayImageOffsetY || 0; 
           const imageContainerMinX = minX - offsetX;
@@ -782,11 +831,11 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           const clampedMaxX = Math.min(finalDisplayImageWidth, imageContainerMaxX);
           const clampedMaxY = Math.min(finalDisplayImageHeight, imageContainerMaxY);
           
-          const horizontalExpansion = isExtremelyWide ? selectionWidth * 0.02 : 0; 
+          // Use exact selection bounds without any expansion for more precise highlighting
           const unscaledRegion = {
-            x: Math.max(0, clampedMinX - (isExtremelyWide ? horizontalExpansion : 0)),
+            x: Math.max(0, clampedMinX),
             y: Math.max(0, clampedMinY),
-            width: Math.max(1, Math.min(finalDisplayImageWidth - clampedMinX, clampedMaxX - clampedMinX + (isExtremelyWide ? horizontalExpansion * 2 : 0))),
+            width: Math.max(1, Math.min(finalDisplayImageWidth - clampedMinX, clampedMaxX - clampedMinX)),
             height: Math.max(1, Math.min(finalDisplayImageHeight - clampedMinY, clampedMaxY - clampedMinY)),
           };
           
@@ -1146,9 +1195,9 @@ const styles = StyleSheet.create({
   },
   highlight: {
     position: 'absolute',
-    borderWidth: 3,
-    borderColor: '#FF0000', // Bright red for visibility
-    backgroundColor: 'transparent', // No background to see exact positioning
+    borderWidth: 2,
+    borderColor: COLORS.pokedexYellow,
+    backgroundColor: 'transparent',
     pointerEvents: 'none',
   },
   detectedRegion: {

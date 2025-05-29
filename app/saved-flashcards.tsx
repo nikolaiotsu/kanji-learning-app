@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, Alert, TouchableOpacity, ActivityIndicator, TextInput, Dimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Alert, TouchableOpacity, ActivityIndicator, TextInput, Dimensions, Platform, SafeAreaView } from 'react-native';
 import { Flashcard } from './types/Flashcard';
 import { Deck } from './types/Deck';
 import { 
@@ -376,6 +376,11 @@ export default function SavedFlashcardsScreen() {
     setNewDeckNameForSend('');
   };
 
+  // Function to handle going back to home
+  const handleGoHome = () => {
+    router.push('/');
+  };
+
   // Function to handle deck selection
   const handleDeckSelect = (deckId: string, index: number) => {
     // Update selected deck state
@@ -553,181 +558,194 @@ export default function SavedFlashcardsScreen() {
       variant="flashcards"
       triggerLightAnimation={triggerLightAnimation}
     >
-      {isLoadingDecks ? (
-        <View style={styles.deckSelectorPlaceholder}>
-          <ActivityIndicator size="small" color="#007AFF" />
+      <SafeAreaView style={styles.container}>
+        {/* Custom Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>Your Collection</Text>
+          <TouchableOpacity 
+            style={styles.homeButton}
+            onPress={handleGoHome}
+          >
+            <Ionicons name="home-outline" size={24} color={COLORS.text} />
+          </TouchableOpacity>
         </View>
-      ) : (
-        <View style={styles.deckSelectorContainer}>
-          <FlatList
-            ref={deckSelectorRef}
-            data={decks}
-            renderItem={renderDeckItem}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.deckSelector}
-            ListEmptyComponent={
-              <View style={styles.noDecksContainer}>
-                <Text style={styles.noDecksText}>No collections available</Text>
-              </View>
-            }
-          />
-        </View>
-      )}
-      
-      {/* Deck rename modal */}
-      {editingDeckId && (
-        <View style={styles.renameModalContainer}>
-          <View style={styles.renameModal}>
-            <Text style={styles.renameTitle}>Rename Collection</Text>
-            <TextInput
-              style={styles.renameInput}
-              value={newDeckName}
-              onChangeText={setNewDeckName}
-              autoFocus
-              selectTextOnFocus
-              maxLength={30}
-            />
-            <View style={styles.renameButtonsContainer}>
-              <TouchableOpacity 
-                style={[styles.renameButton, styles.cancelButton]} 
-                onPress={() => setEditingDeckId(null)}
-              >
-                <Text style={styles.renameButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.renameButton, styles.saveButton]} 
-                onPress={saveRenamedDeck}
-              >
-                <Text style={[styles.renameButtonText, styles.saveButtonText]}>Save</Text>
-              </TouchableOpacity>
-            </View>
+
+        {isLoadingDecks ? (
+          <View style={styles.deckSelectorPlaceholder}>
+            <ActivityIndicator size="small" color="#007AFF" />
           </View>
-        </View>
-      )}
-      
-      {/* Send Flashcard Modal */}
-      {showSendModal && (
-        <View style={styles.sendModalContainer}>
-          <View style={styles.sendModalContent}>
-            <Text style={styles.sendModalTitle}>
-              {newDeckMode ? 'Create New Collection' : 'Send to Collection'}
-            </Text>
-            
-            {newDeckMode ? (
+        ) : (
+          <View style={styles.deckSelectorContainer}>
+            <FlatList
+              ref={deckSelectorRef}
+              data={decks}
+              renderItem={renderDeckItem}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.deckSelector}
+              ListEmptyComponent={
+                <View style={styles.noDecksContainer}>
+                  <Text style={styles.noDecksText}>No collections available</Text>
+                </View>
+              }
+            />
+          </View>
+        )}
+        
+        {/* Deck rename modal */}
+        {editingDeckId && (
+          <View style={styles.renameModalContainer}>
+            <View style={styles.renameModal}>
+              <Text style={styles.renameTitle}>Rename Collection</Text>
               <TextInput
-                style={styles.newDeckInput}
-                value={newDeckNameForSend}
-                onChangeText={setNewDeckNameForSend}
-                placeholder="Enter new collection name"
-                placeholderTextColor={COLORS.darkGray}
+                style={styles.renameInput}
+                value={newDeckName}
+                onChangeText={setNewDeckName}
                 autoFocus
+                selectTextOnFocus
                 maxLength={30}
               />
-            ) : (
-              <FlatList
-                data={decks.filter(deck => deck.id !== selectedDeckId)}
-                keyExtractor={(item) => item.id}
-                style={styles.deckList}
-                renderItem={({ item }) => (
-                  <TouchableOpacity 
-                    style={styles.deckOptionButton}
-                    onPress={() => moveFlashcard(item.id)}
-                  >
-                    <Text style={styles.deckOptionText}>{item.name}</Text>
-                  </TouchableOpacity>
-                )}
-                ListEmptyComponent={
-                  <Text style={styles.noDeckOptions}>No other collections available</Text>
-                }
-              />
-            )}
-            
-            <View style={styles.modalButtonContainer}>
-              {newDeckMode ? (
-                <>
-                  <TouchableOpacity 
-                    style={[styles.renameButton, styles.cancelButton]} 
-                    onPress={() => setNewDeckMode(false)}
-                  >
-                    <Text style={styles.renameButtonText}>Back</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.renameButton, styles.saveButton]} 
-                    onPress={createNewDeckAndMove}
-                    disabled={!newDeckNameForSend.trim()}
-                  >
-                    <Text style={[styles.renameButtonText, styles.saveButtonText]}>Create & Move</Text>
-                  </TouchableOpacity>
-                </>
-              ) : (
-                <>
-                  <TouchableOpacity 
-                    style={[styles.renameButton, styles.cancelButton]} 
-                    onPress={closeModal}
-                  >
-                    <Text style={styles.renameButtonText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.renameButton, styles.saveButton]} 
-                    onPress={() => setNewDeckMode(true)}
-                  >
-                    <Text style={[styles.renameButtonText, styles.saveButtonText]}>New Collection</Text>
-                  </TouchableOpacity>
-                </>
-              )}
+              <View style={styles.renameButtonsContainer}>
+                <TouchableOpacity 
+                  style={[styles.renameButton, styles.cancelButton]} 
+                  onPress={() => setEditingDeckId(null)}
+                >
+                  <Text style={styles.renameButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.renameButton, styles.saveButton]} 
+                  onPress={saveRenamedDeck}
+                >
+                  <Text style={[styles.renameButtonText, styles.saveButtonText]}>Save</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
-      )}
-      
-      {/* Deck pages with flashcards */}
-      {!isLoadingDecks && decks.length > 0 && (
-        <FlatList
-          ref={flashcardsListRef}
-          data={decks}
-          renderItem={renderDeckPage}
-          keyExtractor={(item) => item.id}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          initialScrollIndex={selectedDeckIndex}
-          getItemLayout={(_, index) => ({
-            length: contentWidth,
-            offset: contentWidth * index,
-            index,
-          })}
-          onMomentumScrollEnd={(e) => {
-            const newIndex = Math.round(e.nativeEvent.contentOffset.x / contentWidth);
-            if (newIndex !== selectedDeckIndex) {
-              handleDeckSwipe(newIndex);
-            }
-          }}
-          scrollEnabled={true}
-          style={styles.deckPager}
-          removeClippedSubviews={false}
-          maxToRenderPerBatch={5}
-          windowSize={11}
-          decelerationRate="fast"
-          snapToAlignment="start"
-        />
-      )}
-      
-      {isLoadingDecks && (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Loading flashcards...</Text>
-        </View>
-      )}
+        )}
+        
+        {/* Send Flashcard Modal */}
+        {showSendModal && (
+          <View style={styles.sendModalContainer}>
+            <View style={styles.sendModalContent}>
+              <Text style={styles.sendModalTitle}>
+                {newDeckMode ? 'Create New Collection' : 'Send to Collection'}
+              </Text>
+              
+              {newDeckMode ? (
+                <TextInput
+                  style={styles.newDeckInput}
+                  value={newDeckNameForSend}
+                  onChangeText={setNewDeckNameForSend}
+                  placeholder="Enter new collection name"
+                  placeholderTextColor={COLORS.darkGray}
+                  autoFocus
+                  maxLength={30}
+                />
+              ) : (
+                <FlatList
+                  data={decks.filter(deck => deck.id !== selectedDeckId)}
+                  keyExtractor={(item) => item.id}
+                  style={styles.deckList}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity 
+                      style={styles.deckOptionButton}
+                      onPress={() => moveFlashcard(item.id)}
+                    >
+                      <Text style={styles.deckOptionText}>{item.name}</Text>
+                    </TouchableOpacity>
+                  )}
+                  ListEmptyComponent={
+                    <Text style={styles.noDeckOptions}>No other collections available</Text>
+                  }
+                />
+              )}
+              
+              <View style={styles.modalButtonContainer}>
+                {newDeckMode ? (
+                  <>
+                    <TouchableOpacity 
+                      style={[styles.renameButton, styles.cancelButton]} 
+                      onPress={() => setNewDeckMode(false)}
+                    >
+                      <Text style={styles.renameButtonText}>Back</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.renameButton, styles.saveButton]} 
+                      onPress={createNewDeckAndMove}
+                      disabled={!newDeckNameForSend.trim()}
+                    >
+                      <Text style={[styles.renameButtonText, styles.saveButtonText]}>Create & Move</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <TouchableOpacity 
+                      style={[styles.renameButton, styles.cancelButton]} 
+                      onPress={closeModal}
+                    >
+                      <Text style={styles.renameButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.renameButton, styles.saveButton]} 
+                      onPress={() => setNewDeckMode(true)}
+                    >
+                      <Text style={[styles.renameButtonText, styles.saveButtonText]}>New Collection</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            </View>
+          </View>
+        )}
+        
+        {/* Deck pages with flashcards */}
+        {!isLoadingDecks && decks.length > 0 && (
+          <FlatList
+            ref={flashcardsListRef}
+            data={decks}
+            renderItem={renderDeckPage}
+            keyExtractor={(item) => item.id}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            initialScrollIndex={selectedDeckIndex}
+            getItemLayout={(_, index) => ({
+              length: contentWidth,
+              offset: contentWidth * index,
+              index,
+            })}
+            onMomentumScrollEnd={(e) => {
+              const newIndex = Math.round(e.nativeEvent.contentOffset.x / contentWidth);
+              if (newIndex !== selectedDeckIndex) {
+                handleDeckSwipe(newIndex);
+              }
+            }}
+            scrollEnabled={true}
+            style={styles.deckPager}
+            removeClippedSubviews={false}
+            maxToRenderPerBatch={5}
+            windowSize={11}
+            decelerationRate="fast"
+            snapToAlignment="start"
+          />
+        )}
+        
+        {isLoadingDecks && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.loadingText}>Loading flashcards...</Text>
+          </View>
+        )}
 
-      {/* Edit modal for flashcards */}
-      <EditFlashcardModal
-        visible={showEditModal}
-        flashcard={flashcardToEdit}
-        onClose={() => setShowEditModal(false)}
-        onSave={handleSaveEditedFlashcard}
-      />
+        {/* Edit modal for flashcards */}
+        <EditFlashcardModal
+          visible={showEditModal}
+          flashcard={flashcardToEdit}
+          onClose={() => setShowEditModal(false)}
+          onSave={handleSaveEditedFlashcard}
+        />
+      </SafeAreaView>
     </PokedexLayout>
   );
 }
@@ -735,7 +753,7 @@ export default function SavedFlashcardsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.flashcardScreenBackground,
     paddingTop: 0,
   },
   deckSelectorPlaceholder: {
@@ -797,7 +815,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.screenBackground,
+    backgroundColor: COLORS.flashcardScreenBackground,
   },
   loadingText: {
     marginTop: 10,
@@ -900,22 +918,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'android' ? 10 : 12,
-    paddingBottom: 10,
-    backgroundColor: COLORS.background,
+    paddingVertical: 12,
+    backgroundColor: COLORS.pokedexBlack,
   },
   title: {
     fontSize: 20,
     fontWeight: 'bold',
     color: COLORS.text,
-    textAlign: 'center',
-    flex: 1,
   },
   homeButton: {
-    padding: 5,
-    position: 'absolute',
-    right: 16,
-    top: Platform.OS === 'android' ? 10 : 12,
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: COLORS.darkSurface,
   },
   deckPage: {
     alignItems: 'center', 

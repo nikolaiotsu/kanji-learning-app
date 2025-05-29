@@ -45,7 +45,7 @@ export default function RootLayout() {
                 <Stack.Screen 
                   name="saved-flashcards" 
                   options={{ 
-                    title: 'Saved Flashcards',
+                    headerShown: false,
                   }} 
                 />
                 <Stack.Screen name="settings" options={{ title: 'Settings' }} />
