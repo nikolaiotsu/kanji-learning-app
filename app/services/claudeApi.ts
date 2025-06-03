@@ -6,6 +6,10 @@ import {
   containsKoreanText,
   containsItalianText,
   containsTagalogText,
+  containsFrenchText,
+  containsSpanishText,
+  containsPortugueseText,
+  containsGermanText,
   containsKanji
 } from '../utils/textFormatting';
 
@@ -121,6 +125,30 @@ function detectPrimaryLanguage(text: string, forcedLanguage: string = 'auto'): s
     return "Tagalog";
   }
   
+  // Check for French based on patterns
+  if (containsFrenchText(text) && 
+      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars)) {
+    return "French";
+  }
+  
+  // Check for Spanish based on patterns
+  if (containsSpanishText(text) && 
+      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars)) {
+    return "Spanish";
+  }
+  
+  // Check for Portuguese based on patterns
+  if (containsPortugueseText(text) && 
+      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars)) {
+    return "Portuguese";
+  }
+  
+  // Check for German based on patterns
+  if (containsGermanText(text) && 
+      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars)) {
+    return "German";
+  }
+  
   // Return language with highest character count
   const counts = [
     { lang: "Russian", count: russianChars },
@@ -206,14 +234,33 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
   }
   
   // Case 2: Latin-based languages (English, Italian, Spanish, etc.)
-  // These can be harder to distinguish from each other
+  // These can be harder to distinguish from each other, but we can check for language-specific patterns
   const latinLanguages = ['English', 'Italian', 'Spanish', 'French', 'Portuguese', 'German'];
   if (latinLanguages.includes(expectedLanguage) && latinLanguages.includes(detectedLang)) {
-    // For these languages, our validation may not be precise enough to distinguish reliably
-    // We'll be more lenient here and check for language-specific patterns where possible
+    // Check for language-specific patterns when that language is forced
     
     // Check for Italian-specific patterns when Italian is forced
     if (expectedLanguage === 'Italian' && containsItalianText(text)) {
+      return true;
+    }
+    
+    // Check for French-specific patterns when French is forced
+    if (expectedLanguage === 'French' && containsFrenchText(text)) {
+      return true;
+    }
+    
+    // Check for Spanish-specific patterns when Spanish is forced
+    if (expectedLanguage === 'Spanish' && containsSpanishText(text)) {
+      return true;
+    }
+    
+    // Check for Portuguese-specific patterns when Portuguese is forced
+    if (expectedLanguage === 'Portuguese' && containsPortugueseText(text)) {
+      return true;
+    }
+    
+    // Check for German-specific patterns when German is forced
+    if (expectedLanguage === 'German' && containsGermanText(text)) {
       return true;
     }
     
@@ -222,8 +269,13 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
       return true;
     }
     
-    // For Latin-based languages, be more lenient if we can't clearly distinguish
-    // This prevents frustrating false rejections for similar languages
+    // If the expected language doesn't match the detected language and we can't find
+    // specific patterns for the expected language, return false
+    if (expectedLanguage !== detectedLang) {
+      return false;
+    }
+    
+    // If both expected and detected are the same, allow it
     return true;
   }
   

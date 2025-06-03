@@ -11,7 +11,11 @@ import {
   containsRussianText, 
   containsArabicText,
   containsItalianText,
-  containsTagalogText
+  containsTagalogText,
+  containsFrenchText,
+  containsSpanishText,
+  containsPortugueseText,
+  containsGermanText
 } from '../../utils/textFormatting';
 
 interface FlashcardItemProps {
@@ -65,6 +69,10 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
     const hasArabic = containsArabicText(originalText);
     const hasItalian = containsItalianText(originalText);
     const hasTagalog = containsTagalogText(originalText);
+    const hasFrench = containsFrenchText(originalText);
+    const hasSpanish = containsSpanishText(originalText);
+    const hasPortuguese = containsPortugueseText(originalText);
+    const hasGerman = containsGermanText(originalText);
     
     // Determine language
     let language = 'unknown';
@@ -75,6 +83,10 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
     else if (hasArabic) language = 'Arabic';
     else if (hasItalian) language = 'Italian';
     else if (hasTagalog) language = 'Tagalog';
+    else if (hasFrench) language = 'French';
+    else if (hasSpanish) language = 'Spanish';
+    else if (hasPortuguese) language = 'Portuguese';
+    else if (hasGerman) language = 'German';
     else {
       // Check if the text is primarily Latin characters (likely English or other European languages)
       const latinChars = originalText.replace(/\s+/g, '').split('').filter(char => /[a-zA-Z]/.test(char)).length;

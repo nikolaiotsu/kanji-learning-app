@@ -1,44 +1,45 @@
 import React, { useEffect, useState } from 'react';
 import LoginScreen from './screens/LoginScreen';
 import { supabase } from './services/supabaseClient';
-import { router, useLocalSearchParams, useSegments } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { COLORS } from './constants/colors';
 import { useAuth } from './context/AuthContext';
-import * as Linking from 'expo-linking';
 
 const Login = () => {
   const params = useLocalSearchParams();
   const { user } = useAuth();
   const [isProcessingOAuth, setIsProcessingOAuth] = useState(false);
-  const segments = useSegments();
   
-  // Handle deep links and URL parameters for OAuth callbacks
+  // Handle OAuth callback parameters
   useEffect(() => {
     const handleOAuthCallback = async () => {
-      // Check if we're in the middle of an OAuth callback
+      // Check if we have OAuth parameters in the URL
       const hasOAuthParams = params.access_token || params.refresh_token || params.code || params.provider;
+      
+      console.log('🔗 Login screen params:', JSON.stringify(params));
+      console.log('🔗 Has OAuth params:', hasOAuthParams);
       
       if (hasOAuthParams) {
         setIsProcessingOAuth(true);
-        console.log('OAuth callback detected with params:', JSON.stringify(params));
+        console.log('🔗 OAuth callback detected with params:', JSON.stringify(params));
         
         try {
-          // Get the current URL to extract auth parameters
-          const url = await Linking.getInitialURL();
-          console.log('Initial URL:', url);
-          
-          if (url) {
-            // The session will be automatically set by Supabase's internal handlers
-            const { data, error } = await supabase.auth.getSession();
-            console.log('Session after OAuth:', data?.session ? 'Available' : 'Not available');
+          // If we have access_token directly, set the session
+          if (params.access_token) {
+            const { data, error } = await supabase.auth.setSession({
+              access_token: params.access_token as string,
+              refresh_token: (params.refresh_token as string) || '',
+            });
             
             if (error) {
-              console.error('Error getting session:', error.message);
+              console.error('🔗 Error setting session from params:', error.message);
+            } else if (data.session) {
+              console.log('🔗 Session established from params:', data.session.user?.email);
             }
           }
         } catch (error) {
-          console.error('Error handling OAuth callback:', error);
+          console.error('🔗 Error handling OAuth callback:', error);
         } finally {
           setIsProcessingOAuth(false);
         }
@@ -51,7 +52,7 @@ const Login = () => {
   // If already authenticated, redirect to home
   useEffect(() => {
     if (user) {
-      console.log('User authenticated, redirecting to home');
+      console.log('✅ User authenticated, redirecting to home');
       router.replace('/(tabs)');
     }
   }, [user]);

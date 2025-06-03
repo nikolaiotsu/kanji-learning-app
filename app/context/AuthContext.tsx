@@ -47,7 +47,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     // Subscribe to auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
+        console.log('🔐 Auth state change:', event, session ? 'Session exists' : 'No session');
+        console.log('🔐 User:', session?.user?.email || 'No user');
         setSession(session);
         setUser(session?.user ?? null);
         setIsLoading(false);

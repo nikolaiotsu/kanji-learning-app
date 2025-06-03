@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TextInput, TouchableOpacity, Text, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, TextInput, TouchableOpacity, Text, Alert, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { router } from 'expo-router';
@@ -7,6 +7,9 @@ import SocialAuth from '../components/SocialAuth';
 import { supabase } from '../services/supabaseClient';
 import { COLORS } from '../constants/colors';
 import PokedexLayout from '../components/shared/PokedexLayout';
+
+// Import the logo image
+const worddexLogo = require('../../assets/images/worddexlogo.png');
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
@@ -72,9 +75,17 @@ const LoginScreen = () => {
   };
 
   return (
-    <PokedexLayout>
+    <PokedexLayout 
+      logoSource={worddexLogo}
+      logoStyle={{ 
+        width: 80,
+        height: 65,
+        right: 10,
+        top: 0
+      }}
+    >
       <View style={styles.form}>
-        <Text style={styles.title}>Welcome Back</Text>
+        <Text style={styles.title}>Hello Collector.</Text>
         
         <View style={styles.newUserContainer}>
           <Text style={styles.newUserText}>New to the app?</Text>
@@ -174,7 +185,7 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: COLORS.accentLight,
+    borderColor: COLORS.darkGray,
     borderRadius: 8,
     padding: 12,
     marginBottom: 16,
@@ -199,7 +210,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   link: {
-    color: COLORS.accentMedium,
+    color: COLORS.lightGray,
     fontSize: 14,
     marginVertical: 5,
   },
@@ -211,7 +222,7 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: COLORS.accentLight,
+    backgroundColor: COLORS.darkGray,
   },
   dividerText: {
     marginHorizontal: 10,

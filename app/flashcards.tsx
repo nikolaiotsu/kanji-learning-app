@@ -6,14 +6,17 @@ import { processWithClaude, validateTextMatchesLanguage } from './services/claud
 import { 
   cleanText, 
   containsJapanese, 
-  containsChineseJapanese, 
+  containsChinese, 
   containsKoreanText, 
-  containsChinese,
-  containsRussianText,
+  containsRussianText, 
   containsArabicText,
   containsItalianText,
   containsTagalogText,
-  containsKanji
+  containsFrenchText,
+  containsSpanishText,
+  containsPortugueseText,
+  containsGermanText,
+  containsKanji 
 } from './utils/textFormatting';
 import { saveFlashcard, uploadImageToStorage } from './services/supabaseStorage';
 import { Flashcard } from './types/Flashcard';
@@ -93,6 +96,12 @@ export default function LanguageFlashcardsScreen() {
       const hasKorean = containsKoreanText(text);
       const hasRussian = containsRussianText(text);
       const hasArabic = containsArabicText(text);
+      const hasItalian = containsItalianText(text);
+      const hasTagalog = containsTagalogText(text);
+      const hasFrench = containsFrenchText(text);
+      const hasSpanish = containsSpanishText(text);
+      const hasPortuguese = containsPortugueseText(text);
+      const hasGerman = containsGermanText(text);
       
       // All these languages need some form of romanization/furigana
       const needsRomanization = (
@@ -143,6 +152,18 @@ export default function LanguageFlashcardsScreen() {
         language = 'Russian';
       } else if (hasArabic) {
         language = 'Arabic';
+      } else if (hasItalian) {
+        language = 'Italian';
+      } else if (hasTagalog) {
+        language = 'Tagalog';
+      } else if (hasFrench) {
+        language = 'French';
+      } else if (hasSpanish) {
+        language = 'Spanish';
+      } else if (hasPortuguese) {
+        language = 'Portuguese';
+      } else if (hasGerman) {
+        language = 'German';
       }
       
       setDetectedLanguage(language);

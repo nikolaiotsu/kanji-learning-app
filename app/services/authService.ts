@@ -71,9 +71,172 @@ export const signIn = async (email: string, password: string) => {
   }
 };
 
+// Sign up with Google OAuth (checks if user already exists)
+export const signUpWithGoogle = async () => {
+  try {
+    console.log('🔍 Starting Google OAuth sign-up flow...');
+    console.log('Platform:', Platform.OS);
+    
+    // Make sure we close any existing web browser sessions
+    WebBrowser.maybeCompleteAuthSession();
+    
+    // Start the OAuth flow with Supabase
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: 'kanjilearningapp://signup',
+        skipBrowserRedirect: true, // We'll handle the browser manually
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        }
+      }
+    });
+    
+    if (error) {
+      console.error('❌ Supabase OAuth error:', error);
+      throw error;
+    }
+    
+    console.log('✅ OAuth URL generated:', data?.url ? 'Yes' : 'No');
+    console.log('OAuth URL preview:', data?.url ? `${data.url.substring(0, 50)}...` : 'None');
+    
+    // On native platforms, we need to open the authorization URL in a web browser
+    if (data?.url && (Platform.OS === 'ios' || Platform.OS === 'android')) {
+      console.log('🌐 Opening OAuth URL in browser...');
+      
+      // Open the URL in an in-app browser and wait for the callback
+      const result = await WebBrowser.openAuthSessionAsync(
+        data.url, 
+        'kanjilearningapp://signup',
+        {
+          showInRecents: false,
+        }
+      );
+      
+      console.log('🔄 Browser session result:', result.type);
+      console.log('🔄 Browser session URL:', result.type === 'success' ? result.url : 'No URL');
+      
+      if (result.type === 'cancel') {
+        throw new Error('OAuth flow was cancelled by user');
+      }
+      
+      if (result.type === 'dismiss') {
+        throw new Error('OAuth flow was dismissed');
+      }
+      
+      // If we got a successful result with a URL, process it
+      if (result.type === 'success' && result.url) {
+        console.log('🔗 Processing OAuth callback URL:', result.url);
+        
+        // Parse the callback URL
+        const callbackUrl = new URL(result.url);
+        
+        // Check for authorization code (PKCE flow)
+        const code = callbackUrl.searchParams.get('code');
+        
+        if (code) {
+          console.log('🔗 Processing authorization code from PKCE flow');
+          
+          // Exchange the authorization code for a session
+          const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
+          
+          if (sessionError) {
+            console.error('🔗 Error exchanging code for session:', sessionError.message);
+            throw sessionError;
+          } else if (sessionData.session) {
+            // Check if this is a new user or existing user
+            const user = sessionData.session.user;
+            const isNewUser = new Date(user.created_at).getTime() === new Date(user.last_sign_in_at || user.created_at).getTime();
+            
+            if (!isNewUser) {
+              // User already exists - this should be a sign-in instead
+              console.log('🔗 Existing user detected during sign-up:', user.email);
+              
+              // Sign out the user since they should use sign-in instead
+              await supabase.auth.signOut();
+              
+              throw new Error('Account already exists. Please use "Continue with Google" to sign in instead.');
+            }
+            
+            console.log('🔗 New user account created via Google:', user.email);
+            return sessionData;
+          }
+        } else {
+          // Fallback: Check for tokens in URL fragment (implicit flow)
+          const fragment = callbackUrl.hash.substring(1); // Remove the # character
+          
+          if (fragment) {
+            console.log('🔗 Processing OAuth fragment (implicit flow):', fragment);
+            
+            const params = new URLSearchParams(fragment);
+            const accessToken = params.get('access_token');
+            const refreshToken = params.get('refresh_token');
+            
+            if (accessToken) {
+              console.log('🔗 Setting session from OAuth tokens');
+              
+              // Set the session using the tokens
+              const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken || '',
+              });
+              
+              if (sessionError) {
+                console.error('🔗 Error setting OAuth session:', sessionError.message);
+                throw sessionError;
+              } else if (sessionData.session) {
+                // Check if this is a new user or existing user
+                const user = sessionData.session.user;
+                const isNewUser = new Date(user.created_at).getTime() === new Date(user.last_sign_in_at || user.created_at).getTime();
+                
+                if (!isNewUser) {
+                  // User already exists - this should be a sign-in instead
+                  console.log('🔗 Existing user detected during sign-up:', user.email);
+                  
+                  // Sign out the user since they should use sign-in instead
+                  await supabase.auth.signOut();
+                  
+                  throw new Error('Account already exists. Please use "Continue with Google" to sign in instead.');
+                }
+                
+                console.log('🔗 New user account created via Google:', user.email);
+                return sessionData;
+              }
+            }
+          }
+          
+          console.error('🔗 No authorization code or access token found in OAuth callback');
+          throw new Error('OAuth callback did not contain valid authentication data');
+        }
+      }
+    }
+    
+    return data;
+  } catch (error: any) {
+    console.error('❌ Error signing up with Google:', error);
+    
+    // Provide more specific error messages
+    if (error.message?.includes('Account already exists')) {
+      throw error; // Re-throw our custom message
+    } else if (error.message?.includes('Invalid login credentials')) {
+      throw new Error('Google authentication failed. Please try again.');
+    } else if (error.message?.includes('OAuth client not found')) {
+      throw new Error('Google OAuth is not properly configured. Please contact support.');
+    } else if (error.message?.includes('redirect_uri_mismatch')) {
+      throw new Error('OAuth configuration error. Please contact support.');
+    }
+    
+    throw error;
+  }
+};
+
 // Sign in with Google OAuth
 export const signInWithGoogle = async () => {
   try {
+    console.log('🔍 Starting Google OAuth flow...');
+    console.log('Platform:', Platform.OS);
+    
     // Make sure we close any existing web browser sessions
     WebBrowser.maybeCompleteAuthSession();
     
@@ -82,21 +245,120 @@ export const signInWithGoogle = async () => {
       provider: 'google',
       options: {
         redirectTo: 'kanjilearningapp://login',
-        skipBrowserRedirect: false,
+        skipBrowserRedirect: true, // We'll handle the browser manually
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        }
       }
     });
     
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Supabase OAuth error:', error);
+      throw error;
+    }
+    
+    console.log('✅ OAuth URL generated:', data?.url ? 'Yes' : 'No');
+    console.log('OAuth URL preview:', data?.url ? `${data.url.substring(0, 50)}...` : 'None');
     
     // On native platforms, we need to open the authorization URL in a web browser
     if (data?.url && (Platform.OS === 'ios' || Platform.OS === 'android')) {
-      // Open the URL in an in-app browser
-      await WebBrowser.openAuthSessionAsync(data.url, 'kanjilearningapp://login');
+      console.log('🌐 Opening OAuth URL in browser...');
+      
+      // Open the URL in an in-app browser and wait for the callback
+      const result = await WebBrowser.openAuthSessionAsync(
+        data.url, 
+        'kanjilearningapp://login',
+        {
+          showInRecents: false,
+        }
+      );
+      
+      console.log('🔄 Browser session result:', result.type);
+      console.log('🔄 Browser session URL:', result.type === 'success' ? result.url : 'No URL');
+      
+      if (result.type === 'cancel') {
+        throw new Error('OAuth flow was cancelled by user');
+      }
+      
+      if (result.type === 'dismiss') {
+        throw new Error('OAuth flow was dismissed');
+      }
+      
+      // If we got a successful result with a URL, process it
+      if (result.type === 'success' && result.url) {
+        console.log('🔗 Processing OAuth callback URL:', result.url);
+        
+        // Parse the callback URL
+        const callbackUrl = new URL(result.url);
+        
+        // Check for authorization code (PKCE flow)
+        const code = callbackUrl.searchParams.get('code');
+        
+        if (code) {
+          console.log('🔗 Processing authorization code from PKCE flow');
+          
+          // Exchange the authorization code for a session
+          // Supabase will handle this automatically when we call getSession
+          // after the OAuth flow completes
+          const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
+          
+          if (sessionError) {
+            console.error('🔗 Error exchanging code for session:', sessionError.message);
+            throw sessionError;
+          } else if (sessionData.session) {
+            console.log('🔗 OAuth session established via PKCE:', sessionData.session.user?.email);
+            return sessionData;
+          }
+        } else {
+          // Fallback: Check for tokens in URL fragment (implicit flow)
+          const fragment = callbackUrl.hash.substring(1); // Remove the # character
+          
+          if (fragment) {
+            console.log('🔗 Processing OAuth fragment (implicit flow):', fragment);
+            
+            const params = new URLSearchParams(fragment);
+            const accessToken = params.get('access_token');
+            const refreshToken = params.get('refresh_token');
+            
+            if (accessToken) {
+              console.log('🔗 Setting session from OAuth tokens');
+              
+              // Set the session using the tokens
+              const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken || '',
+              });
+              
+              if (sessionError) {
+                console.error('🔗 Error setting OAuth session:', sessionError.message);
+                throw sessionError;
+              } else if (sessionData.session) {
+                console.log('🔗 OAuth session established via tokens:', sessionData.session.user?.email);
+                return sessionData;
+              }
+            }
+          }
+          
+          console.error('🔗 No authorization code or access token found in OAuth callback');
+          throw new Error('OAuth callback did not contain valid authentication data');
+        }
+      }
     }
     
     return data;
-  } catch (error) {
-    console.error('Error signing in with Google:', error);
+  } catch (error: any) {
+    console.error('❌ Error signing in with Google:', error);
+    
+    // Provide more specific error messages
+    if (error.message?.includes('Invalid login credentials')) {
+      throw new Error('Google authentication failed. Please try again.');
+    } else if (error.message?.includes('OAuth client not found')) {
+      throw new Error('Google OAuth is not properly configured. Please contact support.');
+    } else if (error.message?.includes('redirect_uri_mismatch')) {
+      throw new Error('OAuth configuration error. Please contact support.');
+    }
+    
     throw error;
   }
 };
@@ -212,5 +474,6 @@ export default {
   onAuthStateChange,
   signInWithGoogle,
   signInWithApple,
-  getOAuthSession
+  getOAuthSession,
+  signUpWithGoogle
 }; 

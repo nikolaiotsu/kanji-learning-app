@@ -20,11 +20,15 @@ import { processWithClaude } from '../../services/claudeApi';
 import { 
   containsJapanese, 
   containsChinese, 
-  containsKoreanText, 
-  containsRussianText, 
+  containsKoreanText,
+  containsRussianText,
   containsArabicText,
   containsItalianText,
-  containsTagalogText
+  containsTagalogText,
+  containsFrenchText,
+  containsSpanishText,
+  containsPortugueseText,
+  containsGermanText
 } from '../../utils/textFormatting';
 import { useSettings, AVAILABLE_LANGUAGES } from '../../context/SettingsContext';
 import { COLORS } from '../../constants/colors';
@@ -70,6 +74,10 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
       const hasArabic = containsArabicText(text);
       const hasItalian = containsItalianText(text);
       const hasTagalog = containsTagalogText(text);
+      const hasFrench = containsFrenchText(text);
+      const hasSpanish = containsSpanishText(text);
+      const hasPortuguese = containsPortugueseText(text);
+      const hasGerman = containsGermanText(text);
       
       // Determine language
       let language = 'unknown';
@@ -80,6 +88,10 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
       else if (hasArabic) language = 'Arabic';
       else if (hasItalian) language = 'Italian';
       else if (hasTagalog) language = 'Tagalog';
+      else if (hasFrench) language = 'French';
+      else if (hasSpanish) language = 'Spanish';
+      else if (hasPortuguese) language = 'Portuguese';
+      else if (hasGerman) language = 'German';
       else {
         // Check if the text is primarily Latin characters (likely English or other European languages)
         const latinChars = text.replace(/\s+/g, '').split('').filter(char => /[a-zA-Z]/.test(char)).length;

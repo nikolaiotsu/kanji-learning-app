@@ -7,12 +7,26 @@ import { StyleSheet, View } from 'react-native';
 import { COLORS } from './constants/colors';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect } from 'react';
+import * as ScreenOrientation from 'expo-screen-orientation';
 
 export default function RootLayout() {
   // Initialize WebBrowser to handle OAuth redirects
   useEffect(() => {
     // This enables redirect handling for Google and Apple auth
     WebBrowser.maybeCompleteAuthSession();
+  }, []);
+
+  // Lock orientation to portrait on app start
+  useEffect(() => {
+    const lockOrientation = async () => {
+      try {
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+      } catch (error) {
+        console.warn('Failed to lock orientation:', error);
+      }
+    };
+    
+    lockOrientation();
   }, []);
 
   return (
@@ -46,6 +60,7 @@ export default function RootLayout() {
                   name="saved-flashcards" 
                   options={{ 
                     headerShown: false,
+                    gestureEnabled: false,
                   }} 
                 />
                 <Stack.Screen name="settings" options={{ title: 'Settings' }} />

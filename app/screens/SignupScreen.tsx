@@ -124,7 +124,7 @@ const SignupScreen = () => {
           <Text style={styles.title}>Create Your Account</Text>
           
           <Text style={styles.subtitle}>
-            Create an account to save your flashcards and track your learning progress.
+            Create an account to start collecting words.
           </Text>
           
           <View style={styles.divider}>

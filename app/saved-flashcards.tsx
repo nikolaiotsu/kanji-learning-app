@@ -213,16 +213,6 @@ export default function SavedFlashcardsScreen() {
 
   // Function to handle deck deletion
   const handleDeleteDeck = async (deckId: string) => {
-    // Don't allow deleting the last deck
-    if (decks.length <= 1) {
-      Alert.alert(
-        'Cannot Delete',
-        'You must have at least one collection. Create a new collection before deleting this one.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-
     Alert.alert(
       'Delete Collection',
       'Are you sure you want to delete this collection? All flashcards in this collection will also be deleted.',
@@ -239,9 +229,16 @@ export default function SavedFlashcardsScreen() {
                 const updatedDecks = decks.filter(deck => deck.id !== deckId);
                 setDecks(updatedDecks);
                 
-                // If the deleted deck was selected, select another deck
-                if (selectedDeckId === deckId && updatedDecks.length > 0) {
-                  setSelectedDeckId(updatedDecks[0].id);
+                // Handle selectedDeckId based on remaining decks
+                if (selectedDeckId === deckId) {
+                  if (updatedDecks.length > 0) {
+                    setSelectedDeckId(updatedDecks[0].id);
+                    setSelectedDeckIndex(0);
+                  } else {
+                    // No decks remaining, clear selection
+                    setSelectedDeckId(null);
+                    setSelectedDeckIndex(0);
+                  }
                 }
               }
             } catch (error) {
@@ -771,7 +768,7 @@ const styles = StyleSheet.create({
   deckSelector: {
     paddingHorizontal: 8,
     marginBottom: 0,
-    height: 40,
+    minHeight: 40,
     paddingBottom: 0,
   },
   deckItem: {
@@ -798,8 +795,11 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   noDecksContainer: {
-    padding: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 40,
   },
   noDecksText: {
     fontSize: 14,

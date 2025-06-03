@@ -142,6 +142,62 @@ export function countKanji(text: string): number {
   return matches ? matches.length : 0;
 }
 
+/**
+ * Checks if text contains French characters and patterns
+ */
+export function containsFrenchText(text: string): boolean {
+  // French-specific characters (accented vowels and consonants)
+  const frenchSpecificChars = /[àâäéèêëïîôöùûüÿç]/i;
+  
+  // Common French words and patterns (articles, prepositions, common words)
+  const frenchPatterns = /\b(le|la|les|un|une|des|du|de|et|est|dans|avec|pour|sur|par|ce|cette|ces|qui|que|dont|où|mais|ou|donc|car|ni|si|très|plus|moins|bien|mal|tout|tous|toute|toutes|avoir|être|faire|aller|venir|voir|savoir|pouvoir|vouloir|devoir|prendre|donner|mettre|dire|partir|sortir|entrer|monter|descendre|rester|tomber|naître|mourir|devenir|revenir|parvenir|maintenir|retenir|obtenir|contenir|soutenir|appartenir|parvenir|intervenir|prévenir|subvenir|survenir|advenir|convenir|disconvenir|reconvenir|souvenir|tenir|venir|tion|sion|ment|ique|able|ible|eur|euse|eux|euses|ais|ait|aient|ons|ez|ent)\b/i;
+  
+  // Check for French specific characters or word patterns
+  return frenchSpecificChars.test(text) || frenchPatterns.test(text);
+}
+
+/**
+ * Checks if text contains Spanish characters and patterns
+ */
+export function containsSpanishText(text: string): boolean {
+  // Spanish-specific characters (including ñ and accented vowels)
+  const spanishSpecificChars = /[ñáéíóúü¿¡]/i;
+  
+  // Common Spanish words and patterns (articles, prepositions, common words)
+  const spanishPatterns = /\b(el|la|los|las|un|una|unos|unas|de|del|al|en|con|por|para|sin|sobre|bajo|entre|desde|hasta|hacia|según|durante|mediante|contra|ante|tras|y|o|pero|sino|que|quien|cual|cuyo|donde|cuando|como|porque|aunque|si|mientras|pues|así|entonces|también|tampoco|muy|más|menos|bien|mal|todo|toda|todos|todas|ser|estar|haber|tener|hacer|decir|poder|deber|querer|saber|ver|dar|venir|ir|salir|llegar|pasar|quedar|poner|seguir|parecer|conocer|llevar|traer|encontrar|sentir|vivir|morir|nacer|crecer|ción|sión|mente|oso|osa|ivo|iva|ado|ada|ido|ida|ando|iendo|ar|er|ir)\b/i;
+  
+  // Check for Spanish specific characters or word patterns
+  return spanishSpecificChars.test(text) || spanishPatterns.test(text);
+}
+
+/**
+ * Checks if text contains Portuguese characters and patterns
+ */
+export function containsPortugueseText(text: string): boolean {
+  // Portuguese-specific characters (including ã, õ, ç and accented vowels)
+  const portugueseSpecificChars = /[ãõçáéíóúâêîôûàèìòù]/i;
+  
+  // Common Portuguese words and patterns (articles, prepositions, common words)
+  const portuguesePatterns = /\b(o|a|os|as|um|uma|uns|umas|de|do|da|dos|das|em|no|na|nos|nas|com|por|para|sem|sobre|sob|entre|desde|até|através|segundo|durante|mediante|contra|perante|após|antes|e|ou|mas|porém|contudo|todavia|entretanto|que|quem|qual|cujo|onde|quando|como|porque|embora|se|enquanto|pois|assim|então|também|tampouco|muito|mais|menos|bem|mal|todo|toda|todos|todas|ser|estar|ter|haver|fazer|dizer|poder|dever|querer|saber|ver|dar|vir|ir|sair|chegar|passar|ficar|pôr|seguir|parecer|conhecer|levar|trazer|encontrar|sentir|viver|morrer|nascer|crescer|ção|são|mente|oso|osa|ivo|iva|ado|ada|ido|ida|ando|endo|indo|ar|er|ir)\b/i;
+  
+  // Check for Portuguese specific characters or word patterns
+  return portugueseSpecificChars.test(text) || portuguesePatterns.test(text);
+}
+
+/**
+ * Checks if text contains German characters and patterns
+ */
+export function containsGermanText(text: string): boolean {
+  // German-specific characters (umlauts and ß)
+  const germanSpecificChars = /[äöüÄÖÜß]/i;
+  
+  // Common German words and patterns (articles, prepositions, common words)
+  const germanPatterns = /\b(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|und|oder|aber|doch|jedoch|sondern|dass|wenn|weil|da|obwohl|während|bevor|nachdem|seit|bis|als|wie|wo|wohin|woher|warum|weshalb|weswegen|womit|wodurch|wofür|wogegen|worüber|worauf|worin|woraus|wovon|wozu|ich|du|er|sie|es|wir|ihr|sie|mich|dich|ihn|uns|euch|sich|mir|dir|ihm|ihr|ihnen|mein|dein|sein|ihr|unser|euer|dieser|diese|dieses|jener|jene|jenes|welcher|welche|welches|alle|alles|viele|wenige|einige|mehrere|andere|beide|sein|haben|werden|können|müssen|sollen|wollen|dürfen|mögen|lassen|gehen|kommen|machen|sagen|sehen|wissen|denken|glauben|finden|nehmen|geben|bringen|halten|stehen|liegen|sitzen|leben|arbeiten|spielen|lernen|verstehen|sprechen|hören|lesen|schreiben|kaufen|verkaufen|fahren|laufen|fliegen|schwimmen|essen|trinken|schlafen|aufstehen|anziehen|ausziehen|waschen|putzen|kochen|backen|öffnen|schließen|beginnen|aufhören|ung|keit|heit|schaft|tum|nis|sal|lich|ig|isch|bar|sam|haft|los|voll|reich|arm|ern|eln|chen|lein)\b/i;
+  
+  // Check for German specific characters or word patterns
+  return germanSpecificChars.test(text) || germanPatterns.test(text);
+}
+
 // For backward compatibility
 export const cleanJapaneseText = cleanText;
 
@@ -158,6 +214,10 @@ const TextFormatting = {
   containsArabicText,
   containsItalianText,
   containsTagalogText,
+  containsFrenchText,
+  containsSpanishText,
+  containsPortugueseText,
+  containsGermanText,
   containsKanji,
   countKanji
 };

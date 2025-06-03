@@ -14,7 +14,16 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.bluve01.kanjilearningapp"
+      "bundleIdentifier": "com.bluve01.kanjilearningapp",
+      "orientation": "portrait",
+      "infoPlist": {
+        "UISupportedInterfaceOrientations": [
+          "UIInterfaceOrientationPortrait"
+        ],
+        "UISupportedInterfaceOrientations~ipad": [
+          "UIInterfaceOrientationPortrait"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -22,7 +31,9 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.bluve01.kanjilearningapp",
-      "permissions": ["INTERNET"]
+      "permissions": ["INTERNET"],
+      "orientation": "portrait",
+      "screenOrientation": "portrait"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -31,6 +42,12 @@
       "expo-router",
       "expo-dev-client",
       "expo-web-browser",
+      [
+        "expo-screen-orientation",
+        {
+          "initialOrientation": "PORTRAIT_UP"
+        }
+      ],
       [
         "expo-image-picker",
         {

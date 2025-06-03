@@ -6,6 +6,11 @@ export const COLORS = {
   accentMedium: '#FFB3C1', // Medium accent
   
   background: '#006ad6', // Changed from Pokedex Red to requested blue
+  // Modern textured background alternatives
+  backgroundGradient: 'linear-gradient(135deg, #006ad6 0%, #004ba0 50%, #003875 100%)', // Sophisticated blue gradient
+  backgroundRadial: 'radial-gradient(circle at 30% 20%, #0080ff 0%, #006ad6 40%, #004080 100%)', // Radial depth
+  backgroundSubtle: 'linear-gradient(45deg, #006ad6 0%, #0074e6 25%, #006ad6 50%, #0074e6 75%, #006ad6 100%)', // Subtle texture
+  backgroundModern: 'linear-gradient(135deg, #006ad6 0%, #0074e6 25%, #005bb8 50%, #0074e6 75%, #006ad6 100%)', // Modern variation
   text: '#FFFFFF', // White text for contrast
   lightGray: '#D3D3D3', // Light gray for borders or secondary text
   darkGray: '#A9A9A9', // Darker gray for less emphasis

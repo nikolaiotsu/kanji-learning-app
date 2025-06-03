@@ -11,6 +11,7 @@ import {
   Animated
 } from 'react-native';
 import { COLORS } from '../../constants/colors';
+import TexturedBackground from './TexturedBackground';
 
 interface PokedexLayoutProps {
   children: ReactNode;
@@ -21,6 +22,7 @@ interface PokedexLayoutProps {
   logoSource?: ImageSourcePropType;
   logoStyle?: ImageStyle;
   triggerLightAnimation?: boolean;
+  textureVariant?: 'gradient' | 'subtle' | 'modern' | 'radial' | 'default';
 }
 
 export default memo(function PokedexLayout({
@@ -32,6 +34,7 @@ export default memo(function PokedexLayout({
   logoSource,
   logoStyle,
   triggerLightAnimation = false,
+  textureVariant = 'default',
 }: PokedexLayoutProps) {
   // Animation values - create them with useMemo to avoid recreating on rerenders
   const animationValues = useMemo(() => {
@@ -165,76 +168,78 @@ export default memo(function PokedexLayout({
   };
 
   return (
-    <SafeAreaView style={[styles.container, style]}>
-      <StatusBar backgroundColor={COLORS.background} barStyle="light-content" />
-      
-      {showLights && (
-        <View style={[styles.topSection, topSectionVariantStyle]}>
-          {variant === 'flashcards' ? (
-            <>
-              {/* Flashcards Variant: Thin oval lights */}
-              <Animated.View 
-                style={[
-                  styles.flashcardsMainStatusBar,
-                  mainLightAnimatedStyle
-                ]}
-              >
-                <View style={[styles.flashcardsMainStatusBar_Inner, { backgroundColor: mainLightInnerColor }]} />
-                <View style={[styles.flashcardsMainStatusBar_Reflection, { backgroundColor: mainLightPulseColor }]} />
-              </Animated.View>
-              <View style={styles.flashcardsSmallLightContainer}>
-                {smallLightColors.map((color, index) => renderSmallLight(color, index))}
-              </View>
-            </>
-          ) : (
-            <>
-              {/* Main Variant: Simple bulbous light with animation */}
-              <Animated.View 
-                style={[
-                  styles.mainLight, 
-                  { 
-                    backgroundColor: mainLightBaseColor,
-                  },
-                  mainLightAnimatedStyle
-                ]}
-              >
-                <View style={[styles.mainLightHighlight, { backgroundColor: `${mainLightBaseColor}60` }]} />
-                <View style={styles.mainLightReflection} />
-              </Animated.View>
-                              <View style={styles.smallLights}>
-                {smallLightColors.map((color, index) => (
-                  <View key={index} style={styles.smallLightContainer}>
-                    {renderSmallLight(color, index)}
-                  </View>
-                ))}
-              </View>
-            </>
-          )}
-          {/* Logo - positioned absolutely within topSection */}
-          {logoSource && (
-            <Image
-              source={logoSource}
-              style={[styles.logoImage, logoStyle]}
-              resizeMode="contain"
-              fadeDuration={0}
-            />
-          )}
-        </View>
-      )}
-      {/* Main "screen" area */}
-      <View style={[styles.screen, screenStyle, screenVariantStyle]}>
-        {/* Screen inset decorations */}
-        <View style={styles.screenCorner} />
-        <View style={[styles.screenCorner, styles.screenCornerTopRight]} />
-        <View style={[styles.screenCorner, styles.screenCornerBottomLeft]} />
-        <View style={[styles.screenCorner, styles.screenCornerBottomRight]} />
+    <TexturedBackground variant={textureVariant} style={styles.container}>
+      <SafeAreaView style={[styles.safeArea, style]}>
+        <StatusBar backgroundColor={COLORS.background} barStyle="light-content" />
         
-        {children}
-      </View>
-      
-      {/* Right border detail */}
-      <View style={styles.rightBorderDetail} />
-    </SafeAreaView>
+        {showLights && (
+          <View style={[styles.topSection, topSectionVariantStyle]}>
+            {variant === 'flashcards' ? (
+              <>
+                {/* Flashcards Variant: Thin oval lights */}
+                <Animated.View 
+                  style={[
+                    styles.flashcardsMainStatusBar,
+                    mainLightAnimatedStyle
+                  ]}
+                >
+                  <View style={[styles.flashcardsMainStatusBar_Inner, { backgroundColor: mainLightInnerColor }]} />
+                  <View style={[styles.flashcardsMainStatusBar_Reflection, { backgroundColor: mainLightPulseColor }]} />
+                </Animated.View>
+                <View style={styles.flashcardsSmallLightContainer}>
+                  {smallLightColors.map((color, index) => renderSmallLight(color, index))}
+                </View>
+              </>
+            ) : (
+              <>
+                {/* Main Variant: Simple bulbous light with animation */}
+                <Animated.View 
+                  style={[
+                    styles.mainLight, 
+                    { 
+                      backgroundColor: mainLightBaseColor,
+                    },
+                    mainLightAnimatedStyle
+                  ]}
+                >
+                  <View style={[styles.mainLightHighlight, { backgroundColor: `${mainLightBaseColor}60` }]} />
+                  <View style={styles.mainLightReflection} />
+                </Animated.View>
+                                <View style={styles.smallLights}>
+                  {smallLightColors.map((color, index) => (
+                    <View key={index} style={styles.smallLightContainer}>
+                      {renderSmallLight(color, index)}
+                    </View>
+                  ))}
+                </View>
+              </>
+            )}
+            {/* Logo - positioned absolutely within topSection */}
+            {logoSource && (
+              <Image
+                source={logoSource}
+                style={[styles.logoImage, logoStyle]}
+                resizeMode="contain"
+                fadeDuration={0}
+              />
+            )}
+          </View>
+        )}
+        {/* Main "screen" area */}
+        <View style={[styles.screen, screenStyle, screenVariantStyle]}>
+          {/* Screen inset decorations */}
+          <View style={styles.screenCorner} />
+          <View style={[styles.screenCorner, styles.screenCornerTopRight]} />
+          <View style={[styles.screenCorner, styles.screenCornerBottomLeft]} />
+          <View style={[styles.screenCorner, styles.screenCornerBottomRight]} />
+          
+          {children}
+        </View>
+        
+        {/* Right border detail */}
+        <View style={styles.rightBorderDetail} />
+      </SafeAreaView>
+    </TexturedBackground>
   );
 });
 
@@ -243,6 +248,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
     // Remove shading effects
+  },
+  safeArea: {
+    flex: 1,
   },
   topSection: {
     flexDirection: 'row',
