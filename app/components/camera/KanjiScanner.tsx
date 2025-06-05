@@ -786,14 +786,6 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
             onRotationStateChange={handleRotationStateChange}
           />
           
-          {highlightModeActive && (
-            <View style={styles.instructionContainer}>
-              <Text style={styles.instructionText}>
-                Drag to highlight text for translation
-              </Text>
-            </View>
-          )}
-          
           <View style={styles.toolbar}>
             {/* Back Button (far left) */}
             <PokedexButton

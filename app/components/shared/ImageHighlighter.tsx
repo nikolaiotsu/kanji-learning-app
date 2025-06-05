@@ -157,7 +157,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   // Effect to track image changes and reset processing state
   useEffect(() => {
     if (prevImageUriRef.current !== imageUri) {
-      console.log('[ImageHighlighter] imageUri changed:', imageUri);
+      // console.log('[ImageHighlighter] imageUri changed:', imageUri); // Removed
       // Clear processing state when image changes
       setIsProcessing(false);
       prevImageUriRef.current = imageUri;
@@ -214,7 +214,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   // useEffect for logging rotation state changes
   useEffect(() => {
     if (rotateMode) {
-      console.log(`[DEBUG ImageHighlighter] rotation state CHANGED to: ${rotation.toFixed(2)}`);
+      // console.log(`[DEBUG ImageHighlighter] rotation state CHANGED to: ${rotation.toFixed(2)}`); // Removed
     }
   }, [rotation, rotateMode]);
 
@@ -253,12 +253,12 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   // Use a useEffect to handle remeasuring when containerScreenOffset is missing
   useEffect(() => {
     if (!containerScreenOffset && panResponderViewRef.current && measuredLayout) {
-      console.log('[ImageHighlighter] containerScreenOffset is null, attempting to remeasure...');
+      // console.log('[ImageHighlighter] containerScreenOffset is null, attempting to remeasure...'); // Removed
       // Small delay to ensure the component is fully rendered
       const timeoutId = setTimeout(() => {
         if (panResponderViewRef.current) {
           panResponderViewRef.current.measure((fx, fy, w, h, px, py) => {
-            console.log(`[ImageHighlighter] Delayed remeasure: screenX:${px}, screenY:${py}, width:${w}, height:${h}`);
+            // console.log(`[ImageHighlighter] Delayed remeasure: screenX:${px}, screenY:${py}, width:${w}, height:${h}`); // Removed
             setContainerScreenOffset({ x: px, y: py });
           });
         }
@@ -317,10 +317,10 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         }
         // Initialize rotation session
         setInitialRotation(rotation); // Capture the rotation state *before* this session starts
-        console.log('[ImageHighlighter] Entered rotate mode. Initial session rotation:', rotation);
+        // console.log('[ImageHighlighter] Entered rotate mode. Initial session rotation:', rotation); // Removed
       } else { // ---- Exiting Rotate Mode (if toggled off directly by this call) ----
         // This implies a cancellation if not preceded by a confirm/ API call.
-        console.log('[ImageHighlighter] Exited rotate mode via toggle. Reverting to initial session rotation:', initialRotation);
+        // console.log('[ImageHighlighter] Exited rotate mode via toggle. Reverting to initial session rotation:', initialRotation); // Removed
         setRotation(initialRotation); // initialRotation holds the value from when mode was entered
       }
     },
@@ -328,7 +328,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       if (!cropMode || !onRegionSelected || cropBox.width === 0 || cropBox.height === 0) return;
       
       try {
-        console.log('[ImageHighlighter] applyCrop called - Starting crop operation');
+        // console.log('[ImageHighlighter] applyCrop called - Starting crop operation'); // Removed
         setIsProcessing(true);
         
         // Normalize the crop box coordinates (ensure positive width/height)
@@ -544,18 +544,41 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
 
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: (evt) => {
-      if (!containerScreenOffset) return false; // Only allow if layout is measured
+      if (!containerScreenOffset || !measuredLayout) return false; // Not ready yet
+      // Interaction is starting
+      // console.log('[ImageHighlighter] onStartShouldSetPanResponder evaluating'); // Removed
+      // Check if the touch is within the defined active area for highlighting
+      const { pageX, pageY } = evt.nativeEvent;
+      const x = pageX - containerScreenOffset.x;
+      const y = pageY - containerScreenOffset.y;
+
+      const touchTolerance = 1.5; // pixels of tolerance
+
+      // Define the touchable area (can be the whole component or a sub-region)
+      const isWithinHorizontalBounds = x >= -touchTolerance && x <= measuredLayout.width + touchTolerance;
+      const isWithinVerticalBounds = y >= -touchTolerance && y <= measuredLayout.height + touchTolerance;
       
-      const { pageX } = evt.nativeEvent;
-      const currentX = pageX - containerScreenOffset.x;
-      
-      // Don't capture gestures that start very close to the left edge to avoid interfering with back swipe
-      // Allow a 30px margin from the left edge for back swipe gestures
-      if (currentX < 30 && !cropMode && !rotateMode) {
-        return false;
-      }
-      
-      return true;
+      const shouldSet = isWithinHorizontalBounds && isWithinVerticalBounds;
+
+      /* // Removed
+      console.log('[ImageHighlighter] onStartShouldSetPanResponder:', {
+        pageX, pageY,
+        containerScreenOffsetX: containerScreenOffset.x,
+        containerScreenOffsetY: containerScreenOffset.y,
+        x, y,
+        measuredLayoutWidth: measuredLayout.width,
+        measuredLayoutHeight: measuredLayout.height,
+        isWithinHorizontalBounds,
+        isWithinVerticalBounds,
+        shouldSet,
+        highlightModeActive,
+        cropMode,
+      });
+      */
+
+      // Allow gesture to start if within bounds and any mode (highlight, crop, rotate) is active or could be activated.
+      // The specific mode logic within onPanResponderGrant will handle what to do.
+      return shouldSet;
     },
     onMoveShouldSetPanResponder: (evt, gestureState) => {
       if (!containerScreenOffset) return false;
@@ -572,13 +595,14 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
              Math.abs(gestureState.dx) > 10 || Math.abs(gestureState.dy) > 10);
     },
     onPanResponderGrant: (evt) => {
-      if (!containerScreenOffset) return; // Should not happen if onStartShouldSetPanResponder works
+      if (!containerScreenOffset || !measuredLayout) return; // Should not happen if onStartShouldSetPanResponder works
 
       const { pageX, pageY, timestamp } = evt.nativeEvent;
       
       const currentX = pageX - containerScreenOffset.x;
       const currentY = pageY - containerScreenOffset.y;
       
+      /* // Removed
       console.log('[ImageHighlighter] GRANT - Calculated Coords (pageX - containerOffset.x):', {
         pageX, pageY,
         containerScreenOffsetX: containerScreenOffset.x,
@@ -589,8 +613,29 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         scaledContainerWidth,
         scaledContainerHeight,
         wrapperWidth: measuredLayout?.width,
-        wrapperHeight: measuredLayout?.height
+        wrapperHeight: measuredLayout?.height,
+        timestamp
       });
+      */
+      
+      // Add debugging for touch position relative to image bounds
+      const touchRelativeToImageX = currentX - displayImageOffsetX;
+      const touchRelativeToImageY = currentY - displayImageOffsetY;
+      const isWithinImageBounds = touchRelativeToImageX >= 0 && 
+                                  touchRelativeToImageX <= scaledContainerWidth &&
+                                  touchRelativeToImageY >= 0 && 
+                                  touchRelativeToImageY <= scaledContainerHeight;
+      /* // Removed
+      console.log('[ImageHighlighter] GRANT - Touch Analysis:', {
+        touchRelativeToImageX,
+        touchRelativeToImageY,
+        isWithinImageBounds,
+        imageLeft: displayImageOffsetX,
+        imageTop: displayImageOffsetY,
+        imageRight: displayImageOffsetX + scaledContainerWidth,
+        imageBottom: displayImageOffsetY + scaledContainerHeight
+      });
+      */
       
       if (rotateMode) {
         const adjustedXForRotation = currentX - displayImageOffsetX;
@@ -603,7 +648,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       }
       else if (cropMode) {
         if (activeCropHandle === null && !isCropDrawing && (cropBox.width === 0 && cropBox.height === 0)) {
-          console.log('[ImageHighlighter] Starting to draw new crop box with locationX/Y');
+          // console.log('[ImageHighlighter] Starting to draw new crop box with locationX/Y'); // Removed
           const clampedX = Math.max(-EDGE_TOLERANCE, Math.min((measuredLayout?.width || 0) + EDGE_TOLERANCE, currentX));
           const clampedY = Math.max(-EDGE_TOLERANCE, Math.min((measuredLayout?.height || 0) + EDGE_TOLERANCE, currentY));
           
@@ -630,13 +675,54 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         }
       } 
       else if (highlightModeActive) {
-        console.log('[ImageHighlighter] Highlight mode starting with locationX/Y:', { currentX, currentY });
+        // console.log('[ImageHighlighter] Highlight mode starting with locationX/Y:', { currentX, currentY }); // Removed
+        /* // Removed
+        console.log('[ImageHighlighter] Highlight mode - Touch vs Image bounds:', {
+          touchX: currentX,
+          touchY: currentY,
+          imageLeft: displayImageOffsetX,
+          imageTop: displayImageOffsetY,
+          imageRight: displayImageOffsetX + scaledContainerWidth,
+          imageBottom: displayImageOffsetY + scaledContainerHeight,
+          isOutsideLeft: currentX < displayImageOffsetX,
+          isOutsideRight: currentX > displayImageOffsetX + scaledContainerWidth,
+          isOutsideTop: currentY < displayImageOffsetY,
+          isOutsideBottom: currentY > displayImageOffsetY + scaledContainerHeight
+        });
+        */
+        
+        // Use the exact touch coordinates relative to the container for precise positioning
+        const preciseX = pageX - containerScreenOffset.x;
+        const preciseY = pageY - containerScreenOffset.y;
+        
+        // Clamp coordinates to the CONTAINER bounds
+        const containerMinX = 0;
+        const containerMaxX = (measuredLayout?.width || 0) - 1; 
+        const containerMinY = 0;
+        const containerMaxY = (measuredLayout?.height || 0) - 1; 
+                
+        const clampedX = Math.max(containerMinX, Math.min(containerMaxX, preciseX));
+        const clampedY = Math.max(containerMinY, Math.min(containerMaxY, preciseY));
+        
+        /* // Removed
+        console.log('[ImageHighlighter] Coordinate clamping (to container):', {
+          pageX, pageY,
+          containerScreenOffsetX: containerScreenOffset.x,
+          containerScreenOffsetY: containerScreenOffset.y,
+          preciseX, preciseY,
+          clampedX, clampedY,
+          containerMaxX, containerMaxY,
+          displayImageOffsetX, displayImageOffsetY,
+          scaledContainerWidth, scaledContainerHeight
+        });
+        */
+        
         setIsDrawing(true);
         setHighlightBox({
-          startX: currentX,
-          startY: currentY,
-          endX: currentX,
-          endY: currentY,
+          startX: clampedX,
+          startY: clampedY,
+          endX: clampedX,
+          endY: clampedY,
         });
       }
     },
@@ -740,10 +826,37 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         gestureState.dy = 0;
       }
       else if (isDrawing && highlightModeActive) {
+        // Use precise coordinates for consistent positioning
+        const preciseX = pageX - containerScreenOffset.x;
+        const preciseY = pageY - containerScreenOffset.y;
+        
+        // Clamp coordinates to the CONTAINER bounds
+        const containerMinX = 0;
+        const containerMaxX = (measuredLayout?.width || 0) - 1;
+        const containerMinY = 0;
+        const containerMaxY = (measuredLayout?.height || 0) - 1;
+        
+        const clampedX = Math.max(containerMinX, Math.min(containerMaxX, preciseX));
+        const clampedY = Math.max(containerMinY, Math.min(containerMaxY, preciseY));
+        
+        /* // Removed
+        console.log('[ImageHighlighter] MOVE - Updating highlight box (clamped to container):', {
+          currentX, currentY,
+          preciseX, preciseY,
+          clampedX, clampedY,
+          containerMaxX, containerMaxY,
+          previousEndX: highlightBox.endX,
+          previousEndY: highlightBox.endY,
+          isOutsideLeft: preciseX < displayImageOffsetX,
+          isOutsideRight: preciseX > displayImageOffsetX + scaledContainerWidth,
+          isOutsideTop: preciseY < displayImageOffsetY,
+          isOutsideBottom: preciseY > displayImageOffsetY + scaledContainerHeight
+        });
+        */
         setHighlightBox(prev => ({
           ...prev,
-          endX: currentX,
-          endY: currentY,
+          endX: clampedX,
+          endY: clampedY,
         }));
       }
     },
@@ -776,76 +889,87 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         setActiveCropHandle(null);
         if (isCropDrawing) {
           setIsCropDrawing(false);
-          // Ensure cropBox state reflects the final position using finalCurrentX/Y if needed,
-          // though setCropBox in onPanResponderMove should handle most of it.
-          // For now, normalize the existing cropBox state as it was updated during move.
-          const { x, y, width, height } = cropBox; 
-          const normalizedCropBox: CropBox = {
-            x: width < 0 ? x + width : x,
-            y: height < 0 ? y + height : y,
-            width: Math.abs(width),
-            height: Math.abs(height)
-          };
-          setCropBox(normalizedCropBox);
+          // Normalize crop box if width/height are negative
+          const { x, y, width, height } = cropBox;
+          const normalizedX = width < 0 ? x + width : x;
+          const normalizedY = height < 0 ? y + height : y;
+          const normalizedWidth = Math.abs(width);
+          const normalizedHeight = Math.abs(height);
+          setCropBox({ x: normalizedX, y: normalizedY, width: normalizedWidth, height: normalizedHeight });
+          // console.log('[ImageHighlighter] Finalized new crop box:', {x: normalizedX, y: normalizedY, width: normalizedWidth, height: normalizedHeight }); // Removed
         }
       }
       
       if (isDrawing && highlightModeActive) {
         setIsDrawing(false);
+        
+        // Use precise coordinates for the final position
+        const finalPreciseX = pageX - containerScreenOffset.x;
+        const finalPreciseY = pageY - containerScreenOffset.y;
+        
+        // Clamp final coordinates to CONTAINER bounds
+        const containerMinX = 0;
+        const containerMaxX = (measuredLayout?.width || 0) - 1;
+        const containerMinY = 0;
+        const containerMaxY = (measuredLayout?.height || 0) - 1;
+        
+        const finalClampedX = Math.max(containerMinX, Math.min(containerMaxX, finalPreciseX));
+        const finalClampedY = Math.max(containerMinY, Math.min(containerMaxY, finalPreciseY));
+        
         const finalHighlightBox = {
             ...highlightBox,
-            endX: finalCurrentX,
-            endY: finalCurrentY,
+            endX: finalClampedX,
+            endY: finalClampedY,
         };
         setHighlightBox(finalHighlightBox); 
         
+        /* // Removed
+        console.log('[ImageHighlighter] RELEASE - Final highlight box (clamped to container):', {
+          finalCurrentX, finalCurrentY,
+          finalPreciseX, finalPreciseY,
+          finalClampedX, finalClampedY,
+          containerMaxX, containerMaxY,
+          finalHighlightBox
+        });
+        */
+
         if (onRegionSelected) {
           const minX = Math.min(finalHighlightBox.startX, finalHighlightBox.endX);
           const maxX = Math.max(finalHighlightBox.startX, finalHighlightBox.endX);
           const minY = Math.min(finalHighlightBox.startY, finalHighlightBox.endY);
           const maxY = Math.max(finalHighlightBox.startY, finalHighlightBox.endY);
           
-          console.log('[ImageHighlighter] RELEASE - Highlight Box (using locationX/Y from imageWrapper):', { minX, minY, maxX, maxY });
-          // ... rest of OCR logic remains the same ...
-          if (maxX - minX < 10 || maxY - minY < 10) {
-            console.log('Selection too small, ignoring');
-            setHighlightBox({ startX: 0, startY: 0, endX: 0, endY: 0 });
-            return;
-          }
+          /* // Removed debug log
+          console.log('[ImageHighlighter] RELEASE - Highlight Box (clamped to container):', {
+            minX,
+            minY,
+            maxX,
+            maxY
+          });
+          */
 
-          const selectionWidth = maxX - minX;
-          const selectionHeight = maxY - minY;
-          const widthPercentage = (selectionWidth / (measuredLayout?.width || 1)) * 100; 
-          const heightPercentage = (selectionHeight / (measuredLayout?.height || 1)) * 100;
-          console.log(`[ImageHighlighter] Selection dimensions: ${selectionWidth}x${selectionHeight} (${widthPercentage.toFixed(1)}% x ${heightPercentage.toFixed(1)}% of wrapper)`);
+          // Calculate the region relative to the *image*
+          const imageRelativeMinX = Math.max(0, minX - displayImageOffsetX);
+          const imageRelativeMinY = Math.max(0, minY - displayImageOffsetY);
+
+          const imageRelativeMaxX = Math.max(0, maxX - displayImageOffsetX);
+          const imageRelativeMaxY = Math.max(0, maxY - displayImageOffsetY);
+
+          // Ensure the reported width/height does not exceed the image dimensions from the image's origin
+          const reportedWidth = Math.min(imageRelativeMaxX, scaledContainerWidth) - imageRelativeMinX;
+          const reportedHeight = Math.min(imageRelativeMaxY, scaledContainerHeight) - imageRelativeMinY;
           
-          const offsetX = displayImageOffsetX || 0; 
-          const offsetY = displayImageOffsetY || 0; 
-          const imageContainerMinX = minX - offsetX;
-          const imageContainerMinY = minY - offsetY;
-          const imageContainerMaxX = maxX - offsetX;
-          const imageContainerMaxY = maxY - offsetY;
-          
-          const clampedMinX = Math.max(0, imageContainerMinX);
-          const clampedMinY = Math.max(0, imageContainerMinY);
-          const clampedMaxX = Math.min(finalDisplayImageWidth, imageContainerMaxX);
-          const clampedMaxY = Math.min(finalDisplayImageHeight, imageContainerMaxY);
-          
-          // Use exact selection bounds without any expansion for more precise highlighting
-          const unscaledRegion = {
-            x: Math.max(0, clampedMinX),
-            y: Math.max(0, clampedMinY),
-            width: Math.max(1, Math.min(finalDisplayImageWidth - clampedMinX, clampedMaxX - clampedMinX)),
-            height: Math.max(1, Math.min(finalDisplayImageHeight - clampedMinY, clampedMaxY - clampedMinY)),
+          const regionForParent = {
+            x: imageRelativeMinX,
+            y: imageRelativeMinY,
+            width: Math.max(0, reportedWidth), // Ensure width is not negative
+            height: Math.max(0, reportedHeight), // Ensure height is not negative
+            detectedText: [], // OCR will populate this later
+            rotation: rotation, // Include current rotation
           };
-          
-          console.log('[ImageHighlighter] Final OCR region (image container relative):', unscaledRegion);
-          try {
-            setIsProcessing(true);
-            onRegionSelected(unscaledRegion);
-          } finally {
-            setIsProcessing(false);
-          }
+
+          // console.log('[ImageHighlighter] Final OCR region (image container relative, adjusted for image bounds):', regionForParent); // Removed debug log
+          onRegionSelected(regionForParent);
         }
       }
     },
@@ -868,7 +992,20 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
     const render_width = system_maxX - system_minX;
     const render_height = system_maxY - system_minY;
 
-    console.log('[ImageHighlighter] Rendering highlight box. System minX:', system_minX, 'Rendered left:', render_left);
+    // console.log('[ImageHighlighter] Rendering highlight box. System minX:', system_minX, 'Rendered left:', render_left); // Removed debug log
+    /* // Removed debug log
+    console.log('[ImageHighlighter] Render details:', {
+      highlightBox,
+      system_minX, system_maxX, system_minY, system_maxY,
+      render_left, render_top, render_width, render_height,
+      displayImageOffsetX, displayImageOffsetY,
+      scaledContainerWidth, scaledContainerHeight,
+      isOutsideImageLeft: system_minX < displayImageOffsetX,
+      isOutsideImageRight: system_maxX > displayImageOffsetX + scaledContainerWidth,
+      isOutsideImageTop: system_minY < displayImageOffsetY,
+      isOutsideImageBottom: system_maxY > displayImageOffsetY + scaledContainerHeight
+    });
+    */
 
     return (
       <>
@@ -921,51 +1058,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           ]}
         />
         
-        {/* Only show handles if not currently drawing */}
-        {!isCropDrawing && normalizedWidth > 0 && normalizedHeight > 0 && (
-          <>
-            <View
-              style={[
-                styles.cropHandle,
-                activeCropHandle === 'topLeft' && styles.activeHandle,
-                {
-                  left: normalizedX - CROP_HANDLE_SIZE / 2,
-                  top: normalizedY - CROP_HANDLE_SIZE / 2,
-                }
-              ]}
-            />
-            <View
-              style={[
-                styles.cropHandle,
-                activeCropHandle === 'topRight' && styles.activeHandle,
-                {
-                  left: normalizedX + normalizedWidth - CROP_HANDLE_SIZE / 2,
-                  top: normalizedY - CROP_HANDLE_SIZE / 2,
-                }
-              ]}
-            />
-            <View
-              style={[
-                styles.cropHandle,
-                activeCropHandle === 'bottomLeft' && styles.activeHandle,
-                {
-                  left: normalizedX - CROP_HANDLE_SIZE / 2,
-                  top: normalizedY + normalizedHeight - CROP_HANDLE_SIZE / 2,
-                }
-              ]}
-            />
-            <View
-              style={[
-                styles.cropHandle,
-                activeCropHandle === 'bottomRight' && styles.activeHandle,
-                {
-                  left: normalizedX + normalizedWidth - CROP_HANDLE_SIZE / 2,
-                  top: normalizedY + normalizedHeight - CROP_HANDLE_SIZE / 2,
-                }
-              ]}
-            />
-          </>
-        )}
+        {/* Crop handles have been removed as per user request */}
       </>
     );
   };
@@ -1015,40 +1108,73 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
 
   // Reset when image changes
   React.useEffect(() => {
-    console.log('[ImageHighlighter] imageUri changed:', imageUri);
-    setCropMode(false);
-    // setRotateMode(false); // Don't automatically exit rotate mode if image URI changes, let parent decide
-    setCropBox({ x: 0, y: 0, width: 0, height: 0 });
-    setRotation(0);
-    setInitialRotation(0); 
-    // If it was in rotate mode, the useEffect above will notify of the reset state due to dependency changes.
+    if (prevImageUriRef.current !== imageUri) {
+      // console.log('[ImageHighlighter] imageUri changed:', imageUri); // Removed
+      // Clear processing state when image changes
+      setIsProcessing(false);
+      setCropMode(false);
+      // Consider if rotateMode should also be reset or if parent controls it.
+      // For now, keeping rotation state unless explicitly cleared by user action or new image.
+      setCropBox({ x: 0, y: 0, width: 0, height: 0 });
+      // setRotation(0); // Do not reset rotation automatically on image change for now
+      // setInitialRotation(0); 
+      prevImageUriRef.current = imageUri;
+    }
   }, [imageUri]);
   
-  // Log when component renders with new props
+  // Log when component renders with new props (for debugging specific layout/offset issues)
   React.useEffect(() => {
+    /* // Removed debug log for general prop changes, was for specific debugging
     console.log('[ImageHighlighter] Component rendered with props:', {
       imageUri,
       imageWidth,
       imageHeight,
       highlightModeActive,
       measuredLayout,
-      containerScreenOffset // ADDED TO LOG OUTPUT
+      containerScreenOffset
     });
-  }, [imageUri, imageWidth, imageHeight, highlightModeActive, measuredLayout, containerScreenOffset]); // ADDED TO DEPENDENCY ARRAY
+    */
+  }, [imageUri, imageWidth, imageHeight, highlightModeActive, measuredLayout, containerScreenOffset]);
 
   const onLayout = (event: import('react-native').LayoutChangeEvent) => {
     const { width, height, x, y } = event.nativeEvent.layout;
-    console.log(`[ImageHighlighter] onLayout (for main styles.container): width: ${width}, height: ${height}, screenX (relative): ${x}, screenY (relative): ${y}`);
+    // console.log(`[ImageHighlighter] onLayout (for main styles.container): width: ${width}, height: ${height}, screenX (relative): ${x}, screenY (relative): ${y}`); // Removed debug log
     setMeasuredLayout({ width, height });
 
     // Measure the absolute screen position of the PanResponder view
+    // This is crucial and should happen after the main container layout is established.
     if (panResponderViewRef.current) {
       panResponderViewRef.current.measure((fx, fy, w, h, px, py) => {
-        console.log(`[ImageHighlighter] Measured panResponderViewRef: screenX:${px}, screenY:${py}, width:${w}, height:${h}`);
+        // console.log(`[ImageHighlighter] Measured panResponderViewRef: screenX:${px}, screenY:${py}, width:${w}, height:${h}`); // Removed debug log
+        /* // Removed debug log
+        console.log(`[ImageHighlighter] Layout comparison - onLayout vs measure:`, {
+          onLayoutWidth: width, measureWidth: w,
+          onLayoutHeight: height, measureHeight: h,
+          onLayoutX: x, onLayoutY: y,
+          measureScreenX: px, measureScreenY: py
+        });
+        */
         setContainerScreenOffset({ x: px, y: py });
       });
     }
   };
+
+  // Effect to remeasure if containerScreenOffset is somehow still null after initial layout
+  React.useEffect(() => {
+    if (!containerScreenOffset && panResponderViewRef.current && measuredLayout) {
+      // console.log('[ImageHighlighter] containerScreenOffset is null, attempting to remeasure...'); // This log can be kept for critical path debugging if needed, but commented out for now.
+      // Small delay to ensure the component is fully rendered
+      const timeoutId = setTimeout(() => {
+        if (panResponderViewRef.current) {
+          panResponderViewRef.current.measure((fx, fy, w, h, px, py) => {
+            // console.log(`[ImageHighlighter] Delayed remeasure: screenX:${px}, screenY:${py}, width:${w}, height:${h}`); // Also keep for critical path, commented for now.
+            setContainerScreenOffset({ x: px, y: py });
+          });
+        }
+      }, 100); // 100ms delay, adjust if needed
+      return () => clearTimeout(timeoutId);
+    }
+  }, [containerScreenOffset, measuredLayout]);
 
   // Render null or a placeholder if imageWrapper layout hasn't been measured yet
   // This ensures measuredLayout is set before attempting to calculate image scaling
@@ -1144,16 +1270,12 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       {/* Other instruction texts */}
       {highlightModeActive && !isDrawing && (
         <View style={styles.instructionContainer}>
-          <Text style={styles.instructionText}>Draw a box around the text</Text>
+          <Text style={styles.instructionText}>drag to highlight</Text>
         </View>
       )}
-      {cropMode && (
+      {cropMode && !isCropDrawing && activeCropHandle === null && (
         <View style={styles.instructionContainer}>
-          <Text style={styles.instructionText}>{
-            cropBox.width === 0 && cropBox.height === 0 
-              ? 'Drag to create a crop box' 
-              : 'Drag the corner handles to adjust the crop'
-          }</Text>
+          <Text style={styles.instructionText}>drag to crop</Text>
         </View>
       )}
     </View>
@@ -1168,8 +1290,6 @@ const styles = StyleSheet.create({
     flex: 1, 
     width: '100%', 
     overflow: 'visible',
-    // borderWidth: 2, // REMOVE Temporary for debugging
-    // borderColor: 'blue', // REMOVE Temporary for debugging
   },
   imageWrapper: {
     flex: 1, // Fill the container
@@ -1182,16 +1302,12 @@ const styles = StyleSheet.create({
   imageContainer: {
     overflow: 'visible',
     backgroundColor: 'transparent',
-    // borderWidth: 2, // REMOVE Temporary for debugging
-    // borderColor: 'red', // REMOVE Temporary for debugging
   },
   image: {
     width: '100%', // Fill parent
     height: '100%', // Fill parent
     backgroundColor: 'transparent',
     overflow: 'visible',
-    // borderWidth: 2, // REMOVE Temporary for debugging
-    // borderColor: 'lime', // REMOVE Temporary for debugging
   },
   highlight: {
     position: 'absolute',
@@ -1210,9 +1326,9 @@ const styles = StyleSheet.create({
   cropBox: {
     position: 'absolute',
     borderWidth: 2,
-    borderColor: '#000000',
+    borderColor: '#B0B0B0',
     borderStyle: 'dashed',
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    backgroundColor: 'rgba(200, 200, 200, 0.2)',
     pointerEvents: 'none',
   },
   cropHandle: {
@@ -1220,7 +1336,7 @@ const styles = StyleSheet.create({
     width: CROP_HANDLE_SIZE,
     height: CROP_HANDLE_SIZE,
     borderRadius: CROP_HANDLE_SIZE / 2,
-    backgroundColor: '#000000',
+    backgroundColor: '#B0B0B0',
     borderWidth: 2,
     borderColor: COLORS.primary,
     shadowColor: '#000',
@@ -1231,7 +1347,7 @@ const styles = StyleSheet.create({
   },
   activeHandle: {
     backgroundColor: COLORS.primary,
-    borderColor: '#000000',
+    borderColor: '#B0B0B0',
     transform: [{ scale: 1.2 }],
   },
   loadingContainer: {
@@ -1250,9 +1366,9 @@ const styles = StyleSheet.create({
   },
   instructionContainer: {
     position: 'absolute',
-    bottom: 90,
+    bottom: 20,
     alignSelf: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
