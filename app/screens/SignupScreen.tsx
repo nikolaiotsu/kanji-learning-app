@@ -55,7 +55,7 @@ const SignupScreen = () => {
       console.log(`Attempting dev sign-in with: ${testEmail}`);
       await devSignUpAndSignIn(testEmail, testPassword);
       // If we get here, sign in was successful
-      router.replace('/(tabs)');
+      router.replace('/');
     } catch (error: any) {
       console.error('Dev signup error:', error);
       Alert.alert('Dev Signup Failed', error.message || 'Failed to create account in dev mode.');

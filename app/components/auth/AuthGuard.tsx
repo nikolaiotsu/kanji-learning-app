@@ -18,25 +18,39 @@ export const AuthGuard = ({ children }: { children: React.ReactNode }) => {
   const currentSegment = segments[0];
 
   useEffect(() => {
-    if (isLoading) return;
+    console.log('🔐 [AuthGuard] useEffect triggered');
+    console.log('🔐 [AuthGuard] isLoading:', isLoading);
+    console.log('🔐 [AuthGuard] user:', !!user);
+    console.log('🔐 [AuthGuard] currentSegment:', currentSegment);
+    console.log('🔐 [AuthGuard] segments:', segments);
+    
+    if (isLoading) {
+      console.log('🔐 [AuthGuard] Still loading, returning...');
+      return;
+    }
 
     // User is authenticated but tries to access auth routes (login, signup)
     if (user && AUTH_SEGMENTS.includes(currentSegment)) {
+      console.log('🔐 [AuthGuard] User authenticated, redirecting from auth route to /');
       router.replace('/');
       return;
     }
 
     // User is not authenticated but tries to access protected routes
     if (!user && PROTECTED_SEGMENTS.includes(currentSegment)) {
+      console.log('🔐 [AuthGuard] User not authenticated, redirecting to /login');
       router.replace('/login');
       return;
     }
 
     // If no segment is specified and user is not authenticated
     if (!user && !currentSegment) {
+      console.log('🔐 [AuthGuard] No segment and no user, redirecting to /login');
       router.replace('/login');
       return;
     }
+    
+    console.log('🔐 [AuthGuard] No navigation needed');
   }, [user, isLoading, currentSegment]);
 
   // Show loading screen while checking authentication

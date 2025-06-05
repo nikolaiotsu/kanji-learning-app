@@ -58,15 +58,27 @@ export const devSignUpAndSignIn = async (email: string, password: string) => {
 // Sign in with email and password
 export const signIn = async (email: string, password: string) => {
   try {
+    console.log('🔐 [authService] signIn called with email:', email);
+    console.log('🔐 [authService] Calling supabase.auth.signInWithPassword...');
+    
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
     
-    if (error) throw error;
+    console.log('🔐 [authService] Supabase response - error:', !!error);
+    console.log('🔐 [authService] Supabase response - session:', !!data?.session);
+    console.log('🔐 [authService] Supabase response - user:', !!data?.user);
+    
+    if (error) {
+      console.error('❌ [authService] Supabase auth error:', error.message);
+      throw error;
+    }
+    
+    console.log('✅ [authService] Sign in successful, returning data');
     return data;
   } catch (error) {
-    console.error('Error signing in:', error);
+    console.error('❌ [authService] Error signing in:', error);
     throw error;
   }
 };

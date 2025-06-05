@@ -18,16 +18,26 @@ const LoginScreen = () => {
   const { signIn } = useAuth();
 
   const handleLogin = async () => {
+    console.log('🔐 [LoginScreen] Starting email login process...');
+    console.log('🔐 [LoginScreen] Email:', email);
+    console.log('🔐 [LoginScreen] Password length:', password.length);
+    
     if (!email || !password) {
+      console.log('❌ [LoginScreen] Missing credentials');
       Alert.alert('Error', 'Please enter both email and password');
       return;
     }
     
     setLoading(true);
     try {
+      console.log('🔐 [LoginScreen] Calling signIn function...');
       await signIn(email, password);
-      router.replace('/(tabs)');
+      console.log('✅ [LoginScreen] signIn completed successfully');
+      console.log('🔐 [LoginScreen] Authentication successful, letting AuthGuard handle navigation...');
     } catch (error: any) {
+      console.error('❌ [LoginScreen] Login error:', error);
+      console.error('❌ [LoginScreen] Error message:', error.message);
+      console.error('❌ [LoginScreen] Error details:', JSON.stringify(error));
       if (error.message && error.message.includes('Email not confirmed')) {
         Alert.alert(
           'Email Not Verified',

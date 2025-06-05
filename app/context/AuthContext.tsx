@@ -48,11 +48,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // Subscribe to auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('🔐 Auth state change:', event, session ? 'Session exists' : 'No session');
-        console.log('🔐 User:', session?.user?.email || 'No user');
+        console.log('🔐 [AuthContext] Auth state change event:', event);
+        console.log('🔐 [AuthContext] Session exists:', !!session);
+        console.log('🔐 [AuthContext] User email:', session?.user?.email || 'No user');
+        console.log('🔐 [AuthContext] Setting session and user state...');
         setSession(session);
         setUser(session?.user ?? null);
         setIsLoading(false);
+        console.log('✅ [AuthContext] Auth state updated');
       }
     );
 
@@ -64,13 +67,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // Sign in function
   const signIn = async (email: string, password: string) => {
+    console.log('🔐 [AuthContext] signIn called with email:', email);
     setIsLoading(true);
     try {
+      console.log('🔐 [AuthContext] Calling authService.signIn...');
       const { session } = await authService.signIn(email, password);
+      console.log('🔐 [AuthContext] authService.signIn returned session:', !!session);
+      console.log('🔐 [AuthContext] Session user email:', session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
+      console.log('✅ [AuthContext] Session and user state updated');
     } catch (error) {
-      console.error('Error signing in:', error);
+      console.error('❌ [AuthContext] Error signing in:', error);
       throw error;
     } finally {
       setIsLoading(false);

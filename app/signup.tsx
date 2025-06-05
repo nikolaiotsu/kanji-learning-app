@@ -53,7 +53,7 @@ const Signup = () => {
   useEffect(() => {
     if (user) {
       console.log('✅ User authenticated, redirecting to home');
-      router.replace('/(tabs)');
+      router.replace('/');
     }
   }, [user]);
   

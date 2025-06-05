@@ -49,11 +49,12 @@ const Login = () => {
     handleOAuthCallback();
   }, [params]);
   
-  // If already authenticated, redirect to home
+  // Log user state changes, let AuthGuard handle navigation
   useEffect(() => {
+    console.log('🔐 [login.tsx] User state changed, user exists:', !!user);
     if (user) {
-      console.log('✅ User authenticated, redirecting to home');
-      router.replace('/(tabs)');
+      console.log('✅ [login.tsx] User authenticated, AuthGuard will handle navigation');
+      console.log('🔐 [login.tsx] User email:', user.email);
     }
   }, [user]);
   
