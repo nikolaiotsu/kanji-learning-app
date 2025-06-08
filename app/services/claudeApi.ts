@@ -10,6 +10,7 @@ import {
   containsSpanishText,
   containsPortugueseText,
   containsGermanText,
+  containsEnglishText,
   containsKanji
 } from '../utils/textFormatting';
 
@@ -164,12 +165,20 @@ function detectPrimaryLanguage(text: string, forcedLanguage: string = 'auto'): s
   if (counts[0].count === 0) {
     // Check if the text is primarily Latin characters (English and many European languages)
     const latinChars = text.replace(/\s+/g, '').split('').filter(char => /[a-zA-Z]/.test(char)).length;
-    if (latinChars > 0 && latinChars / text.replace(/\s+/g, '').length >= 0.5) {
+    const totalNonSpaceChars = text.replace(/\s+/g, '').length;
+    const latinRatio = totalNonSpaceChars > 0 ? latinChars / totalNonSpaceChars : 0;
+    
+    console.log(`[detectPrimaryLanguage] No special chars found. Latin chars: ${latinChars}, Total: ${totalNonSpaceChars}, Ratio: ${latinRatio}`);
+    
+    if (latinChars > 0 && latinRatio >= 0.5) {
+      console.log(`[detectPrimaryLanguage] Defaulting to English for Latin-based text: "${text.substring(0, 50)}..."`);
       return "English"; // Default to English for Latin-based text
     }
+    console.log(`[detectPrimaryLanguage] Returning unknown for text: "${text.substring(0, 50)}..."`);
     return "unknown";
   }
   
+  console.log(`[detectPrimaryLanguage] Highest count language: ${counts[0].lang} (${counts[0].count} chars)`);
   return counts[0].lang;
 }
 
@@ -182,11 +191,13 @@ function detectPrimaryLanguage(text: string, forcedLanguage: string = 'auto'): s
 export function validateTextMatchesLanguage(text: string, forcedLanguage: string = 'auto'): boolean {
   // If auto-detect is enabled, always return true (no validation needed)
   if (forcedLanguage === 'auto') {
+    console.log('[validateTextMatchesLanguage] Auto-detect enabled, returning true');
     return true;
   }
 
   // If text is too short, don't validate (prevent false rejections for very short inputs)
   if (text.trim().length < 2) {
+    console.log('[validateTextMatchesLanguage] Text too short, returning true');
     return true;
   }
 
@@ -211,7 +222,8 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
     default: expectedLanguage = forcedLanguage;
   }
   
-  console.log(`Validating language: Expected ${expectedLanguage}, Detected ${detectedLang}`);
+  console.log(`[validateTextMatchesLanguage] Validating language: Expected ${expectedLanguage}, Detected ${detectedLang}`);
+  console.log(`[validateTextMatchesLanguage] Text sample: "${text.substring(0, 50)}..."`);
   
   // Special handling for similar languages or scripts that might be confused
   
@@ -219,16 +231,20 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
   // These can sometimes be confused due to shared characters
   const cjkLanguages = ['Chinese', 'Japanese', 'Korean'];
   if (cjkLanguages.includes(expectedLanguage) && cjkLanguages.includes(detectedLang)) {
+    console.log('[validateTextMatchesLanguage] Handling CJK language validation');
     // For Japanese forced mode, require hiragana/katakana presence
     if (expectedLanguage === 'Japanese' && !containsJapanese(text)) {
+      console.log('[validateTextMatchesLanguage] Japanese expected but no Japanese characters found');
       return false;
     }
     // For Korean forced mode, require Hangul presence
     if (expectedLanguage === 'Korean' && !containsKoreanText(text)) {
+      console.log('[validateTextMatchesLanguage] Korean expected but no Korean characters found');
       return false;
     }
     // For Chinese forced mode, require Chinese characters without significant Japanese kana
     if (expectedLanguage === 'Chinese' && (containsJapanese(text) || !containsChinese(text))) {
+      console.log('[validateTextMatchesLanguage] Chinese expected but found Japanese or no Chinese characters');
       return false;
     }
   }
@@ -237,50 +253,71 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
   // These can be harder to distinguish from each other, but we can check for language-specific patterns
   const latinLanguages = ['English', 'Italian', 'Spanish', 'French', 'Portuguese', 'German'];
   if (latinLanguages.includes(expectedLanguage) && latinLanguages.includes(detectedLang)) {
+    console.log('[validateTextMatchesLanguage] Handling Latin language validation');
+    console.log(`[validateTextMatchesLanguage] Expected: ${expectedLanguage}, Detected: ${detectedLang}`);
+    
     // Check for language-specific patterns when that language is forced
     
     // Check for Italian-specific patterns when Italian is forced
     if (expectedLanguage === 'Italian' && containsItalianText(text)) {
+      console.log('[validateTextMatchesLanguage] Italian patterns found, returning true');
       return true;
     }
     
     // Check for French-specific patterns when French is forced
     if (expectedLanguage === 'French' && containsFrenchText(text)) {
+      console.log('[validateTextMatchesLanguage] French patterns found, returning true');
       return true;
     }
     
     // Check for Spanish-specific patterns when Spanish is forced
     if (expectedLanguage === 'Spanish' && containsSpanishText(text)) {
+      console.log('[validateTextMatchesLanguage] Spanish patterns found, returning true');
       return true;
     }
     
     // Check for Portuguese-specific patterns when Portuguese is forced
     if (expectedLanguage === 'Portuguese' && containsPortugueseText(text)) {
+      console.log('[validateTextMatchesLanguage] Portuguese patterns found, returning true');
       return true;
     }
     
     // Check for German-specific patterns when German is forced
     if (expectedLanguage === 'German' && containsGermanText(text)) {
+      console.log('[validateTextMatchesLanguage] German patterns found, returning true');
       return true;
     }
     
     // Check for Tagalog-specific patterns when Tagalog is forced
     if (expectedLanguage === 'Tagalog' && containsTagalogText(text)) {
+      console.log('[validateTextMatchesLanguage] Tagalog patterns found, returning true');
       return true;
     }
+    
+    // Check for English-specific patterns when English is forced
+    if (expectedLanguage === 'English' && containsEnglishText(text)) {
+      console.log('[validateTextMatchesLanguage] English patterns found, returning true');
+      return true;
+    }
+    
+    // Additional validation completed for all supported languages
     
     // If the expected language doesn't match the detected language and we can't find
     // specific patterns for the expected language, return false
     if (expectedLanguage !== detectedLang) {
+      console.log(`[validateTextMatchesLanguage] Expected ${expectedLanguage} !== Detected ${detectedLang}, returning false`);
       return false;
     }
     
     // If both expected and detected are the same, allow it
+    console.log('[validateTextMatchesLanguage] Expected and detected languages match, returning true');
     return true;
   }
   
   // Standard comparison for other languages
-  return detectedLang === expectedLanguage;
+  const result = detectedLang === expectedLanguage;
+  console.log(`[validateTextMatchesLanguage] Standard comparison: ${detectedLang} === ${expectedLanguage} = ${result}`);
+  return result;
 }
 
 /**

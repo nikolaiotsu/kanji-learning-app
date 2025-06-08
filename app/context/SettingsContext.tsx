@@ -40,6 +40,7 @@ interface SettingsContextType {
   setTargetLanguage: (lang: string) => Promise<void>;
   forcedDetectionLanguage: string;
   setForcedDetectionLanguage: (lang: string) => Promise<void>;
+  swapLanguages: () => Promise<void>;
   availableLanguages: typeof AVAILABLE_LANGUAGES;
   detectableLanguages: typeof DETECTABLE_LANGUAGES;
 }
@@ -50,6 +51,7 @@ const SettingsContext = createContext<SettingsContextType>({
   setTargetLanguage: async () => {},
   forcedDetectionLanguage: 'auto',
   setForcedDetectionLanguage: async () => {},
+  swapLanguages: async () => {},
   availableLanguages: AVAILABLE_LANGUAGES,
   detectableLanguages: DETECTABLE_LANGUAGES
 });
@@ -92,24 +94,72 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Function to update target language
   const setTargetLanguage = async (lang: string) => {
     try {
+      // Validate that target language is different from forced detection language
+      if (lang === forcedDetectionLanguage && forcedDetectionLanguage !== 'auto') {
+        throw new Error('Target language cannot be the same as the detection language. Please choose a different language.');
+      }
+      
       setTargetLanguageState(lang);
       const settings = await getSettings();
       settings.targetLanguage = lang;
       await AsyncStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
     } catch (error) {
       console.error('Error saving settings to storage:', error);
+      throw error; // Re-throw to allow UI to handle the error
     }
   };
 
   // Function to update forced detection language
   const setForcedDetectionLanguage = async (lang: string) => {
     try {
+      // Validate that forced detection language is different from target language
+      if (lang === targetLanguage && lang !== 'auto') {
+        throw new Error('Detection language cannot be the same as the target language. Please choose a different language.');
+      }
+      
       setForcedDetectionLanguageState(lang);
       const settings = await getSettings();
       settings.forcedDetectionLanguage = lang;
       await AsyncStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
     } catch (error) {
       console.error('Error saving settings to storage:', error);
+      throw error; // Re-throw to allow UI to handle the error
+    }
+  };
+
+  // Function to swap languages
+  const swapLanguages = async () => {
+    try {
+      if (forcedDetectionLanguage === 'auto') {
+        throw new Error('Cannot swap languages when detection is set to auto-detect.');
+      }
+
+      // Check if both languages exist in their respective language lists
+      const targetExists = AVAILABLE_LANGUAGES[forcedDetectionLanguage as keyof typeof AVAILABLE_LANGUAGES];
+      const detectionExists = DETECTABLE_LANGUAGES[targetLanguage as keyof typeof DETECTABLE_LANGUAGES];
+
+      if (!targetExists) {
+        throw new Error(`"${DETECTABLE_LANGUAGES[forcedDetectionLanguage as keyof typeof DETECTABLE_LANGUAGES]}" is not available as a translation target language.`);
+      }
+
+      if (!detectionExists) {
+        throw new Error(`"${AVAILABLE_LANGUAGES[targetLanguage as keyof typeof AVAILABLE_LANGUAGES]}" is not available as a detection language.`);
+      }
+
+      // Perform the swap by updating both states and storage simultaneously
+      const tempTarget = targetLanguage;
+      const tempDetection = forcedDetectionLanguage;
+      
+      setTargetLanguageState(tempDetection);
+      setForcedDetectionLanguageState(tempTarget);
+      
+      const settings = await getSettings();
+      settings.targetLanguage = tempDetection;
+      settings.forcedDetectionLanguage = tempTarget;
+      await AsyncStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    } catch (error) {
+      console.error('Error swapping languages:', error);
+      throw error; // Re-throw to allow UI to handle the error
     }
   };
 
@@ -132,6 +182,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setTargetLanguage,
         forcedDetectionLanguage,
         setForcedDetectionLanguage,
+        swapLanguages,
         availableLanguages: AVAILABLE_LANGUAGES,
         detectableLanguages: DETECTABLE_LANGUAGES
       }}

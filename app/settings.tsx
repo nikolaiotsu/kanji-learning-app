@@ -15,6 +15,7 @@ export default function SettingsScreen() {
     setTargetLanguage, 
     forcedDetectionLanguage, 
     setForcedDetectionLanguage,
+    swapLanguages,
     availableLanguages,
     detectableLanguages 
   } = useSettings();
@@ -31,6 +32,17 @@ export default function SettingsScreen() {
     } catch (error) {
       console.error('Error signing out:', error);
       Alert.alert('Error', 'Failed to sign out. Please try again.');
+    }
+  };
+
+  // Function to swap languages
+  const handleSwapLanguages = async () => {
+    try {
+      await swapLanguages();
+    } catch (error) {
+      console.error('Error swapping languages:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to swap languages. Please try again.';
+      Alert.alert('Cannot Swap Languages', errorMessage, [{ text: 'OK' }]);
     }
   };
 
@@ -51,7 +63,8 @@ export default function SettingsScreen() {
       setShowLanguageSelector(false);
     } catch (error) {
       console.error('Error setting language:', error);
-      Alert.alert('Error', 'Failed to set language. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to set language. Please try again.';
+      Alert.alert('Invalid Language Selection', errorMessage);
     }
   };
 
@@ -62,7 +75,8 @@ export default function SettingsScreen() {
       setShowDetectionSelector(false);
     } catch (error) {
       console.error('Error setting detection language:', error);
-      Alert.alert('Error', 'Failed to set detection language. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to set detection language. Please try again.';
+      Alert.alert('Invalid Language Selection', errorMessage);
     }
   };
 
@@ -112,7 +126,7 @@ export default function SettingsScreen() {
           >
             <Ionicons name="language-outline" size={24} color={COLORS.primary} style={styles.settingIcon} />
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingLabel}>Target Language</Text>
+              <Text style={styles.settingLabel}>Translate to:</Text>
               <Text style={styles.settingDescription}>
                 {availableLanguages[targetLanguage as keyof typeof availableLanguages]} (tap to change)
               </Text>
@@ -125,7 +139,7 @@ export default function SettingsScreen() {
           >
             <Ionicons name="scan-outline" size={24} color={COLORS.primary} style={styles.settingIcon} />
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingLabel}>Forced Language Detection</Text>
+              <Text style={styles.settingLabel}>Force Word Dex to detect:</Text>
               <Text style={styles.settingDescription}>
                 {detectableLanguages[forcedDetectionLanguage as keyof typeof detectableLanguages]} (tap to change)
               </Text>
@@ -139,6 +153,19 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             )}
           </TouchableOpacity>
+
+          {/* Language Swap Button */}
+          {forcedDetectionLanguage !== 'auto' && (
+            <View style={styles.swapButtonContainer}>
+              <TouchableOpacity
+                style={styles.swapButton}
+                onPress={handleSwapLanguages}
+              >
+                <Ionicons name="swap-vertical" size={20} color="#000" />
+                <Text style={styles.swapButtonText}>Swap Languages</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {user && (
@@ -385,5 +412,28 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 8,
     backgroundColor: COLORS.darkSurface,
+  },
+  swapButtonContainer: {
+    alignItems: 'flex-start',
+    paddingVertical: 20,
+    marginHorizontal: 14,
+    justifyContent: 'center',
+  },
+  swapButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.background,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+  },
+  swapButtonText: {
+    color: '#000',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 8,
   },
 }); 

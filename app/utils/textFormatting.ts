@@ -164,7 +164,7 @@ export function containsSpanishText(text: string): boolean {
   const spanishSpecificChars = /[ñáéíóúü¿¡]/i;
   
   // Common Spanish words and patterns (articles, prepositions, common words)
-  const spanishPatterns = /\b(el|la|los|las|un|una|unos|unas|de|del|al|en|con|por|para|sin|sobre|bajo|entre|desde|hasta|hacia|según|durante|mediante|contra|ante|tras|y|o|pero|sino|que|quien|cual|cuyo|donde|cuando|como|porque|aunque|si|mientras|pues|así|entonces|también|tampoco|muy|más|menos|bien|mal|todo|toda|todos|todas|ser|estar|haber|tener|hacer|decir|poder|deber|querer|saber|ver|dar|venir|ir|salir|llegar|pasar|quedar|poner|seguir|parecer|conocer|llevar|traer|encontrar|sentir|vivir|morir|nacer|crecer|ción|sión|mente|oso|osa|ivo|iva|ado|ada|ido|ida|ando|iendo|ar|er|ir)\b/i;
+  const spanishPatterns = /\b(el|la|los|las|un|una|unos|unas|de|del|al|en|con|por|para|sin|sobre|bajo|entre|desde|hasta|hacia|según|durante|mediante|contra|ante|tras|y|o|pero|sino|que|quien|cual|cuyo|donde|cuando|como|porque|aunque|si|mientras|pues|así|entonces|también|tampoco|muy|más|menos|bien|mal|todo|toda|todos|todas|ser|estar|haber|tener|hacer|decir|poder|deber|querer|saber|ver|dar|venir|ir|salir|llegar|pasar|quedar|poner|seguir|parecer|conocer|llevar|traer|encontrar|sentir|vivir|morir|nacer|crecer|ção|são|mente|oso|osa|ivo|iva|ado|ada|ido|ida|ando|iendo|ar|er|ir)\b/i;
   
   // Check for Spanish specific characters or word patterns
   return spanishSpecificChars.test(text) || spanishPatterns.test(text);
@@ -198,6 +198,17 @@ export function containsGermanText(text: string): boolean {
   return germanSpecificChars.test(text) || germanPatterns.test(text);
 }
 
+/**
+ * Checks if text contains English characters and patterns
+ */
+export function containsEnglishText(text: string): boolean {
+  // Common English words and patterns - keeping it simple since Claude API does the heavy lifting
+  const englishPatterns = /\b(the|and|or|but|in|on|at|to|for|of|with|by|from|about|into|through|during|before|after|above|below|up|down|out|off|over|under|again|further|then|once|this|that|these|those|i|you|he|she|it|we|they|me|him|her|us|them|my|your|his|her|its|our|their|mine|yours|hers|ours|theirs|am|is|are|was|were|being|been|be|have|has|had|having|do|does|did|doing|will|would|could|should|may|might|must|can|shall|ought|need|dare|used|got|get|getting|say|said|saying|go|going|went|gone|come|coming|came|take|taking|took|taken|make|making|made|see|seeing|saw|seen|know|knowing|knew|known|think|thinking|thought|give|giving|gave|given|find|finding|found|work|working|worked|call|calling|called|try|trying|tried|ask|asking|asked|need|needing|needed|feel|feeling|felt|become|becoming|became|leave|leaving|left|put|putting|move|moving|moved|right|new|good|high|different|small|large|next|early|young|important|few|public|bad|same|able)\b/i;
+  
+  // Check for English word patterns
+  return englishPatterns.test(text);
+}
+
 // For backward compatibility
 export const cleanJapaneseText = cleanText;
 
@@ -218,6 +229,7 @@ const TextFormatting = {
   containsSpanishText,
   containsPortugueseText,
   containsGermanText,
+  containsEnglishText,
   containsKanji,
   countKanji
 };
