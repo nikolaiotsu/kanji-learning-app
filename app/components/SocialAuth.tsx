@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, TouchableOpacity, Text, Alert, ActivityIndicator, Platform } from 'react-native';
 import { signInWithGoogle, signInWithApple, signUpWithGoogle } from '../services/authService';
 import { COLORS } from '../constants/colors';
 import { AntDesign, FontAwesome } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import appleAuth from '@invertase/react-native-apple-authentication';
 
 interface SocialAuthProps {
   mode: 'login' | 'signup';
@@ -12,6 +13,28 @@ interface SocialAuthProps {
 const SocialAuth = ({ mode }: SocialAuthProps) => {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isAppleLoading, setIsAppleLoading] = useState(false);
+  const [isAppleSignInSupported, setIsAppleSignInSupported] = useState(false);
+
+  // Check Apple Sign In availability on component mount
+  useEffect(() => {
+    const checkAppleSignInSupport = async () => {
+      if (Platform.OS === 'ios') {
+        try {
+          const isSupported = await appleAuth.isSupported;
+          setIsAppleSignInSupported(isSupported);
+          console.log('🍎 Apple Sign In availability checked:', isSupported);
+        } catch (error) {
+          console.warn('🍎 Could not check Apple Sign In support:', error);
+          setIsAppleSignInSupported(false);
+        }
+      } else {
+        // Apple Sign In via web OAuth is available on all platforms
+        setIsAppleSignInSupported(true);
+      }
+    };
+
+    checkAppleSignInSupport();
+  }, []);
 
   const handleGoogleAuth = async () => {
     setIsGoogleLoading(true);
@@ -44,19 +67,33 @@ const SocialAuth = ({ mode }: SocialAuthProps) => {
   const handleAppleSignIn = async () => {
     setIsAppleLoading(true);
     try {
-      console.log('Starting Apple OAuth flow');
+      console.log('🍎 Starting Apple Sign In flow from UI...');
       await signInWithApple();
-      console.log('Apple auth flow initiated');
-      // The actual auth completion will be handled by the deep linking and AuthContext
+      console.log('🍎 Apple Sign In flow completed');
+      // The actual auth completion will be handled by the AuthContext
     } catch (error: any) {
-      console.error('Apple sign-in error:', error);
-      Alert.alert('Apple Sign In Failed', error.message || 'Please try again');
+      console.error('🍎 Apple Sign In UI error:', error);
+      
+      // Handle specific Apple Sign In errors
+      if (error.message?.includes('cancelled')) {
+        // User cancelled - don't show error alert
+        console.log('🍎 User cancelled Apple Sign In');
+      } else if (error.message?.includes('not available')) {
+        Alert.alert(
+          'Apple Sign In Unavailable', 
+          'Apple Sign In is not available on this device. Please try email/password or Google sign in.'
+        );
+      } else {
+        Alert.alert('Apple Sign In Failed', error.message || 'Please try again');
+      }
     } finally {
-      // Don't set loading to false immediately as the browser will open
-      // It will be reset when the component unmounts or when returning to the app
+      // Reset loading state
+      // For native Apple Sign In, this happens immediately
+      // For web OAuth, we give it some time as browser opens
+      const resetDelay = Platform.OS === 'ios' && isAppleSignInSupported ? 1000 : 5000;
       setTimeout(() => {
         setIsAppleLoading(false);
-      }, 5000);
+      }, resetDelay);
     }
   };
   
@@ -79,22 +116,24 @@ const SocialAuth = ({ mode }: SocialAuthProps) => {
         )}
       </TouchableOpacity>
       
-      <TouchableOpacity 
-        style={[styles.button, styles.appleButton]}
-        onPress={handleAppleSignIn}
-        disabled={isAppleLoading || isGoogleLoading}
-      >
-        {isAppleLoading ? (
-          <ActivityIndicator color="white" size="small" />
-        ) : (
-          <>
-            <AntDesign name="apple1" size={20} color="white" style={styles.buttonIcon} />
-            <Text style={styles.appleButtonText}>
-              {mode === 'login' ? 'Continue with Apple' : 'Sign up with Apple'}
-            </Text>
-          </>
-        )}
-      </TouchableOpacity>
+      {isAppleSignInSupported && (
+        <TouchableOpacity 
+          style={[styles.button, styles.appleButton]}
+          onPress={handleAppleSignIn}
+          disabled={isAppleLoading || isGoogleLoading}
+        >
+          {isAppleLoading ? (
+            <ActivityIndicator color="white" size="small" />
+          ) : (
+            <>
+              <AntDesign name="apple1" size={20} color="white" style={styles.buttonIcon} />
+              <Text style={styles.appleButtonText}>
+                {mode === 'login' ? 'Continue with Apple' : 'Sign up with Apple'}
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+      )}
     </View>
   );
 };

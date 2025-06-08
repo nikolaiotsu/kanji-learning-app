@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
+import appleAuth from '@invertase/react-native-apple-authentication';
 
 // Sign up with email and password
 export const signUp = async (email: string, password: string) => {
@@ -375,9 +376,146 @@ export const signInWithGoogle = async () => {
   }
 };
 
-// Sign in with Apple OAuth
+// Sign in with Apple (Native iOS + Web fallback)
 export const signInWithApple = async () => {
   try {
+    console.log('🍎 Starting Apple Sign In flow...');
+    console.log('🍎 Platform:', Platform.OS);
+    
+    // Check if Apple Sign In is available (iOS 13+)
+    if (Platform.OS === 'ios') {
+      console.log('🍎 Checking Apple Sign In availability...');
+      
+      // Check if Sign In with Apple is supported on this device
+      const isSupported = await appleAuth.isSupported;
+      console.log('🍎 Apple Sign In supported:', isSupported);
+      
+      if (isSupported) {
+        return await signInWithAppleNative();
+      } else {
+        console.log('🍎 Native Apple Sign In not supported, falling back to web OAuth');
+        return await signInWithAppleWeb();
+      }
+    } else {
+      // For Android and Web, use web-based OAuth
+      console.log('🍎 Using web-based Apple OAuth for non-iOS platform');
+      return await signInWithAppleWeb();
+    }
+  } catch (error: any) {
+    console.error('❌ Error in Apple Sign In:', error);
+    
+    // Provide more specific error messages
+    if (error.code === '1001') {
+      throw new Error('Apple Sign In was cancelled by user');
+    } else if (error.code === '1000') {
+      throw new Error('Apple Sign In failed. Please try again.');
+    } else if (error.message?.includes('not supported')) {
+      throw new Error('Apple Sign In is not available on this device');
+    }
+    
+    throw error;
+  }
+};
+
+// Native Apple Sign In for iOS
+const signInWithAppleNative = async () => {
+  try {
+    console.log('🍎 Starting native Apple Sign In...');
+    
+    // Generate a cryptographically secure nonce (best practice for security)
+    const generateNonce = (): string => {
+      const charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+      let result = '';
+      for (let i = 0; i < 32; i++) {
+        result += charset.charAt(Math.floor(Math.random() * charset.length));
+      }
+      return result;
+    };
+    
+    const nonce = generateNonce();
+    console.log('🍎 Generated nonce for security');
+    
+    // Perform the sign in request with nonce
+    const appleAuthRequestResponse = await appleAuth.performRequest({
+      requestedOperation: appleAuth.Operation.LOGIN,
+      requestedScopes: [appleAuth.Scope.EMAIL, appleAuth.Scope.FULL_NAME],
+      nonce: nonce, // Pass nonce to Apple
+    });
+    
+    console.log('🍎 Apple Auth Response received');
+    console.log('🍎 User ID:', appleAuthRequestResponse.user ? 'Present' : 'None');
+    console.log('🍎 Email:', appleAuthRequestResponse.email ? 'Present' : 'None');
+    console.log('🍎 Identity Token:', appleAuthRequestResponse.identityToken ? 'Present' : 'None');
+    
+    // Check if we got the required data
+    if (!appleAuthRequestResponse.identityToken) {
+      throw new Error('Apple Sign In did not return required identity token');
+    }
+    
+    // Get the credential state for the user
+    const credentialState = await appleAuth.getCredentialStateForUser(appleAuthRequestResponse.user);
+    console.log('🍎 Credential State:', credentialState);
+    
+    if (credentialState !== appleAuth.State.AUTHORIZED) {
+      throw new Error('Apple credentials are not authorized');
+    }
+    
+    // Create the custom token data for Supabase
+    const tokenData = {
+      provider: 'apple',
+      access_token: appleAuthRequestResponse.identityToken,
+      id_token: appleAuthRequestResponse.identityToken,
+    };
+    
+    console.log('🍎 Signing in to Supabase with Apple credentials...');
+    
+    // Sign in to Supabase using the Apple identity token
+    // This is the correct method for native Apple Sign In
+    const { data, error } = await supabase.auth.signInWithIdToken({
+      provider: 'apple',
+      token: appleAuthRequestResponse.identityToken,
+      nonce: nonce, // Pass the same nonce to Supabase for verification
+    });
+    
+    if (error) {
+      console.error('🍎 Supabase Apple Sign In error:', error.message);
+      throw error;
+    }
+    
+    if (data.session) {
+      console.log('✅ Apple Sign In successful:', data.session.user?.email);
+      
+      // Update user metadata if we have name information
+      if (appleAuthRequestResponse.fullName) {
+        const { givenName, familyName } = appleAuthRequestResponse.fullName;
+        const fullName = [givenName, familyName].filter(Boolean).join(' ');
+        
+        if (fullName) {
+          console.log('🍎 Updating user profile with name:', fullName);
+          try {
+            await supabase.auth.updateUser({
+              data: { full_name: fullName }
+            });
+          } catch (updateError) {
+            console.warn('🍎 Could not update user profile:', updateError);
+            // Don't throw here, as the sign in was successful
+          }
+        }
+      }
+    }
+    
+    return data;
+  } catch (error: any) {
+    console.error('❌ Native Apple Sign In error:', error);
+    throw error;
+  }
+};
+
+// Web-based Apple OAuth fallback
+const signInWithAppleWeb = async () => {
+  try {
+    console.log('🍎 Starting web-based Apple OAuth...');
+    
     // Make sure we close any existing web browser sessions
     WebBrowser.maybeCompleteAuthSession();
     
@@ -386,21 +524,65 @@ export const signInWithApple = async () => {
       provider: 'apple',
       options: {
         redirectTo: 'kanjilearningapp://login',
-        skipBrowserRedirect: false,
+        skipBrowserRedirect: Platform.OS === 'web' ? false : true,
       }
     });
     
-    if (error) throw error;
+    if (error) {
+      console.error('🍎 Supabase Apple OAuth error:', error);
+      throw error;
+    }
     
-    // On native platforms, we need to open the authorization URL in a web browser
+    console.log('🍎 OAuth URL generated:', data?.url ? 'Yes' : 'No');
+    
+    // On native platforms, open the authorization URL in a web browser
     if (data?.url && (Platform.OS === 'ios' || Platform.OS === 'android')) {
-      // Open the URL in an in-app browser
-      await WebBrowser.openAuthSessionAsync(data.url, 'kanjilearningapp://login');
+      console.log('🌐 Opening Apple OAuth URL in browser...');
+      
+      const result = await WebBrowser.openAuthSessionAsync(
+        data.url, 
+        'kanjilearningapp://login',
+        {
+          showInRecents: false,
+        }
+      );
+      
+      console.log('🔄 Browser session result:', result.type);
+      
+      if (result.type === 'cancel') {
+        throw new Error('Apple Sign In was cancelled by user');
+      }
+      
+      if (result.type === 'dismiss') {
+        throw new Error('Apple Sign In was dismissed');
+      }
+      
+      // Process the callback URL if successful
+      if (result.type === 'success' && result.url) {
+        console.log('🔗 Processing Apple OAuth callback URL...');
+        
+        const callbackUrl = new URL(result.url);
+        const code = callbackUrl.searchParams.get('code');
+        
+        if (code) {
+          console.log('🔗 Processing authorization code from Apple PKCE flow');
+          
+          const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
+          
+          if (sessionError) {
+            console.error('🔗 Error exchanging Apple code for session:', sessionError.message);
+            throw sessionError;
+          } else if (sessionData.session) {
+            console.log('✅ Apple OAuth session established:', sessionData.session.user?.email);
+            return sessionData;
+          }
+        }
+      }
     }
     
     return data;
-  } catch (error) {
-    console.error('Error signing in with Apple:', error);
+  } catch (error: any) {
+    console.error('❌ Web Apple OAuth error:', error);
     throw error;
   }
 };
