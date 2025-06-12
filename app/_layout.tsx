@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './context/AuthContext';
 import SettingsProvider from './context/SettingsContext';
+import { OCRCounterProvider } from './context/OCRCounterContext';
 import AuthGuard from './components/auth/AuthGuard';
 import { StyleSheet, View } from 'react-native';
 import { COLORS } from './constants/colors';
@@ -34,7 +35,8 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <AuthProvider>
           <SettingsProvider>
-            <AuthGuard>
+            <OCRCounterProvider>
+              <AuthGuard>
               <Stack 
                 screenOptions={{
                   headerShown: true,
@@ -55,7 +57,13 @@ export default function RootLayout() {
               >
                 <Stack.Screen name="(screens)" options={{ headerShown: false }} />
                 <Stack.Screen name="index" options={{ headerShown: false, title: 'Home' }} />
-                <Stack.Screen name="flashcards" options={{ title: 'Make a Flashcard' }} />
+                <Stack.Screen 
+                  name="flashcards" 
+                  options={{ 
+                    title: 'Make a Flashcard',
+                    gestureEnabled: false,
+                  }} 
+                />
                 <Stack.Screen 
                   name="saved-flashcards" 
                   options={{ 
@@ -69,6 +77,7 @@ export default function RootLayout() {
                 <Stack.Screen name="reset-password" options={{ title: 'Reset Password' }} />
               </Stack>
             </AuthGuard>
+            </OCRCounterProvider>
           </SettingsProvider>
         </AuthProvider>
       </SafeAreaProvider>

@@ -375,7 +375,11 @@ export default function SavedFlashcardsScreen() {
 
   // Function to handle going back to home
   const handleGoHome = () => {
-    router.push('/');
+    // Clear navigation stack completely, then navigate to home
+    if (router.canDismiss()) {
+      router.dismissAll();
+    }
+    router.replace('/');
   };
 
   // Function to handle deck selection

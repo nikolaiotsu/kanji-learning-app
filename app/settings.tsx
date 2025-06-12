@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from './context/AuthContext';
 import { useSettings, AVAILABLE_LANGUAGES, DETECTABLE_LANGUAGES } from './context/SettingsContext';
+import { useOCRCounter } from './context/OCRCounterContext';
 import { useRouter } from 'expo-router';
 import { COLORS } from './constants/colors';
 import PokedexLayout from './components/shared/PokedexLayout';
@@ -19,6 +20,7 @@ export default function SettingsScreen() {
     availableLanguages,
     detectableLanguages 
   } = useSettings();
+  const { ocrCount } = useOCRCounter();
   
   const router = useRouter();
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
@@ -166,6 +168,23 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             </View>
           )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Usage Statistics</Text>
+          
+          <View style={styles.settingItem}>
+            <Ionicons name="camera-outline" size={24} color={COLORS.primary} style={styles.settingIcon} />
+            <View style={styles.settingTextContainer}>
+              <Text style={styles.settingLabel}>OCR Scans</Text>
+              <Text style={styles.settingDescription}>
+                {ocrCount} scans performed in the last 24 hours
+              </Text>
+            </View>
+            <View style={styles.counterBadge}>
+              <Text style={styles.counterText}>{ocrCount}</Text>
+            </View>
+          </View>
         </View>
 
         {user && (
@@ -435,5 +454,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     marginLeft: 8,
+  },
+  counterBadge: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    minWidth: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  counterText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 }); 

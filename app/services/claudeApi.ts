@@ -578,7 +578,7 @@ Format your response as valid JSON with these exact keys:
 }
 `;
       } else if (primaryLanguage === "Japanese") {
-        // Japanese prompt - Enhanced for better furigana reliability
+        // Japanese prompt - Enhanced for contextual compound word readings
         userMessage = `
 ${promptTopSection}
 You are a Japanese language expert. I need you to analyze this text and add furigana to ALL words containing kanji: "${text}"
@@ -591,23 +591,57 @@ CRITICAL REQUIREMENTS FOR JAPANESE TEXT - THESE ARE MANDATORY:
 5. Non-kanji words (pure hiragana/katakana), English words, and numbers should remain unchanged
 6. Translate into ${targetLangName} language, NOT English (unless English is specifically requested)
 
+CRITICAL WORD-LEVEL READING PRIORITY:
+- FIRST analyze the text for compound words, counter words, and context-dependent readings
+- Compound words should be read as single units with their contextual pronunciation
+- Counter words undergo sound changes (rendaku) and must be read as complete units
+- Only split into individual kanji readings when words cannot be read as compounds
+
 VALIDATION REQUIREMENT:
 Before providing your response, verify that EVERY kanji character in the original text has corresponding furigana in your output. If you cannot determine the reading for any kanji, use the most common reading and mark it with [?].
 
 Examples of MANDATORY correct Japanese furigana formatting:
-- "東京" → "東京(とうきょう)" [REQUIRED - not optional]
-- "日本語" → "日本語(にほんご)" [REQUIRED - not optional]  
+
+COMPOUND WORDS (READ AS SINGLE UNITS):
+- "東京" → "東京(とうきょう)" [REQUIRED - compound place name]
+- "日本語" → "日本語(にほんご)" [REQUIRED - compound word]  
 - "勉強する" → "勉強する(べんきょうする)" [REQUIRED - covers entire word]
-- "お疲れ様" → "お疲(つか)れ様(さま)" [REQUIRED - each kanji gets furigana]
-- "食べ物" → "食(た)べ物(もの)" [REQUIRED - each kanji separately]
-- "iPhone 15" → "iPhone 15" [NO CHANGE - no kanji]
-- "ひらがな" → "ひらがな" [NO CHANGE - no kanji]
-- "カタカナ" → "カタカナ" [NO CHANGE - no kanji]
+- "一匹" → "一匹(いっぴき)" [REQUIRED - counter word with rendaku]
+- "一人" → "一人(ひとり)" [REQUIRED - special counter reading]
+- "三匹" → "三匹(さんびき)" [REQUIRED - counter with rendaku]
+- "百匹" → "百匹(ひゃっぴき)" [REQUIRED - counter with rendaku]
+- "大学生" → "大学生(だいがくせい)" [REQUIRED - compound word]
+- "図書館" → "図書館(としょかん)" [REQUIRED - compound word]
+
+INDIVIDUAL KANJI (ONLY when not part of compound):
+- "食べ物" → "食(た)べ物(もの)" [Individual readings when compound reading doesn't exist]
+- "読み書き" → "読(よ)み書(か)き" [Individual readings in coordinate compounds]
 
 COMPLEX EXAMPLES:
 - "今日は良い天気ですね" → "今日(きょう)は良(よ)い天気(てんき)ですね"
 - "新しい本を読みました" → "新(あたら)しい本(ほん)を読(よ)みました"
 - "駅まで歩いて行きます" → "駅(えき)まで歩(ある)いて行(い)きます"
+- "猫が三匹います" → "猫(ねこ)が三匹(さんびき)います"
+
+SPECIAL ATTENTION TO COUNTERS:
+- Numbers + counters (匹、人、本、個、枚、etc.) should be read as units with proper rendaku
+- 一匹 = いっぴき (NOT いちひき)
+- 三匹 = さんびき (NOT さんひき)  
+- 六匹 = ろっぴき (NOT ろくひき)
+- 八匹 = はっぴき (NOT はちひき)
+- 十匹 = じゅっぴき (NOT じゅうひき)
+
+COMMON COMPOUND WORDS TO READ AS UNITS:
+- 一人 = ひとり, 二人 = ふたり (NOT いちにん、にしん)
+- 一つ = ひとつ, 二つ = ふたつ (NOT いちつ、につ)
+- 今日 = きょう (NOT いまひ)
+- 明日 = あした/あす (NOT みょうにち)
+- 昨日 = きのう (NOT さくじつ)
+- 大人 = おとな (NOT だいじん)
+- 子供 = こども (NOT しきょう)
+- 時間 = じかん (compound)
+- 学校 = がっこう (compound)
+- 電話 = でんわ (compound)
 
 ERROR HANDLING:
 If you encounter a kanji whose reading you're uncertain about, use the most common reading and add [?] after the furigana like this: "難(むずか)[?]しい"
@@ -717,10 +751,17 @@ ABSOLUTE REQUIREMENTS - NO EXCEPTIONS:
 4. If you're unsure of a reading, use the most common one and add [?]
 5. DO NOT SKIP ANY KANJI - this is mandatory
 
+CRITICAL: PRIORITIZE COMPOUND WORD CONTEXTUAL READINGS:
+- Look for compound words, counter words, and context-dependent readings FIRST
+- Numbers + counters (匹、人、本、個、etc.) should be read as units with rendaku
+- 一匹 = いっぴき (NOT いちひき), 三匹 = さんびき (NOT さんひき)
+- Only split into individual kanji when no compound reading exists
+
 MANDATORY FORMAT for each kanji word:
-- Single kanji: 本(ほん), 人(ひと), 車(くるま)
-- Multiple kanji: 東京(とうきょう), 日本語(にほんご)
-- Mixed words: 勉強する(べんきょうする), 食べ物(たべもの)
+- Counter words: 一匹(いっぴき), 三匹(さんびき), 一人(ひとり)
+- Compound words: 東京(とうきょう), 日本語(にほんご), 大学生(だいがくせい)
+- Mixed words: 勉強する(べんきょうする)
+- Individual kanji (only when not compound): 食(た)べ物(もの)
 
 VERIFICATION STEP: Before responding, manually count:
 - Original kanji count: ${validation.totalKanjiCount}

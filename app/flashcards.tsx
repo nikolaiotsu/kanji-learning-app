@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Platform, ActivityIndicator, ScrollView, TouchableOpacity, Alert, TextInput, Modal, Image } from 'react-native';
+import { View, Text, StyleSheet, Platform, ActivityIndicator, ScrollView, TouchableOpacity, Alert, TextInput, Modal, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { processWithClaude, validateTextMatchesLanguage } from './services/claudeApi';
@@ -267,7 +267,12 @@ export default function LanguageFlashcardsScreen() {
         [
           { 
             text: 'View Saved Flashcards', 
-            onPress: () => router.push('/saved-flashcards') 
+            onPress: () => {
+              if (router.canDismiss()) {
+                router.dismissAll();
+              }
+              router.replace('/saved-flashcards');
+            }
           },
           { text: 'OK' }
         ]
@@ -282,8 +287,11 @@ export default function LanguageFlashcardsScreen() {
 
   // Function to view saved flashcards
   const handleViewSavedFlashcards = () => {
-    // Use router.push to maintain navigation history
-    router.push('/saved-flashcards');
+    // Clear navigation stack completely, then navigate to saved flashcards
+    if (router.canDismiss()) {
+      router.dismissAll();
+    }
+    router.replace('/saved-flashcards');
   };
 
   // Function to handle edit text button
@@ -395,7 +403,11 @@ export default function LanguageFlashcardsScreen() {
 
   // Function to handle going back to home
   const handleGoHome = () => {
-    router.push('/');
+    // Clear navigation stack completely, then navigate to home
+    if (router.canDismiss()) {
+      router.dismissAll();
+    }
+    router.replace('/');
   };
 
   // Function to toggle image preview
@@ -625,33 +637,42 @@ export default function LanguageFlashcardsScreen() {
           animationType="slide"
           onRequestClose={handleCancelEdit}
         >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Edit Text</Text>
-              <TextInput
-                style={styles.textInput}
-                value={editedText}
-                onChangeText={setEditedText}
-                multiline
-                placeholder="Edit text here..."
-                placeholderTextColor="#aaa"
-              />
-              <View style={styles.modalButtonsContainer}>
-                <TouchableOpacity 
-                  style={styles.modalCancelButton} 
-                  onPress={handleCancelEdit}
-                >
-                  <Text style={styles.modalButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.modalSaveButton} 
-                  onPress={handleSaveEdit}
-                >
-                  <Text style={styles.modalButtonText}>Save</Text>
-                </TouchableOpacity>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <KeyboardAvoidingView 
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+              style={styles.modalContainer}
+              keyboardVerticalOffset={Platform.OS === "ios" ? -20 : 20}
+            >
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Edit Text</Text>
+                <ScrollView style={styles.modalScrollContent}>
+                  <TextInput
+                    style={styles.textInput}
+                    value={editedText}
+                    onChangeText={setEditedText}
+                    multiline
+                    placeholder="Edit text here..."
+                    placeholderTextColor="#aaa"
+                    textAlignVertical="top"
+                  />
+                </ScrollView>
+                <View style={styles.modalButtonsContainer}>
+                  <TouchableOpacity 
+                    style={styles.modalCancelButton} 
+                    onPress={handleCancelEdit}
+                  >
+                    <Text style={styles.modalButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.modalSaveButton} 
+                    onPress={handleSaveEdit}
+                  >
+                    <Text style={styles.modalButtonText}>Save</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          </View>
+            </KeyboardAvoidingView>
+          </TouchableWithoutFeedback>
         </Modal>
 
         {/* Edit Translation Modal */}
@@ -661,53 +682,63 @@ export default function LanguageFlashcardsScreen() {
           animationType="slide"
           onRequestClose={() => setShowEditTranslationModal(false)}
         >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Edit Translation</Text>
-              <TextInput
-                style={styles.textInput}
-                value={translatedText}
-                onChangeText={setTranslatedText}
-                multiline
-                placeholder="Edit translation here..."
-                placeholderTextColor="#aaa"
-              />
-              {needsRomanization && (
-                <>
-                  <Text style={styles.modalTitle}>
-                    {detectedLanguage === 'Japanese' ? 'Edit Furigana' :
-                     detectedLanguage === 'Chinese' ? 'Edit Pinyin' :
-                     detectedLanguage === 'Korean' ? 'Edit Romanization' :
-                     detectedLanguage === 'Russian' ? 'Edit Romanization' :
-                     detectedLanguage === 'Arabic' ? 'Edit Transliteration' :
-                     'Edit Romanization'}
-                  </Text>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <KeyboardAvoidingView 
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+              style={styles.modalContainer}
+              keyboardVerticalOffset={Platform.OS === "ios" ? -20 : 20}
+            >
+              <View style={styles.modalContent}>
+                <Text style={styles.modalSubtitle}>Edit Translation</Text>
+                <ScrollView style={styles.modalScrollContent}>
                   <TextInput
                     style={styles.textInput}
-                    value={furiganaText}
-                    onChangeText={setFuriganaText}
+                    value={translatedText}
+                    onChangeText={setTranslatedText}
                     multiline
-                    placeholder="Edit romanization here..."
+                    placeholder="Edit translation here..."
                     placeholderTextColor="#aaa"
+                    textAlignVertical="top"
                   />
-                </>
-              )}
-              <View style={styles.modalButtonsContainer}>
-                <TouchableOpacity 
-                  style={styles.modalCancelButton} 
-                  onPress={() => setShowEditTranslationModal(false)}
-                >
-                  <Text style={styles.modalButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.modalSaveButton} 
-                  onPress={() => setShowEditTranslationModal(false)}
-                >
-                  <Text style={styles.modalButtonText}>Save</Text>
-                </TouchableOpacity>
+                  {needsRomanization && (
+                    <>
+                      <Text style={styles.modalSubtitle}>
+                        {detectedLanguage === 'Japanese' ? 'Edit Furigana' :
+                         detectedLanguage === 'Chinese' ? 'Edit Pinyin' :
+                         detectedLanguage === 'Korean' ? 'Edit Romanization' :
+                         detectedLanguage === 'Russian' ? 'Edit Romanization' :
+                         detectedLanguage === 'Arabic' ? 'Edit Transliteration' :
+                         'Edit Romanization'}
+                      </Text>
+                      <TextInput
+                        style={styles.textInput}
+                        value={furiganaText}
+                        onChangeText={setFuriganaText}
+                        multiline
+                        placeholder="Edit romanization here..."
+                        placeholderTextColor="#aaa"
+                        textAlignVertical="top"
+                      />
+                    </>
+                  )}
+                </ScrollView>
+                <View style={styles.modalButtonsContainer}>
+                  <TouchableOpacity 
+                    style={styles.modalCancelButton} 
+                    onPress={() => setShowEditTranslationModal(false)}
+                  >
+                    <Text style={styles.modalButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.modalSaveButton} 
+                    onPress={() => setShowEditTranslationModal(false)}
+                  >
+                    <Text style={styles.modalButtonText}>Save</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          </View>
+            </KeyboardAvoidingView>
+          </TouchableWithoutFeedback>
         </Modal>
       </SafeAreaView>
     </PokedexLayout>
@@ -917,27 +948,46 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
     padding: 20,
+    paddingBottom: 0,
   },
   modalContent: {
     backgroundColor: COLORS.darkSurface,
-    borderRadius: 12,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     padding: 20,
+    paddingBottom: 30,
+    marginBottom: 10,
     width: '100%',
     maxWidth: 500,
+    maxHeight: '85%',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+  },
+  modalScrollContent: {
+    maxHeight: '70%',
+    marginBottom: 10,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 16,
-    textAlign: 'center',
+    textAlign: 'left',
+    color: COLORS.text,
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+    marginTop: 16,
+    color: COLORS.darkGray,
   },
   textInput: {
     borderWidth: 1,
@@ -946,9 +996,11 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 18,
     minHeight: 120,
+    maxHeight: 200,
     fontFamily: Platform.OS === 'ios' ? 'HiraginoSans-W3' : undefined,
     color: 'white',
     backgroundColor: COLORS.mediumSurface,
+    marginBottom: 16,
   },
   modalButtonsContainer: {
     flexDirection: 'row',

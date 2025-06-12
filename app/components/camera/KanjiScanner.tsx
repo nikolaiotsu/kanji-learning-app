@@ -7,6 +7,7 @@ import CameraButton from './CameraButton';
 import ImageHighlighter from '../shared/ImageHighlighter';
 import { useKanjiRecognition } from '../../hooks/useKanjiRecognition';
 import { useAuth } from '../../context/AuthContext';
+import { useOCRCounter } from '../../context/OCRCounterContext';
 import { COLORS } from '../../constants/colors';
 import { CapturedImage, TextAnnotation } from '../../../types';
 import { captureRef } from 'react-native-view-shot';
@@ -40,6 +41,7 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
     width: number;
     height: number;
   } | null>(null);
+  const [isNavigating, setIsNavigating] = useState(false);
   
   // State for rotate mode
   const [rotateModeActive, setRotateModeActive] = useState(false);
@@ -51,6 +53,7 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
   const router = useRouter();
   const { signOut } = useAuth();
   const { recognizeKanji, isProcessing, error } = useKanjiRecognition();
+  const { incrementOCRCount } = useOCRCounter();
   
   // Add ref to access the ImageHighlighter component
   const imageHighlighterRef = useRef<ImageHighlighterRef>(null);
@@ -64,6 +67,13 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
     console.log('[KanjiScanner] Rotation state update from IH:', newState);
     setCurrentRotationUIState(newState);
   }, []); // Empty dependency array as setCurrentRotationUIState is stable
+
+  // Reset navigation state when component becomes active
+  useFocusEffect(
+    React.useCallback(() => {
+      setIsNavigating(false);
+    }, [])
+  );
 
   const handleLogout = async () => {
     setSettingsMenuVisible(false);
@@ -246,10 +256,16 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
       
       console.log('OCR result:', textRegions.length > 0 ? `${textRegions.length} texts found` : 'No text found');
       
+      // Increment OCR counter for successful scan attempts (whether text is found or not)
+      await incrementOCRCount();
+      
       if (textRegions && textRegions.length > 0) {
         // Join all detected text items with newlines
         const detectedText = textRegions.map(item => item.text).join('\n');
         console.log('Extracted text:', detectedText);
+        
+        // Set navigation state to prevent UI flash
+        setIsNavigating(true);
         
         // Clear the highlight box
         imageHighlighterRef.current?.clearHighlightBox?.();
@@ -287,11 +303,14 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
         );
       }
     } finally {
-      setLocalProcessing(false); // Ensure this is always called
-      setHighlightRegion(null);
-      setHasHighlightSelection(false);
-      setHighlightModeActive(false);
-      imageHighlighterRef.current?.clearHighlightBox?.(); // Ensure highlight box is cleared
+      // Only reset states if we're not navigating to prevent UI flash
+      if (!isNavigating) {
+        setLocalProcessing(false); // Ensure this is always called
+        setHighlightRegion(null);
+        setHasHighlightSelection(false);
+        setHighlightModeActive(false);
+        imageHighlighterRef.current?.clearHighlightBox?.(); // Ensure highlight box is cleared
+      }
     }
   };
 
@@ -827,7 +846,7 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
               {/* Mode Activation / Confirmation Buttons (Bottom row in center or replaces history) */}
               <View style={styles.toolbarButtonGroup}>
                 {/* Mode Activation Buttons (Highlight, Crop, Rotate) */}
-                {!highlightModeActive && !cropModeActive && !rotateModeActive && !localProcessing && (
+                {!highlightModeActive && !cropModeActive && !rotateModeActive && !localProcessing && !isNavigating && (
                   <>
                     <PokedexButton
                       onPress={activateHighlightMode}
@@ -851,7 +870,7 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
                 )}
                 
                 {/* Confirmation buttons when a mode IS active */}
-                {(highlightModeActive || cropModeActive || rotateModeActive) && !localProcessing && (
+                {(highlightModeActive || cropModeActive || rotateModeActive) && !localProcessing && !isNavigating && (
                   <>
                     <PokedexButton
                       onPress={cancelActiveMode} 
