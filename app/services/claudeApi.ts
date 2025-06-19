@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
 import axios, { AxiosError } from 'axios';
+import { Alert } from 'react-native';
 import { 
   containsJapanese, 
   containsChinese, 
@@ -332,6 +333,24 @@ export async function processWithClaude(
   targetLanguage: string = 'en',
   forcedLanguage: string = 'auto'
 ): Promise<ClaudeResponse> {
+  // Validate Claude API key
+  const apiKey = Constants.expoConfig?.extra?.EXPO_PUBLIC_CLAUDE_API_KEY;
+  const apiKeyLength = apiKey ? String(apiKey).length : 0;
+  
+  console.log(`[Claude API] Key loaded. Length: ${apiKeyLength}.`);
+
+  if (!apiKey || typeof apiKey !== 'string' || apiKeyLength < 20) {
+    const errorMessage = `Claude API key is not configured or is invalid. Length: ${apiKeyLength}. Please ensure EXPO_PUBLIC_CLAUDE_API_KEY is set correctly in your environment variables.`;
+    console.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+
+  // Validate that the detected language matches the forced language if specified
+  if (forcedLanguage && forcedLanguage !== 'auto' && !validateTextMatchesLanguage(text, forcedLanguage)) {
+    console.error(`Claude API: Detected language ${detectPrimaryLanguage(text, 'auto')} does not match forced language ${forcedLanguage}`);
+    throw new Error(`Claude API: Detected language ${detectPrimaryLanguage(text, 'auto')} does not match forced language ${forcedLanguage}`);
+  }
+
   // Maximum number of retry attempts
   const MAX_RETRIES = 3;
   // Initial backoff delay in milliseconds
@@ -352,11 +371,15 @@ export async function processWithClaude(
 
   while (retryCount < MAX_RETRIES) {
     try {
-      // Try to get Claude API key from environment variables or from Constants
-      const apiKey = process.env.EXPO_PUBLIC_CLAUDE_API_KEY || 
-                    (Constants.expoConfig?.extra?.claudeApiKey as string);
+      // Try to get Claude API key from Constants first (for EAS builds), then fallback to process.env (for local dev)
+      const apiKey = Constants.expoConfig?.extra?.EXPO_PUBLIC_CLAUDE_API_KEY || 
+                    process.env.EXPO_PUBLIC_CLAUDE_API_KEY;
       
       if (!apiKey) {
+        console.error('Claude API key not found. Checked:');
+        console.error('- process.env.EXPO_PUBLIC_CLAUDE_API_KEY:', !!process.env.EXPO_PUBLIC_CLAUDE_API_KEY);
+        console.error('- Constants.expoConfig.extra:', Constants.expoConfig?.extra);
+        console.error('- Constants.manifest:', Constants.manifest);
         throw new Error('Claude API key is not configured. Please add EXPO_PUBLIC_CLAUDE_API_KEY to your environment variables.');
       }
 
@@ -672,6 +695,7 @@ Format your response as valid JSON with these exact keys:
       }
 
       console.log(`Processing text (${text.substring(0, 40)}${text.length > 40 ? '...' : ''})`);
+      console.log('Claude API Key found:', !!apiKey, 'Length:', apiKey?.length);
       
       // Process the prompt to ensure all string interpolation is handled
       const processedPrompt = userMessage

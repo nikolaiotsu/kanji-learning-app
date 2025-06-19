@@ -53,7 +53,7 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
   const router = useRouter();
   const { signOut } = useAuth();
   const { recognizeKanji, isProcessing, error } = useKanjiRecognition();
-  const { incrementOCRCount } = useOCRCounter();
+  const { incrementOCRCount, canPerformOCR, remainingScans } = useOCRCounter();
   
   // Add ref to access the ImageHighlighter component
   const imageHighlighterRef = useRef<ImageHighlighterRef>(null);
@@ -233,6 +233,22 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
     height: number;
   }) => {
     if (!capturedImage) return;
+    
+    // Check if user can perform OCR
+    if (!canPerformOCR) {
+      Alert.alert(
+        'OCR Limit Reached',
+        `You have reached your daily limit. You have ${remainingScans} scans remaining. Upgrade to Premium for unlimited scans!`,
+        [
+          { text: 'OK', style: 'default' },
+          { text: 'Upgrade', style: 'default', onPress: () => {
+            // Navigate to subscription screen
+            router.push('/settings'); // You can create a dedicated subscription screen route
+          }}
+        ]
+      );
+      return;
+    }
     
     console.log('[KanjiScanner PHR] Received originalRegionForProcessing:', originalRegionFromConfirm);
     console.log('[KanjiScanner PHR] Full image URI for cropping:', capturedImage.uri);

@@ -9,6 +9,8 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://osbxxmfblgmytndszfxz.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYnh4bWZibGdteXRuZHN6Znh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDIyODUxMjgsImV4cCI6MjA1Nzg2MTEyOH0.ZJZBfgA9XunV1e7qH0jFH3_N7BsJgQTbOGXkFwQb5G0",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "708033716317-kd9n31h4u6jm52urf07t5g70snkcjtjk.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "708033716317-7048ocdfgv9r1gd9e6bcu1r64dfj43sl.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_CLOUD_VISION_API_KEY": "AIzaSyACxC1gY5bJbxZhQxq3zzDd1sIKZ0QLZbw"
       }
     },
@@ -20,6 +22,8 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://osbxxmfblgmytndszfxz.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYnh4bWZibGdteXRuZHN6Znh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDIyODUxMjgsImV4cCI6MjA1Nzg2MTEyOH0.ZJZBfgA9XunV1e7qH0jFH3_N7BsJgQTbOGXkFwQb5G0",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "708033716317-kd9n31h4u6jm52urf07t5g70snkcjtjk.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "708033716317-7048ocdfgv9r1gd9e6bcu1r64dfj43sl.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_CLOUD_VISION_API_KEY": "AIzaSyACxC1gY5bJbxZhQxq3zzDd1sIKZ0QLZbw"
       }
     },
@@ -30,6 +34,8 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://osbxxmfblgmytndszfxz.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYnh4bWZibGdteXRuZHN6Znh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDIyODUxMjgsImV4cCI6MjA1Nzg2MTEyOH0.ZJZBfgA9XunV1e7qH0jFH3_N7BsJgQTbOGXkFwQb5G0",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "708033716317-kd9n31h4u6jm52urf07t5g70snkcjtjk.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "708033716317-7048ocdfgv9r1gd9e6bcu1r64dfj43sl.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_CLOUD_VISION_API_KEY": "AIzaSyACxC1gY5bJbxZhQxq3zzDd1sIKZ0QLZbw"
       }
     }

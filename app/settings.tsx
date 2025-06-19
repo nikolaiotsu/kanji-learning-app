@@ -5,9 +5,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from './context/AuthContext';
 import { useSettings, AVAILABLE_LANGUAGES, DETECTABLE_LANGUAGES } from './context/SettingsContext';
 import { useOCRCounter } from './context/OCRCounterContext';
+import { useSubscription } from './context/SubscriptionContext';
 import { useRouter } from 'expo-router';
 import { COLORS } from './constants/colors';
 import PokedexLayout from './components/shared/PokedexLayout';
+import SubscriptionTestButton from './components/subscription/SubscriptionTestButton';
 
 export default function SettingsScreen() {
   const { user, signOut } = useAuth();
@@ -20,7 +22,8 @@ export default function SettingsScreen() {
     availableLanguages,
     detectableLanguages 
   } = useSettings();
-  const { ocrCount } = useOCRCounter();
+  const { ocrCount, maxOCRScans, remainingScans } = useOCRCounter();
+  const { subscription } = useSubscription();
   
   const router = useRouter();
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
@@ -171,14 +174,43 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Subscription</Text>
+          
+          <View style={styles.settingItem}>
+            <Ionicons 
+              name={subscription.plan === 'PREMIUM' ? "diamond" : "star-outline"} 
+              size={24} 
+              color={subscription.plan === 'PREMIUM' ? COLORS.premium : COLORS.primary} 
+              style={styles.settingIcon} 
+            />
+            <View style={styles.settingTextContainer}>
+              <Text style={styles.settingLabel}>
+                {subscription.plan === 'PREMIUM' ? 'Premium Plan' : 'Free Plan'}
+              </Text>
+              <Text style={styles.settingDescription}>
+                {subscription.plan === 'PREMIUM' 
+                  ? 'Unlimited OCR scans, no ads' 
+                  : `${maxOCRScans} OCR scans per day, ads supported`
+                }
+              </Text>
+            </View>
+            {subscription.plan === 'PREMIUM' && (
+              <View style={[styles.counterBadge, { backgroundColor: COLORS.premium }]}>
+                <Ionicons name="diamond" size={16} color="white" />
+              </View>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Usage Statistics</Text>
           
           <View style={styles.settingItem}>
             <Ionicons name="camera-outline" size={24} color={COLORS.primary} style={styles.settingIcon} />
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingLabel}>OCR Scans</Text>
+              <Text style={styles.settingLabel}>OCR Scans Today</Text>
               <Text style={styles.settingDescription}>
-                {ocrCount} scans performed in the last 24 hours
+                {ocrCount} of {maxOCRScans} scans used ({remainingScans} remaining)
               </Text>
             </View>
             <View style={styles.counterBadge}>
@@ -186,6 +218,9 @@ export default function SettingsScreen() {
             </View>
           </View>
         </View>
+
+        {/* Development Testing Component */}
+        <SubscriptionTestButton />
 
         {user && (
           <View style={styles.section}>

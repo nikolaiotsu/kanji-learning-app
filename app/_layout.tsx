@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './context/AuthContext';
 import SettingsProvider from './context/SettingsContext';
+import { SubscriptionProvider } from './context/SubscriptionContext';
 import { OCRCounterProvider } from './context/OCRCounterContext';
 import AuthGuard from './components/auth/AuthGuard';
 import { StyleSheet, View } from 'react-native';
@@ -35,8 +36,9 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <AuthProvider>
           <SettingsProvider>
-            <OCRCounterProvider>
-              <AuthGuard>
+            <SubscriptionProvider>
+              <OCRCounterProvider>
+                <AuthGuard>
               <Stack 
                 screenOptions={{
                   headerShown: true,
@@ -76,8 +78,9 @@ export default function RootLayout() {
                 <Stack.Screen name="signup" options={{ title: 'Sign Up', headerShown: false }} />
                 <Stack.Screen name="reset-password" options={{ title: 'Reset Password' }} />
               </Stack>
-            </AuthGuard>
-            </OCRCounterProvider>
+                </AuthGuard>
+              </OCRCounterProvider>
+            </SubscriptionProvider>
           </SettingsProvider>
         </AuthProvider>
       </SafeAreaProvider>

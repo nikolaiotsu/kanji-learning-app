@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSubscription } from './SubscriptionContext';
 
 interface OCRCounterData {
   count: number;
@@ -8,6 +9,9 @@ interface OCRCounterData {
 
 interface OCRCounterContextType {
   ocrCount: number;
+  maxOCRScans: number;
+  canPerformOCR: boolean;
+  remainingScans: number;
   incrementOCRCount: () => Promise<void>;
   resetOCRCount: () => Promise<void>;
 }
@@ -20,6 +24,12 @@ const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
 export const OCRCounterProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [ocrCount, setOcrCount] = useState<number>(0);
+  const { getMaxOCRScans } = useSubscription();
+
+  // Get subscription-aware limits
+  const maxOCRScans = getMaxOCRScans();
+  const canPerformOCR = ocrCount < maxOCRScans;
+  const remainingScans = Math.max(0, maxOCRScans - ocrCount);
 
   // Load OCR counter from AsyncStorage on mount
   useEffect(() => {
@@ -90,6 +100,9 @@ export const OCRCounterProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     <OCRCounterContext.Provider
       value={{
         ocrCount,
+        maxOCRScans,
+        canPerformOCR,
+        remainingScans,
         incrementOCRCount,
         resetOCRCount,
       }}

@@ -42,6 +42,7 @@
       "expo-router",
       "expo-dev-client",
       "expo-web-browser",
+      "expo-in-app-purchases",
       [
         "expo-screen-orientation",
         {
