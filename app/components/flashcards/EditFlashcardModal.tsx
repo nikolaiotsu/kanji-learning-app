@@ -17,19 +17,7 @@ import {
 import { Flashcard } from '../../types/Flashcard';
 import { updateFlashcard } from '../../services/supabaseStorage';
 import { processWithClaude } from '../../services/claudeApi';
-import { 
-  containsJapanese, 
-  containsChinese, 
-  containsKoreanText,
-  containsRussianText,
-  containsArabicText,
-  containsItalianText,
-  containsTagalogText,
-  containsFrenchText,
-  containsSpanishText,
-  containsPortugueseText,
-  containsGermanText
-} from '../../utils/textFormatting';
+// Removed text formatting imports - no longer needed for direct content analysis
 import { useSettings, AVAILABLE_LANGUAGES } from '../../context/SettingsContext';
 import { COLORS } from '../../constants/colors';
 
@@ -65,45 +53,55 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
       setFuriganaText(flashcard.furiganaText);
       setTranslatedText(flashcard.translatedText);
       
-      // Detect language and determine if romanization is needed
-      const text = flashcard.originalText;
-      const hasJapanese = containsJapanese(text);
-      const hasChinese = containsChinese(text);
-      const hasKorean = containsKoreanText(text);
-      const hasRussian = containsRussianText(text);
-      const hasArabic = containsArabicText(text);
-      const hasItalian = containsItalianText(text);
-      const hasTagalog = containsTagalogText(text);
-      const hasFrench = containsFrenchText(text);
-      const hasSpanish = containsSpanishText(text);
-      const hasPortuguese = containsPortugueseText(text);
-      const hasGerman = containsGermanText(text);
+      // Determine pronunciation guide type based on content (no language detection needed)
+      const furiganaText = flashcard.furiganaText;
       
-      // Determine language
+      if (!furiganaText) {
+        setNeedsRomanization(false);
+        setDetectedLanguage('English'); // Default for text without pronunciation guide
+        return;
+      }
+
+      // Check what type of pronunciation guide the furiganaText contains
+      const containsHiragana = /[\u3040-\u309F]/.test(furiganaText); // Japanese furigana
+      const containsHangul = /[\uAC00-\uD7AF]/.test(furiganaText); // Korean
+      const containsCyrillic = /[\u0400-\u04FF]/.test(furiganaText); // Russian
+      const containsArabicScript = /[\u0600-\u06FF]/.test(furiganaText); // Arabic
+      const containsLatinInParentheses = /\([a-zA-Zāēīōūǎěǐǒǔàèìòùáéíóúǘǜɑ\s]+\)/.test(furiganaText); // Chinese pinyin or other romanization
+
       let language = 'unknown';
-      if (hasJapanese && !hasChinese && !hasKorean) language = 'Japanese';
-      else if (hasChinese) language = 'Chinese';
-      else if (hasKorean) language = 'Korean';
-      else if (hasRussian) language = 'Russian';
-      else if (hasArabic) language = 'Arabic';
-      else if (hasItalian) language = 'Italian';
-      else if (hasTagalog) language = 'Tagalog';
-      else if (hasFrench) language = 'French';
-      else if (hasSpanish) language = 'Spanish';
-      else if (hasPortuguese) language = 'Portuguese';
-      else if (hasGerman) language = 'German';
-      else {
-        // Check if the text is primarily Latin characters (likely English or other European languages)
-        const latinChars = text.replace(/\s+/g, '').split('').filter(char => /[a-zA-Z]/.test(char)).length;
-        if (latinChars > 0 && latinChars / text.replace(/\s+/g, '').length >= 0.5) {
+      if (containsHiragana) {
+        language = 'Japanese';
+      } else if (containsLatinInParentheses) {
+        // Could be Chinese pinyin, Korean romanization, Russian romanization, etc.
+        // Check for specific patterns to distinguish
+        if (containsHangul) {
+          language = 'Korean';
+        } else if (containsCyrillic) {
+          language = 'Russian';
+        } else if (containsArabicScript) {
+          language = 'Arabic';
+        } else {
+          // Default to Chinese for Latin characters in parentheses
+          language = 'Chinese';
+        }
+      } else if (containsHangul) {
+        language = 'Korean';
+      } else if (containsCyrillic) {
+        language = 'Russian';
+      } else if (containsArabicScript) {
+        language = 'Arabic';
+      } else {
+        // Fallback: check original text for basic language patterns
+        const originalText = flashcard.originalText;
+        const latinChars = originalText.replace(/\s+/g, '').split('').filter(char => /[a-zA-Z]/.test(char)).length;
+        if (latinChars > 0 && latinChars / originalText.replace(/\s+/g, '').length >= 0.5) {
           language = 'English';
         }
       }
+      
       setDetectedLanguage(language);
-
-      // All these languages need romanization
-      const needsRom = hasJapanese || hasChinese || hasKorean || hasRussian || hasArabic;
-      setNeedsRomanization(needsRom);
+      setNeedsRomanization(furiganaText.length > 0);
     }
   }, [flashcard]);
 

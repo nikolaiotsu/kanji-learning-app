@@ -233,10 +233,19 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
   const cjkLanguages = ['Chinese', 'Japanese', 'Korean'];
   if (cjkLanguages.includes(expectedLanguage) && cjkLanguages.includes(detectedLang)) {
     console.log('[validateTextMatchesLanguage] Handling CJK language validation');
+    console.log(`[validateTextMatchesLanguage] Expected: ${expectedLanguage}, Detected: ${detectedLang}`);
+    
     // For Japanese forced mode, require hiragana/katakana presence
     if (expectedLanguage === 'Japanese' && !containsJapanese(text)) {
       console.log('[validateTextMatchesLanguage] Japanese expected but no Japanese characters found');
       return false;
+    }
+    
+    // Add additional debugging for Japanese validation
+    if (expectedLanguage === 'Japanese') {
+      console.log(`[validateTextMatchesLanguage] Japanese validation: containsJapanese=${containsJapanese(text)}`);
+      console.log(`[validateTextMatchesLanguage] Japanese validation: containsChinese=${containsChinese(text)}`);
+      console.log(`[validateTextMatchesLanguage] Text sample: "${text.substring(0, 50)}..."`);
     }
     // For Korean forced mode, require Hangul presence
     if (expectedLanguage === 'Korean' && !containsKoreanText(text)) {
@@ -346,9 +355,16 @@ export async function processWithClaude(
   }
 
   // Validate that the detected language matches the forced language if specified
-  if (forcedLanguage && forcedLanguage !== 'auto' && !validateTextMatchesLanguage(text, forcedLanguage)) {
-    console.error(`Claude API: Detected language ${detectPrimaryLanguage(text, 'auto')} does not match forced language ${forcedLanguage}`);
-    throw new Error(`Claude API: Detected language ${detectPrimaryLanguage(text, 'auto')} does not match forced language ${forcedLanguage}`);
+  if (forcedLanguage && forcedLanguage !== 'auto') {
+    const validationResult = validateTextMatchesLanguage(text, forcedLanguage);
+    console.log(`[DEBUG] Language validation for forced ${forcedLanguage}: ${validationResult}`);
+    
+    if (!validationResult) {
+      const autoDetectedLang = detectPrimaryLanguage(text, 'auto');
+      console.error(`Claude API: Detected language ${autoDetectedLang} does not match forced language ${forcedLanguage}`);
+      console.error(`Text sample: "${text.substring(0, 100)}..."`);
+      throw new Error(`Claude API: Detected language ${autoDetectedLang} does not match forced language ${forcedLanguage}`);
+    }
   }
 
   // Maximum number of retry attempts
@@ -367,6 +383,11 @@ export async function processWithClaude(
   console.log(`Translating to: ${targetLangName}`);
   if (forcedLanguage !== 'auto') {
     console.log(`Using forced language detection: ${forcedLanguage} (${primaryLanguage})`);
+  }
+  
+  // Add explicit debugging for Japanese forced detection
+  if (forcedLanguage === 'ja') {
+    console.log(`[DEBUG] Japanese forced detection active. Using Japanese prompt.`);
   }
 
   while (retryCount < MAX_RETRIES) {
@@ -399,7 +420,61 @@ If the target language is Arabic, the translation must use Arabic script.
 
 `;
       
-      if (primaryLanguage === "Chinese") {
+      // FAILSAFE: If Japanese is forced, always use Japanese prompt regardless of detected language
+      if (forcedLanguage === 'ja') {
+        console.log(`[DEBUG] FORCED JAPANESE: Using Japanese prompt (furigana) regardless of primaryLanguage: ${primaryLanguage}`);
+        // Japanese prompt - Enhanced for contextual compound word readings
+        userMessage = `
+${promptTopSection}
+You are a Japanese language expert. I need you to analyze this text and add furigana to ALL words containing kanji: "${text}"
+
+CRITICAL REQUIREMENTS FOR JAPANESE TEXT - THESE ARE MANDATORY:
+1. Keep all original text exactly as is (including any English words, numbers, or punctuation)
+2. For EVERY word containing kanji, you MUST add the complete hiragana reading in parentheses immediately after the word
+3. The reading should cover the entire word (including any hiragana/katakana parts attached to the kanji)
+4. You MUST NOT skip any kanji - every single kanji character must have furigana
+5. Non-kanji words (pure hiragana/katakana), English words, and numbers should remain unchanged
+6. Translate into ${targetLangName} language, NOT English (unless English is specifically requested)
+
+CRITICAL WORD-LEVEL READING PRIORITY:
+- FIRST analyze the text for compound words, counter words, and context-dependent readings
+- Compound words should be read as single units with their contextual pronunciation
+- Counter words undergo sound changes (rendaku) and must be read as complete units
+- Only split into individual kanji readings when words cannot be read as compounds
+
+VALIDATION REQUIREMENT:
+Before providing your response, verify that EVERY kanji character in the original text has corresponding furigana in your output. If you cannot determine the reading for any kanji, use the most common reading and mark it with [?].
+
+Examples of MANDATORY correct Japanese furigana formatting:
+
+COMPOUND WORDS (READ AS SINGLE UNITS):
+- "東京" → "東京(とうきょう)" [REQUIRED - compound place name]
+- "日本語" → "日本語(にほんご)" [REQUIRED - compound word]  
+- "勉強する" → "勉強する(べんきょうする)" [REQUIRED - covers entire word]
+- "一匹" → "一匹(いっぴき)" [REQUIRED - counter word with rendaku]
+- "一人" → "一人(ひとり)" [REQUIRED - special counter reading]
+- "三匹" → "三匹(さんびき)" [REQUIRED - counter with rendaku]
+- "百匹" → "百匹(ひゃっぴき)" [REQUIRED - counter with rendaku]
+- "大学生" → "大学生(だいがくせい)" [REQUIRED - compound word]
+- "図書館" → "図書館(としょかん)" [REQUIRED - compound word]
+
+INDIVIDUAL KANJI (ONLY when not part of compound):
+- "食べ物" → "食(た)べ物(もの)" [Individual readings when compound reading doesn't exist]
+- "読み書き" → "読(よ)み書(か)き" [Individual readings in coordinate compounds]
+
+ERROR HANDLING:
+If you encounter a kanji whose reading you're uncertain about, use the most common reading and add [?] after the furigana like this: "難(むずか)[?]しい"
+
+Format your response as valid JSON with these exact keys:
+{
+  "furiganaText": "Japanese text with furigana after EVERY kanji word as shown in examples - THIS IS MANDATORY",
+  "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
+}
+
+FINAL CHECK: Before responding, count the kanji in the original text and ensure your furiganaText has the same number of kanji with furigana readings.
+`;
+      } else if (primaryLanguage === "Chinese") {
+        console.log(`[DEBUG] Using Chinese prompt (pinyin) for primaryLanguage: ${primaryLanguage}`);
         // Chinese-specific prompt with pinyin
         userMessage = `
 ${promptTopSection}
@@ -600,8 +675,9 @@ Format your response as valid JSON with these exact keys:
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
-      } else if (primaryLanguage === "Japanese") {
-        // Japanese prompt - Enhanced for contextual compound word readings
+      } else if (primaryLanguage === "Japanese" && forcedLanguage !== 'ja') {
+        console.log(`[DEBUG] Using Japanese prompt (furigana) for primaryLanguage: ${primaryLanguage}`);
+        // Japanese prompt - Enhanced for contextual compound word readings (only when not using forced detection)
         userMessage = `
 ${promptTopSection}
 You are a Japanese language expert. I need you to analyze this text and add furigana to ALL words containing kanji: "${text}"
@@ -678,6 +754,7 @@ Format your response as valid JSON with these exact keys:
 FINAL CHECK: Before responding, count the kanji in the original text and ensure your furiganaText has the same number of kanji with furigana readings.
 `;
       } else {
+        console.log(`[DEBUG] Using default prompt for primaryLanguage: ${primaryLanguage}`);
         // Default prompt for other languages
         userMessage = `
 ${promptTopSection}
@@ -746,7 +823,7 @@ Format your response as valid JSON with these exact keys:
             
             // For Japanese text, validate furigana coverage
             let furiganaText = parsedContent.furiganaText || "";
-            if (primaryLanguage === "Japanese" && furiganaText) {
+            if ((primaryLanguage === "Japanese" || forcedLanguage === 'ja') && furiganaText) {
               const validation = validateJapaneseFurigana(text, furiganaText);
               console.log(`Furigana validation: ${validation.details}`);
               

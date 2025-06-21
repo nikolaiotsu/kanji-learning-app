@@ -10,6 +10,36 @@ module.exports = (() => {
   config.resolver = {
     ...resolver,
     sourceExts: [...resolver.sourceExts, 'mjs'],
+    // Resolve React Native specific modules and exclude Node.js specific ones
+    resolverMainFields: ['react-native', 'browser', 'main'],
+    platforms: ['ios', 'android', 'native', 'web'],
+    // Exclude Node.js specific modules from being bundled
+    blockList: [
+      /node_modules\/ws\//,
+      /node_modules\/bufferutil/,
+      /node_modules\/utf-8-validate/,
+    ],
+    // Custom resolver for Node.js modules
+    resolveRequest: (context, moduleName, platform) => {
+      // Block ws module entirely for React Native
+      if (moduleName === 'ws' || moduleName.startsWith('ws/')) {
+        return {
+          filePath: require.resolve('react-native/Libraries/vendor/emitter/EventEmitter'),
+          type: 'sourceFile',
+        };
+      }
+      
+      // Block other problematic Node.js modules
+      if (moduleName === './lib/stream' && context.originModulePath?.includes('node_modules/ws')) {
+        return {
+          filePath: require.resolve('react-native/Libraries/vendor/emitter/EventEmitter'),
+          type: 'sourceFile',
+        };
+      }
+
+      // Use default resolver for everything else
+      return context.resolveRequest(context, moduleName, platform);
+    },
   };
   
   return config;
