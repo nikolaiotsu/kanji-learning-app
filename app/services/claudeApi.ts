@@ -12,6 +12,8 @@ import {
   containsPortugueseText,
   containsGermanText,
   containsEnglishText,
+  containsRussianText,
+  containsArabicText,
   containsKanji
 } from '../utils/textFormatting';
 
@@ -235,10 +237,19 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
     console.log('[validateTextMatchesLanguage] Handling CJK language validation');
     console.log(`[validateTextMatchesLanguage] Expected: ${expectedLanguage}, Detected: ${detectedLang}`);
     
-    // For Japanese forced mode, require hiragana/katakana presence
-    if (expectedLanguage === 'Japanese' && !containsJapanese(text)) {
-      console.log('[validateTextMatchesLanguage] Japanese expected but no Japanese characters found');
-      return false;
+    // For Japanese forced mode, require some Japanese-specific characters or CJK characters
+    if (expectedLanguage === 'Japanese') {
+      const hasJapaneseSpecific = /[\u3040-\u30ff]/.test(text); // hiragana/katakana
+      const hasCJKChars = /[\u4e00-\u9fff]/.test(text); // kanji/CJK
+      console.log(`[validateTextMatchesLanguage] Japanese force mode: hasJapaneseSpecific=${hasJapaneseSpecific}, hasCJKChars=${hasCJKChars}`);
+      
+      if (!hasJapaneseSpecific && !hasCJKChars) {
+        console.log('[validateTextMatchesLanguage] Japanese forced but no Japanese characters or CJK characters found');
+        return false;
+      }
+      // In force mode, allow mixed content - let Claude API handle extraction and translation
+      console.log('[validateTextMatchesLanguage] Japanese force mode validation passed - allowing mixed content');
+      return true;
     }
     
     // Add additional debugging for Japanese validation
@@ -248,83 +259,114 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
       console.log(`[validateTextMatchesLanguage] Text sample: "${text.substring(0, 50)}..."`);
     }
     // For Korean forced mode, require Hangul presence
-    if (expectedLanguage === 'Korean' && !containsKoreanText(text)) {
-      console.log('[validateTextMatchesLanguage] Korean expected but no Korean characters found');
-      return false;
+    if (expectedLanguage === 'Korean') {
+      const hasKorean = containsKoreanText(text);
+      console.log(`[validateTextMatchesLanguage] Korean force mode: hasKorean=${hasKorean}`);
+      
+      if (!hasKorean) {
+        console.log('[validateTextMatchesLanguage] Korean forced but no Korean characters found');
+        return false;
+      }
+      // In force mode, allow mixed content - let Claude API handle extraction and translation
+      console.log('[validateTextMatchesLanguage] Korean force mode validation passed - allowing mixed content');
+      return true;
     }
-    // For Chinese forced mode, require Chinese characters without significant Japanese kana
-    if (expectedLanguage === 'Chinese' && (containsJapanese(text) || !containsChinese(text))) {
-      console.log('[validateTextMatchesLanguage] Chinese expected but found Japanese or no Chinese characters');
-      return false;
+    // For Chinese forced mode, only require that some Chinese characters are present
+    // Allow mixed content (Chinese + English, Chinese + Japanese, etc.) since Claude can handle it
+    if (expectedLanguage === 'Chinese') {
+      // Check if text contains any CJK characters that could be Chinese
+      const hasCJKChars = /[\u4e00-\u9fff]/.test(text);
+      console.log(`[validateTextMatchesLanguage] Chinese force mode: hasCJKChars=${hasCJKChars}`);
+      console.log(`[validateTextMatchesLanguage] Text sample for Chinese validation: "${text.substring(0, 50)}..."`);
+      
+      if (!hasCJKChars) {
+        console.log('[validateTextMatchesLanguage] Chinese forced but no CJK characters found - cannot process as Chinese');
+        return false;
+      }
+      // In force mode, allow mixed content - let Claude API handle extraction and translation
+      console.log('[validateTextMatchesLanguage] Chinese force mode validation passed - found CJK characters, allowing mixed content');
+      return true;
     }
   }
   
   // Case 2: Latin-based languages (English, Italian, Spanish, etc.)
-  // These can be harder to distinguish from each other, but we can check for language-specific patterns
-  const latinLanguages = ['English', 'Italian', 'Spanish', 'French', 'Portuguese', 'German'];
-  if (latinLanguages.includes(expectedLanguage) && latinLanguages.includes(detectedLang)) {
-    console.log('[validateTextMatchesLanguage] Handling Latin language validation');
+  // In force mode, be permissive and let Claude API handle the processing
+  const latinLanguages = ['English', 'Italian', 'Spanish', 'French', 'Portuguese', 'German', 'Tagalog'];
+  if (latinLanguages.includes(expectedLanguage)) {
+    console.log('[validateTextMatchesLanguage] Handling Latin language force mode validation');
     console.log(`[validateTextMatchesLanguage] Expected: ${expectedLanguage}, Detected: ${detectedLang}`);
     
-    // Check for language-specific patterns when that language is forced
+    // Check if text contains basic Latin characters (most European languages use these)
+    const hasLatinChars = /[a-zA-ZÀ-ÿĀ-žñÑ]/.test(text);
+    console.log(`[validateTextMatchesLanguage] Latin force mode: hasLatinChars=${hasLatinChars}`);
     
-    // Check for Italian-specific patterns when Italian is forced
-    if (expectedLanguage === 'Italian' && containsItalianText(text)) {
-      console.log('[validateTextMatchesLanguage] Italian patterns found, returning true');
-      return true;
-    }
-    
-    // Check for French-specific patterns when French is forced
-    if (expectedLanguage === 'French' && containsFrenchText(text)) {
-      console.log('[validateTextMatchesLanguage] French patterns found, returning true');
-      return true;
-    }
-    
-    // Check for Spanish-specific patterns when Spanish is forced
-    if (expectedLanguage === 'Spanish' && containsSpanishText(text)) {
-      console.log('[validateTextMatchesLanguage] Spanish patterns found, returning true');
-      return true;
-    }
-    
-    // Check for Portuguese-specific patterns when Portuguese is forced
-    if (expectedLanguage === 'Portuguese' && containsPortugueseText(text)) {
-      console.log('[validateTextMatchesLanguage] Portuguese patterns found, returning true');
-      return true;
-    }
-    
-    // Check for German-specific patterns when German is forced
-    if (expectedLanguage === 'German' && containsGermanText(text)) {
-      console.log('[validateTextMatchesLanguage] German patterns found, returning true');
-      return true;
-    }
-    
-    // Check for Tagalog-specific patterns when Tagalog is forced
-    if (expectedLanguage === 'Tagalog' && containsTagalogText(text)) {
-      console.log('[validateTextMatchesLanguage] Tagalog patterns found, returning true');
-      return true;
-    }
-    
-    // Check for English-specific patterns when English is forced
-    if (expectedLanguage === 'English' && containsEnglishText(text)) {
-      console.log('[validateTextMatchesLanguage] English patterns found, returning true');
-      return true;
-    }
-    
-    // Additional validation completed for all supported languages
-    
-    // If the expected language doesn't match the detected language and we can't find
-    // specific patterns for the expected language, return false
-    if (expectedLanguage !== detectedLang) {
-      console.log(`[validateTextMatchesLanguage] Expected ${expectedLanguage} !== Detected ${detectedLang}, returning false`);
+    if (!hasLatinChars) {
+      console.log('[validateTextMatchesLanguage] Latin language forced but no Latin characters found');
       return false;
     }
     
-    // If both expected and detected are the same, allow it
-    console.log('[validateTextMatchesLanguage] Expected and detected languages match, returning true');
+    // In force mode, check for specific language patterns when available, but be permissive
+    let hasSpecificPatterns = false;
+    
+    if (expectedLanguage === 'Italian' && containsItalianText(text)) {
+      console.log('[validateTextMatchesLanguage] Italian patterns found');
+      hasSpecificPatterns = true;
+    } else if (expectedLanguage === 'French' && containsFrenchText(text)) {
+      console.log('[validateTextMatchesLanguage] French patterns found');
+      hasSpecificPatterns = true;
+    } else if (expectedLanguage === 'Spanish' && containsSpanishText(text)) {
+      console.log('[validateTextMatchesLanguage] Spanish patterns found');
+      hasSpecificPatterns = true;
+    } else if (expectedLanguage === 'Portuguese' && containsPortugueseText(text)) {
+      console.log('[validateTextMatchesLanguage] Portuguese patterns found');
+      hasSpecificPatterns = true;
+    } else if (expectedLanguage === 'German' && containsGermanText(text)) {
+      console.log('[validateTextMatchesLanguage] German patterns found');
+      hasSpecificPatterns = true;
+    } else if (expectedLanguage === 'Tagalog' && containsTagalogText(text)) {
+      console.log('[validateTextMatchesLanguage] Tagalog patterns found');
+      hasSpecificPatterns = true;
+    } else if (expectedLanguage === 'English' && containsEnglishText(text)) {
+      console.log('[validateTextMatchesLanguage] English patterns found');
+      hasSpecificPatterns = true;
+    }
+    
+    // In force mode, allow even if specific patterns aren't found - let Claude API handle it
+    if (hasSpecificPatterns) {
+      console.log('[validateTextMatchesLanguage] Force mode: specific language patterns found, allowing');
+    } else {
+      console.log('[validateTextMatchesLanguage] Force mode: no specific patterns found, but allowing mixed/unclear content');
+    }
+    
+    return true; // Always allow in force mode if Latin characters are present
+  }
+  
+  // Case 3: Other languages (Russian, Arabic, etc.) - handle force mode permissively
+  if (expectedLanguage === 'Russian') {
+    const hasRussian = containsRussianText(text);
+    console.log(`[validateTextMatchesLanguage] Russian force mode: hasRussian=${hasRussian}`);
+    
+    if (!hasRussian) {
+      console.log('[validateTextMatchesLanguage] Russian forced but no Cyrillic characters found');
+      return false;
+    }
+    console.log('[validateTextMatchesLanguage] Russian force mode validation passed');
     return true;
   }
   
-  // Standard comparison for other languages
+  if (expectedLanguage === 'Arabic') {
+    const hasArabic = containsArabicText(text);
+    console.log(`[validateTextMatchesLanguage] Arabic force mode: hasArabic=${hasArabic}`);
+    
+    if (!hasArabic) {
+      console.log('[validateTextMatchesLanguage] Arabic forced but no Arabic characters found');
+      return false;
+    }
+    console.log('[validateTextMatchesLanguage] Arabic force mode validation passed');
+    return true;
+  }
+  
+  // Standard comparison for any remaining languages (fallback)
   const result = detectedLang === expectedLanguage;
   console.log(`[validateTextMatchesLanguage] Standard comparison: ${detectedLang} === ${expectedLanguage} = ${result}`);
   return result;
@@ -473,29 +515,30 @@ Format your response as valid JSON with these exact keys:
 
 FINAL CHECK: Before responding, count the kanji in the original text and ensure your furiganaText has the same number of kanji with furigana readings.
 `;
-      } else if (primaryLanguage === "Chinese") {
-        console.log(`[DEBUG] Using Chinese prompt (pinyin) for primaryLanguage: ${primaryLanguage}`);
+      } else if (primaryLanguage === "Chinese" || forcedLanguage === 'zh') {
+        console.log(`[DEBUG] Using Chinese prompt (pinyin) for primaryLanguage: ${primaryLanguage}, forcedLanguage: ${forcedLanguage}`);
         // Chinese-specific prompt with pinyin
         userMessage = `
 ${promptTopSection}
 You are a Chinese language expert. I need you to analyze and translate this text: "${text}"
 
 IMPORTANT FORMATTING REQUIREMENTS FOR CHINESE TEXT:
-- Keep all original text as is (including any English words, numbers, or punctuation)
-- For each Chinese character or word, add the Hanyu Pinyin romanization in parentheses immediately after
-- Do NOT add romanization to English words or numbers
+- Keep all original text as is (including any English words, numbers, punctuation, or other language characters)
+- For CHINESE CHARACTERS ONLY, add the Hanyu Pinyin romanization in parentheses immediately after each Chinese word
+- Do NOT add pinyin to English words, numbers, Japanese characters, or other non-Chinese content
 - The pinyin should include tone marks (e.g., "你好" should become "你好(nǐ hǎo)")
 - Do NOT use Japanese furigana/hiragana style - only use pinyin with Latin characters and tone marks
+- If the text contains mixed languages, focus on the Chinese parts and leave other languages as-is
 - Translate into ${targetLangName} language, NOT English (unless English is specifically requested)
 
-Example of correct Chinese pinyin formatting:
-- "中国" should become "中国(zhōngguó)"
-- "我爱你" should become "我爱你(wǒ ài nǐ)"
-- NOT "中国(ちゅうごく)" or any other non-pinyin format
+Example of correct Chinese pinyin formatting for mixed content:
+- "Hello 中国" should become "Hello 中国(zhōngguó)"
+- "我爱你 and I love you" should become "我爱你(wǒ ài nǐ) and I love you"
+- Mixed Chinese-Japanese: "中国語を勉強している" should become "中国語(zhōngguóyǔ)を勉強している"
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "Chinese text with pinyin after each character/word as described",
+  "furiganaText": "Text with pinyin added only to Chinese characters/words, other content unchanged",
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
@@ -503,18 +546,31 @@ Format your response as valid JSON with these exact keys:
         // Korean-specific prompt with Revised Romanization
         userMessage = `
 ${promptTopSection}
-You are a Korean language expert. I need you to analyze and translate this text: "${text}"
+You are a Korean language expert. I need you to analyze and translate this Korean text: "${text}"
 
-IMPORTANT: You must follow this EXACT format:
-- Keep all original text as is (including any English words, numbers, or punctuation)
-- For each Korean word, add the Revised Romanization in parentheses immediately after
-- Do NOT add romanization to English words or numbers
+CRITICAL FORMATTING REQUIREMENTS FOR KOREAN TEXT:
+- Keep all original Korean text exactly as is (including any English words, numbers, or punctuation)
+- For EVERY Korean word/phrase, add the Revised Romanization in parentheses immediately after the Korean text
+- Do NOT add romanization to English words or numbers - leave them unchanged
 - Follow the official Revised Romanization system rules
+- The format should be: 한국어(han-gug-eo) NOT "han-gug-eo (Korean)" or any other format
+- Do NOT mix English translations in the romanization - only provide pronunciation guide
 - Translate into ${targetLangName} language, NOT English (unless English is specifically requested)
+
+Examples of CORRECT Korean romanization formatting:
+- "안녕하세요" should become "안녕하세요(an-nyeong-ha-se-yo)"
+- "저는 학생입니다" should become "저는(jeo-neun) 학생입니다(hag-saeng-im-ni-da)"
+- "오늘 날씨가 좋아요" should become "오늘(o-neul) 날씨가(nal-ssi-ga) 좋아요(jo-a-yo)"
+- Mixed content: "Hello 한국어" should become "Hello 한국어(han-gug-eo)"
+
+WRONG examples (do NOT use these formats):
+- "jeo-neun (I)" ❌
+- "han-gug-eo (Korean)" ❌
+- "gong-bu-ha-go (study)" ❌
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "Korean text with Revised Romanization after each word in parentheses",
+  "furiganaText": "Korean text with romanization in parentheses immediately after each Korean word - following the examples above",
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
@@ -522,18 +578,31 @@ Format your response as valid JSON with these exact keys:
         // Russian-specific prompt with Practical Romanization
         userMessage = `
 ${promptTopSection}
-You are a Russian language expert. I need you to analyze and translate this text: "${text}"
+You are a Russian language expert. I need you to analyze and translate this Russian text: "${text}"
 
-IMPORTANT: You must follow this EXACT format:
-- Keep all original text as is (including any English words, numbers, or punctuation)
-- For each Russian word, add the Practical Romanization in parentheses immediately after
-- Do NOT add romanization to English words or numbers
+CRITICAL FORMATTING REQUIREMENTS FOR RUSSIAN TEXT:
+- Keep all original Russian text exactly as is (including any English words, numbers, or punctuation)
+- For EVERY Russian word, add the Practical Romanization in parentheses immediately after the Cyrillic text
+- Do NOT add romanization to English words or numbers - leave them unchanged
 - Follow practical, easy-to-read romanization standards
+- The format should be: Русский(russkiy) NOT "russkiy (Russian)" or any other format
+- Do NOT mix English translations in the romanization - only provide pronunciation guide
 - Translate into ${targetLangName} language, NOT English (unless English is specifically requested)
+
+Examples of CORRECT Russian romanization formatting:
+- "Привет" should become "Привет(privet)"
+- "Я изучаю русский язык" should become "Я(ya) изучаю(izuchayu) русский(russkiy) язык(yazyk)"
+- "Сегодня хорошая погода" should become "Сегодня(segodnya) хорошая(khoroshaya) погода(pogoda)"
+- Mixed content: "Hello Россия" should become "Hello Россия(rossiya)"
+
+WRONG examples (do NOT use these formats):
+- "ya (I)" ❌
+- "russkiy (Russian)" ❌
+- "izuchayu (study)" ❌
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "Russian text with Practical Romanization after each word in parentheses",
+  "furiganaText": "Russian text with romanization in parentheses immediately after each Russian word - following the examples above",
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
@@ -541,18 +610,33 @@ Format your response as valid JSON with these exact keys:
         // Arabic-specific prompt with Arabic Chat Alphabet
         userMessage = `
 ${promptTopSection}
-You are an Arabic language expert. I need you to analyze and translate this text: "${text}"
+You are an Arabic language expert. I need you to analyze and translate this Arabic text: "${text}"
 
-IMPORTANT: You must follow this EXACT format:
-- Keep all original text as is (including any English words, numbers, or punctuation)
-- For each Arabic word, add the Arabic Chat Alphabet (Franco-Arabic) transliteration in parentheses immediately after
-- Do NOT add transliteration to English words or numbers
+CRITICAL FORMATTING REQUIREMENTS FOR ARABIC TEXT:
+- Keep all original Arabic text exactly as is (including any English words, numbers, or punctuation)
+- For EVERY Arabic word, add the Arabic Chat Alphabet (Franco-Arabic) transliteration in parentheses immediately after the Arabic text
+- Do NOT add transliteration to English words or numbers - leave them unchanged
 - Follow common Arabic Chat Alphabet conventions used in online messaging
+- The format should be: العربية(al-arabiya) NOT "al-arabiya (Arabic)" or any other format
+- Do NOT mix English translations in the transliteration - only provide pronunciation guide
 - Translate into ${targetLangName} language, NOT English (unless English is specifically requested)
+
+Examples of CORRECT Arabic transliteration formatting:
+- "مرحبا" should become "مرحبا(marhaba)"
+- "أنا أتعلم العربية" should become "أنا(ana) أتعلم(ata3allam) العربية(al-arabiya)"
+- "اليوم الطقس جميل" should become "اليوم(al-yawm) الطقس(al-taqs) جميل(jameel)"
+- Mixed content: "Hello عربي" should become "Hello عربي(arabi)"
+
+IMPORTANT: Use CONSISTENT romanization throughout - prefer standard romanization over Franco-Arabic numbers (use "taqs" not "6aqs", "arabiya" not "3arabiya") for better learning.
+
+WRONG examples (do NOT use these formats):
+- "ana (I)" ❌
+- "al-arabiya (Arabic)" ❌
+- "ata3allam (learn)" ❌
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "Arabic text with Arabic Chat Alphabet transliteration after each word in parentheses",
+  "furiganaText": "Arabic text with transliteration in parentheses immediately after each Arabic word - following the examples above",
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
