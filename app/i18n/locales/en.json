@@ -1,0 +1,232 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "cancel": "Cancel",
+    "create": "Create",
+    "continue": "Continue",
+    "ok": "OK",
+    "warning": "Warning",
+    "success": "Success!",
+    "failed": "Failed",
+    "retry": "Retry",
+    "or": "or",
+    "delete": "Delete",
+    "save": "Save"
+  },
+  "auth": {
+    "login": {
+      "title": "Hello Collector.",
+      "newUser": "New to the app?",
+      "createAccount": "Create Account",
+      "emailPlaceholder": "Email",
+      "passwordPlaceholder": "Password",
+      "loginButton": "Log In",
+      "forgotPassword": "Forgot Password?",
+      "loginFailed": "Login Failed",
+      "emailNotVerified": "Email Not Verified",
+      "emailNotVerifiedMessage": "Please check your inbox and click the verification link to activate your account. Need a new link?",
+      "resendLink": "Resend Link",
+      "verificationSent": "Verification Email Sent",
+      "verificationSentMessage": "We've sent a new verification link to your email address. Please check your inbox.",
+      "missingCredentials": "Please enter both email and password",
+      "resendFailed": "Failed to resend verification email."
+    },
+    "signup": {
+      "title": "Create Your Account",
+      "subtitle": "Create an account to start collecting words.",
+      "signupWith": "Sign up with",
+      "orWithEmail": "or with email",
+      "confirmPasswordPlaceholder": "Confirm Password",
+      "passwordHint": "Password must be at least 6 characters long.",
+      "createAccountButton": "Create Account",
+      "loginExisting": "Log In with Existing Account",
+      "fillAllFields": "Please fill in all fields",
+      "passwordsMismatch": "Passwords do not match",
+      "passwordTooShort": "Password must be at least 6 characters",
+      "accountCreated": "Account Created",
+      "accountCreatedMessage": "We've sent a verification link to your email address. Please check your inbox and click the link to verify your account before logging in.",
+      "accountExists": "Account Already Exists",
+      "accountExistsMessage": "An account with this email already exists. Please log in instead.",
+      "goToLogin": "Go to Login",
+      "registrationFailed": "Registration Failed"
+    }
+  },
+  "deck": {
+    "select": "Select Collection",
+    "loading": "Loading collections...",
+    "empty": "No collections found. Create your first collection!",
+    "create": {
+      "new": "Create New Collection",
+      "enterName": "Enter collection name",
+      "error": "Please enter a name for the new collection",
+      "failed": "Failed to create new collection. Please try again."
+    },
+    "created": "Created: {{date}}"
+  },
+  "flashcard": {
+    "edit": {
+      "emptyOriginal": "Original text cannot be empty.",
+      "emptyRomanization": "Romanization/Furigana text is empty. Would you like to continue?",
+      "emptyTranslation": "Translation is empty. Would you like to continue?",
+      "enterText": "Please enter text to translate.",
+      "retranslateFailed": "Failed to process text with Claude API. Please try again later.",
+      "romanizationFailed": "Failed to get proper romanization for this text. The translation is still available."
+    },
+    "translate": {
+      "languageMismatch": "Language Mismatch",
+      "languageMismatchMessage": "The text still doesn't appear to be in {{language}}. Please try with a different text or change your forced language settings."
+    },
+    "forcedLanguage": {
+      "errorMessage": "Forced language not detected: The text doesn't appear to be in {{language}}. When forced language mode is active, please only enter text in the selected language. You can change your language preferences in Settings.",
+      "goBack": "Go Back",
+      "tryAgain": "Try Again",
+      "goToSettings": "Go to Settings"
+    },
+    "sectionTitles": {
+      "withFurigana": "With Furigana",
+      "withPinyin": "With Pinyin",
+      "withRevisedRomanization": "With Revised Romanization",
+      "withPracticalRomanization": "With Practical Romanization",
+      "withArabicChatAlphabet": "With Arabic Chat Alphabet",
+      "withItalianAlphabet": "With Italian Alphabet",
+      "withTagalogAlphabet": "With Tagalog Alphabet",
+      "originalText": "Original Text",
+      "withPronunciationGuide": "With Pronunciation Guide",
+      "translation": "{{language}} Translation",
+      "collection": "Collection:"
+    },
+    "save": {
+      "title": "Flashcard Saved",
+      "message": "Your {{cardType}} has been saved to {{deckName}}!",
+      "cannotSaveTranslation": "Missing translation for the flashcard. Please make sure the text was processed correctly.",
+      "cannotSaveContent": "Missing content for the flashcard. Please make sure the text was processed correctly.",
+      "saveError": "Save Error",
+      "saveFailed": "Failed to save flashcard. Please try again.",
+      "viewSaved": "View Saved Flashcards",
+      "saveAsFlashcard": "Save as Flashcard",
+      "savedAsFlashcard": "Saved as Flashcard",
+      "cardType": "{{language}} flashcard",
+      "languageFlashcard": "language flashcard",
+      "deck1": "Deck 1",
+      "newDeck": "a new deck"
+    },
+    "input": {
+      "title": "Flashcard Input"
+    },
+    "edit": {
+      "editText": "Edit Text",
+      "editTranslation": "Edit Translation", 
+      "editInputRetranslate": "Edit Input & Retranslate",
+      "editTextPlaceholder": "Edit text here...",
+      "editTranslationPlaceholder": "Edit translation here...",
+      "editRomanizationPlaceholder": "Edit romanization here...",
+      "editFurigana": "Edit Furigana",
+      "editPinyin": "Edit Pinyin",
+      "editRomanization": "Edit Romanization",
+      "editTransliteration": "Edit Transliteration",
+      "save": "Save"
+    }
+  },
+  "subscription": {
+    "test": {
+      "purchaseTitle": "Test Premium Purchase",
+      "purchaseMessage": "This will simulate a premium purchase in development mode. Continue?",
+      "purchase": "Purchase",
+      "premiumActivated": "Premium subscription activated!",
+      "restored": "Restored!",
+      "restoredMessage": "Premium subscription restored!",
+      "noPurchaseFound": "No Purchase Found",
+      "noPurchaseMessage": "No premium subscription to restore."
+    }
+  },
+  "settings": {
+    "forceDetection": "Force Language Detection",
+    "forceDetectionDescription": "This setting forces the app to treat the text as being in a specific language, bypassing automatic detection. Use this when working with languages that may be confused with each other. When a language is selected (other than \"Auto-detect\"), the app will only accept text in that language and will display an error message if the text appears to be in a different language.",
+    "account": "Account",
+    "preferences": "Preferences",
+    "subscription": "Subscription",
+    "usageStatistics": "Usage Statistics",
+    "signIn": "Sign In",
+    "signInDescription": "Log in to sync your flashcards across devices",
+    "signOut": "Sign Out",
+    "translateTo": "Translate to:",
+    "tapToChange": "(tap to change)",
+    "forceWordDexDetect": "Force Word Dex to detect:",
+    "swapLanguages": "Swap Languages",
+    "premiumPlan": "Premium Plan",
+    "freePlan": "Free Plan",
+    "unlimitedScans": "Unlimited OCR scans, no ads",
+    "limitedScans": "{{maxScans}} OCR scans per day, ads supported",
+    "ocrScansToday": "OCR Scans Today",
+    "scansUsed": "{{used}} of {{max}} scans used ({{remaining}} remaining)",
+    "selectTargetLanguage": "Select Target Language",
+    "cancel": "Cancel",
+    "signOutError": "Failed to sign out. Please try again.",
+    "swapLanguagesError": "Failed to swap languages. Please try again.",
+    "cannotSwapLanguages": "Cannot Swap Languages",
+    "setLanguageError": "Failed to set language. Please try again.",
+    "invalidLanguageSelection": "Invalid Language Selection",
+    "setDetectionLanguageError": "Failed to set detection language. Please try again."
+  },
+  "review": {
+    "remaining": "{{count}} remaining (swipe ← to review, → to dismiss)",
+    "nothingToReview": "Nothing to review",
+    "scanText": "Go scan some text to add to your collection!",
+    "finishedReview": "You've finished your review!",
+    "reviewAgain": "Review Again",
+    "selectCollections": "Collections",
+    "collections": "Collections",
+    "selectCollectionsToReview": "Select Collections to Review",
+    "selectAll": "Select All",
+    "saveSelection": "Save Selection ({{count}} {{type}})",
+    "collection": "Collection",
+    "collections_plural": "Collections",
+    "required": "Required",
+    "atLeastOneCollection": "At least one collection must be selected",
+    "noCollectionsFound": "No collections found. Create collections in the flashcards screen.",
+    "loadingCollections": "Loading collections...",
+    "failedToLoad": "Failed to load collections. Please try again."
+  },
+  "savedFlashcards": {
+    "title": "Your Collections",
+    "noCollections": "No collections available",
+    "renameCollection": "Rename Collection",
+    "deleteCollection": "Delete Collection",
+    "deleteCollectionConfirm": "Are you sure you want to delete this collection? All flashcards in this collection will also be deleted.",
+    "deleteFlashcard": "Delete Flashcard",
+    "deleteFlashcardConfirm": "Are you sure you want to delete this flashcard?",
+    "createNewCollection": "Create New Collection",
+    "sendToCollection": "Send to Collection",
+    "enterNewCollectionName": "Enter new collection name",
+    "noOtherCollections": "No other collections available",
+    "back": "Back",
+    "createAndMove": "Create & Move",
+    "newCollection": "New Collection",
+    "loadingFlashcards": "Loading flashcards...",
+    "noFlashcardsTitle": "No Flashcards in This Collection",
+    "noFlashcardsText": "Flashcards you save to this collection will appear here. Go scan some text and save it as a flashcard!",
+    "moveSuccess": "Flashcard moved to new collection: {{name}}",
+    "enterDeckName": "Please enter a deck name",
+    "loadCollectionsError": "Failed to load collections. Please try again.",
+    "loadFlashcardsError": "Failed to load flashcards. Please try again.",
+    "loadFlashcardsForCollectionError": "Failed to load flashcards for this collection. Please try again.",
+    "deleteFlashcardError": "Failed to delete flashcard. Please try again.",
+    "deleteCollectionError": "Failed to delete collection. Please try again.",
+    "renameCollectionError": "Failed to rename collection. Please try again.",
+    "moveFlashcardError": "Failed to move flashcard",
+    "createDeckError": "Failed to create deck and move flashcard",
+    "updateFlashcardError": "Failed to update flashcard. Please try again.",
+    "unexpectedError": "An unexpected error occurred. Please try again."
+  },
+  "imageHighlighter": {
+    "dragToRotate": "Drag to rotate the image",
+    "dragToHighlight": "drag to highlight",
+    "dragToCrop": "drag to crop"
+  },
+  "textInput": {
+    "placeholder": "Enter text to translate",
+    "cancel": "Cancel",
+    "translate": "Translate"
+  }
+} 

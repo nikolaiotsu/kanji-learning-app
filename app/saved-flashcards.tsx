@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, Alert, TouchableOpacity, ActivityIndicator, TextInput, Dimensions, Platform, SafeAreaView } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Flashcard } from './types/Flashcard';
 import { Deck } from './types/Deck';
 import { 
@@ -25,6 +26,7 @@ import PokedexLayout from './components/shared/PokedexLayout';
 const POKEDEX_LAYOUT_HORIZONTAL_REDUCTION = 20; // Updated: (padding 10) * 2
 
 export default function SavedFlashcardsScreen() {
+  const { t } = useTranslation();
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [decks, setDecks] = useState<Deck[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
@@ -146,7 +148,7 @@ export default function SavedFlashcardsScreen() {
       }
     } catch (error) {
       console.error('Error loading collections:', error);
-      Alert.alert('Error', 'Failed to load collections. Please try again.');
+      Alert.alert(t('common.error'), t('savedFlashcards.loadCollectionsError'));
     } finally {
       setIsLoadingDecks(false);
     }
@@ -162,7 +164,7 @@ export default function SavedFlashcardsScreen() {
       setFlashcards(savedFlashcards);
     } catch (error) {
       console.error('Error loading flashcards:', error);
-      Alert.alert('Error', 'Failed to load flashcards. Please try again.');
+      Alert.alert(t('common.error'), t('savedFlashcards.loadFlashcardsError'));
     } finally {
       setIsLoadingFlashcards(false);
     }
@@ -178,7 +180,7 @@ export default function SavedFlashcardsScreen() {
       setFlashcards(deckFlashcards);
     } catch (error) {
       console.error('Error loading flashcards for collection:', error);
-      Alert.alert('Error', 'Failed to load flashcards for this collection. Please try again.');
+      Alert.alert(t('common.error'), t('savedFlashcards.loadFlashcardsForCollectionError'));
     } finally {
       setIsLoadingFlashcards(false);
     }
@@ -187,12 +189,12 @@ export default function SavedFlashcardsScreen() {
   // Function to handle flashcard deletion
   const handleDeleteFlashcard = async (id: string) => {
     Alert.alert(
-      'Delete Flashcard',
-      'Are you sure you want to delete this flashcard?',
+      t('savedFlashcards.deleteFlashcard'),
+      t('savedFlashcards.deleteFlashcardConfirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -203,7 +205,7 @@ export default function SavedFlashcardsScreen() {
               }
             } catch (error) {
               console.error('Error deleting flashcard:', error);
-              Alert.alert('Error', 'Failed to delete flashcard. Please try again.');
+                              Alert.alert(t('common.error'), t('savedFlashcards.deleteFlashcardError'));
             }
           },
         },
@@ -214,12 +216,12 @@ export default function SavedFlashcardsScreen() {
   // Function to handle deck deletion
   const handleDeleteDeck = async (deckId: string) => {
     Alert.alert(
-      'Delete Collection',
-      'Are you sure you want to delete this collection? All flashcards in this collection will also be deleted.',
+      t('savedFlashcards.deleteCollection'),
+      t('savedFlashcards.deleteCollectionConfirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -243,7 +245,7 @@ export default function SavedFlashcardsScreen() {
               }
             } catch (error) {
               console.error('Error deleting collection:', error);
-              Alert.alert('Error', 'Failed to delete collection. Please try again.');
+              Alert.alert(t('common.error'), t('savedFlashcards.deleteCollectionError'));
             }
           },
         },
@@ -278,7 +280,7 @@ export default function SavedFlashcardsScreen() {
       }
     } catch (error) {
       console.error('Error renaming collection:', error);
-      Alert.alert('Error', 'Failed to rename collection. Please try again.');
+      Alert.alert(t('common.error'), t('savedFlashcards.renameCollectionError'));
     } finally {
       setEditingDeckId(null);
       setNewDeckName('');
@@ -291,15 +293,15 @@ export default function SavedFlashcardsScreen() {
       'Collection Options',
       'What would you like to do with this collection?',
       [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Rename', 
-          onPress: () => handleRenameDeck(deckId) 
+                { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('savedFlashcards.renameCollection'),
+          onPress: () => handleRenameDeck(deckId)
         },
-        { 
-          text: 'Delete', 
-          style: 'destructive', 
-          onPress: () => handleDeleteDeck(deckId) 
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: () => handleDeleteDeck(deckId)
         },
       ]
     );
@@ -322,13 +324,13 @@ export default function SavedFlashcardsScreen() {
         if (selectedDeckId === flashcards.find(f => f.id === selectedFlashcardId)?.deckId) {
           setFlashcards(cards => cards.filter(card => card.id !== selectedFlashcardId));
         }
-        Alert.alert('Success', 'Flashcard moved successfully');
+        Alert.alert(t('common.success'), 'Flashcard moved successfully');
       } else {
-        Alert.alert('Error', 'Failed to move flashcard');
+        Alert.alert(t('common.error'), t('savedFlashcards.moveFlashcardError'));
       }
     } catch (error) {
       console.error('Error moving flashcard:', error);
-      Alert.alert('Error', 'Failed to move flashcard');
+      Alert.alert(t('common.error'), t('savedFlashcards.moveFlashcardError'));
     } finally {
       closeModal();
     }
@@ -337,7 +339,7 @@ export default function SavedFlashcardsScreen() {
   // Function to create a new deck and move flashcard to it
   const createNewDeckAndMove = async () => {
     if (!selectedFlashcardId || !newDeckNameForSend.trim()) {
-      Alert.alert('Error', 'Please enter a deck name');
+      Alert.alert(t('common.error'), t('savedFlashcards.enterDeckName'));
       return;
     }
     
@@ -353,13 +355,13 @@ export default function SavedFlashcardsScreen() {
         if (selectedDeckId === flashcards.find(f => f.id === selectedFlashcardId)?.deckId) {
           setFlashcards(cards => cards.filter(card => card.id !== selectedFlashcardId));
         }
-        Alert.alert('Success', `Flashcard moved to new collection: ${newDeck.name}`);
+        Alert.alert(t('common.success'), t('savedFlashcards.moveSuccess', { name: newDeck.name }));
       } else {
-        Alert.alert('Error', 'Failed to move flashcard');
+        Alert.alert(t('common.error'), t('savedFlashcards.moveFlashcardError'));
       }
     } catch (error) {
       console.error('Error creating deck and moving flashcard:', error);
-      Alert.alert('Error', 'Failed to create deck and move flashcard');
+      Alert.alert(t('common.error'), t('savedFlashcards.createDeckError'));
     } finally {
       closeModal();
     }
@@ -453,13 +455,13 @@ export default function SavedFlashcardsScreen() {
           )
         );
         setShowEditModal(false);
-        Alert.alert('Success', 'Flashcard updated successfully.');
+        Alert.alert(t('common.success'), 'Flashcard updated successfully.');
       } else {
-        Alert.alert('Error', 'Failed to update flashcard. Please try again.');
+        Alert.alert(t('common.error'), t('savedFlashcards.updateFlashcardError'));
       }
     } catch (error) {
       console.error('Error updating flashcard:', error);
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+      Alert.alert(t('common.error'), t('savedFlashcards.unexpectedError'));
     }
   };
 
@@ -490,9 +492,9 @@ export default function SavedFlashcardsScreen() {
   // Render empty state
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <Text style={styles.emptyTitle}>No Flashcards in This Collection</Text>
+      <Text style={styles.emptyTitle}>{t('savedFlashcards.noFlashcardsTitle')}</Text>
       <Text style={styles.emptyText}>
-        Flashcards you save to this collection will appear here. Go scan some text and save it as a flashcard!
+        {t('savedFlashcards.noFlashcardsText')}
       </Text>
     </View>
   );
@@ -522,7 +524,7 @@ export default function SavedFlashcardsScreen() {
             isLoadingFlashcards ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#007AFF" />
-                <Text style={styles.loadingText}>Loading flashcards...</Text>
+                <Text style={styles.loadingText}>{t('savedFlashcards.loadingFlashcards')}</Text>
               </View>
             ) : (
               <FlatList
@@ -562,7 +564,10 @@ export default function SavedFlashcardsScreen() {
       <SafeAreaView style={styles.container}>
         {/* Custom Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Your Collection</Text>
+          <View style={styles.titleContainer}>
+            <Ionicons name="albums-outline" size={24} color={COLORS.text} style={styles.titleIcon} />
+            <Text style={styles.title}>{t('savedFlashcards.title')}</Text>
+          </View>
           <TouchableOpacity 
             style={styles.homeButton}
             onPress={handleGoHome}
@@ -587,7 +592,7 @@ export default function SavedFlashcardsScreen() {
               contentContainerStyle={styles.deckSelector}
               ListEmptyComponent={
                 <View style={styles.noDecksContainer}>
-                  <Text style={styles.noDecksText}>No collections available</Text>
+                  <Text style={styles.noDecksText}>{t('savedFlashcards.noCollections')}</Text>
                 </View>
               }
             />
@@ -598,7 +603,7 @@ export default function SavedFlashcardsScreen() {
         {editingDeckId && (
           <View style={styles.renameModalContainer}>
             <View style={styles.renameModal}>
-              <Text style={styles.renameTitle}>Rename Collection</Text>
+              <Text style={styles.renameTitle}>{t('savedFlashcards.renameCollection')}</Text>
               <TextInput
                 style={styles.renameInput}
                 value={newDeckName}
@@ -612,13 +617,13 @@ export default function SavedFlashcardsScreen() {
                   style={[styles.renameButton, styles.cancelButton]} 
                   onPress={() => setEditingDeckId(null)}
                 >
-                  <Text style={styles.renameButtonText}>Cancel</Text>
+                  <Text style={styles.renameButtonText}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={[styles.renameButton, styles.saveButton]} 
                   onPress={saveRenamedDeck}
                 >
-                  <Text style={[styles.renameButtonText, styles.saveButtonText]}>Save</Text>
+                  <Text style={[styles.renameButtonText, styles.saveButtonText]}>{t('common.save')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -630,7 +635,7 @@ export default function SavedFlashcardsScreen() {
           <View style={styles.sendModalContainer}>
             <View style={styles.sendModalContent}>
               <Text style={styles.sendModalTitle}>
-                {newDeckMode ? 'Create New Collection' : 'Send to Collection'}
+                {newDeckMode ? t('savedFlashcards.createNewCollection') : t('savedFlashcards.sendToCollection')}
               </Text>
               
               {newDeckMode ? (
@@ -638,7 +643,7 @@ export default function SavedFlashcardsScreen() {
                   style={styles.newDeckInput}
                   value={newDeckNameForSend}
                   onChangeText={setNewDeckNameForSend}
-                  placeholder="Enter new collection name"
+                  placeholder={t('savedFlashcards.enterNewCollectionName')}
                   placeholderTextColor={COLORS.darkGray}
                   autoFocus
                   maxLength={30}
@@ -657,7 +662,7 @@ export default function SavedFlashcardsScreen() {
                     </TouchableOpacity>
                   )}
                   ListEmptyComponent={
-                    <Text style={styles.noDeckOptions}>No other collections available</Text>
+                    <Text style={styles.noDeckOptions}>{t('savedFlashcards.noOtherCollections')}</Text>
                   }
                 />
               )}
@@ -669,14 +674,14 @@ export default function SavedFlashcardsScreen() {
                       style={[styles.renameButton, styles.cancelButton]} 
                       onPress={() => setNewDeckMode(false)}
                     >
-                      <Text style={styles.renameButtonText}>Back</Text>
+                      <Text style={styles.renameButtonText}>{t('savedFlashcards.back')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
                       style={[styles.renameButton, styles.saveButton]} 
                       onPress={createNewDeckAndMove}
                       disabled={!newDeckNameForSend.trim()}
                     >
-                      <Text style={[styles.renameButtonText, styles.saveButtonText]}>Create & Move</Text>
+                      <Text style={[styles.renameButtonText, styles.saveButtonText]}>{t('savedFlashcards.createAndMove')}</Text>
                     </TouchableOpacity>
                   </>
                 ) : (
@@ -685,13 +690,13 @@ export default function SavedFlashcardsScreen() {
                       style={[styles.renameButton, styles.cancelButton]} 
                       onPress={closeModal}
                     >
-                      <Text style={styles.renameButtonText}>Cancel</Text>
+                      <Text style={styles.renameButtonText}>{t('common.cancel')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
                       style={[styles.renameButton, styles.saveButton]} 
                       onPress={() => setNewDeckMode(true)}
                     >
-                      <Text style={[styles.renameButtonText, styles.saveButtonText]}>New Collection</Text>
+                      <Text style={[styles.renameButtonText, styles.saveButtonText]}>{t('savedFlashcards.newCollection')}</Text>
                     </TouchableOpacity>
                   </>
                 )}
@@ -735,7 +740,7 @@ export default function SavedFlashcardsScreen() {
         {isLoadingDecks && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#007AFF" />
-            <Text style={styles.loadingText}>Loading flashcards...</Text>
+                          <Text style={styles.loadingText}>{t('savedFlashcards.loadingFlashcards')}</Text>
           </View>
         )}
 
@@ -923,7 +928,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.darkGray,
     backgroundColor: COLORS.pokedexBlack,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  titleIcon: {
+    marginRight: 8,
   },
   title: {
     fontSize: 20,

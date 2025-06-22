@@ -11,6 +11,7 @@ import {
   GestureResponderEvent,
   PanResponderGestureState,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { detectJapaneseText } from '../../services/visionApi';
 import { router } from 'expo-router';
@@ -99,6 +100,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   onRegionSelected,
   onRotationStateChange,
 }, ref) => {
+  const { t } = useTranslation();
   const panResponderViewRef = React.useRef<View>(null); // ADDED HERE
   const [measuredLayout, setMeasuredLayout] = useState<{width: number, height: number} | null>(null);
   const [containerScreenOffset, setContainerScreenOffset] = useState<{x: number, y: number} | null>(null);
@@ -1256,7 +1258,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       {/* Rotate mode instructions could be inside or outside, positioned absolutely */}
       {rotateMode && (
         <View style={styles.instructionContainer}>
-          <Text style={styles.instructionText}>Drag to rotate the image</Text>
+          <Text style={styles.instructionText}>{t('imageHighlighter.dragToRotate')}</Text>
         </View>
       )}
       {isProcessing && (
@@ -1270,12 +1272,12 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       {/* Other instruction texts */}
       {highlightModeActive && !isDrawing && (
         <View style={styles.instructionContainer}>
-          <Text style={styles.instructionText}>drag to highlight</Text>
+          <Text style={styles.instructionText}>{t('imageHighlighter.dragToHighlight')}</Text>
         </View>
       )}
       {cropMode && !isCropDrawing && activeCropHandle === null && (
         <View style={styles.instructionContainer}>
-          <Text style={styles.instructionText}>drag to crop</Text>
+          <Text style={styles.instructionText}>{t('imageHighlighter.dragToCrop')}</Text>
         </View>
       )}
     </View>

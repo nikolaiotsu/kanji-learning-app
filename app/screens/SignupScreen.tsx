@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, TextInput, TouchableOpacity, Text, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { router } from 'expo-router';
 import SocialAuth from '../components/SocialAuth';
@@ -8,6 +9,7 @@ import PokedexLayout from '../components/shared/PokedexLayout';
 import { COLORS } from '../constants/colors';
 
 const SignupScreen = () => {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -40,13 +42,13 @@ const SignupScreen = () => {
     
     // Check if passwords match
     if (testPassword !== testConfirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      Alert.alert(t('common.error'), t('auth.signup.passwordsMismatch'));
       return;
     }
     
     // Check password length
     if (testPassword.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      Alert.alert(t('common.error'), t('auth.signup.passwordTooShort'));
       return;
     }
     
@@ -67,17 +69,17 @@ const SignupScreen = () => {
   const handleSignup = async () => {
     // Validate inputs
     if (!email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert(t('common.error'), t('auth.signup.fillAllFields'));
       return;
     }
     
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      Alert.alert(t('common.error'), t('auth.signup.passwordsMismatch'));
       return;
     }
     
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      Alert.alert(t('common.error'), t('auth.signup.passwordTooShort'));
       return;
     }
     
@@ -85,11 +87,11 @@ const SignupScreen = () => {
     try {
       await signUp(email, password);
       Alert.alert(
-        'Account Created',
-        'We\'ve sent a verification link to your email address. Please check your inbox and click the link to verify your account before logging in.',
+        t('auth.signup.accountCreated'),
+        t('auth.signup.accountCreatedMessage'),
         [
           { 
-            text: 'OK', 
+            text: t('common.ok'), 
             onPress: () => router.replace('/login') 
           }
         ]
@@ -98,15 +100,15 @@ const SignupScreen = () => {
       // Handle specific signup errors
       if (error.message && error.message.includes('User already registered')) {
         Alert.alert(
-          'Account Already Exists', 
-          'An account with this email already exists. Please log in instead.',
+          t('auth.signup.accountExists'), 
+          t('auth.signup.accountExistsMessage'),
           [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Go to Login', onPress: () => router.replace('/login') }
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('auth.signup.goToLogin'), onPress: () => router.replace('/login') }
           ]
         );
       } else {
-        Alert.alert('Registration Failed', error.message || 'Failed to create account. Please try again.');
+        Alert.alert(t('auth.signup.registrationFailed'), error.message || 'Failed to create account. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -121,15 +123,15 @@ const SignupScreen = () => {
     <PokedexLayout>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.form}>
-          <Text style={styles.title}>Create Your Account</Text>
+          <Text style={styles.title}>{t('auth.signup.title')}</Text>
           
           <Text style={styles.subtitle}>
-            Create an account to start collecting words.
+            {t('auth.signup.subtitle')}
           </Text>
           
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>Sign up with</Text>
+            <Text style={styles.dividerText}>{t('auth.signup.signupWith')}</Text>
             <View style={styles.dividerLine} />
           </View>
           
@@ -138,13 +140,13 @@ const SignupScreen = () => {
           
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or with email</Text>
+            <Text style={styles.dividerText}>{t('auth.signup.orWithEmail')}</Text>
             <View style={styles.dividerLine} />
           </View>
           
           <TextInput
             style={styles.input}
-            placeholder="Email"
+            placeholder={t('auth.login.emailPlaceholder')}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -153,7 +155,7 @@ const SignupScreen = () => {
           
           <TextInput
             style={styles.input}
-            placeholder="Password"
+            placeholder={t('auth.login.passwordPlaceholder')}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -161,14 +163,14 @@ const SignupScreen = () => {
           
           <TextInput
             style={styles.input}
-            placeholder="Confirm Password"
+            placeholder={t('auth.signup.confirmPasswordPlaceholder')}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
           />
 
           <Text style={styles.passwordHint}>
-            Password must be at least 6 characters long.
+            {t('auth.signup.passwordHint')}
           </Text>
           
           <TouchableOpacity 
@@ -179,13 +181,13 @@ const SignupScreen = () => {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Create Account</Text>
+              <Text style={styles.buttonText}>{t('auth.signup.createAccountButton')}</Text>
             )}
           </TouchableOpacity>
           
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
+            <Text style={styles.dividerText}>{t('common.or')}</Text>
             <View style={styles.dividerLine} />
           </View>
 
@@ -193,7 +195,7 @@ const SignupScreen = () => {
             style={styles.loginButton}
             onPress={navigateToLogin}
           >
-            <Text style={styles.loginButtonText}>Log In with Existing Account</Text>
+            <Text style={styles.loginButtonText}>{t('auth.signup.loginExisting')}</Text>
           </TouchableOpacity>
 
           {/* DEV MODE button - REMOVE BEFORE PRODUCTION */}

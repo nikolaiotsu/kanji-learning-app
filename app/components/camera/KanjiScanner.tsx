@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, ActivityIndicator } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Ionicons, MaterialIcons, FontAwesome5, AntDesign, FontAwesome6, Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
@@ -24,6 +25,7 @@ interface KanjiScannerProps {
 }
 
 export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
+  const { t } = useTranslation();
   const [capturedImage, setCapturedImage] = useState<CapturedImage | null>(null);
   const [imageHistory, setImageHistory] = useState<CapturedImage[]>([]);
   const [forwardHistory, setForwardHistory] = useState<CapturedImage[]>([]);
@@ -994,7 +996,7 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
-                placeholder="Enter text to translate"
+                placeholder={t('textInput.placeholder')}
                 placeholderTextColor="#999"
                 autoFocus
               />
@@ -1003,13 +1005,13 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
                   style={styles.modalCancelButton} 
                   onPress={handleCancelTextInput}
                 >
-                  <Text style={styles.modalButtonText}>Cancel</Text>
+                  <Text style={styles.modalButtonText}>{t('textInput.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.modalSaveButton} 
                   onPress={handleSubmitTextInput}
                 >
-                  <Text style={styles.modalButtonText}>Translate</Text>
+                  <Text style={styles.modalButtonText}>{t('textInput.translate')}</Text>
                 </TouchableOpacity>
               </View>
             </View>

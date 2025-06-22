@@ -1,5 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, View, Alert } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useSubscription } from '../../context/SubscriptionContext';
 import { useOCRCounter } from '../../context/OCRCounterContext';
 import { COLORS } from '../../constants/colors';
@@ -7,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { PRODUCT_IDS } from '../../constants/config';
 
 const SubscriptionTestButton: React.FC = () => {
+  const { t } = useTranslation();
   const { 
     subscription, 
     isLoading, 
@@ -19,17 +21,17 @@ const SubscriptionTestButton: React.FC = () => {
 
   const handleTestPurchase = async () => {
     Alert.alert(
-      'Test Premium Purchase',
-      'This will simulate a premium purchase in development mode. Continue?',
+      t('subscription.test.purchaseTitle'),
+      t('subscription.test.purchaseMessage'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         { 
-          text: 'Purchase', 
+          text: t('subscription.test.purchase'), 
           style: 'default', 
           onPress: async () => {
             const success = await purchaseSubscription(PRODUCT_IDS.PREMIUM_MONTHLY);
             if (success) {
-              Alert.alert('Success!', 'Premium subscription activated!');
+              Alert.alert(t('common.success'), t('subscription.test.premiumActivated'));
             }
           }
         }
@@ -40,9 +42,9 @@ const SubscriptionTestButton: React.FC = () => {
   const handleTestRestore = async () => {
     const success = await restorePurchases();
     if (success) {
-      Alert.alert('Restored!', 'Premium subscription restored!');
+      Alert.alert(t('subscription.test.restored'), t('subscription.test.restoredMessage'));
     } else {
-      Alert.alert('No Purchase Found', 'No premium subscription to restore.');
+      Alert.alert(t('subscription.test.noPurchaseFound'), t('subscription.test.noPurchaseMessage'));
     }
   };
 

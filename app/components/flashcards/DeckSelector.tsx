@@ -13,6 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { Deck } from '../../types/Deck';
 import { getDecks, createDeck } from '../../services/supabaseStorage';
 import { COLORS } from '../../constants/colors';
@@ -24,6 +25,7 @@ interface DeckSelectorProps {
 }
 
 export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSelectorProps) {
+  const { t } = useTranslation();
   const [decks, setDecks] = useState<Deck[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreatingDeck, setIsCreatingDeck] = useState(false);
@@ -60,7 +62,7 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
   // Function to handle creating a new deck
   const handleCreateDeck = async () => {
     if (!newDeckName.trim()) {
-      Alert.alert('Error', 'Please enter a name for the new collection.');
+      Alert.alert(t('common.error'), t('deck.create.error'));
       return;
     }
 
@@ -71,11 +73,10 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
       setNewDeckName('');
       setShowNewDeckInput(false);
       
-      // Select the newly created deck
       handleSelectDeck(newDeck.id);
     } catch (error) {
       console.error('Error creating collection:', error);
-      Alert.alert('Error', 'Failed to create new collection. Please try again.');
+      Alert.alert(t('common.error'), t('deck.create.failed'));
     } finally {
       setIsCreatingDeck(false);
     }
@@ -91,7 +92,7 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
       <View style={styles.deckInfo}>
         <Text style={styles.deckName}>{item.name}</Text>
         <Text style={styles.deckDate}>
-          Created: {new Date(item.createdAt).toLocaleDateString()}
+          {t('deck.created', { date: new Date(item.createdAt).toLocaleDateString() })}
         </Text>
       </View>
       <Ionicons name="chevron-forward" size={24} color={COLORS.darkGray} />
@@ -113,7 +114,7 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.header}>
-              <Text style={styles.title}>Select Collection</Text>
+              <Text style={styles.title}>{t('deck.select')}</Text>
               <TouchableOpacity style={styles.closeButton} onPress={onClose}>
                 <Ionicons name="close" size={24} color={COLORS.primary} />
               </TouchableOpacity>
@@ -122,7 +123,7 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
             {isLoading ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={COLORS.primary} />
-                <Text style={styles.loadingText}>Loading collections...</Text>
+                <Text style={styles.loadingText}>{t('deck.loading')}</Text>
               </View>
             ) : (
               <>
@@ -133,7 +134,7 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
                   contentContainerStyle={styles.deckList}
                   ListEmptyComponent={
                     <View style={styles.emptyContainer}>
-                      <Text style={styles.emptyText}>No collections found. Create your first collection!</Text>
+                      <Text style={styles.emptyText}>{t('deck.empty')}</Text>
                     </View>
                   }
                 />
@@ -142,7 +143,7 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
                   <View style={styles.newDeckContainer}>
                     <TextInput
                       style={styles.newDeckInput}
-                      placeholder="Enter collection name"
+                      placeholder={t('deck.create.enterName')}
                       value={newDeckName}
                       onChangeText={setNewDeckName}
                       autoFocus
@@ -156,7 +157,7 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
                           setNewDeckName('');
                         }}
                       >
-                        <Text style={styles.cancelButtonText}>Cancel</Text>
+                        <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={[
@@ -170,7 +171,7 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
                         {isCreatingDeck ? (
                           <ActivityIndicator size="small" color="#ffffff" />
                         ) : (
-                          <Text style={styles.createButtonText}>Create</Text>
+                          <Text style={styles.createButtonText}>{t('common.create')}</Text>
                         )}
                       </TouchableOpacity>
                     </View>
@@ -181,7 +182,7 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
                     onPress={() => setShowNewDeckInput(true)}
                   >
                     <Ionicons name="add-circle-outline" size={20} color="#ffffff" />
-                    <Text style={styles.addDeckButtonText}>Create New Collection</Text>
+                    <Text style={styles.addDeckButtonText}>{t('deck.create.new')}</Text>
                   </TouchableOpacity>
                 )}
               </>

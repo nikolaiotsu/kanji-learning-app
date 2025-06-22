@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { View, StyleSheet, Alert, ViewStyle } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { COLORS } from '../../constants/colors';
 import PokedexButton from '../shared/PokedexButton';
 
@@ -30,15 +31,24 @@ export default function CameraButton({ onPhotoCapture, style }: CameraButtonProp
       const result = await ImagePicker.launchCameraAsync({
         quality: 1,
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        exif: true,
       });
 
       if (!result.canceled) {
         const asset = result.assets[0];
         setHasPhoto(true);
+
+        // Normalize orientation so width/height reflect the actual bitmap after EXIF is stripped
+        const normalised = await ImageManipulator.manipulateAsync(
+          asset.uri,
+          [],
+          { compress: 1, format: ImageManipulator.SaveFormat.PNG }
+        );
+
         onPhotoCapture({
-          uri: asset.uri,
-          width: asset.width,
-          height: asset.height,
+          uri: normalised.uri,
+          width: normalised.width,
+          height: normalised.height,
         });
       }
     } catch (error) {

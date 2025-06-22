@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Platform, ActivityIndicator, ScrollView, TouchableOpacity, Alert, TextInput, Modal, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { processWithClaude, validateTextMatchesLanguage } from './services/claudeApi';
 import { 
   cleanText, 
@@ -30,6 +31,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import PokedexLayout from './components/shared/PokedexLayout';
 
 export default function LanguageFlashcardsScreen() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { targetLanguage, forcedDetectionLanguage } = useSettings();
   const params = useLocalSearchParams();
@@ -139,7 +141,7 @@ export default function LanguageFlashcardsScreen() {
         if (!isValidLanguage) {
           // Show error notification if text doesn't match forced language
           setIsLoading(false);
-          setError(`Forced language not detected: The text doesn't appear to be in ${language}. When forced language mode is active, please only enter text in the selected language. You can change your language preferences in Settings.`);
+          setError(t('flashcard.forcedLanguage.errorMessage', { language }));
           return;
         }
       } else if (hasJapanese && !hasChinese && !hasKorean) {
@@ -218,13 +220,13 @@ export default function LanguageFlashcardsScreen() {
   const handleShowDeckSelector = () => {
     // For texts that don't need furigana, we only need the translation to be present
     if (!needsRomanization && !translatedText) {
-      Alert.alert('Cannot Save', 'Missing translation for the flashcard. Please make sure the text was processed correctly.');
+      Alert.alert('Cannot Save', t('flashcard.save.cannotSaveTranslation'));
       return;
     }
     
     // For texts that need furigana (Japanese), we need both furigana and translation
     if (needsRomanization && (!editedText || !furiganaText || !translatedText)) {
-      Alert.alert('Cannot Save', 'Missing content for the flashcard. Please make sure the text was processed correctly.');
+      Alert.alert('Cannot Save', t('flashcard.save.cannotSaveContent'));
       return;
     }
     
@@ -260,13 +262,17 @@ export default function LanguageFlashcardsScreen() {
       setIsSaved(true);
       
       // Show success message with language-specific wording
-      const cardType = detectedLanguage ? `${detectedLanguage} flashcard` : 'language flashcard';
+      const cardType = detectedLanguage 
+        ? t('flashcard.save.cardType', { language: detectedLanguage }) 
+        : t('flashcard.save.languageFlashcard');
+      const deckName = deckId === 'deck1' ? t('flashcard.save.deck1') : t('flashcard.save.newDeck');
+      
       Alert.alert(
-        'Flashcard Saved',
-        `Your ${cardType} has been saved to ${deckId === 'deck1' ? 'Deck 1' : 'a new deck'}!`,
+        t('flashcard.save.title'),
+        t('flashcard.save.message', { cardType, deckName }),
         [
           { 
-            text: 'View Saved Flashcards', 
+            text: t('flashcard.save.viewSaved'), 
             onPress: () => {
               if (router.canDismiss()) {
                 router.dismissAll();
@@ -274,12 +280,12 @@ export default function LanguageFlashcardsScreen() {
               router.replace('/saved-flashcards');
             }
           },
-          { text: 'OK' }
+          { text: t('common.ok') }
         ]
       );
     } catch (err) {
       console.error('Error saving flashcard:', err);
-      Alert.alert('Save Error', 'Failed to save flashcard. Please try again.');
+      Alert.alert(t('flashcard.save.saveError'), t('flashcard.save.saveFailed'));
     } finally {
       setIsSaving(false);
     }
@@ -302,7 +308,7 @@ export default function LanguageFlashcardsScreen() {
   // Function to handle translate button
   const handleTranslate = () => {
     if (!editedText) {
-      Alert.alert('Error', 'Please enter text to translate.');
+      Alert.alert(t('common.error'), t('flashcard.edit.enterText'));
       return;
     }
     processTextWithClaude(editedText);
@@ -311,7 +317,7 @@ export default function LanguageFlashcardsScreen() {
   // Function to handle retry with validation for forced language settings
   const handleRetryWithValidation = () => {
     if (!editedText) {
-      Alert.alert('Error', 'Please enter text to translate.');
+      Alert.alert(t('common.error'), t('flashcard.edit.enterText'));
       return;
     }
 
@@ -340,10 +346,10 @@ export default function LanguageFlashcardsScreen() {
         
         // Show popup when text still doesn't match the forced language
         Alert.alert(
-          'Language Mismatch',
-          `The text still doesn't appear to be in ${languageName}. Please try with a different text or change your forced language settings.`,
+          t('flashcard.translate.languageMismatch'),
+          t('flashcard.translate.languageMismatchMessage', { language: languageName }),
           [
-            { text: 'OK' }
+            { text: t('common.ok') }
           ]
         );
         return;
@@ -422,7 +428,7 @@ export default function LanguageFlashcardsScreen() {
     <PokedexLayout variant="flashcards">
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Flashcard Input</Text>
+          <Text style={styles.title}>{t('flashcard.input.title')}</Text>
           <TouchableOpacity 
             style={styles.homeButton}
             onPress={handleGoHome}
@@ -500,7 +506,7 @@ export default function LanguageFlashcardsScreen() {
                   <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
                     <Ionicons name={error.includes("Forced language not detected") ? "arrow-back" : "refresh"} size={18} color="#ffffff" style={styles.buttonIcon} />
                     <Text style={styles.retryButtonText}>
-                      {error.includes("Forced language not detected") ? "Go Back" : "Try Again"}
+                      {error.includes("Forced language not detected") ? t('flashcard.forcedLanguage.goBack') : t('flashcard.forcedLanguage.tryAgain')}
                     </Text>
                   </TouchableOpacity>
                   
@@ -510,7 +516,7 @@ export default function LanguageFlashcardsScreen() {
                       onPress={() => router.push('/settings')}
                     >
                       <Ionicons name="settings-outline" size={20} color="#ffffff" style={styles.buttonIcon} />
-                      <Text style={styles.buttonText}>Go to Settings</Text>
+                      <Text style={styles.buttonText}>{t('flashcard.forcedLanguage.goToSettings')}</Text>
                     </TouchableOpacity>
                   )}
                   
@@ -520,7 +526,7 @@ export default function LanguageFlashcardsScreen() {
                       onPress={handleRetryWithValidation}
                     >
                       <Ionicons name="language" size={20} color="#ffffff" style={styles.buttonIcon} />
-                      <Text style={styles.buttonText}>Try Again</Text>
+                      <Text style={styles.buttonText}>{t('flashcard.forcedLanguage.tryAgain')}</Text>
                     </TouchableOpacity>
                   )}
                   
@@ -529,7 +535,7 @@ export default function LanguageFlashcardsScreen() {
                     onPress={handleViewSavedFlashcards}
                     >
                     <Ionicons name="albums-outline" size={20} color="#ffffff" style={styles.buttonIcon} />
-                    <Text style={styles.buttonText}>View Saved Flashcards</Text>
+                    <Text style={styles.buttonText}>{t('flashcard.save.viewSaved')}</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
@@ -537,14 +543,14 @@ export default function LanguageFlashcardsScreen() {
                   {furiganaText && needsRomanization && (
                     <View style={styles.resultContainer}>
                       <Text style={styles.sectionTitle}>
-                        {detectedLanguage === 'Japanese' ? 'With Furigana' :
-                         detectedLanguage === 'Chinese' ? 'With Pinyin' :
-                         detectedLanguage === 'Korean' ? 'With Revised Romanization' :
-                         detectedLanguage === 'Russian' ? 'With Practical Romanization' :
-                         detectedLanguage === 'Arabic' ? 'With Arabic Chat Alphabet' :
-                         detectedLanguage === 'Italian' ? 'Original Text' :
-                         detectedLanguage === 'Tagalog' ? 'Original Text' :
-                         'With Pronunciation Guide'}
+                        {detectedLanguage === 'Japanese' ? t('flashcard.sectionTitles.withFurigana') :
+                         detectedLanguage === 'Chinese' ? t('flashcard.sectionTitles.withPinyin') :
+                         detectedLanguage === 'Korean' ? t('flashcard.sectionTitles.withRevisedRomanization') :
+                         detectedLanguage === 'Russian' ? t('flashcard.sectionTitles.withPracticalRomanization') :
+                         detectedLanguage === 'Arabic' ? t('flashcard.sectionTitles.withArabicChatAlphabet') :
+                         detectedLanguage === 'Italian' ? t('flashcard.sectionTitles.originalText') :
+                         detectedLanguage === 'Tagalog' ? t('flashcard.sectionTitles.originalText') :
+                         t('flashcard.sectionTitles.withPronunciationGuide')}
                       </Text>
                       <Text style={styles.furiganaText} numberOfLines={0}>{furiganaText}</Text>
                     </View>
@@ -552,7 +558,7 @@ export default function LanguageFlashcardsScreen() {
                   
                   {translatedText && (
                     <View style={styles.resultContainer}>
-                      <Text style={styles.sectionTitle}>{translatedLanguageName} Translation</Text>
+                      <Text style={styles.sectionTitle}>{t('flashcard.sectionTitles.translation', { language: translatedLanguageName })}</Text>
                       <Text style={styles.translatedText} numberOfLines={0}>{translatedText}</Text>
                     </View>
                   )}
@@ -567,7 +573,7 @@ export default function LanguageFlashcardsScreen() {
                           onPress={() => setShowEditTranslationModal(true)}
                         >
                           <Ionicons name="pencil" size={18} color="#ffffff" style={styles.buttonIcon} />
-                          <Text style={styles.editButtonText}>Edit Translation</Text>
+                          <Text style={styles.editButtonText}>{t('flashcard.edit.editTranslation')}</Text>
                         </TouchableOpacity>
                         
                         <TouchableOpacity 
@@ -575,7 +581,7 @@ export default function LanguageFlashcardsScreen() {
                           onPress={handleEditInputAndRetranslate}
                         >
                           <Ionicons name="refresh" size={18} color="#ffffff" style={styles.buttonIcon} />
-                          <Text style={styles.editButtonText}>Edit Input & Retranslate</Text>
+                          <Text style={styles.editButtonText}>{t('flashcard.edit.editInputRetranslate')}</Text>
                         </TouchableOpacity>
                       </View>
 
@@ -599,7 +605,7 @@ export default function LanguageFlashcardsScreen() {
                               style={styles.buttonIcon} 
                             />
                             <Text style={styles.buttonText}>
-                              {isSaved ? "Saved as Flashcard" : "Save as Flashcard"}
+                              {isSaved ? t('flashcard.save.savedAsFlashcard') : t('flashcard.save.saveAsFlashcard')}
                             </Text>
                           </>
                         )}
@@ -620,7 +626,7 @@ export default function LanguageFlashcardsScreen() {
                         onPress={handleViewSavedFlashcards}
                         >
                         <Ionicons name="albums-outline" size={20} color="#ffffff" style={styles.buttonIcon} />
-                        <Text style={styles.buttonText}>View Saved Flashcards</Text>
+                        <Text style={styles.buttonText}>{t('flashcard.save.viewSaved')}</Text>
                       </TouchableOpacity>
                     </View>
                   )}
@@ -644,14 +650,14 @@ export default function LanguageFlashcardsScreen() {
               keyboardVerticalOffset={Platform.OS === "ios" ? -20 : 20}
             >
               <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Edit Text</Text>
+                <Text style={styles.modalTitle}>{t('flashcard.edit.editText')}</Text>
                 <ScrollView style={styles.modalScrollContent}>
                   <TextInput
                     style={styles.textInput}
                     value={editedText}
                     onChangeText={setEditedText}
                     multiline
-                    placeholder="Edit text here..."
+                    placeholder={t('flashcard.edit.editTextPlaceholder')}
                     placeholderTextColor="#aaa"
                     textAlignVertical="top"
                   />
@@ -661,13 +667,13 @@ export default function LanguageFlashcardsScreen() {
                     style={styles.modalCancelButton} 
                     onPress={handleCancelEdit}
                   >
-                    <Text style={styles.modalButtonText}>Cancel</Text>
+                    <Text style={styles.modalButtonText}>{t('common.cancel')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={styles.modalSaveButton} 
                     onPress={handleSaveEdit}
                   >
-                    <Text style={styles.modalButtonText}>Save</Text>
+                    <Text style={styles.modalButtonText}>{t('flashcard.edit.save')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -689,33 +695,33 @@ export default function LanguageFlashcardsScreen() {
               keyboardVerticalOffset={Platform.OS === "ios" ? -20 : 20}
             >
               <View style={styles.modalContent}>
-                <Text style={styles.modalSubtitle}>Edit Translation</Text>
+                <Text style={styles.modalSubtitle}>{t('flashcard.edit.editTranslation')}</Text>
                 <ScrollView style={styles.modalScrollContent}>
                   <TextInput
                     style={styles.textInput}
                     value={translatedText}
                     onChangeText={setTranslatedText}
                     multiline
-                    placeholder="Edit translation here..."
+                    placeholder={t('flashcard.edit.editTranslationPlaceholder')}
                     placeholderTextColor="#aaa"
                     textAlignVertical="top"
                   />
                   {needsRomanization && (
                     <>
                       <Text style={styles.modalSubtitle}>
-                        {detectedLanguage === 'Japanese' ? 'Edit Furigana' :
-                         detectedLanguage === 'Chinese' ? 'Edit Pinyin' :
-                         detectedLanguage === 'Korean' ? 'Edit Romanization' :
-                         detectedLanguage === 'Russian' ? 'Edit Romanization' :
-                         detectedLanguage === 'Arabic' ? 'Edit Transliteration' :
-                         'Edit Romanization'}
+                        {detectedLanguage === 'Japanese' ? t('flashcard.edit.editFurigana') :
+                         detectedLanguage === 'Chinese' ? t('flashcard.edit.editPinyin') :
+                         detectedLanguage === 'Korean' ? t('flashcard.edit.editRomanization') :
+                         detectedLanguage === 'Russian' ? t('flashcard.edit.editRomanization') :
+                         detectedLanguage === 'Arabic' ? t('flashcard.edit.editTransliteration') :
+                         t('flashcard.edit.editRomanization')}
                       </Text>
                       <TextInput
                         style={styles.textInput}
                         value={furiganaText}
                         onChangeText={setFuriganaText}
                         multiline
-                        placeholder="Edit romanization here..."
+                        placeholder={t('flashcard.edit.editRomanizationPlaceholder')}
                         placeholderTextColor="#aaa"
                         textAlignVertical="top"
                       />
@@ -727,13 +733,13 @@ export default function LanguageFlashcardsScreen() {
                     style={styles.modalCancelButton} 
                     onPress={() => setShowEditTranslationModal(false)}
                   >
-                    <Text style={styles.modalButtonText}>Cancel</Text>
+                    <Text style={styles.modalButtonText}>{t('common.cancel')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={styles.modalSaveButton} 
                     onPress={() => setShowEditTranslationModal(false)}
                   >
-                    <Text style={styles.modalButtonText}>Save</Text>
+                    <Text style={styles.modalButtonText}>{t('flashcard.edit.save')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>

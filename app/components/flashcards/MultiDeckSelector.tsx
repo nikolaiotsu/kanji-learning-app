@@ -12,6 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { Deck } from '../../types/Deck';
 import { getDecks } from '../../services/supabaseStorage';
 import { COLORS } from '../../constants/colors';
@@ -29,6 +30,7 @@ export default function MultiDeckSelector({
   onSelectDecks, 
   initialSelectedDeckIds 
 }: MultiDeckSelectorProps) {
+  const { t } = useTranslation();
   const [decks, setDecks] = useState<Deck[]>([]);
   const [selectedDeckIds, setSelectedDeckIds] = useState<string[]>(initialSelectedDeckIds);
   const [isLoading, setIsLoading] = useState(true);
@@ -54,7 +56,7 @@ export default function MultiDeckSelector({
       }
     } catch (error) {
       console.error('Error loading collections:', error);
-      Alert.alert('Error', 'Failed to load collections. Please try again.');
+      Alert.alert(t('common.error'), t('review.failedToLoad'));
     } finally {
       setIsLoading(false);
     }
@@ -66,7 +68,7 @@ export default function MultiDeckSelector({
       if (prev.includes(deckId)) {
         // If this is the last selected deck, don't allow deselection
         if (prev.length === 1) {
-          Alert.alert('Required', 'At least one collection must be selected');
+          Alert.alert(t('review.required'), t('review.atLeastOneCollection'));
           return prev;
         }
         return prev.filter(id => id !== deckId);
@@ -105,7 +107,7 @@ export default function MultiDeckSelector({
         <View style={styles.deckInfo}>
           <Text style={styles.deckName}>{item.name}</Text>
           <Text style={styles.deckDate}>
-            Created: {new Date(item.createdAt).toLocaleDateString()}
+            {t('deck.created', { date: new Date(item.createdAt).toLocaleDateString() })}
           </Text>
         </View>
       </TouchableOpacity>
@@ -127,7 +129,7 @@ export default function MultiDeckSelector({
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.header}>
-              <Text style={styles.title}>Select Collections to Review</Text>
+              <Text style={styles.title}>{t('review.selectCollectionsToReview')}</Text>
               <TouchableOpacity style={styles.closeButton} onPress={onClose}>
                 <Ionicons name="close" size={24} color={COLORS.primary} />
               </TouchableOpacity>
@@ -136,7 +138,7 @@ export default function MultiDeckSelector({
             {isLoading ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={COLORS.primary} />
-                <Text style={styles.loadingText}>Loading collections...</Text>
+                <Text style={styles.loadingText}>{t('review.loadingCollections')}</Text>
               </View>
             ) : (
               <>
@@ -144,7 +146,7 @@ export default function MultiDeckSelector({
                   style={styles.selectAllButton}
                   onPress={selectAllDecks}
                 >
-                  <Text style={styles.selectAllText}>Select All</Text>
+                  <Text style={styles.selectAllText}>{t('review.selectAll')}</Text>
                 </TouchableOpacity>
                 
                 <FlatList
@@ -154,7 +156,7 @@ export default function MultiDeckSelector({
                   contentContainerStyle={styles.deckList}
                   ListEmptyComponent={
                     <View style={styles.emptyContainer}>
-                      <Text style={styles.emptyText}>No collections found. Create collections in the flashcards screen.</Text>
+                      <Text style={styles.emptyText}>{t('review.noCollectionsFound')}</Text>
                     </View>
                   }
                 />
@@ -164,7 +166,10 @@ export default function MultiDeckSelector({
                   onPress={handleSaveSelection}
                 >
                   <Text style={styles.saveButtonText}>
-                    Save Selection ({selectedDeckIds.length} {selectedDeckIds.length === 1 ? 'Collection' : 'Collections'})
+                    {t('review.saveSelection', { 
+                      count: selectedDeckIds.length, 
+                      type: selectedDeckIds.length === 1 ? t('review.collection') : t('review.collections_plural')
+                    })}
                   </Text>
                 </TouchableOpacity>
               </>

@@ -1,0 +1,232 @@
+{
+  "common": {
+    "loading": "読み込み中...",
+    "error": "エラー",
+    "cancel": "キャンセル",
+    "create": "作成",
+    "continue": "続行",
+    "ok": "OK",
+    "warning": "警告",
+    "success": "成功！",
+    "failed": "失敗",
+    "retry": "再試行",
+    "or": "または",
+    "delete": "削除",
+    "save": "保存"
+  },
+  "auth": {
+    "login": {
+      "title": "こんにちは、コレクター。",
+      "newUser": "初めてのご利用ですか？",
+      "createAccount": "アカウント作成",
+      "emailPlaceholder": "メールアドレス",
+      "passwordPlaceholder": "パスワード",
+      "loginButton": "ログイン",
+      "forgotPassword": "パスワードを忘れましたか？",
+      "loginFailed": "ログインに失敗しました",
+      "emailNotVerified": "メールアドレスが未認証です",
+      "emailNotVerifiedMessage": "受信トレイを確認し、認証リンクをクリックしてアカウントを有効化してください。新しいリンクが必要ですか？",
+      "resendLink": "リンクを再送信",
+      "verificationSent": "認証メールを送信しました",
+      "verificationSentMessage": "新しい認証リンクをメールアドレスに送信しました。受信トレイをご確認ください。",
+      "missingCredentials": "メールアドレスとパスワードの両方を入力してください",
+      "resendFailed": "認証メールの再送信に失敗しました。"
+    },
+    "signup": {
+      "title": "アカウントを作成",
+      "subtitle": "アカウントを作成して単語の収集を始めましょう。",
+      "signupWith": "アカウント作成",
+      "orWithEmail": "またはメールアドレスで",
+      "confirmPasswordPlaceholder": "パスワード確認",
+      "passwordHint": "パスワードは6文字以上である必要があります。",
+      "createAccountButton": "アカウント作成",
+      "loginExisting": "既存のアカウントでログイン",
+      "fillAllFields": "すべてのフィールドを入力してください",
+      "passwordsMismatch": "パスワードが一致しません",
+      "passwordTooShort": "パスワードは6文字以上である必要があります",
+      "accountCreated": "アカウントが作成されました",
+      "accountCreatedMessage": "認証リンクをメールアドレスに送信しました。受信トレイを確認し、リンクをクリックしてアカウントを認証してからログインしてください。",
+      "accountExists": "アカウントが既に存在します",
+      "accountExistsMessage": "このメールアドレスのアカウントは既に存在します。代わりにログインしてください。",
+      "goToLogin": "ログインページへ",
+      "registrationFailed": "登録に失敗しました"
+    }
+  },
+  "deck": {
+    "select": "コレクションを選択",
+    "loading": "コレクションを読み込み中...",
+    "empty": "コレクションが見つかりません。最初のコレクションを作成してください！",
+    "create": {
+      "new": "新規コレクション作成",
+      "enterName": "コレクション名を入力",
+      "error": "コレクション名を入力してください",
+      "failed": "コレクションの作成に失敗しました。もう一度お試しください。"
+    },
+    "created": "作成日: {{date}}"
+  },
+  "flashcard": {
+    "edit": {
+      "emptyOriginal": "元のテキストを入力してください。",
+      "emptyRomanization": "ローマ字/ふりがなテキストが空です。続行しますか？",
+      "emptyTranslation": "翻訳が空です。続行しますか？",
+      "enterText": "翻訳するテキストを入力してください。",
+      "retranslateFailed": "Claude APIでのテキスト処理に失敗しました。後でもう一度お試しください。",
+      "romanizationFailed": "このテキストの適切なローマ字化に失敗しました。翻訳は利用可能です。"
+    },
+    "translate": {
+      "languageMismatch": "言語の不一致",
+      "languageMismatchMessage": "テキストが{{language}}ではないようです。別のテキストを試すか、強制言語設定を変更してください。"
+    },
+    "forcedLanguage": {
+      "errorMessage": "強制言語が検出されませんでした：テキストが{{language}}ではないようです。強制言語モードが有効な場合、選択された言語のテキストのみを入力してください。設定で言語設定を変更できます。",
+      "goBack": "戻る",
+      "tryAgain": "再試行",
+      "goToSettings": "設定へ移動"
+    },
+    "sectionTitles": {
+      "withFurigana": "ふりがな付き",
+      "withPinyin": "ピンイン付き",
+      "withRevisedRomanization": "改訂ローマ字付き",
+      "withPracticalRomanization": "実用ローマ字付き",
+      "withArabicChatAlphabet": "アラビア語チャットアルファベット付き",
+      "withItalianAlphabet": "イタリア語アルファベット付き",
+      "withTagalogAlphabet": "タガログ語アルファベット付き",
+      "originalText": "元のテキスト",
+      "withPronunciationGuide": "発音ガイド付き",
+      "translation": "{{language}}翻訳",
+      "collection": "コレクション："
+    },
+    "save": {
+      "title": "フラッシュカードが保存されました",
+      "message": "{{cardType}}が{{deckName}}に保存されました！",
+      "cannotSaveTranslation": "フラッシュカードの翻訳がありません。テキストが正しく処理されていることを確認してください。",
+      "cannotSaveContent": "フラッシュカードのコンテンツがありません。テキストが正しく処理されていることを確認してください。",
+      "saveError": "保存エラー",
+      "saveFailed": "フラッシュカードの保存に失敗しました。もう一度お試しください。",
+      "viewSaved": "保存されたフラッシュカードを表示",
+      "saveAsFlashcard": "フラッシュカードとして保存",
+      "savedAsFlashcard": "フラッシュカードとして保存済み",
+      "cardType": "{{language}}フラッシュカード",
+      "languageFlashcard": "言語フラッシュカード",
+      "deck1": "デッキ1",
+      "newDeck": "新しいデッキ"
+    },
+    "input": {
+      "title": "フラッシュカード入力"
+    },
+    "edit": {
+      "editText": "テキストを編集",
+      "editTranslation": "翻訳を編集", 
+      "editInputRetranslate": "入力を編集して再翻訳",
+      "editTextPlaceholder": "ここでテキストを編集...",
+      "editTranslationPlaceholder": "ここで翻訳を編集...",
+      "editRomanizationPlaceholder": "ここでローマ字を編集...",
+      "editFurigana": "ふりがなを編集",
+      "editPinyin": "ピンインを編集",
+      "editRomanization": "ローマ字を編集",
+      "editTransliteration": "音写を編集",
+      "save": "保存"
+    }
+  },
+  "subscription": {
+    "test": {
+      "purchaseTitle": "プレミアム購入テスト",
+      "purchaseMessage": "開発モードでプレミアム購入をシミュレートします。続行しますか？",
+      "purchase": "購入",
+      "premiumActivated": "プレミアムサブスクリプションが有効化されました！",
+      "restored": "復元されました！",
+      "restoredMessage": "プレミアムサブスクリプションが復元されました！",
+      "noPurchaseFound": "購入が見つかりません",
+      "noPurchaseMessage": "復元するプレミアムサブスクリプションがありません。"
+    }
+  },
+  "settings": {
+    "forceDetection": "言語検出を強制",
+    "forceDetectionDescription": "この設定により、アプリは自動検出をバイパスして、テキストを特定の言語として扱うように強制されます。互いに混同される可能性のある言語を扱う際に使用してください。言語が選択されている場合（「自動検出」以外）、アプリはその言語のテキストのみを受け入れ、テキストが異なる言語であると判断された場合はエラーメッセージを表示します。",
+    "account": "アカウント",
+    "preferences": "設定",
+    "subscription": "サブスクリプション",
+    "usageStatistics": "使用統計",
+    "signIn": "サインイン",
+    "signInDescription": "デバイス間でフラッシュカードを同期するためにログインしてください",
+    "signOut": "サインアウト",
+    "translateTo": "翻訳先:",
+    "tapToChange": "（タップして変更）",
+    "forceWordDexDetect": "Word Dexに強制検出させる:",
+    "swapLanguages": "言語を交換",
+    "premiumPlan": "プレミアムプラン",
+    "freePlan": "無料プラン",
+    "unlimitedScans": "無制限のOCRスキャン、広告なし",
+    "limitedScans": "1日{{maxScans}}回のOCRスキャン、広告サポート",
+    "ocrScansToday": "今日のOCRスキャン",
+    "scansUsed": "{{used}}/{{max}}回使用（{{remaining}}回残り）",
+    "selectTargetLanguage": "翻訳先言語を選択",
+    "cancel": "キャンセル",
+    "signOutError": "サインアウトに失敗しました。もう一度お試しください。",
+    "swapLanguagesError": "言語の交換に失敗しました。もう一度お試しください。",
+    "cannotSwapLanguages": "言語を交換できません",
+    "setLanguageError": "言語の設定に失敗しました。もう一度お試しください。",
+    "invalidLanguageSelection": "無効な言語選択",
+    "setDetectionLanguageError": "検出言語の設定に失敗しました。もう一度お試しください。"
+  },
+  "review": {
+    "remaining": "残り{{count}}枚（← スワイプで復習、→ スワイプで除外）",
+    "nothingToReview": "復習するものがありません",
+    "scanText": "テキストをスキャンしてコレクションに追加してください！",
+    "finishedReview": "復習が完了しました！",
+    "reviewAgain": "再度復習",
+    "selectCollections": "コレクション",
+    "collections": "コレクション",
+    "selectCollectionsToReview": "復習するコレクションを選択",
+    "selectAll": "すべて選択",
+    "saveSelection": "選択を保存（{{count}}{{type}}）",
+    "collection": "個のコレクション",
+    "collections_plural": "個のコレクション",
+    "required": "必須",
+    "atLeastOneCollection": "少なくとも一つのコレクションを選択する必要があります",
+    "noCollectionsFound": "コレクションが見つかりません。フラッシュカード画面でコレクションを作成してください。",
+    "loadingCollections": "コレクションを読み込み中...",
+    "failedToLoad": "コレクションの読み込みに失敗しました。もう一度お試しください。"
+  },
+  "savedFlashcards": {
+    "title": "あなたのコレクション",
+    "noCollections": "利用可能なコレクションがありません",
+    "renameCollection": "コレクション名を変更",
+    "deleteCollection": "コレクションを削除",
+    "deleteCollectionConfirm": "このコレクションを削除してもよろしいですか？このコレクション内のすべてのフラッシュカードも削除されます。",
+    "deleteFlashcard": "フラッシュカードを削除",
+    "deleteFlashcardConfirm": "このフラッシュカードを削除してもよろしいですか？",
+    "createNewCollection": "新しいコレクションを作成",
+    "sendToCollection": "コレクションに送信",
+    "enterNewCollectionName": "新しいコレクション名を入力",
+    "noOtherCollections": "他に利用可能なコレクションがありません",
+    "back": "戻る",
+    "createAndMove": "作成して移動",
+    "newCollection": "新しいコレクション",
+    "loadingFlashcards": "フラッシュカードを読み込み中...",
+    "noFlashcardsTitle": "このコレクションにフラッシュカードがありません",
+    "noFlashcardsText": "このコレクションに保存したフラッシュカードがここに表示されます。テキストをスキャンしてフラッシュカードとして保存してください！",
+    "moveSuccess": "フラッシュカードが新しいコレクションに移動されました: {{name}}",
+    "enterDeckName": "デッキ名を入力してください",
+    "loadCollectionsError": "コレクションの読み込みに失敗しました。もう一度お試しください。",
+    "loadFlashcardsError": "フラッシュカードの読み込みに失敗しました。もう一度お試しください。",
+    "loadFlashcardsForCollectionError": "このコレクションのフラッシュカードの読み込みに失敗しました。もう一度お試しください。",
+    "deleteFlashcardError": "フラッシュカードの削除に失敗しました。もう一度お試しください。",
+    "deleteCollectionError": "コレクションの削除に失敗しました。もう一度お試しください。",
+    "renameCollectionError": "コレクション名の変更に失敗しました。もう一度お試しください。",
+    "moveFlashcardError": "フラッシュカードの移動に失敗しました",
+    "createDeckError": "デッキの作成とフラッシュカードの移動に失敗しました",
+    "updateFlashcardError": "フラッシュカードの更新に失敗しました。もう一度お試しください。",
+    "unexpectedError": "予期しないエラーが発生しました。もう一度お試しください。"
+  },
+  "imageHighlighter": {
+    "dragToRotate": "ドラッグして画像を回転",
+    "dragToHighlight": "ドラッグしてハイライト",
+    "dragToCrop": "ドラッグしてクロップ"
+  },
+  "textInput": {
+    "placeholder": "翻訳するテキストを入力",
+    "cancel": "キャンセル",
+    "translate": "翻訳"
+  }
+} 

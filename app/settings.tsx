@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Modal, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from './context/AuthContext';
 import { useSettings, AVAILABLE_LANGUAGES, DETECTABLE_LANGUAGES } from './context/SettingsContext';
 import { useOCRCounter } from './context/OCRCounterContext';
@@ -12,6 +13,7 @@ import PokedexLayout from './components/shared/PokedexLayout';
 import SubscriptionTestButton from './components/subscription/SubscriptionTestButton';
 
 export default function SettingsScreen() {
+  const { t } = useTranslation();
   const { user, signOut } = useAuth();
   const { 
     targetLanguage, 
@@ -36,7 +38,7 @@ export default function SettingsScreen() {
       router.replace('/');
     } catch (error) {
       console.error('Error signing out:', error);
-      Alert.alert('Error', 'Failed to sign out. Please try again.');
+      Alert.alert(t('common.error'), t('settings.signOutError'));
     }
   };
 
@@ -46,8 +48,8 @@ export default function SettingsScreen() {
       await swapLanguages();
     } catch (error) {
       console.error('Error swapping languages:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to swap languages. Please try again.';
-      Alert.alert('Cannot Swap Languages', errorMessage, [{ text: 'OK' }]);
+      const errorMessage = error instanceof Error ? error.message : t('settings.swapLanguagesError');
+      Alert.alert(t('settings.cannotSwapLanguages'), errorMessage, [{ text: t('common.ok') }]);
     }
   };
 
@@ -68,8 +70,8 @@ export default function SettingsScreen() {
       setShowLanguageSelector(false);
     } catch (error) {
       console.error('Error setting language:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to set language. Please try again.';
-      Alert.alert('Invalid Language Selection', errorMessage);
+      const errorMessage = error instanceof Error ? error.message : t('settings.setLanguageError');
+      Alert.alert(t('settings.invalidLanguageSelection'), errorMessage);
     }
   };
 
@@ -80,8 +82,8 @@ export default function SettingsScreen() {
       setShowDetectionSelector(false);
     } catch (error) {
       console.error('Error setting detection language:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to set detection language. Please try again.';
-      Alert.alert('Invalid Language Selection', errorMessage);
+      const errorMessage = error instanceof Error ? error.message : t('settings.setDetectionLanguageError');
+      Alert.alert(t('settings.invalidLanguageSelection'), errorMessage);
     }
   };
 
@@ -101,7 +103,7 @@ export default function SettingsScreen() {
     <PokedexLayout>
       <ScrollView>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
+          <Text style={styles.sectionTitle}>{t('settings.account')}</Text>
           {user ? (
             <View style={styles.profileInfo}>
               <Text style={styles.emailText}>{user.email}</Text>
@@ -113,9 +115,9 @@ export default function SettingsScreen() {
             >
               <Ionicons name="log-in-outline" size={24} color={COLORS.primary} style={styles.settingIcon} />
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingLabel}>Sign In</Text>
+                <Text style={styles.settingLabel}>{t('settings.signIn')}</Text>
                 <Text style={styles.settingDescription}>
-                  Log in to sync your flashcards across devices
+                  {t('settings.signInDescription')}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -123,7 +125,7 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Preferences</Text>
+          <Text style={styles.sectionTitle}>{t('settings.preferences')}</Text>
           
           <TouchableOpacity
             style={styles.settingItem}
@@ -131,9 +133,9 @@ export default function SettingsScreen() {
           >
             <Ionicons name="language-outline" size={24} color={COLORS.primary} style={styles.settingIcon} />
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingLabel}>Translate to:</Text>
+              <Text style={styles.settingLabel}>{t('settings.translateTo')}</Text>
               <Text style={styles.settingDescription}>
-                {availableLanguages[targetLanguage as keyof typeof availableLanguages]} (tap to change)
+                {availableLanguages[targetLanguage as keyof typeof availableLanguages]} {t('settings.tapToChange')}
               </Text>
             </View>
           </TouchableOpacity>
@@ -144,9 +146,9 @@ export default function SettingsScreen() {
           >
             <Ionicons name="scan-outline" size={24} color={COLORS.primary} style={styles.settingIcon} />
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingLabel}>Force Word Dex to detect:</Text>
+              <Text style={styles.settingLabel}>{t('settings.forceWordDexDetect')}</Text>
               <Text style={styles.settingDescription}>
-                {detectableLanguages[forcedDetectionLanguage as keyof typeof detectableLanguages]} (tap to change)
+                {detectableLanguages[forcedDetectionLanguage as keyof typeof detectableLanguages]} {t('settings.tapToChange')}
               </Text>
             </View>
             {forcedDetectionLanguage !== 'auto' && (
@@ -167,14 +169,14 @@ export default function SettingsScreen() {
                 onPress={handleSwapLanguages}
               >
                 <Ionicons name="swap-vertical" size={20} color="#000" />
-                <Text style={styles.swapButtonText}>Swap Languages</Text>
+                <Text style={styles.swapButtonText}>{t('settings.swapLanguages')}</Text>
               </TouchableOpacity>
             </View>
           )}
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Subscription</Text>
+          <Text style={styles.sectionTitle}>{t('settings.subscription')}</Text>
           
           <View style={styles.settingItem}>
             <Ionicons 
@@ -185,12 +187,12 @@ export default function SettingsScreen() {
             />
             <View style={styles.settingTextContainer}>
               <Text style={styles.settingLabel}>
-                {subscription.plan === 'PREMIUM' ? 'Premium Plan' : 'Free Plan'}
+                {subscription.plan === 'PREMIUM' ? t('settings.premiumPlan') : t('settings.freePlan')}
               </Text>
               <Text style={styles.settingDescription}>
                 {subscription.plan === 'PREMIUM' 
-                  ? 'Unlimited OCR scans, no ads' 
-                  : `${maxOCRScans} OCR scans per day, ads supported`
+                  ? t('settings.unlimitedScans')
+                  : t('settings.limitedScans', { maxScans: maxOCRScans })
                 }
               </Text>
             </View>
@@ -203,14 +205,14 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Usage Statistics</Text>
+          <Text style={styles.sectionTitle}>{t('settings.usageStatistics')}</Text>
           
           <View style={styles.settingItem}>
             <Ionicons name="camera-outline" size={24} color={COLORS.primary} style={styles.settingIcon} />
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingLabel}>OCR Scans Today</Text>
+              <Text style={styles.settingLabel}>{t('settings.ocrScansToday')}</Text>
               <Text style={styles.settingDescription}>
-                {ocrCount} of {maxOCRScans} scans used ({remainingScans} remaining)
+                {t('settings.scansUsed', { used: ocrCount, max: maxOCRScans, remaining: remainingScans })}
               </Text>
             </View>
             <View style={styles.counterBadge}>
@@ -230,7 +232,7 @@ export default function SettingsScreen() {
             >
               <Ionicons name="log-out-outline" size={24} color={COLORS.danger} style={styles.settingIcon} />
               <View style={styles.settingTextContainer}>
-                <Text style={[styles.settingLabel, { color: COLORS.danger }]}>Sign Out</Text>
+                <Text style={[styles.settingLabel, { color: COLORS.danger }]}>{t('settings.signOut')}</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -247,7 +249,7 @@ export default function SettingsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Target Language</Text>
+              <Text style={styles.modalTitle}>{t('settings.selectTargetLanguage')}</Text>
               <TouchableOpacity onPress={() => setShowLanguageSelector(false)}>
                 <Ionicons name="close" size={24} color={COLORS.text} />
               </TouchableOpacity>
@@ -281,7 +283,7 @@ export default function SettingsScreen() {
               style={styles.closeButton}
               onPress={() => setShowLanguageSelector(false)}
             >
-              <Text style={styles.closeButtonText}>Cancel</Text>
+              <Text style={styles.closeButtonText}>{t('settings.cancel')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -297,16 +299,13 @@ export default function SettingsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Force Language Detection</Text>
+              <Text style={styles.modalTitle}>{t('settings.forceDetection')}</Text>
               <TouchableOpacity onPress={() => setShowDetectionSelector(false)}>
                 <Ionicons name="close" size={24} color={COLORS.text} />
               </TouchableOpacity>
             </View>
             <Text style={styles.modalDescription}>
-              This setting forces the app to treat the text as being in a specific language, bypassing automatic detection. 
-              Use this when working with languages that may be confused with each other.
-              When a language is selected (other than "Auto-detect"), the app will only accept text in that language and will display 
-              an error message if the text appears to be in a different language.
+              {t('settings.forceDetectionDescription')}
             </Text>
             <FlatList
               data={detectionLanguageData}
@@ -337,7 +336,7 @@ export default function SettingsScreen() {
               style={styles.closeButton}
               onPress={() => setShowDetectionSelector(false)}
             >
-              <Text style={styles.closeButtonText}>Cancel</Text>
+              <Text style={styles.closeButtonText}>{t('settings.cancel')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -477,7 +476,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.primary,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 8,

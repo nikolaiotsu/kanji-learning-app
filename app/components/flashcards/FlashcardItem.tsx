@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, Dimensions, Animated, ScrollView, LayoutChangeEvent, Image } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Flashcard } from '../../types/Flashcard';
 import { Ionicons, MaterialIcons, FontAwesome6 } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
@@ -25,6 +26,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   deckName,
   disableTouchHandling = false 
 }) => {
+  const { t } = useTranslation();
   const { targetLanguage } = useSettings();
   const [isFlipped, setIsFlipped] = useState(false);
   const flipAnim = useRef(new Animated.Value(0)).current;
@@ -305,14 +307,14 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
               {needsRomanization && flashcard.furiganaText && (
                 <>
                   <Text style={styles.sectionTitle}>
-                    {detectedLanguage === 'Japanese' ? 'With Furigana' :
-                     detectedLanguage === 'Chinese' ? 'With Pinyin' :
-                     detectedLanguage === 'Korean' ? 'With Revised Romanization' :
-                     detectedLanguage === 'Russian' ? 'With Practical Romanization' :
-                     detectedLanguage === 'Arabic' ? 'With Arabic Chat Alphabet' :
-                     detectedLanguage === 'Italian' ? 'With Italian Alphabet' :
-                     detectedLanguage === 'Tagalog' ? 'With Tagalog Alphabet' :
-                     'With Pronunciation Guide'}
+                    {detectedLanguage === 'Japanese' ? t('flashcard.sectionTitles.withFurigana') :
+                     detectedLanguage === 'Chinese' ? t('flashcard.sectionTitles.withPinyin') :
+                     detectedLanguage === 'Korean' ? t('flashcard.sectionTitles.withRevisedRomanization') :
+                     detectedLanguage === 'Russian' ? t('flashcard.sectionTitles.withPracticalRomanization') :
+                     detectedLanguage === 'Arabic' ? t('flashcard.sectionTitles.withArabicChatAlphabet') :
+                     detectedLanguage === 'Italian' ? t('flashcard.sectionTitles.withItalianAlphabet') :
+                     detectedLanguage === 'Tagalog' ? t('flashcard.sectionTitles.withTagalogAlphabet') :
+                     t('flashcard.sectionTitles.withPronunciationGuide')}
                   </Text>
                   <Text style={styles.furiganaText}>
                     {flashcard.furiganaText}
@@ -320,7 +322,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
                 </>
               )}
               
-              <Text style={styles.sectionTitle}>{translatedLanguageName} Translation</Text>
+              <Text style={styles.sectionTitle}>{t('flashcard.sectionTitles.translation', { language: translatedLanguageName })}</Text>
               <Text style={styles.translatedText}>
                 {flashcard.translatedText}
               </Text>
@@ -342,7 +344,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
               
               {deckName && (
                 <View style={styles.deckInfoContainer}>
-                  <Text style={styles.deckLabel}>Collection:</Text>
+                  <Text style={styles.deckLabel}>{t('flashcard.sectionTitles.collection')}</Text>
                   <Text style={styles.deckName}>{deckName}</Text>
                 </View>
               )}

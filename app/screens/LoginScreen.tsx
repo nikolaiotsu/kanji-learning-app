@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, TextInput, TouchableOpacity, Text, Alert, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { router } from 'expo-router';
 import SocialAuth from '../components/SocialAuth';
@@ -12,6 +13,7 @@ import PokedexLayout from '../components/shared/PokedexLayout';
 const worddexLogo = require('../../assets/images/worddexlogo.png');
 
 const LoginScreen = () => {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,7 +26,7 @@ const LoginScreen = () => {
     
     if (!email || !password) {
       console.log('❌ [LoginScreen] Missing credentials');
-      Alert.alert('Error', 'Please enter both email and password');
+      Alert.alert(t('common.error'), t('auth.login.missingCredentials'));
       return;
     }
     
@@ -40,18 +42,18 @@ const LoginScreen = () => {
       console.error('❌ [LoginScreen] Error details:', JSON.stringify(error));
       if (error.message && error.message.includes('Email not confirmed')) {
         Alert.alert(
-          'Email Not Verified',
-          'Please check your inbox and click the verification link to activate your account. Need a new link?',
+          t('auth.login.emailNotVerified'),
+          t('auth.login.emailNotVerifiedMessage'),
           [
-            { text: 'Cancel', style: 'cancel' },
+            { text: t('common.cancel'), style: 'cancel' },
             { 
-              text: 'Resend Link', 
+              text: t('auth.login.resendLink'), 
               onPress: () => resendVerificationEmail(email)
             }
           ]
         );
       } else {
-        Alert.alert('Login Failed', error.message || 'Failed to login. Please try again.');
+        Alert.alert(t('auth.login.loginFailed'), error.message || 'Failed to login. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -68,11 +70,11 @@ const LoginScreen = () => {
       if (error) throw error;
       
       Alert.alert(
-        'Verification Email Sent',
-        'We\'ve sent a new verification link to your email address. Please check your inbox.'
+        t('auth.login.verificationSent'),
+        t('auth.login.verificationSentMessage')
       );
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to resend verification email.');
+      Alert.alert(t('common.error'), error.message || t('auth.login.resendFailed'));
     }
   };
 
@@ -95,21 +97,21 @@ const LoginScreen = () => {
       }}
     >
       <View style={styles.form}>
-        <Text style={styles.title}>Hello Collector.</Text>
+        <Text style={styles.title}>{t('auth.login.title')}</Text>
         
         <View style={styles.newUserContainer}>
-          <Text style={styles.newUserText}>New to the app?</Text>
+          <Text style={styles.newUserText}>{t('auth.login.newUser')}</Text>
           <TouchableOpacity 
             style={styles.signUpButton} 
             onPress={navigateToSignUp}
           >
-            <Text style={styles.signUpButtonText}>Create Account</Text>
+            <Text style={styles.signUpButtonText}>{t('auth.login.createAccount')}</Text>
           </TouchableOpacity>
         </View>
         
         <TextInput
           style={styles.input}
-          placeholder="Email"
+          placeholder={t('auth.login.emailPlaceholder')}
           placeholderTextColor="#A0A0A0"
           value={email}
           onChangeText={setEmail}
@@ -119,7 +121,7 @@ const LoginScreen = () => {
         
         <TextInput
           style={styles.input}
-          placeholder="Password"
+          placeholder={t('auth.login.passwordPlaceholder')}
           placeholderTextColor="#A0A0A0"
           value={password}
           onChangeText={setPassword}
@@ -134,13 +136,13 @@ const LoginScreen = () => {
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>Log In</Text>
+            <Text style={styles.buttonText}>{t('auth.login.loginButton')}</Text>
           )}
         </TouchableOpacity>
         
         <View style={styles.divider}>
           <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or</Text>
+          <Text style={styles.dividerText}>{t('common.or')}</Text>
           <View style={styles.dividerLine} />
         </View>
         
@@ -148,7 +150,7 @@ const LoginScreen = () => {
         
         <View style={styles.links}>
           <TouchableOpacity onPress={navigateToResetPassword}>
-            <Text style={styles.link}>Forgot Password?</Text>
+            <Text style={styles.link}>{t('auth.login.forgotPassword')}</Text>
           </TouchableOpacity>
         </View>
       </View>

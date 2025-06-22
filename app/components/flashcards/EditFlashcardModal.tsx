@@ -14,6 +14,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Flashcard } from '../../types/Flashcard';
 import { updateFlashcard } from '../../services/supabaseStorage';
 import { processWithClaude } from '../../services/claudeApi';
@@ -34,6 +35,7 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
   onClose, 
   onSave 
 }) => {
+  const { t } = useTranslation();
   const { targetLanguage, forcedDetectionLanguage } = useSettings();
   const [originalText, setOriginalText] = useState('');
   const [furiganaText, setFuriganaText] = useState('');
@@ -110,18 +112,18 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
     if (!flashcard) return;
     
     if (!originalText.trim()) {
-      Alert.alert('Error', 'Original text cannot be empty.');
+      Alert.alert(t('common.error'), t('flashcard.edit.emptyOriginal'));
       return;
     }
     
     if (needsRomanization && !furiganaText.trim()) {
-      Alert.alert('Warning', 'Romanization/Furigana text is empty. Would you like to continue?', [
+      Alert.alert(t('common.warning'), t('flashcard.edit.emptyRomanization'), [
         { 
-          text: 'Cancel', 
+          text: t('common.cancel'), 
           style: 'cancel' 
         },
         {
-          text: 'Continue',
+          text: t('common.continue'),
           onPress: () => saveFlashcard()
         }
       ]);
@@ -129,13 +131,13 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
     }
     
     if (!translatedText.trim()) {
-      Alert.alert('Warning', 'Translation is empty. Would you like to continue?', [
+      Alert.alert(t('common.warning'), t('flashcard.edit.emptyTranslation'), [
         { 
-          text: 'Cancel', 
+          text: t('common.cancel'), 
           style: 'cancel' 
         },
         {
-          text: 'Continue',
+          text: t('common.continue'),
           onPress: () => saveFlashcard()
         }
       ]);
@@ -162,7 +164,7 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
   // Function to retranslate with Claude API
   const handleRetranslate = async () => {
     if (!originalText.trim()) {
-      Alert.alert('Error', 'Please enter text to translate.');
+      Alert.alert(t('common.error'), t('flashcard.edit.enterText'));
       return;
     }
     
@@ -179,16 +181,16 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
           setFuriganaText(result.furiganaText);
           
           if (!result.furiganaText) {
-            setError('Failed to get proper romanization for this text. The translation is still available.');
+            setError(t('flashcard.edit.romanizationFailed'));
           }
         }
-      } else {
-        setError('Failed to process text with Claude API. Please try again later.');
-      }
-    } catch (err) {
-      console.error('Error processing with Claude:', err);
-      setError('Failed to process text with Claude API. Please try again later.');
-    } finally {
+              } else {
+          setError(t('flashcard.edit.retranslateFailed'));
+        }
+      } catch (err) {
+        console.error('Error processing with Claude:', err);
+        setError(t('flashcard.edit.retranslateFailed'));
+      } finally {
       setIsRetranslating(false);
     }
   };

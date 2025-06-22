@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Animated, PanResponder } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import FlashcardItem from './FlashcardItem';
 import { useRandomCardReview } from '../../hooks/useRandomCardReview';
 import { COLORS } from '../../constants/colors';
@@ -12,6 +13,7 @@ interface RandomCardReviewerProps {
 }
 
 const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) => {
+  const { t } = useTranslation();
   const {
     currentCard,
     isLoading,
@@ -242,11 +244,11 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
               onPress={() => setShowDeckSelector(true)}
             >
               <Ionicons name="albums-outline" size={20} color={COLORS.primary} />
-              <Text style={styles.deckButtonText}>Select Collections</Text>
+              <Text style={styles.deckButtonText}>{t('review.collections')}</Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.noCardsText}>Nothing to review</Text>
-          <Text style={styles.guidanceText}>Go scan some text to add to your collection!</Text>
+          <Text style={styles.noCardsText}>{t('review.nothingToReview')}</Text>
+          <Text style={styles.guidanceText}>{t('review.scanText')}</Text>
           {deckSelector}
         </View>
       );
@@ -261,15 +263,15 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
             onPress={() => setShowDeckSelector(true)}
           >
             <Ionicons name="albums-outline" size={20} color={COLORS.primary} />
-            <Text style={styles.deckButtonText}>Select Collections</Text>
+            <Text style={styles.deckButtonText}>{t('review.collections')}</Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.noCardsText}>You've finished your review!</Text>
+        <Text style={styles.noCardsText}>{t('review.finishedReview')}</Text>
         <TouchableOpacity 
           style={styles.reviewAgainButton} 
           onPress={onReviewAgain}
         >
-          <Text style={styles.reviewAgainText}>Review Again</Text>
+          <Text style={styles.reviewAgainText}>{t('review.reviewAgain')}</Text>
         </TouchableOpacity>
         {deckSelector}
       </View>
@@ -284,7 +286,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
           onPress={() => setShowDeckSelector(true)}
         >
           <Ionicons name="albums-outline" size={20} color={COLORS.primary} />
-          <Text style={styles.deckButtonText}>Collections</Text>
+          <Text style={styles.deckButtonText}>{t('review.collections')}</Text>
         </TouchableOpacity>
       </View>
       <View style={styles.cardStage}>
@@ -317,7 +319,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
       {!isImageExpanded && (
         <View style={styles.controlsContainer}>
           <Text style={styles.countText}>
-            {remainingCount} remaining (swipe ← to review, → to dismiss)
+            {t('review.remaining', { count: remainingCount })}
           </Text>
         </View>
       )}
