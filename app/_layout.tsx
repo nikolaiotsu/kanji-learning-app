@@ -1,3 +1,4 @@
+import './i18n'; // Import i18n configuration FIRST
 import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './context/AuthContext';
@@ -5,13 +6,17 @@ import SettingsProvider from './context/SettingsContext';
 import { SubscriptionProvider } from './context/SubscriptionContext';
 import { OCRCounterProvider } from './context/OCRCounterContext';
 import AuthGuard from './components/auth/AuthGuard';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, Text, ActivityIndicator } from 'react-native';
 import { COLORS } from './constants/colors';
 import * as WebBrowser from 'expo-web-browser';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import { useTranslation } from 'react-i18next';
 
 export default function RootLayout() {
+  const [isI18nReady, setIsI18nReady] = useState(false);
+  const { i18n } = useTranslation();
+
   // Initialize WebBrowser to handle OAuth redirects
   useEffect(() => {
     // This enables redirect handling for Google and Apple auth
@@ -30,6 +35,32 @@ export default function RootLayout() {
     
     lockOrientation();
   }, []);
+
+  // Ensure i18n is ready before rendering the app
+  useEffect(() => {
+    const checkI18nReady = () => {
+      if (i18n.isInitialized) {
+        console.log('[RootLayout] i18n is ready, language:', i18n.language);
+        setIsI18nReady(true);
+      } else {
+        console.log('[RootLayout] i18n not ready, waiting...');
+        // Retry after a short delay
+        setTimeout(checkI18nReady, 100);
+      }
+    };
+    
+    checkI18nReady();
+  }, [i18n]);
+
+  // Show loading screen while i18n is initializing
+  if (!isI18nReady) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -92,5 +123,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.text,
   },
 });

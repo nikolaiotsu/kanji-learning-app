@@ -129,33 +129,72 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 1, // Keep quality high for manipulation
+        quality: 0.8, // Reduce quality to speed up processing
         // exif: true, // We don't strictly need to request it, manipulateAsync handles it
       });
 
       if (!result.canceled) {
         const asset = result.assets[0];
 
-        // Normalize the image orientation and get its new URI and dimensions
-        console.log('[KanjiScanner pickImage] Normalizing image orientation for:', asset.uri);
-        const normalizedImage = await ImageManipulator.manipulateAsync(
+        // Check if image is too large and needs resizing for performance
+        const maxDimension = 2000; // Reasonable limit for mobile processing
+        const needsResize = asset.width > maxDimension || asset.height > maxDimension;
+        
+        console.log('[KanjiScanner pickImage] Processing image:', asset.uri, 
+          `${asset.width}x${asset.height}`, needsResize ? '(will resize)' : '(no resize needed)');
+
+        // OPTION 1: Skip processing entirely for maximum speed (uncomment to use)
+        // Modern image viewers handle orientation automatically via CSS/styles
+        // if (!needsResize) {
+        //   console.log('[KanjiScanner pickImage] Using original image (no processing needed)');
+        //   setCapturedImage({
+        //     uri: asset.uri,
+        //     width: asset.width || 0,
+        //     height: asset.height || 0,
+        //   });
+        //   setImageHistory([]);
+        //   setForwardHistory([]);
+        //   setHighlightModeActive(false);
+        //   return;
+        // }
+
+        const transformations = [];
+        
+        // Add resize transformation if needed
+        if (needsResize) {
+          const scale = maxDimension / Math.max(asset.width || 1, asset.height || 1);
+          transformations.push({
+            resize: {
+              width: Math.round((asset.width || 1) * scale),
+              height: Math.round((asset.height || 1) * scale)
+            }
+          });
+        }
+
+        // Process image with optimized settings for speed
+        const processedImage = await ImageManipulator.manipulateAsync(
           asset.uri,
-          [], // No explicit transform actions, just normalize orientation based on EXIF
-          { compress: 1, format: ImageManipulator.SaveFormat.PNG } // Using PNG to preserve quality
+          transformations, // Only resize if needed, EXIF orientation is handled automatically
+          { 
+            compress: 0.8, // Good balance between quality and speed
+            format: ImageManipulator.SaveFormat.JPEG // Much faster than PNG
+          }
         );
-        console.log('[KanjiScanner pickImage] Normalized image data:', { uri: normalizedImage.uri, width: normalizedImage.width, height: normalizedImage.height });
+        
+        console.log('[KanjiScanner pickImage] Processed image:', 
+          `${processedImage.width}x${processedImage.height}`, 'URI:', processedImage.uri);
 
         setCapturedImage({
-          uri: normalizedImage.uri, // Use the URI of the normalized image
-          width: normalizedImage.width, // Use dimensions from the normalized image
-          height: normalizedImage.height,
+          uri: processedImage.uri,
+          width: processedImage.width,
+          height: processedImage.height,
         });
         setImageHistory([]);
         setForwardHistory([]);
         setHighlightModeActive(false);
       }
     } catch (error) {
-      console.error('Error picking or normalizing image:', error);
+      console.error('Error picking or processing image:', error);
       Alert.alert("Image Error", "Failed to load or process the image. Please try again.");
     }
   };

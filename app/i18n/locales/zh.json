@@ -1,0 +1,232 @@
+{
+  "common": {
+    "loading": "加载中...",
+    "error": "错误",
+    "cancel": "取消",
+    "create": "创建",
+    "continue": "继续",
+    "ok": "确定",
+    "warning": "警告",
+    "success": "成功！",
+    "failed": "失败",
+    "retry": "重试",
+    "or": "或",
+    "delete": "删除",
+    "save": "保存"
+  },
+  "auth": {
+    "login": {
+      "title": "你好，收藏家。",
+      "newUser": "新用户？",
+      "createAccount": "创建账户",
+      "emailPlaceholder": "邮箱",
+      "passwordPlaceholder": "密码",
+      "loginButton": "登录",
+      "forgotPassword": "忘记密码？",
+      "loginFailed": "登录失败",
+      "emailNotVerified": "邮箱未验证",
+      "emailNotVerifiedMessage": "请检查您的收件箱并点击验证链接来激活您的账户。需要新的链接吗？",
+      "resendLink": "重新发送链接",
+      "verificationSent": "验证邮件已发送",
+      "verificationSentMessage": "我们已向您的邮箱地址发送了新的验证链接。请检查您的收件箱。",
+      "missingCredentials": "请输入邮箱和密码",
+      "resendFailed": "重新发送验证邮件失败。"
+    },
+    "signup": {
+      "title": "创建您的账户",
+      "subtitle": "创建账户开始收集单词。",
+      "signupWith": "注册方式",
+      "orWithEmail": "或使用邮箱",
+      "confirmPasswordPlaceholder": "确认密码",
+      "passwordHint": "密码必须至少6个字符。",
+      "createAccountButton": "创建账户",
+      "loginExisting": "使用现有账户登录",
+      "fillAllFields": "请填写所有字段",
+      "passwordsMismatch": "密码不匹配",
+      "passwordTooShort": "密码必须至少6个字符",
+      "accountCreated": "账户已创建",
+      "accountCreatedMessage": "我们已向您的邮箱地址发送了验证链接。请检查您的收件箱并点击链接来验证您的账户，然后再登录。",
+      "accountExists": "账户已存在",
+      "accountExistsMessage": "此邮箱的账户已存在。请登录。",
+      "goToLogin": "前往登录",
+      "registrationFailed": "注册失败"
+    }
+  },
+  "deck": {
+    "select": "选择收藏集",
+    "loading": "加载收藏集中...",
+    "empty": "未找到收藏集。创建您的第一个收藏集！",
+    "create": {
+      "new": "创建新收藏集",
+      "enterName": "输入收藏集名称",
+      "error": "请为新收藏集输入名称",
+      "failed": "创建新收藏集失败。请重试。"
+    },
+    "created": "创建时间：{{date}}"
+  },
+  "flashcard": {
+    "edit": {
+      "emptyOriginal": "原文不能为空。",
+      "emptyRomanization": "拼音/注音文本为空。您想继续吗？",
+      "emptyTranslation": "翻译为空。您想继续吗？",
+      "enterText": "请输入要翻译的文本。",
+      "retranslateFailed": "使用Claude API处理文本失败。请稍后重试。",
+      "romanizationFailed": "获取此文本的正确拼音失败。翻译仍然可用。"
+    },
+    "translate": {
+      "languageMismatch": "语言不匹配",
+      "languageMismatchMessage": "文本似乎不是{{language}}。请尝试不同的文本或更改您的强制语言设置。"
+    },
+    "forcedLanguage": {
+      "errorMessage": "未检测到强制语言：文本似乎不是{{language}}。当强制语言模式激活时，请只输入所选语言的文本。您可以在设置中更改语言偏好。",
+      "goBack": "返回",
+      "tryAgain": "重试",
+      "goToSettings": "前往设置"
+    },
+    "sectionTitles": {
+      "withFurigana": "带假名",
+      "withPinyin": "带拼音",
+      "withRevisedRomanization": "带修订罗马字",
+      "withPracticalRomanization": "带实用罗马字",
+      "withArabicChatAlphabet": "带阿拉伯聊天字母",
+      "withItalianAlphabet": "带意大利字母",
+      "withTagalogAlphabet": "带他加禄语字母",
+      "originalText": "原文",
+      "withPronunciationGuide": "带发音指南",
+      "translation": "{{language}}翻译",
+      "collection": "收藏集："
+    },
+    "save": {
+      "title": "单词卡已保存",
+      "message": "您的{{cardType}}已保存到{{deckName}}！",
+      "cannotSaveTranslation": "单词卡缺少翻译。请确保文本已正确处理。",
+      "cannotSaveContent": "单词卡缺少内容。请确保文本已正确处理。",
+      "saveError": "保存错误",
+      "saveFailed": "保存单词卡失败。请重试。",
+      "viewSaved": "查看已保存的单词卡",
+      "saveAsFlashcard": "保存为单词卡",
+      "savedAsFlashcard": "已保存为单词卡",
+      "cardType": "{{language}}单词卡",
+      "languageFlashcard": "语言单词卡",
+      "deck1": "卡组1",
+      "newDeck": "新卡组"
+    },
+    "input": {
+      "title": "单词卡输入"
+    },
+    "edit": {
+      "editText": "编辑文本",
+      "editTranslation": "编辑翻译", 
+      "editInputRetranslate": "编辑输入并重新翻译",
+      "editTextPlaceholder": "在此编辑文本...",
+      "editTranslationPlaceholder": "在此编辑翻译...",
+      "editRomanizationPlaceholder": "在此编辑拼音...",
+      "editFurigana": "编辑假名",
+      "editPinyin": "编辑拼音",
+      "editRomanization": "编辑罗马字",
+      "editTransliteration": "编辑音译",
+      "save": "保存"
+    }
+  },
+  "subscription": {
+    "test": {
+      "purchaseTitle": "测试高级版购买",
+      "purchaseMessage": "这将在开发模式下模拟高级版购买。继续？",
+      "purchase": "购买",
+      "premiumActivated": "高级版订阅已激活！",
+      "restored": "已恢复！",
+      "restoredMessage": "高级版订阅已恢复！",
+      "noPurchaseFound": "未找到购买记录",
+      "noPurchaseMessage": "没有可恢复的高级版订阅。"
+    }
+  },
+  "settings": {
+    "forceDetection": "强制语言检测",
+    "forceDetectionDescription": "此设置强制应用将文本视为特定语言，绕过自动检测。在处理可能相互混淆的语言时使用此功能。当选择了语言（除了\"自动检测\"）时，应用将只接受该语言的文本，如果文本似乎是不同的语言，将显示错误消息。",
+    "account": "账户",
+    "preferences": "偏好设置",
+    "subscription": "订阅",
+    "usageStatistics": "使用统计",
+    "signIn": "登录",
+    "signInDescription": "登录以在设备间同步您的单词卡",
+    "signOut": "退出登录",
+    "translateTo": "翻译为：",
+    "tapToChange": "（点击更改）",
+    "forceWordDexDetect": "强制Word Dex检测：",
+    "swapLanguages": "交换语言",
+    "premiumPlan": "高级版计划",
+    "freePlan": "免费计划",
+    "unlimitedScans": "无限OCR扫描，无广告",
+    "limitedScans": "每天{{maxScans}}次OCR扫描，广告支持",
+    "ocrScansToday": "今日OCR扫描",
+    "scansUsed": "已使用{{used}}/{{max}}次扫描（剩余{{remaining}}次）",
+    "selectTargetLanguage": "选择目标语言",
+    "cancel": "取消",
+    "signOutError": "退出登录失败。请重试。",
+    "swapLanguagesError": "交换语言失败。请重试。",
+    "cannotSwapLanguages": "无法交换语言",
+    "setLanguageError": "设置语言失败。请重试。",
+    "invalidLanguageSelection": "无效的语言选择",
+    "setDetectionLanguageError": "设置检测语言失败。请重试。"
+  },
+  "review": {
+    "remaining": "剩余{{count}}张（← 滑动复习，→ 滑动忽略）",
+    "nothingToReview": "没有需要复习的内容",
+    "scanText": "去扫描一些文本添加到您的收藏集！",
+    "finishedReview": "您已完成复习！",
+    "reviewAgain": "再次复习",
+    "selectCollections": "收藏集",
+    "collections": "收藏集",
+    "selectCollectionsToReview": "选择要复习的收藏集",
+    "selectAll": "全选",
+    "saveSelection": "保存选择（{{count}}个{{type}}）",
+    "collection": "个收藏集",
+    "collections_plural": "个收藏集",
+    "required": "必需",
+    "atLeastOneCollection": "必须选择至少一个收藏集",
+    "noCollectionsFound": "未找到收藏集。在单词卡屏幕中创建收藏集。",
+    "loadingCollections": "加载收藏集中...",
+    "failedToLoad": "加载收藏集失败。请重试。"
+  },
+  "savedFlashcards": {
+    "title": "您的收藏集",
+    "noCollections": "没有可用的收藏集",
+    "renameCollection": "重命名收藏集",
+    "deleteCollection": "删除收藏集",
+    "deleteCollectionConfirm": "您确定要删除此收藏集吗？此收藏集中的所有单词卡也将被删除。",
+    "deleteFlashcard": "删除单词卡",
+    "deleteFlashcardConfirm": "您确定要删除此单词卡吗？",
+    "createNewCollection": "创建新收藏集",
+    "sendToCollection": "发送到收藏集",
+    "enterNewCollectionName": "输入新收藏集名称",
+    "noOtherCollections": "没有其他可用的收藏集",
+    "back": "返回",
+    "createAndMove": "创建并移动",
+    "newCollection": "新收藏集",
+    "loadingFlashcards": "加载单词卡中...",
+    "noFlashcardsTitle": "此收藏集中没有单词卡",
+    "noFlashcardsText": "您保存到此收藏集的单词卡将显示在这里。去扫描一些文本并保存为单词卡！",
+    "moveSuccess": "单词卡已移动到新收藏集：{{name}}",
+    "enterDeckName": "请输入卡组名称",
+    "loadCollectionsError": "加载收藏集失败。请重试。",
+    "loadFlashcardsError": "加载单词卡失败。请重试。",
+    "loadFlashcardsForCollectionError": "加载此收藏集的单词卡失败。请重试。",
+    "deleteFlashcardError": "删除单词卡失败。请重试。",
+    "deleteCollectionError": "删除收藏集失败。请重试。",
+    "renameCollectionError": "重命名收藏集失败。请重试。",
+    "moveFlashcardError": "移动单词卡失败",
+    "createDeckError": "创建卡组和移动单词卡失败",
+    "updateFlashcardError": "更新单词卡失败。请重试。",
+    "unexpectedError": "发生意外错误。请重试。"
+  },
+  "imageHighlighter": {
+    "dragToRotate": "拖动旋转图像",
+    "dragToHighlight": "拖动高亮",
+    "dragToCrop": "拖动裁剪"
+  },
+  "textInput": {
+    "placeholder": "输入要翻译的文本",
+    "cancel": "取消",
+    "translate": "翻译"
+  }
+} 

@@ -11,10 +11,14 @@ interface Region {
 // Get image information (width and height)
 export async function getImageInfo(imageUri: string): Promise<{ width: number; height: number }> {
   try {
+    // PERFORMANCE OPTIMIZATION: Use minimal processing just to get dimensions
     const info = await ImageManipulator.manipulateAsync(
       imageUri,
       [], // No operations, just getting info
-      { format: ImageManipulator.SaveFormat.JPEG }
+      { 
+        format: ImageManipulator.SaveFormat.JPEG,
+        compress: 0.1 // Use minimal quality since we're only getting dimensions
+      }
     );
     
     return {
@@ -32,11 +36,11 @@ export async function rotateImage(imageUri: string, angle: number): Promise<stri
   try {
     console.log('[ProcessImage] Rotating image by angle:', angle);
     
-    // Get original image info for logging
-    const originalInfo = await getImageInfo(imageUri);
-    console.log('[ProcessImage] Original image dimensions:', originalInfo.width, 'x', originalInfo.height);
+    // PERFORMANCE OPTIMIZATION: Skip getting original info if not needed for debugging
+    // const originalInfo = await getImageInfo(imageUri);
+    // console.log('[ProcessImage] Original image dimensions:', originalInfo.width, 'x', originalInfo.height);
     
-    // Use ImageManipulator to rotate the image with higher quality settings
+    // Use ImageManipulator to rotate the image with balanced quality settings
     const result = await ImageManipulator.manipulateAsync(
       imageUri,
       [
@@ -44,7 +48,7 @@ export async function rotateImage(imageUri: string, angle: number): Promise<stri
       ],
       { 
         format: ImageManipulator.SaveFormat.JPEG, 
-        compress: 1.0,  // Use highest quality (no compression)
+        compress: 0.8,  // Better balance between quality and speed
       }
     );
     
@@ -112,9 +116,9 @@ export async function processImage(
   try {
     console.log('[ProcessImage] Processing image with operations:', operations);
     
-    // Get original image info for reference
-    const originalInfo = await getImageInfo(imageUri);
-    console.log('[ProcessImage] Original image dimensions:', originalInfo.width, 'x', originalInfo.height);
+    // PERFORMANCE OPTIMIZATION: Only get image info if we actually need it for crop validation
+    // const originalInfo = await getImageInfo(imageUri);
+    // console.log('[ProcessImage] Original image dimensions:', originalInfo.width, 'x', originalInfo.height);
     
     // Check if this is a rotation-only operation
     const isRotationOnly = !operations.crop && operations.rotate !== undefined;
@@ -123,14 +127,13 @@ export async function processImage(
       // For rotation-only operations, ensure the entire image is preserved without resizing
       console.log('[ProcessImage] Performing rotation-only operation');
       
-      // Rotate the image with high quality and preserving full dimensions
+      // Rotate the image with balanced quality settings
       const rotatedResult = await ImageManipulator.manipulateAsync(
         imageUri,
         [{ rotate: operations.rotate! }],
         { 
           format: ImageManipulator.SaveFormat.JPEG, 
-          compress: 1.0,
-          // Keep it simple - no additional options that might cause resizing
+          compress: 0.8, // Better balance between quality and speed
         }
       );
       
@@ -167,7 +170,7 @@ export async function processImage(
       const result = await ImageManipulator.manipulateAsync(
         imageUri,
         manipulations,
-        { format: ImageManipulator.SaveFormat.JPEG, compress: 0.95 }
+        { format: ImageManipulator.SaveFormat.JPEG, compress: 0.8 } // Better balance
       );
       
       console.log('[ProcessImage] Processed image dimensions:', result.width, 'x', result.height);
