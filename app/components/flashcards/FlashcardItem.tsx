@@ -5,6 +5,7 @@ import { Flashcard } from '../../types/Flashcard';
 import { Ionicons, MaterialIcons, FontAwesome6 } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { useSettings, AVAILABLE_LANGUAGES } from '../../context/SettingsContext';
+import FuriganaText from '../shared/FuriganaText';
 // Removed text formatting imports - no longer needed for direct content analysis
 
 interface FlashcardItemProps {
@@ -252,6 +253,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
               }}
             >
               <View style={styles.japaneseTextContainer}>
+                {/* Front side always shows original text without furigana - this is for testing knowledge */}
                 <Text style={styles.japaneseText}>
                   {flashcard.originalText}
                 </Text>
@@ -316,9 +318,20 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
                      detectedLanguage === 'Tagalog' ? t('flashcard.sectionTitles.withTagalogAlphabet') :
                      t('flashcard.sectionTitles.withPronunciationGuide')}
                   </Text>
-                  <Text style={styles.furiganaText}>
-                    {flashcard.furiganaText}
-                  </Text>
+                  {(detectedLanguage === 'Japanese' || detectedLanguage === 'Chinese' || detectedLanguage === 'Korean' || detectedLanguage === 'Russian' || detectedLanguage === 'Arabic') ? (
+                    <FuriganaText
+                      text={flashcard.furiganaText}
+                      fontSize={20}
+                      furiganaFontSize={12}
+                      color={COLORS.text}
+                      furiganaColor={COLORS.darkGray}
+                      textAlign="center"
+                    />
+                  ) : (
+                    <Text style={styles.furiganaText}>
+                      {flashcard.furiganaText}
+                    </Text>
+                  )}
                 </>
               )}
               
@@ -482,6 +495,10 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: 15,
     lineHeight: 30, // Increased proportionally
+  },
+  furiganaTextComponent: {
+    marginBottom: 15,
+    alignSelf: 'center',
   },
   translatedText: {
     fontSize: 20, // Increased from 18 for better visibility on larger cards

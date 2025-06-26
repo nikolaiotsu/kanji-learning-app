@@ -29,6 +29,7 @@ import { useSettings, AVAILABLE_LANGUAGES } from './context/SettingsContext';
 import { COLORS } from './constants/colors';
 import { FontAwesome6 } from '@expo/vector-icons';
 import PokedexLayout from './components/shared/PokedexLayout';
+import FuriganaText from './components/shared/FuriganaText';
 
 export default function LanguageFlashcardsScreen() {
   const { t } = useTranslation();
@@ -552,7 +553,18 @@ export default function LanguageFlashcardsScreen() {
                          detectedLanguage === 'Tagalog' ? t('flashcard.sectionTitles.originalText') :
                          t('flashcard.sectionTitles.withPronunciationGuide')}
                       </Text>
-                      <Text style={styles.furiganaText} numberOfLines={0}>{furiganaText}</Text>
+                      {(detectedLanguage === 'Japanese' || detectedLanguage === 'Chinese' || detectedLanguage === 'Korean' || detectedLanguage === 'Russian' || detectedLanguage === 'Arabic') ? (
+                        <FuriganaText
+                          text={furiganaText}
+                          fontSize={20}
+                          furiganaFontSize={12}
+                          color={COLORS.text}
+                          furiganaColor={COLORS.darkGray}
+                          textAlign="left"
+                        />
+                      ) : (
+                        <Text style={styles.furiganaText} numberOfLines={0}>{furiganaText}</Text>
+                      )}
                     </View>
                   )}
                   
