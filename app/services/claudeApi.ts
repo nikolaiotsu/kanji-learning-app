@@ -14,6 +14,7 @@ import {
   containsEnglishText,
   containsRussianText,
   containsArabicText,
+  containsHindiText,
   containsKanji
 } from '../utils/textFormatting';
 
@@ -36,7 +37,8 @@ const LANGUAGE_NAMES_MAP = {
   ja: 'Japanese',
   ar: 'Arabic',
   pt: 'Portuguese',
-  de: 'German'
+  de: 'German',
+  hi: 'Hindi'
 };
 
 // Define Claude API response content structure
@@ -74,6 +76,7 @@ function detectPrimaryLanguage(text: string, forcedLanguage: string = 'auto'): s
       case 'tl': return "Tagalog";
       case 'pt': return "Portuguese";
       case 'de': return "German";
+      case 'hi': return "Hindi";
       default: return forcedLanguage; // Return the forced language code instead of "unknown"
     }
   }
@@ -84,6 +87,7 @@ function detectPrimaryLanguage(text: string, forcedLanguage: string = 'auto'): s
   let chineseChars = 0;
   let koreanChars = 0;
   let arabicChars = 0;
+  let hindiChars = 0;
   
   // Check each character in the text
   for (let i = 0; i < text.length; i++) {
@@ -115,41 +119,45 @@ function detectPrimaryLanguage(text: string, forcedLanguage: string = 'auto'): s
     else if (/[\u0600-\u06FF\u0750-\u077F]/.test(char)) {
       arabicChars++;
     }
+    // Hindi (Devanagari)
+    else if (/[\u0900-\u097F]/.test(char)) {
+      hindiChars++;
+    }
   }
   
   // Check for Italian based on patterns (simpler approach)
   if (containsItalianText(text) && 
-      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars)) {
+      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars || hindiChars)) {
     return "Italian";
   }
   
   // Check for Tagalog based on patterns
   if (containsTagalogText(text) && 
-      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars)) {
+      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars || hindiChars)) {
     return "Tagalog";
   }
   
   // Check for French based on patterns
   if (containsFrenchText(text) && 
-      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars)) {
+      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars || hindiChars)) {
     return "French";
   }
   
   // Check for Spanish based on patterns
   if (containsSpanishText(text) && 
-      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars)) {
+      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars || hindiChars)) {
     return "Spanish";
   }
   
   // Check for Portuguese based on patterns
   if (containsPortugueseText(text) && 
-      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars)) {
+      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars || hindiChars)) {
     return "Portuguese";
   }
   
   // Check for German based on patterns
   if (containsGermanText(text) && 
-      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars)) {
+      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars || hindiChars)) {
     return "German";
   }
   
@@ -159,7 +167,8 @@ function detectPrimaryLanguage(text: string, forcedLanguage: string = 'auto'): s
     { lang: "Japanese", count: japaneseChars },
     { lang: "Chinese", count: chineseChars },
     { lang: "Korean", count: koreanChars },
-    { lang: "Arabic", count: arabicChars }
+    { lang: "Arabic", count: arabicChars },
+    { lang: "Hindi", count: hindiChars }
   ];
   
   counts.sort((a, b) => b.count - a.count);
@@ -222,6 +231,7 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
     case 'tl': expectedLanguage = 'Tagalog'; break;
     case 'pt': expectedLanguage = 'Portuguese'; break;
     case 'de': expectedLanguage = 'German'; break;
+    case 'hi': expectedLanguage = 'Hindi'; break;
     default: expectedLanguage = forcedLanguage;
   }
   
@@ -363,6 +373,18 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
       return false;
     }
     console.log('[validateTextMatchesLanguage] Arabic force mode validation passed');
+    return true;
+  }
+  
+  if (expectedLanguage === 'Hindi') {
+    const hasHindi = containsHindiText(text);
+    console.log(`[validateTextMatchesLanguage] Hindi force mode: hasHindi=${hasHindi}`);
+    
+    if (!hasHindi) {
+      console.log('[validateTextMatchesLanguage] Hindi forced but no Devanagari characters found');
+      return false;
+    }
+    console.log('[validateTextMatchesLanguage] Hindi force mode validation passed');
     return true;
   }
   
@@ -637,6 +659,45 @@ WRONG examples (do NOT use these formats):
 Format your response as valid JSON with these exact keys:
 {
   "furiganaText": "Arabic text with transliteration in parentheses immediately after each Arabic word - following the examples above",
+  "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
+}
+`;
+      } else if (primaryLanguage === "Hindi") {
+        // Hindi-specific prompt with standard romanization
+        userMessage = `
+${promptTopSection}
+You are a Hindi language expert. I need you to analyze and translate this Hindi text: "${text}"
+
+CRITICAL FORMATTING REQUIREMENTS FOR HINDI TEXT:
+- Keep all original Hindi Devanagari text exactly as is (including any English words, numbers, or punctuation)
+- For EVERY Hindi word, add the standard romanization in parentheses immediately after the Devanagari text
+- Do NOT add romanization to English words or numbers - leave them unchanged
+- Follow IAST (International Alphabet of Sanskrit Transliteration) or simplified standard romanization
+- The format should be: हिन्दी(hindī) NOT "hindī (Hindi)" or any other format
+- Do NOT mix English translations in the romanization - only provide pronunciation guide
+- Translate into ${targetLangName} language, NOT English (unless English is specifically requested)
+
+Examples of CORRECT Hindi romanization formatting:
+- "नमस्ते" should become "नमस्ते(namaste)"
+- "मैं हिन्दी सीख रहा हूँ" should become "मैं(main) हिन्दी(hindī) सीख(sīkh) रहा(rahā) हूँ(hūn)"
+- "आज अच्छा मौसम है" should become "आज(āj) अच्छा(acchā) मौसम(mausam) है(hai)"
+- "यह बहुत सुन्दर है" should become "यह(yah) बहुत(bahut) सुन्दर(sundar) है(hai)"
+- Mixed content: "Hello भारत" should become "Hello भारत(bhārat)"
+
+ROMANIZATION GUIDELINES:
+- Use long vowel marks (ā, ī, ū) for accurate pronunciation
+- Use 'ch' for च, 'chh' for छ
+- Use 'sh' for श, 'shh' for ष
+- Use standard conventions for aspirated consonants (kh, gh, ch, jh, th, dh, ph, bh)
+
+WRONG examples (do NOT use these formats):
+- "main (I)" ❌
+- "hindī (Hindi)" ❌
+- "sīkh (learn)" ❌
+
+Format your response as valid JSON with these exact keys:
+{
+  "furiganaText": "Hindi text with romanization in parentheses immediately after each Hindi word - following the examples above",
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;

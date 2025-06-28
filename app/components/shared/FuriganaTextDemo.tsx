@@ -19,7 +19,11 @@ const FuriganaTextDemo: React.FC = () => {
     { text: "Сегодня(segodnya) хорошая(khoroshaya) погода(pogoda)", language: "Russian" },
     { text: "مرحبا(marhaban)!", language: "Arabic" },
     { text: "أنا(ana) أدرس(udrus) العربية(al-arabiya)", language: "Arabic" },
-    { text: "اليوم(al-yawm) جو(jaw) جميل(jameel)", language: "Arabic" }
+    { text: "اليوم(al-yawm) جو(jaw) جميل(jameel)", language: "Arabic" },
+    { text: "नमस्ते(namaste)!", language: "Hindi" },
+    { text: "मैं(main) हिन्दी(hindī) सीख(sīkh) रहा(rahā) हूँ(hūn)", language: "Hindi" },
+    { text: "आज(āj) मौसम(mausam) अच्छा(acchā) है(hai)", language: "Hindi" },
+    { text: "देश(deś) संस्कृत(saṃskṛt) भाषा(bhāṣā)", language: "Hindi (IAST)" }
   ];
 
   return (

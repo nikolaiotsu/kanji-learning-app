@@ -5,11 +5,13 @@ import * as Localization from 'expo-localization';
 import en from './locales/en.json';
 import ja from './locales/ja.json';
 import zh from './locales/zh.json';
+import hi from './locales/hi.json';
 
 // Determine the device locale
 const deviceLocale = Localization.locale;
 const detectedLanguage = deviceLocale.startsWith('ja') ? 'ja' : 
-                        deviceLocale.startsWith('zh') ? 'zh' : 'en';
+                        deviceLocale.startsWith('zh') ? 'zh' : 
+                        deviceLocale.startsWith('hi') ? 'hi' : 'en';
 
 console.log('[i18n] Device locale:', deviceLocale, 'Detected language:', detectedLanguage);
 
@@ -22,6 +24,7 @@ i18next
       en: { translation: en },
       ja: { translation: ja },
       zh: { translation: zh },
+      hi: { translation: hi },
     },
     lng: detectedLanguage,
     fallbackLng: 'en',

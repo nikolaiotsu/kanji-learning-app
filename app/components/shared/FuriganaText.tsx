@@ -14,7 +14,7 @@ interface FuriganaTextProps {
 }
 
 interface FuriganaSegment {
-  kanji: string;  // The original characters (kanji, hanzi, hangul, or cyrillic)
+  kanji: string;  // The original characters (kanji, hanzi, hangul, cyrillic, arabic, or devanagari)
   furigana: string;  // The reading (hiragana, pinyin, romanization, or transliteration)
   type: 'furigana' | 'plain';
 }
@@ -50,13 +50,14 @@ const FuriganaText: React.FC<FuriganaTextProps> = ({
       return segments;
     }
     
-    // Regex to match CJK characters, Korean Hangul, Cyrillic, and Arabic followed by readings in parentheses
+    // Regex to match CJK characters, Korean Hangul, Cyrillic, Arabic, and Devanagari followed by readings in parentheses
     // For Japanese: 東京(とうきょう) - kanji with hiragana
     // For Chinese: 中国(zhōngguó) - hanzi with pinyin
     // For Korean: 한국어(han-gug-eo) - hangul with romanization
     // For Russian: Русский(russkiy) - cyrillic with romanization
     // For Arabic: العربية(al-arabiya) - arabic with transliteration
-    const readingRegex = /([\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F]+)\(([ぁ-ゟa-zA-Zāēīōūǎěǐǒǔàèìòùáéíóúǘǜɑ\s\-0-9]+)\)/g;
+    // For Hindi: हिन्दी(hindī) - devanagari with IAST romanization
+    const readingRegex = /([\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F]+)\(([ぁ-ゟa-zA-Zāēīōūǎěǐǒǔàèìòùáéíóúǘǜɑśṅñṭḍṇḷṛṣḥṁṃḷ̥ṝṟĝśḱńṗṟť\s\-0-9]+)\)/g;
     
     let lastIndex = 0;
     let match;

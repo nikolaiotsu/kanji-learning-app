@@ -59,7 +59,7 @@ export async function detectText(
           cropHintsParams: {
             aspectRatios: [region.width / region.height],
           },
-          languageHints: ['ja', 'en', 'es', 'fr', 'de', 'zh', 'ko', 'pt', 'ru', 'ar'],
+          languageHints: ['ja', 'en', 'es', 'fr', 'de', 'zh', 'ko', 'pt', 'ru', 'ar', 'hi'],
         },
       },
     ],
@@ -166,7 +166,7 @@ export async function analyzeImage(imageUri: string, region?: Region) {
               // You might want to adjust model settings here if needed
             }],
             imageContext: {
-              languageHints: ['ja', 'en', 'es', 'fr', 'de', 'zh', 'ko', 'pt', 'ru', 'ar'],
+              languageHints: ['ja', 'en', 'es', 'fr', 'de', 'zh', 'ko', 'pt', 'ru', 'ar', 'hi'],
             },
           }],
         }),

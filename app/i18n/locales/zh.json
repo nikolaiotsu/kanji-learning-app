@@ -91,6 +91,7 @@
       "withArabicChatAlphabet": "带阿拉伯聊天字母",
       "withItalianAlphabet": "带意大利字母",
       "withTagalogAlphabet": "带他加禄语字母",
+      "withHindiRomanization": "带印地语罗马字",
       "originalText": "原文",
       "withPronunciationGuide": "带发音指南",
       "translation": "{{language}}翻译",

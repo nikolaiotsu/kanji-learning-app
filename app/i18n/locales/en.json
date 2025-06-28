@@ -91,6 +91,7 @@
       "withArabicChatAlphabet": "With Arabic Chat Alphabet",
       "withItalianAlphabet": "With Italian Alphabet",
       "withTagalogAlphabet": "With Tagalog Alphabet",
+      "withHindiRomanization": "With Hindi Romanization",
       "originalText": "Original Text",
       "withPronunciationGuide": "With Pronunciation Guide",
       "translation": "{{language}} Translation",

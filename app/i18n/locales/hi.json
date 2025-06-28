@@ -1,0 +1,76 @@
+{
+  "common": {
+    "loading": "लोड हो रहा है...",
+    "error": "त्रुटि",
+    "cancel": "रद्द करें",
+    "create": "बनाएं",
+    "continue": "जारी रखें",
+    "ok": "ठीक है",
+    "warning": "चेतावनी",
+    "success": "सफल!",
+    "failed": "असफल",
+    "retry": "पुनः प्रयास करें",
+    "or": "या",
+    "delete": "हटाएं",
+    "save": "सहेजें"
+  },
+  "auth": {
+    "login": {
+      "title": "नमस्ते संग्राहक।",
+      "newUser": "ऐप में नए हैं?",
+      "createAccount": "खाता बनाएं",
+      "emailPlaceholder": "ईमेल",
+      "passwordPlaceholder": "पासवर्ड",
+      "loginButton": "लॉग इन करें",
+      "forgotPassword": "पासवर्ड भूल गए?",
+      "loginFailed": "लॉगिन असफल",
+      "emailNotVerified": "ईमेल सत्यापित नहीं",
+      "emailNotVerifiedMessage": "कृपया अपना इनबॉक्स देखें और अपना खाता सक्रिय करने के लिए सत्यापन लिंक पर क्लिक करें। नया लिंक चाहिए?",
+      "resendLink": "लिंक पुनः भेजें",
+      "verificationSent": "सत्यापन ईमेल भेजा गया",
+      "verificationSentMessage": "हमने आपके ईमेल पते पर एक नया सत्यापन लिंक भेजा है। कृपया अपना इनबॉक्स देखें।",
+      "missingCredentials": "कृपया ईमेल और पासवर्ड दोनों दर्ज करें",
+      "resendFailed": "सत्यापन ईमेल पुनः भेजने में असफल।"
+    },
+    "signup": {
+      "title": "अपना खाता बनाएं",
+      "subtitle": "शब्द संग्रह शुरू करने के लिए एक खाता बनाएं।",
+      "signupWith": "के साथ साइन अप करें",
+      "orWithEmail": "या ईमेल के साथ",
+      "confirmPasswordPlaceholder": "पासवर्ड की पुष्टि करें",
+      "passwordHint": "पासवर्ड कम से कम 6 वर्ण लंबा होना चाहिए।",
+      "createAccountButton": "खाता बनाएं",
+      "loginExisting": "मौजूदा खाते से लॉग इन करें",
+      "fillAllFields": "कृपया सभी फ़ील्ड भरें",
+      "passwordsMismatch": "पासवर्ड मेल नहीं खाते",
+      "passwordTooShort": "पासवर्ड कम से कम 6 वर्ण का होना चाहिए",
+      "accountCreated": "खाता बनाया गया",
+      "accountCreatedMessage": "हमने आपके ईमेल पते पर एक सत्यापन लिंक भेजा है। लॉग इन करने से पहले कृपया अपना इनबॉक्स देखें और लिंक पर क्लिक करके अपने खाते को सत्यापित करें।",
+      "accountExists": "खाता पहले से मौजूद है",
+      "accountExistsMessage": "इस ईमेल का एक खाता पहले से मौजूद है। कृपया इसके बजाय लॉग इन करें।",
+      "goToLogin": "लॉगिन पर जाएं",
+      "registrationFailed": "पंजीकरण असफल"
+    }
+  },
+  "flashcard": {
+    "sectionTitles": {
+      "withFurigana": "फुरिगाना के साथ",
+      "withPinyin": "पिनयिन के साथ",
+      "withRevisedRomanization": "संशोधित रोमनीकरण के साथ",
+      "withPracticalRomanization": "व्यावहारिक रोमनीकरण के साथ",
+      "withArabicChatAlphabet": "अरबी चैट वर्णमाला के साथ",
+      "withItalianAlphabet": "इतालवी वर्णमाला के साथ",
+      "withTagalogAlphabet": "तागालोग वर्णमाला के साथ",
+      "withHindiRomanization": "हिंदी रोमनीकरण के साथ",
+      "originalText": "मूल पाठ",
+      "withPronunciationGuide": "उच्चारण गाइड के साथ",
+      "translation": "{{language}} अनुवाद",
+      "collection": "संग्रह:"
+    }
+  },
+  "settings": {
+    "translateTo": "में अनुवाद करें:",
+    "selectTargetLanguage": "लक्ष्य भाषा चुनें",
+    "cancel": "रद्द करें"
+  }
+} 

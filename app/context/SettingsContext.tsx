@@ -14,7 +14,8 @@ export const AVAILABLE_LANGUAGES = {
   ja: 'Japanese',
   ar: 'Arabic',
   pt: 'Portuguese',
-  de: 'German'
+  de: 'German',
+  hi: 'Hindi'
 };
 
 // Languages that can be forced for detection
@@ -31,7 +32,8 @@ export const DETECTABLE_LANGUAGES = {
   fr: 'French',
   tl: 'Tagalog',
   pt: 'Portuguese',
-  de: 'German'
+  de: 'German',
+  hi: 'Hindi'
 };
 
 // Settings context interface

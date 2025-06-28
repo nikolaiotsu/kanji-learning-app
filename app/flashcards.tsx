@@ -11,6 +11,7 @@ import {
   containsKoreanText, 
   containsRussianText, 
   containsArabicText,
+  containsHindiText,
   containsItalianText,
   containsTagalogText,
   containsFrenchText,
@@ -92,13 +93,14 @@ export default function LanguageFlashcardsScreen() {
     setTextProcessed(false);
     
     try {
-      // Check if the text contains Japanese, Chinese, Korean, Russian, Arabic characters
+      // Check if the text contains Japanese, Chinese, Korean, Russian, Arabic, Hindi characters
       // These are the languages that need romanization
       const hasJapanese = containsJapanese(text);
       const hasChinese = containsChinese(text);
       const hasKorean = containsKoreanText(text);
       const hasRussian = containsRussianText(text);
       const hasArabic = containsArabicText(text);
+      const hasHindi = containsHindiText(text);
       const hasItalian = containsItalianText(text);
       const hasTagalog = containsTagalogText(text);
       const hasFrench = containsFrenchText(text);
@@ -112,7 +114,8 @@ export default function LanguageFlashcardsScreen() {
         hasChinese || 
         hasKorean || 
         hasRussian || 
-        hasArabic
+        hasArabic ||
+        hasHindi
       );
       setNeedsRomanization(needsRomanization);
       
@@ -127,6 +130,7 @@ export default function LanguageFlashcardsScreen() {
           case 'ko': language = 'Korean'; break;
           case 'ru': language = 'Russian'; break;
           case 'ar': language = 'Arabic'; break;
+          case 'hi': language = 'Hindi'; break;
           case 'it': language = 'Italian'; break;
           case 'es': language = 'Spanish'; break;
           case 'fr': language = 'French'; break;
@@ -155,6 +159,8 @@ export default function LanguageFlashcardsScreen() {
         language = 'Russian';
       } else if (hasArabic) {
         language = 'Arabic';
+      } else if (hasHindi) {
+        language = 'Hindi';
       } else if (hasItalian) {
         language = 'Italian';
       } else if (hasTagalog) {
@@ -336,6 +342,7 @@ export default function LanguageFlashcardsScreen() {
           case 'ko': languageName = 'Korean'; break;
           case 'ru': languageName = 'Russian'; break;
           case 'ar': languageName = 'Arabic'; break;
+          case 'hi': languageName = 'Hindi'; break;
           case 'it': languageName = 'Italian'; break;
           case 'es': languageName = 'Spanish'; break;
           case 'fr': languageName = 'French'; break;
@@ -549,11 +556,12 @@ export default function LanguageFlashcardsScreen() {
                          detectedLanguage === 'Korean' ? t('flashcard.sectionTitles.withRevisedRomanization') :
                          detectedLanguage === 'Russian' ? t('flashcard.sectionTitles.withPracticalRomanization') :
                          detectedLanguage === 'Arabic' ? t('flashcard.sectionTitles.withArabicChatAlphabet') :
+                         detectedLanguage === 'Hindi' ? t('flashcard.sectionTitles.withHindiRomanization') :
                          detectedLanguage === 'Italian' ? t('flashcard.sectionTitles.originalText') :
                          detectedLanguage === 'Tagalog' ? t('flashcard.sectionTitles.originalText') :
                          t('flashcard.sectionTitles.withPronunciationGuide')}
                       </Text>
-                      {(detectedLanguage === 'Japanese' || detectedLanguage === 'Chinese' || detectedLanguage === 'Korean' || detectedLanguage === 'Russian' || detectedLanguage === 'Arabic') ? (
+                      {(detectedLanguage === 'Japanese' || detectedLanguage === 'Chinese' || detectedLanguage === 'Korean' || detectedLanguage === 'Russian' || detectedLanguage === 'Arabic' || detectedLanguage === 'Hindi') ? (
                         <FuriganaText
                           text={furiganaText}
                           fontSize={20}
@@ -726,6 +734,7 @@ export default function LanguageFlashcardsScreen() {
                          detectedLanguage === 'Korean' ? t('flashcard.edit.editRomanization') :
                          detectedLanguage === 'Russian' ? t('flashcard.edit.editRomanization') :
                          detectedLanguage === 'Arabic' ? t('flashcard.edit.editTransliteration') :
+                         detectedLanguage === 'Hindi' ? t('flashcard.edit.editRomanization') :
                          t('flashcard.edit.editRomanization')}
                       </Text>
                       <TextInput

@@ -9,6 +9,7 @@ import ImageHighlighter from '../shared/ImageHighlighter';
 import { useKanjiRecognition } from '../../hooks/useKanjiRecognition';
 import { useAuth } from '../../context/AuthContext';
 import { useOCRCounter } from '../../context/OCRCounterContext';
+import { useSettings, DETECTABLE_LANGUAGES } from '../../context/SettingsContext';
 import { COLORS } from '../../constants/colors';
 import { CapturedImage, TextAnnotation } from '../../../types';
 import { captureRef } from 'react-native-view-shot';
@@ -45,6 +46,9 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
   } | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
   
+  // New state for image processing loading
+  const [isImageProcessing, setIsImageProcessing] = useState(false);
+  
   // State for rotate mode
   const [rotateModeActive, setRotateModeActive] = useState(false);
   const [rotateError, setRotateError] = useState<string | null>(null);
@@ -56,6 +60,7 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
   const { signOut } = useAuth();
   const { recognizeKanji, isProcessing, error } = useKanjiRecognition();
   const { incrementOCRCount, canPerformOCR, remainingScans } = useOCRCounter();
+  const { forcedDetectionLanguage } = useSettings();
   
   // Add ref to access the ImageHighlighter component
   const imageHighlighterRef = useRef<ImageHighlighterRef>(null);
@@ -74,7 +79,13 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
   useFocusEffect(
     React.useCallback(() => {
       setIsNavigating(false);
-    }, [])
+      // Don't allow navigation away if we're processing an image
+      return () => {
+        if (isImageProcessing) {
+          console.log('[KanjiScanner] Preventing navigation during image processing');
+        }
+      };
+    }, [isImageProcessing])
   );
 
   const handleLogout = async () => {
@@ -143,6 +154,12 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
         console.log('[KanjiScanner pickImage] Processing image:', asset.uri, 
           `${asset.width}x${asset.height}`, needsResize ? '(will resize)' : '(no resize needed)');
 
+        // Show loading indicator for any processing
+        setIsImageProcessing(true);
+        
+        // Add small delay to ensure loading indicator shows before heavy processing
+        await new Promise(resolve => setTimeout(resolve, 50));
+
         // OPTION 1: Skip processing entirely for maximum speed (uncomment to use)
         // Modern image viewers handle orientation automatically via CSS/styles
         // if (!needsResize) {
@@ -155,6 +172,7 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
         //   setImageHistory([]);
         //   setForwardHistory([]);
         //   setHighlightModeActive(false);
+        //   setIsImageProcessing(false);
         //   return;
         // }
 
@@ -192,9 +210,11 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
         setImageHistory([]);
         setForwardHistory([]);
         setHighlightModeActive(false);
+        setIsImageProcessing(false);
       }
     } catch (error) {
       console.error('Error picking or processing image:', error);
+      setIsImageProcessing(false);
       Alert.alert("Image Error", "Failed to load or process the image. Please try again.");
     }
   };
@@ -336,9 +356,14 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
           }
         });
       } else {
+        // Get the current forced language name, defaulting to "text" if auto-detect
+        const languageName = forcedDetectionLanguage === 'auto' 
+          ? 'text' 
+          : DETECTABLE_LANGUAGES[forcedDetectionLanguage as keyof typeof DETECTABLE_LANGUAGES] || 'text';
+          
         Alert.alert(
-          "No Japanese Text Found",
-          "No Japanese text was detected in the selected area. Please try selecting a different area.",
+          `No ${languageName} Text Found`,
+          `No ${languageName.toLowerCase()} text was detected in the selected area. Please try selecting a different area.`,
           [{ text: "OK" }]
         );
       }
@@ -842,11 +867,24 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
               size="medium"
               shape="square"
               style={styles.rowButton}
+              disabled={isImageProcessing}
             />
-            <CameraButton 
-              onPhotoCapture={handlePhotoCapture} 
-              style={styles.rowButton} 
-            />
+            {isImageProcessing ? (
+              <PokedexButton
+                onPress={() => {}} // No action when disabled
+                icon="camera"
+                size="medium"
+                shape="square"
+                style={styles.rowButton}
+                disabled={true}
+              />
+            ) : (
+              <CameraButton 
+                onPhotoCapture={handlePhotoCapture} 
+                style={styles.rowButton}
+                onProcessingStateChange={setIsImageProcessing}
+              />
+            )}
           </View>
         </>
       ) : (
@@ -1005,12 +1043,26 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
             </View>
           </View>
           
+          {/* Loading indicator for local processing (OCR, rotation, etc.) */}
+          {localProcessing && (
+            <View style={styles.localProcessingOverlay}>
+              <ActivityIndicator size="large" color="#FFFFFF" />
+            </View>
+          )}
+
           {/* Display either rotation error or general error */}
           {(error || rotateError) && (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{rotateError || error}</Text>
             </View>
           )}
+        </View>
+      )}
+
+      {/* Image Processing Loading Overlay */}
+      {isImageProcessing && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#FFFFFF" />
         </View>
       )}
 
@@ -1317,5 +1369,30 @@ const styles = StyleSheet.create({
   },
   gridButton: {
     marginHorizontal: 0,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1500, // Higher than all other UI elements
+  },
+  localProcessingOverlay: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -25 }, { translateY: -25 }],
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 25,
+    padding: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 50,
+    height: 50,
+    zIndex: 1000,
   },
 }); 

@@ -12,9 +12,10 @@ interface CameraButtonProps {
     height: number;
   } | null) => void;
   style?: ViewStyle;
+  onProcessingStateChange?: (isProcessing: boolean) => void;
 }
 
-export default function CameraButton({ onPhotoCapture, style }: CameraButtonProps) {
+export default function CameraButton({ onPhotoCapture, style, onProcessingStateChange }: CameraButtonProps) {
   const [hasPhoto, setHasPhoto] = useState(false);
 
   useEffect(() => {
@@ -38,6 +39,15 @@ export default function CameraButton({ onPhotoCapture, style }: CameraButtonProp
         const asset = result.assets[0];
         setHasPhoto(true);
 
+        // Show loading indicator for image processing
+        onProcessingStateChange?.(true);
+        
+        // Add small delay to ensure loading indicator shows before heavy processing
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        console.log('[CameraButton] Processing captured image:', asset.uri, 
+          `${asset.width}x${asset.height}`);
+
         // Normalize orientation so width/height reflect the actual bitmap after EXIF is stripped
         const normalised = await ImageManipulator.manipulateAsync(
           asset.uri,
@@ -45,13 +55,19 @@ export default function CameraButton({ onPhotoCapture, style }: CameraButtonProp
           { compress: 1, format: ImageManipulator.SaveFormat.PNG }
         );
 
+        console.log('[CameraButton] Processed captured image:', 
+          `${normalised.width}x${normalised.height}`, 'URI:', normalised.uri);
+
         onPhotoCapture({
           uri: normalised.uri,
           width: normalised.width,
           height: normalised.height,
         });
+        
+        onProcessingStateChange?.(false);
       }
     } catch (error) {
+      onProcessingStateChange?.(false);
       Alert.alert('Error', 'Failed to take photo');
       console.error(error);
     }

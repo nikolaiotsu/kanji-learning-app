@@ -209,6 +209,16 @@ export function containsEnglishText(text: string): boolean {
   return englishPatterns.test(text);
 }
 
+/**
+ * Checks if text contains Hindi characters
+ */
+export function containsHindiText(text: string): boolean {
+  // Regex for Devanagari script (used for Hindi)
+  // Unicode range U+0900-U+097F covers Devanagari characters
+  const hindiRegex = /[\u0900-\u097F]/;
+  return hindiRegex.test(text);
+}
+
 // For backward compatibility
 export const cleanJapaneseText = cleanText;
 
@@ -230,6 +240,7 @@ const TextFormatting = {
   containsPortugueseText,
   containsGermanText,
   containsEnglishText,
+  containsHindiText,
   containsKanji,
   countKanji
 };

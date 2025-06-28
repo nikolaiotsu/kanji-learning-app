@@ -91,6 +91,7 @@
       "withArabicChatAlphabet": "アラビア語チャットアルファベット付き",
       "withItalianAlphabet": "イタリア語アルファベット付き",
       "withTagalogAlphabet": "タガログ語アルファベット付き",
+      "withHindiRomanization": "ヒンディー語ローマ字付き",
       "originalText": "元のテキスト",
       "withPronunciationGuide": "発音ガイド付き",
       "translation": "{{language}}翻訳",

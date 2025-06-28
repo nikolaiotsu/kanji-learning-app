@@ -1261,13 +1261,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           <Text style={styles.instructionText}>{t('imageHighlighter.dragToRotate')}</Text>
         </View>
       )}
-      {isProcessing && (
-        <View style={styles.loadingContainer}>
-          <View style={styles.loadingIndicator}>
-            <ActivityIndicator size="large" color="#007AFF" />
-          </View>
-        </View>
-      )}
+
 
       {/* Other instruction texts */}
       {highlightModeActive && !isDrawing && (
@@ -1352,20 +1346,7 @@ const styles = StyleSheet.create({
     borderColor: '#B0B0B0',
     transform: [{ scale: 1.2 }],
   },
-  loadingContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-  },
-  loadingIndicator: {
-    backgroundColor: 'transparent',
-    padding: 10,
-  },
+
   instructionContainer: {
     position: 'absolute',
     bottom: 20,
