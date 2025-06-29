@@ -21,6 +21,7 @@ interface PokedexButtonProps {
   color?: string;
   size?: 'small' | 'medium' | 'large';
   disabled?: boolean;
+  darkDisabled?: boolean;
   shape?: 'default' | 'square';
 }
 
@@ -34,6 +35,7 @@ export default function PokedexButton({
   color,
   size = 'medium',
   disabled = false,
+  darkDisabled = false,
   shape = 'default',
 }: PokedexButtonProps) {
 
@@ -42,10 +44,16 @@ export default function PokedexButton({
   // If shape is square, force grey background. Otherwise, use provided color or default blue.
   // const buttonBackgroundColor = isSquare ? COLORS.mediumSurface : (color || COLORS.pokedexBlue);
   // Prioritize explicitly passed color. If no color, then square gets mediumSurface, otherwise pokedexBlue.
-  const buttonBackgroundColor = color || COLORS.rubberGrey; // Default to rubberGrey if no color prop is passed
+  let buttonBackgroundColor = color || COLORS.rubberGrey; // Default to rubberGrey if no color prop is passed
+  
+  // Override background color if darkDisabled is true
+  if (darkDisabled) {
+    buttonBackgroundColor = COLORS.disabledDark;
+  }
+  
   // The icon color for square grey buttons might need to be dark for better contrast if the grey is very light.
   // Assuming COLORS.text (white) is still okay for mediumSurface.
-  const iconColor = COLORS.text; 
+  const iconColor = darkDisabled ? COLORS.darkGray : COLORS.text;
 
   const sizeStyles = {
     small: {
@@ -95,6 +103,7 @@ export default function PokedexButton({
             transform: [{ translateY: pressed ? 3 : 0 }],
           },
           disabled && styles.disabled,
+          darkDisabled && styles.darkDisabled,
         ]}
       >
         <View style={[styles.buttonContent, !title && styles.iconOnlyContent]}>
@@ -153,6 +162,10 @@ const styles = StyleSheet.create({
   disabled: {
     backgroundColor: COLORS.lightGray,
     opacity: 0.7,
+  },
+  darkDisabled: {
+    backgroundColor: COLORS.disabledDark,
+    opacity: 0.8,
   },
   iconOnlyContent: {
     justifyContent: 'center',

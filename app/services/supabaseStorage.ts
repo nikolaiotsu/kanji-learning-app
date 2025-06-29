@@ -208,6 +208,11 @@ export const saveFlashcard = async (flashcard: Flashcard, deckId: string): Promi
     }
     
     console.log('Flashcard saved successfully to deck:', deckId);
+    
+    // Import the flashcard counter hook dynamically to avoid circular dependencies
+    // This will be handled in the component that calls saveFlashcard instead
+    // to keep the service layer clean
+    
   } catch (error) {
     console.error('Error saving flashcard:', error);
     throw error;

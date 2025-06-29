@@ -92,6 +92,7 @@
       "withItalianAlphabet": "With Italian Alphabet",
       "withTagalogAlphabet": "With Tagalog Alphabet",
       "withHindiRomanization": "With Hindi Romanization",
+      "withEsperantoRomanization": "With Esperanto Text",
       "originalText": "Original Text",
       "withPronunciationGuide": "With Pronunciation Guide",
       "translation": "{{language}} Translation",
@@ -134,11 +135,16 @@
       "purchaseTitle": "Test Premium Purchase",
       "purchaseMessage": "This will simulate a premium purchase in development mode. Continue?",
       "purchase": "Purchase",
-      "premiumActivated": "Premium subscription activated!",
+      "premiumActivated": "Premium Activated! Now let's add to that collection!",
       "restored": "Restored!",
       "restoredMessage": "Premium subscription restored!",
       "noPurchaseFound": "No Purchase Found",
       "noPurchaseMessage": "No premium subscription to restore."
+    },
+    "limit": {
+      "title": "Daily Limit Reached",
+      "message": "Casual Collectors: 3 card daily limit. Serious Collectors: Unlimited.",
+      "upgradeToPremium": "Upgrade to Premium"
     }
   },
   "settings": {

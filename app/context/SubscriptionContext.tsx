@@ -132,9 +132,28 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     await saveSubscriptionData(freeSubscription);
   };
 
+  // Testing function to manually switch subscription plans
+  const setTestingSubscriptionPlan = async (plan: SubscriptionPlan) => {
+    const testingSubscription: SubscriptionState = {
+      plan: plan,
+      isActive: plan === 'PREMIUM',
+      purchaseDate: plan === 'PREMIUM' ? new Date() : undefined,
+      expiryDate: plan === 'PREMIUM' ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : undefined, // 30 days from now
+      receipt: plan === 'PREMIUM' ? 'testing_receipt_' + Date.now() : undefined,
+    };
+    
+    setSubscription(testingSubscription);
+    await saveSubscriptionData(testingSubscription);
+    console.log('Testing subscription plan set to:', plan);
+  };
+
   // Helper functions
   const getMaxOCRScans = (): number => {
     return SUBSCRIPTION_PLANS[subscription.plan].ocrScansPerDay;
+  };
+
+  const getMaxFlashcards = (): number => {
+    return SUBSCRIPTION_PLANS[subscription.plan].flashcardsPerDay;
   };
 
   const canShowAds = (): boolean => {
@@ -155,8 +174,10 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
         restorePurchases,
         checkSubscriptionStatus,
         getMaxOCRScans,
+        getMaxFlashcards,
         canShowAds,
         hasPremiumFeature,
+        setTestingSubscriptionPlan,
       }}
     >
       {children}

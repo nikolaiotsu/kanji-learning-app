@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, StyleSheet, Alert, ViewStyle } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import PokedexButton from '../shared/PokedexButton';
 
@@ -13,9 +14,12 @@ interface CameraButtonProps {
   } | null) => void;
   style?: ViewStyle;
   onProcessingStateChange?: (isProcessing: boolean) => void;
+  disabled?: boolean;
+  onDisabledPress?: () => void;
+  darkDisabled?: boolean;
 }
 
-export default function CameraButton({ onPhotoCapture, style, onProcessingStateChange }: CameraButtonProps) {
+export default function CameraButton({ onPhotoCapture, style, onProcessingStateChange, disabled = false, onDisabledPress, darkDisabled = false }: CameraButtonProps) {
   const [hasPhoto, setHasPhoto] = useState(false);
 
   useEffect(() => {
@@ -28,6 +32,13 @@ export default function CameraButton({ onPhotoCapture, style, onProcessingStateC
   }, []);
 
   const takePhoto = async () => {
+    if (disabled) {
+      if (onDisabledPress) {
+        onDisabledPress();
+      }
+      return;
+    }
+    
     try {
       const result = await ImagePicker.launchCameraAsync({
         quality: 1,
@@ -90,9 +101,11 @@ export default function CameraButton({ onPhotoCapture, style, onProcessingStateC
       ) : (
         <PokedexButton
           onPress={takePhoto}
-          icon="camera"
+          icon={disabled ? "lock-closed" : "camera"}
           size="medium"
           shape="square"
+          disabled={false}
+          darkDisabled={darkDisabled}
         />
       )}
     </View>

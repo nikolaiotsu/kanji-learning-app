@@ -15,6 +15,7 @@ import {
   containsRussianText,
   containsArabicText,
   containsHindiText,
+  containsEsperantoText,
   containsKanji
 } from '../utils/textFormatting';
 
@@ -38,7 +39,8 @@ const LANGUAGE_NAMES_MAP = {
   ar: 'Arabic',
   pt: 'Portuguese',
   de: 'German',
-  hi: 'Hindi'
+  hi: 'Hindi',
+  eo: 'Esperanto'
 };
 
 // Define Claude API response content structure
@@ -77,6 +79,7 @@ function detectPrimaryLanguage(text: string, forcedLanguage: string = 'auto'): s
       case 'pt': return "Portuguese";
       case 'de': return "German";
       case 'hi': return "Hindi";
+      case 'eo': return "Esperanto";
       default: return forcedLanguage; // Return the forced language code instead of "unknown"
     }
   }
@@ -161,6 +164,12 @@ function detectPrimaryLanguage(text: string, forcedLanguage: string = 'auto'): s
     return "German";
   }
   
+  // Check for Esperanto based on patterns
+  if (containsEsperantoText(text) && 
+      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars || hindiChars)) {
+    return "Esperanto";
+  }
+  
   // Return language with highest character count
   const counts = [
     { lang: "Russian", count: russianChars },
@@ -232,6 +241,7 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
     case 'pt': expectedLanguage = 'Portuguese'; break;
     case 'de': expectedLanguage = 'German'; break;
     case 'hi': expectedLanguage = 'Hindi'; break;
+    case 'eo': expectedLanguage = 'Esperanto'; break;
     default: expectedLanguage = forcedLanguage;
   }
   
@@ -301,7 +311,7 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
   
   // Case 2: Latin-based languages (English, Italian, Spanish, etc.)
   // In force mode, be permissive and let Claude API handle the processing
-  const latinLanguages = ['English', 'Italian', 'Spanish', 'French', 'Portuguese', 'German', 'Tagalog'];
+  const latinLanguages = ['English', 'Italian', 'Spanish', 'French', 'Portuguese', 'German', 'Tagalog', 'Esperanto'];
   if (latinLanguages.includes(expectedLanguage)) {
     console.log('[validateTextMatchesLanguage] Handling Latin language force mode validation');
     console.log(`[validateTextMatchesLanguage] Expected: ${expectedLanguage}, Detected: ${detectedLang}`);
@@ -338,6 +348,9 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
       hasSpecificPatterns = true;
     } else if (expectedLanguage === 'English' && containsEnglishText(text)) {
       console.log('[validateTextMatchesLanguage] English patterns found');
+      hasSpecificPatterns = true;
+    } else if (expectedLanguage === 'Esperanto' && containsEsperantoText(text)) {
+      console.log('[validateTextMatchesLanguage] Esperanto patterns found');
       hasSpecificPatterns = true;
     }
     
@@ -698,6 +711,27 @@ WRONG examples (do NOT use these formats):
 Format your response as valid JSON with these exact keys:
 {
   "furiganaText": "Hindi text with romanization in parentheses immediately after each Hindi word - following the examples above",
+  "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
+}
+`;
+      } else if (primaryLanguage === "Esperanto") {
+        // Esperanto-specific prompt
+        userMessage = `
+${promptTopSection}
+You are an Esperanto language expert. I need you to translate this Esperanto text: "${text}"
+
+IMPORTANT FORMATTING REQUIREMENTS FOR ESPERANTO TEXT:
+- Keep all original text as is (including any English words, numbers, or punctuation)
+- No romanization is needed for Esperanto text (it already uses Latin script)
+- Recognize all Esperanto special characters: ĉ, ĝ, ĥ, ĵ, ŝ, ŭ (and their capitals)
+- Handle Esperanto grammar rules: accusative -n ending, plural -j ending, adjective agreement
+- Understand Esperanto word formation with affixes (mal-, -in-, -et-, -eg-, -ej-, -ist-, etc.)
+- Recognize common Esperanto expressions and proper usage
+- Translate into ${targetLangName} language, NOT English (unless English is specifically requested)
+
+Format your response as valid JSON with these exact keys:
+{
+  "furiganaText": "", 
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;

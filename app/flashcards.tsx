@@ -12,6 +12,7 @@ import {
   containsRussianText, 
   containsArabicText,
   containsHindiText,
+  containsEsperantoText,
   containsItalianText,
   containsTagalogText,
   containsFrenchText,
@@ -31,11 +32,16 @@ import { COLORS } from './constants/colors';
 import { FontAwesome6 } from '@expo/vector-icons';
 import PokedexLayout from './components/shared/PokedexLayout';
 import FuriganaText from './components/shared/FuriganaText';
+import { useFlashcardCounter } from './context/FlashcardCounterContext';
+import { useSubscription } from './context/SubscriptionContext';
+import { PRODUCT_IDS } from './constants/config';
 
 export default function LanguageFlashcardsScreen() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { targetLanguage, forcedDetectionLanguage } = useSettings();
+  const { incrementFlashcardCount, canCreateFlashcard, remainingFlashcards } = useFlashcardCounter();
+  const { purchaseSubscription } = useSubscription();
   const params = useLocalSearchParams();
   const textParam = params.text;
   const imageUriParam = params.imageUri;
@@ -92,17 +98,18 @@ export default function LanguageFlashcardsScreen() {
     setError('');
     setTextProcessed(false);
     
-    try {
-      // Check if the text contains Japanese, Chinese, Korean, Russian, Arabic, Hindi characters
-      // These are the languages that need romanization
-      const hasJapanese = containsJapanese(text);
-      const hasChinese = containsChinese(text);
-      const hasKorean = containsKoreanText(text);
-      const hasRussian = containsRussianText(text);
-      const hasArabic = containsArabicText(text);
-      const hasHindi = containsHindiText(text);
-      const hasItalian = containsItalianText(text);
-      const hasTagalog = containsTagalogText(text);
+          try {
+        // Check if the text contains Japanese, Chinese, Korean, Russian, Arabic, Hindi, Esperanto characters
+        // These are the languages that need romanization
+        const hasJapanese = containsJapanese(text);
+        const hasChinese = containsChinese(text);
+        const hasKorean = containsKoreanText(text);
+        const hasRussian = containsRussianText(text);
+        const hasArabic = containsArabicText(text);
+        const hasHindi = containsHindiText(text);
+        const hasEsperanto = containsEsperantoText(text);
+        const hasItalian = containsItalianText(text);
+        const hasTagalog = containsTagalogText(text);
       const hasFrench = containsFrenchText(text);
       const hasSpanish = containsSpanishText(text);
       const hasPortuguese = containsPortugueseText(text);
@@ -128,11 +135,12 @@ export default function LanguageFlashcardsScreen() {
           case 'zh': language = 'Chinese'; break;
           case 'ja': language = 'Japanese'; break;
           case 'ko': language = 'Korean'; break;
-          case 'ru': language = 'Russian'; break;
-          case 'ar': language = 'Arabic'; break;
-          case 'hi': language = 'Hindi'; break;
-          case 'it': language = 'Italian'; break;
-          case 'es': language = 'Spanish'; break;
+                      case 'ru': language = 'Russian'; break;
+            case 'ar': language = 'Arabic'; break;
+            case 'hi': language = 'Hindi'; break;
+            case 'eo': language = 'Esperanto'; break;
+            case 'it': language = 'Italian'; break;
+            case 'es': language = 'Spanish'; break;
           case 'fr': language = 'French'; break;
           case 'tl': language = 'Tagalog'; break;
           case 'pt': language = 'Portuguese'; break;
@@ -157,12 +165,14 @@ export default function LanguageFlashcardsScreen() {
         language = 'Korean';
       } else if (hasRussian) {
         language = 'Russian';
-      } else if (hasArabic) {
-        language = 'Arabic';
-      } else if (hasHindi) {
-        language = 'Hindi';
-      } else if (hasItalian) {
-        language = 'Italian';
+              } else if (hasArabic) {
+          language = 'Arabic';
+        } else if (hasHindi) {
+          language = 'Hindi';
+        } else if (hasEsperanto) {
+          language = 'Esperanto';
+        } else if (hasItalian) {
+          language = 'Italian';
       } else if (hasTagalog) {
         language = 'Tagalog';
       } else if (hasFrench) {
@@ -225,6 +235,28 @@ export default function LanguageFlashcardsScreen() {
 
   // Function to show deck selector
   const handleShowDeckSelector = () => {
+    // Check flashcard limit first
+    if (!canCreateFlashcard) {
+      Alert.alert(
+        t('subscription.limit.title'),
+        t('subscription.limit.message'),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          { 
+            text: t('subscription.limit.upgradeToPremium'), 
+            style: 'default',
+            onPress: async () => {
+                             const success = await purchaseSubscription(PRODUCT_IDS.PREMIUM_MONTHLY);
+              if (success) {
+                Alert.alert(t('common.success'), t('subscription.test.premiumActivated'));
+              }
+            }
+          }
+        ]
+      );
+      return;
+    }
+    
     // For texts that don't need furigana, we only need the translation to be present
     if (!needsRomanization && !translatedText) {
       Alert.alert('Cannot Save', t('flashcard.save.cannotSaveTranslation'));
@@ -266,6 +298,10 @@ export default function LanguageFlashcardsScreen() {
 
       // Save flashcard
       await saveFlashcard(flashcard as Flashcard, deckId);
+      
+      // Increment flashcard counter after successful save
+      await incrementFlashcardCount();
+      
       setIsSaved(true);
       
       // Show success message with language-specific wording
@@ -340,11 +376,12 @@ export default function LanguageFlashcardsScreen() {
           case 'zh': languageName = 'Chinese'; break;
           case 'ja': languageName = 'Japanese'; break;
           case 'ko': languageName = 'Korean'; break;
-          case 'ru': languageName = 'Russian'; break;
-          case 'ar': languageName = 'Arabic'; break;
-          case 'hi': languageName = 'Hindi'; break;
-          case 'it': languageName = 'Italian'; break;
-          case 'es': languageName = 'Spanish'; break;
+                      case 'ru': languageName = 'Russian'; break;
+            case 'ar': languageName = 'Arabic'; break;
+            case 'hi': languageName = 'Hindi'; break;
+            case 'eo': languageName = 'Esperanto'; break;
+            case 'it': languageName = 'Italian'; break;
+            case 'es': languageName = 'Spanish'; break;
           case 'fr': languageName = 'French'; break;
           case 'tl': languageName = 'Tagalog'; break;
           case 'pt': languageName = 'Portuguese'; break;
@@ -609,7 +646,8 @@ export default function LanguageFlashcardsScreen() {
                         style={[
                           styles.saveButton, 
                           isSaved ? styles.savedButton : null,
-                          isSaving ? styles.disabledButton : null
+                          (isSaving || !canCreateFlashcard) ? styles.disabledButton : null,
+                          !canCreateFlashcard ? styles.darkDisabledButton : null,
                         ]}
                         onPress={handleShowDeckSelector}
                         disabled={isSaving || isSaved}
@@ -619,13 +657,22 @@ export default function LanguageFlashcardsScreen() {
                         ) : (
                           <>
                             <Ionicons 
-                              name={isSaved ? "checkmark-circle" : "bookmark-outline"} 
+                              name={
+                                isSaved ? "checkmark-circle" : 
+                                !canCreateFlashcard ? "lock-closed" : 
+                                "bookmark-outline"
+                              } 
                               size={20} 
-                              color="#ffffff" 
+                              color={!canCreateFlashcard ? COLORS.darkGray : "#ffffff"}
                               style={styles.buttonIcon} 
                             />
-                            <Text style={styles.buttonText}>
-                              {isSaved ? t('flashcard.save.savedAsFlashcard') : t('flashcard.save.saveAsFlashcard')}
+                            <Text style={[
+                              styles.buttonText,
+                              !canCreateFlashcard ? { color: COLORS.darkGray } : null
+                            ]}>
+                              {isSaved ? t('flashcard.save.savedAsFlashcard') : 
+                               !canCreateFlashcard ? `Limit reached (${remainingFlashcards} left)` :
+                               t('flashcard.save.saveAsFlashcard')}
                             </Text>
                           </>
                         )}
@@ -971,6 +1018,10 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     backgroundColor: COLORS.darkSurface,
+    opacity: 0.8,
+  },
+  darkDisabledButton: {
+    backgroundColor: COLORS.disabledDark,
     opacity: 0.8,
   },
   modalContainer: {

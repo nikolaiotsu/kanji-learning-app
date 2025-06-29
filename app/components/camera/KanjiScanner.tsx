@@ -9,8 +9,10 @@ import ImageHighlighter from '../shared/ImageHighlighter';
 import { useKanjiRecognition } from '../../hooks/useKanjiRecognition';
 import { useAuth } from '../../context/AuthContext';
 import { useOCRCounter } from '../../context/OCRCounterContext';
+import { useFlashcardCounter } from '../../context/FlashcardCounterContext';
 import { useSettings, DETECTABLE_LANGUAGES } from '../../context/SettingsContext';
 import { COLORS } from '../../constants/colors';
+import { PRODUCT_IDS } from '../../constants/config';
 import { CapturedImage, TextAnnotation } from '../../../types';
 import { captureRef } from 'react-native-view-shot';
 import { detectJapaneseText, convertToOriginalImageCoordinates, cropImageToRegion, resizeImageToRegion } from '../../services/visionApi';
@@ -20,6 +22,7 @@ import RandomCardReviewer from '../flashcards/RandomCardReviewer';
 import { useFocusEffect } from 'expo-router';
 import * as ProcessImage from '../../services/ProcessImage';
 import PokedexButton from '../shared/PokedexButton';
+import { useSubscription } from '../../context/SubscriptionContext';
 
 interface KanjiScannerProps {
   onCardSwipe?: () => void;
@@ -60,6 +63,8 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
   const { signOut } = useAuth();
   const { recognizeKanji, isProcessing, error } = useKanjiRecognition();
   const { incrementOCRCount, canPerformOCR, remainingScans } = useOCRCounter();
+  const { canCreateFlashcard, remainingFlashcards } = useFlashcardCounter();
+  const { purchaseSubscription } = useSubscription();
   const { forcedDetectionLanguage } = useSettings();
   
   // Add ref to access the ImageHighlighter component
@@ -136,7 +141,63 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
     setHighlightModeActive(false);
   };
 
+  // Helper function to show upgrade alert
+  const showUpgradeAlert = () => {
+    Alert.alert(
+      t('subscription.limit.title'),
+      t('subscription.limit.message'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        { 
+          text: t('subscription.limit.upgradeToPremium'), 
+          style: 'default',
+          onPress: async () => {
+                         const success = await purchaseSubscription(PRODUCT_IDS.PREMIUM_MONTHLY);
+            if (success) {
+              Alert.alert(t('common.success'), t('subscription.test.premiumActivated'));
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleTextInput = () => {
+    if (!canCreateFlashcard) {
+      showUpgradeAlert();
+      return;
+    }
+    setShowTextInputModal(true);
+  };
+
+  const handleCancelTextInput = () => {
+    setInputText('');
+    setShowTextInputModal(false);
+  };
+
+  const handleSubmitTextInput = () => {
+    if (!inputText.trim()) {
+      Alert.alert("Empty Input", "Please enter some text to translate.");
+      return;
+    }
+
+    // Navigate to flashcards with the input text
+    router.push({
+      pathname: "/flashcards",
+      params: { text: inputText.trim() }
+    });
+
+    // Reset the input and close the modal
+    setInputText('');
+    setShowTextInputModal(false);
+  };
+
   const pickImage = async () => {
+    if (!canCreateFlashcard) {
+      showUpgradeAlert();
+      return;
+    }
+    
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -198,24 +259,22 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
             format: ImageManipulator.SaveFormat.JPEG // Much faster than PNG
           }
         );
-        
+
         console.log('[KanjiScanner pickImage] Processed image:', 
           `${processedImage.width}x${processedImage.height}`, 'URI:', processedImage.uri);
 
-        setCapturedImage({
+        handlePhotoCapture({
           uri: processedImage.uri,
           width: processedImage.width,
           height: processedImage.height,
         });
-        setImageHistory([]);
-        setForwardHistory([]);
-        setHighlightModeActive(false);
+        
         setIsImageProcessing(false);
       }
     } catch (error) {
-      console.error('Error picking or processing image:', error);
+      console.error('[KanjiScanner] Error picking image:', error);
       setIsImageProcessing(false);
-      Alert.alert("Image Error", "Failed to load or process the image. Please try again.");
+      Alert.alert('Error', 'Failed to process image');
     }
   };
 
@@ -578,32 +637,6 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
     imageHighlighterRef.current?.toggleCropMode();
   };
 
-  const handleTextInput = () => {
-    setShowTextInputModal(true);
-  };
-
-  const handleCancelTextInput = () => {
-    setInputText('');
-    setShowTextInputModal(false);
-  };
-
-  const handleSubmitTextInput = () => {
-    if (!inputText.trim()) {
-      Alert.alert("Empty Input", "Please enter some text to translate.");
-      return;
-    }
-
-    // Navigate to flashcards with the input text
-    router.push({
-      pathname: "/flashcards",
-      params: { text: inputText.trim() }
-    });
-
-    // Reset the input and close the modal
-    setInputText('');
-    setShowTextInputModal(false);
-  };
-
   // Add an effect to monitor capturedImage changes
   React.useEffect(() => {
     if (capturedImage) {
@@ -848,11 +881,13 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
           {/* Button Row - moved below the reviewer */}
           <View style={styles.buttonRow}>
             <PokedexButton
-              onPress={handleTextInput}
-              icon="add"
+              onPress={canCreateFlashcard ? handleTextInput : showUpgradeAlert}
+              icon={canCreateFlashcard ? "add" : "lock-closed"}
               size="medium"
               shape="square"
               style={styles.rowButton}
+              disabled={false} // Never disable so onPress always works
+              darkDisabled={!canCreateFlashcard} // Show dark disabled appearance when limit reached
             />
             <PokedexButton
               onPress={() => router.push('/saved-flashcards')}
@@ -862,17 +897,18 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
               style={styles.rowButton}
             />
             <PokedexButton
-              onPress={pickImage}
-              icon="images"
+              onPress={canCreateFlashcard ? pickImage : showUpgradeAlert}
+              icon={(!canCreateFlashcard || isImageProcessing) ? "lock-closed" : "images"}
               size="medium"
               shape="square"
               style={styles.rowButton}
-              disabled={isImageProcessing}
+              disabled={isImageProcessing} // Only disable during processing
+              darkDisabled={!canCreateFlashcard} // Show dark disabled appearance when limit reached
             />
             {isImageProcessing ? (
               <PokedexButton
                 onPress={() => {}} // No action when disabled
-                icon="camera"
+                icon="lock-closed"
                 size="medium"
                 shape="square"
                 style={styles.rowButton}
@@ -883,6 +919,9 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
                 onPhotoCapture={handlePhotoCapture} 
                 style={styles.rowButton}
                 onProcessingStateChange={setIsImageProcessing}
+                disabled={!canCreateFlashcard}
+                onDisabledPress={showUpgradeAlert}
+                darkDisabled={!canCreateFlashcard}
               />
             )}
           </View>

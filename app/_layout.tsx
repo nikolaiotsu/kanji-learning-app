@@ -5,6 +5,7 @@ import { AuthProvider } from './context/AuthContext';
 import SettingsProvider from './context/SettingsContext';
 import { SubscriptionProvider } from './context/SubscriptionContext';
 import { OCRCounterProvider } from './context/OCRCounterContext';
+import { FlashcardCounterProvider } from './context/FlashcardCounterContext';
 import AuthGuard from './components/auth/AuthGuard';
 import { StyleSheet, View, Text, ActivityIndicator } from 'react-native';
 import { COLORS } from './constants/colors';
@@ -69,47 +70,49 @@ export default function RootLayout() {
           <SettingsProvider>
             <SubscriptionProvider>
               <OCRCounterProvider>
-                <AuthGuard>
-              <Stack 
-                screenOptions={{
-                  headerShown: true,
-                  headerStyle: {
-                    backgroundColor: COLORS.background,
-                  },
-                  headerTintColor: COLORS.text,
-                  headerTitleStyle: {
-                    fontWeight: 'bold',
-                  },
-                  headerBackTitle: 'Back',
-                  contentStyle: {
-                    backgroundColor: COLORS.background,
-                  },
-                  // Add border and shadow to make headers pop
-                  headerShadowVisible: true,
-                }}
-              >
-                <Stack.Screen name="(screens)" options={{ headerShown: false }} />
-                <Stack.Screen name="index" options={{ headerShown: false, title: 'Home' }} />
-                <Stack.Screen 
-                  name="flashcards" 
-                  options={{ 
-                    title: 'Make a Flashcard',
-                    gestureEnabled: false,
-                  }} 
-                />
-                <Stack.Screen 
-                  name="saved-flashcards" 
-                  options={{ 
-                    headerShown: false,
-                    gestureEnabled: false,
-                  }} 
-                />
-                <Stack.Screen name="settings" options={{ title: 'Settings' }} />
-                <Stack.Screen name="login" options={{ title: 'Login', headerShown: false }} />
-                <Stack.Screen name="signup" options={{ title: 'Sign Up', headerShown: false }} />
-                <Stack.Screen name="reset-password" options={{ title: 'Reset Password' }} />
-              </Stack>
-                </AuthGuard>
+                <FlashcardCounterProvider>
+                  <AuthGuard>
+                <Stack 
+                  screenOptions={{
+                    headerShown: true,
+                    headerStyle: {
+                      backgroundColor: COLORS.background,
+                    },
+                    headerTintColor: COLORS.text,
+                    headerTitleStyle: {
+                      fontWeight: 'bold',
+                    },
+                    headerBackTitle: 'Back',
+                    contentStyle: {
+                      backgroundColor: COLORS.background,
+                    },
+                    // Add border and shadow to make headers pop
+                    headerShadowVisible: true,
+                  }}
+                >
+                  <Stack.Screen name="(screens)" options={{ headerShown: false }} />
+                  <Stack.Screen name="index" options={{ headerShown: false, title: 'Home' }} />
+                  <Stack.Screen 
+                    name="flashcards" 
+                    options={{ 
+                      title: 'Make a Flashcard',
+                      gestureEnabled: false,
+                    }} 
+                  />
+                  <Stack.Screen 
+                    name="saved-flashcards" 
+                    options={{ 
+                      headerShown: false,
+                      gestureEnabled: false,
+                    }} 
+                  />
+                  <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+                  <Stack.Screen name="login" options={{ title: 'Login', headerShown: false }} />
+                  <Stack.Screen name="signup" options={{ title: 'Sign Up', headerShown: false }} />
+                  <Stack.Screen name="reset-password" options={{ title: 'Reset Password' }} />
+                </Stack>
+                  </AuthGuard>
+                </FlashcardCounterProvider>
               </OCRCounterProvider>
             </SubscriptionProvider>
           </SettingsProvider>

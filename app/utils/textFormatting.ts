@@ -219,6 +219,20 @@ export function containsHindiText(text: string): boolean {
   return hindiRegex.test(text);
 }
 
+/**
+ * Checks if text contains Esperanto characters and patterns
+ */
+export function containsEsperantoText(text: string): boolean {
+  // Esperanto-specific characters (circumflexed letters)
+  const esperantoSpecificChars = /[ĉĝĥĵŝŭĈĜĤĴŜŬ]/i;
+  
+  // Common Esperanto words and patterns
+  const esperantoPatterns = /\b(la|kaj|de|en|al|estas|estis|estos|estus|estu|sed|aŭ|ne|jes|mi|vi|li|ŝi|ĝi|ni|ili|min|vin|lin|ŝin|ĝin|nin|ilin|mia|via|lia|ŝia|ĝia|nia|ilia|tio|tiu|kie|kio|kiu|kiam|kiel|kiom|kial|per|pri|pro|sur|sub|antaŭ|post|dum|inter|kontraŭ|kun|sen|ĉe|ĉar|se|ke|ol|kvankam|malgraŭ|ankaŭ|nur|jam|ankoraŭ|hodiaŭ|hieraŭ|morgaŭ|nun|tuj|ĉiam|neniam|ofte|foje|multe|malmulte|pli|malpli|plej|malplej|tre|sufiĉe|preskaŭ|tute|bone|malbone|facile|malfacile|rapide|malrapide|hejme|urben|domen|lernejen|laborejo|vendejo|restoracio|hotelo|stacidomo|flughaveno|hospitalo|universitato|lernejo|biblioteko|muzeo|teatro|kinejo|parko|ĝardeno|arbaro|lago|rivero|maro|monto|kamparo|urbo|vilaĝo|domo|ĉambro|kuirejo|banĉambro|dormĉambro|salono|korto|balkono|fenestro|pordo|tablo|seĝo|lito|armaro|fridujo|fornelo|komputilo|telefono|televido|radio|libro|gazeto|revuo|letero|mesaĝo|monujo|horloĝo|kalendaro|plumo|krajono|papero|pomo|bano|pano|akvo|lakto|kafo|teo|vino|biero|viando|fiŝo|legomo|frukto|riĉo|sukero|salo|pipro|butero|fromaĝo|ovo|rizo|terpomo|tomato|karoto|brasiko|salato|cepolo|ajlo|limono|oranĝo|bano|frago|ĉerizo|pomo|piro|persiko|uvo|anas|dolĉa|sala|acida|amara|varma|malvarma|freŝa|malnova|nova|juna|maljuna|alta|malalta|granda|malgranda|dika|maldika|larĝa|mallarĝa|longa|mallonga|forta|malforta|sana|malsana|riĉa|malriĉa|feliĉa|malfeliĉa|ĝoja|malĝoja|kontenta|malkontenta|trankvila|maltrankvila|okupita|malokupita|libera|mallibera|facila|malfacila|simpla|malsimpla|komplika|malkomplika|klara|malklara|pura|malpura|preta|malpreta|plena|malplena|vanta|malvanta|utila|malutila|necesa|malnecesa|ebla|malebla|certa|malcerta|vera|malvera|ĝusta|malĝusta|bela|malbela|laŭta|mallaŭta|silenta|malsilenta|lumig|malluma|kuraĝa|malkuraĝa|saĝa|malsaĝa|bona|malbona|ĝentila|malĝentila|amika|malamika|ĉarma|malĉarma|inter|esa)\b/i;
+  
+  // Check for Esperanto specific characters or word patterns
+  return esperantoSpecificChars.test(text) || esperantoPatterns.test(text);
+}
+
 // For backward compatibility
 export const cleanJapaneseText = cleanText;
 
@@ -241,6 +255,7 @@ const TextFormatting = {
   containsGermanText,
   containsEnglishText,
   containsHindiText,
+  containsEsperantoText,
   containsKanji,
   countKanji
 };

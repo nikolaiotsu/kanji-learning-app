@@ -315,6 +315,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
                      detectedLanguage === 'Russian' ? t('flashcard.sectionTitles.withPracticalRomanization') :
                      detectedLanguage === 'Arabic' ? t('flashcard.sectionTitles.withArabicChatAlphabet') :
                      detectedLanguage === 'Hindi' ? t('flashcard.sectionTitles.withHindiRomanization') :
+                     detectedLanguage === 'Esperanto' ? t('flashcard.sectionTitles.withEsperantoRomanization') :
                      detectedLanguage === 'Italian' ? t('flashcard.sectionTitles.withItalianAlphabet') :
                      detectedLanguage === 'Tagalog' ? t('flashcard.sectionTitles.withTagalogAlphabet') :
                      t('flashcard.sectionTitles.withPronunciationGuide')}

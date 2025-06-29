@@ -92,6 +92,7 @@
       "withItalianAlphabet": "イタリア語アルファベット付き",
       "withTagalogAlphabet": "タガログ語アルファベット付き",
       "withHindiRomanization": "ヒンディー語ローマ字付き",
+      "withEsperantoRomanization": "エスペラント語テキスト付き",
       "originalText": "元のテキスト",
       "withPronunciationGuide": "発音ガイド付き",
       "translation": "{{language}}翻訳",
@@ -134,11 +135,16 @@
       "purchaseTitle": "プレミアム購入テスト",
       "purchaseMessage": "開発モードでプレミアム購入をシミュレートします。続行しますか？",
       "purchase": "購入",
-      "premiumActivated": "プレミアムサブスクリプションが有効化されました！",
+      "premiumActivated": "プレミアム有効！さあコレクションに追加しましょう！",
       "restored": "復元されました！",
       "restoredMessage": "プレミアムサブスクリプションが復元されました！",
       "noPurchaseFound": "購入が見つかりません",
       "noPurchaseMessage": "復元するプレミアムサブスクリプションがありません。"
+    },
+    "limit": {
+      "title": "1日の制限に達しました",
+      "message": "カジュアルコレクター：1日3カード制限。シリアスコレクター：無制限。",
+      "upgradeToPremium": "プレミアムにアップグレード"
     }
   },
   "settings": {

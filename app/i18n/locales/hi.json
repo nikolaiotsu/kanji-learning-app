@@ -52,7 +52,37 @@
       "registrationFailed": "पंजीकरण असफल"
     }
   },
+  "deck": {
+    "select": "संग्रह चुनें",
+    "loading": "संग्रह लोड हो रहे हैं...",
+    "empty": "कोई संग्रह नहीं मिला। अपना पहला संग्रह बनाएं!",
+    "create": {
+      "new": "नया संग्रह बनाएं",
+      "enterName": "संग्रह का नाम दर्ज करें",
+      "error": "कृपया नए संग्रह के लिए एक नाम दर्ज करें",
+      "failed": "नया संग्रह बनाने में असफल। कृपया पुनः प्रयास करें।"
+    },
+    "created": "बनाया गया: {{date}}"
+  },
   "flashcard": {
+    "edit": {
+      "emptyOriginal": "मूल पाठ खाली नहीं हो सकता।",
+      "emptyRomanization": "रोमनीकरण/फुरिगाना पाठ खाली है। क्या आप जारी रखना चाहते हैं?",
+      "emptyTranslation": "अनुवाद खाली है। क्या आप जारी रखना चाहते हैं?",
+      "enterText": "कृपया अनुवाद के लिए पाठ दर्ज करें।",
+      "retranslateFailed": "Claude API के साथ पाठ प्रसंस्करण असफल। कृपया बाद में पुनः प्रयास करें।",
+      "romanizationFailed": "इस पाठ के लिए उचित रोमनीकरण प्राप्त करने में असफल। अनुवाद अभी भी उपलब्ध है।"
+    },
+    "translate": {
+      "languageMismatch": "भाषा बेमेल",
+      "languageMismatchMessage": "पाठ {{language}} में नहीं लगता। कृपया एक अलग पाठ का प्रयास करें या अपनी बाध्यकारी भाषा सेटिंग्स बदलें।"
+    },
+    "forcedLanguage": {
+      "errorMessage": "बाध्यकारी भाषा का पता नहीं चला: पाठ {{language}} में नहीं लगता। जब बाध्यकारी भाषा मोड सक्रिय हो, तो कृपया केवल चयनित भाषा में पाठ दर्ज करें। आप सेटिंग्स में अपनी भाषा प्राथमिकताएं बदल सकते हैं।",
+      "goBack": "वापस जाएं",
+      "tryAgain": "पुनः प्रयास करें",
+      "goToSettings": "सेटिंग्स पर जाएं"
+    },
     "sectionTitles": {
       "withFurigana": "फुरिगाना के साथ",
       "withPinyin": "पिनयिन के साथ",
@@ -60,17 +90,150 @@
       "withPracticalRomanization": "व्यावहारिक रोमनीकरण के साथ",
       "withArabicChatAlphabet": "अरबी चैट वर्णमाला के साथ",
       "withItalianAlphabet": "इतालवी वर्णमाला के साथ",
-      "withTagalogAlphabet": "तागालोग वर्णमाला के साथ",
-      "withHindiRomanization": "हिंदी रोमनीकरण के साथ",
-      "originalText": "मूल पाठ",
+              "withTagalogAlphabet": "तागालोग वर्णमाला के साथ",
+        "withHindiRomanization": "हिंदी रोमनीकरण के साथ",
+        "withEsperantoRomanization": "एस्पेरान्तो पाठ के साथ",
+        "originalText": "मूल पाठ",
       "withPronunciationGuide": "उच्चारण गाइड के साथ",
       "translation": "{{language}} अनुवाद",
       "collection": "संग्रह:"
+    },
+    "save": {
+      "title": "फ्लैशकार्ड सहेजा गया",
+      "message": "आपका {{cardType}} {{deckName}} में सहेजा गया है!",
+      "cannotSaveTranslation": "फ्लैशकार्ड के लिए अनुवाद गुम है। कृपया सुनिश्चित करें कि पाठ सही तरीके से प्रसंस्करित हो गया है।",
+      "cannotSaveContent": "फ्लैशकार्ड के लिए सामग्री गुम है। कृपया सुनिश्चित करें कि पाठ सही तरीके से प्रसंस्करित हो गया है।",
+      "saveError": "सहेजने में त्रुटि",
+      "saveFailed": "फ्लैशकार्ड सहेजने में असफल। कृपया पुनः प्रयास करें।",
+      "viewSaved": "सहेजे गए फ्लैशकार्ड देखें",
+      "saveAsFlashcard": "फ्लैशकार्ड के रूप में सहेजें",
+      "savedAsFlashcard": "फ्लैशकार्ड के रूप में सहेजा गया",
+      "cardType": "{{language}} फ्लैशकार्ड",
+      "languageFlashcard": "भाषा फ्लैशकार्ड",
+      "deck1": "डेक 1",
+      "newDeck": "नया डेक"
+    },
+    "input": {
+      "title": "फ्लैशकार्ड इनपुट"
+    },
+    "edit": {
+      "editText": "पाठ संपादित करें",
+      "editTranslation": "अनुवाद संपादित करें", 
+      "editInputRetranslate": "इनपुट संपादित करें और पुनः अनुवाद करें",
+      "editTextPlaceholder": "यहाँ पाठ संपादित करें...",
+      "editTranslationPlaceholder": "यहाँ अनुवाद संपादित करें...",
+      "editRomanizationPlaceholder": "यहाँ रोमनीकरण संपादित करें...",
+      "editFurigana": "फुरिगाना संपादित करें",
+      "editPinyin": "पिनयिन संपादित करें",
+      "editRomanization": "रोमनीकरण संपादित करें",
+      "editTransliteration": "लिप्यंतरण संपादित करें",
+      "save": "सहेजें"
+    }
+  },
+  "subscription": {
+    "test": {
+      "purchaseTitle": "प्रीमियम खरीदारी परीक्षण",
+      "purchaseMessage": "यह डेवलपमेंट मोड में प्रीमियम खरीदारी का अनुकरण करेगा। जारी रखें?",
+      "purchase": "खरीदें",
+      "premiumActivated": "प्रीमियम सक्रिय! अब चलिए संग्रह में जोड़ते हैं!",
+      "restored": "पुनर्स्थापित!",
+      "restoredMessage": "प्रीमियम सदस्यता पुनर्स्थापित!",
+      "noPurchaseFound": "कोई खरीदारी नहीं मिली",
+      "noPurchaseMessage": "पुनर्स्थापित करने के लिए कोई प्रीमियम सदस्यता नहीं।"
+    },
+    "limit": {
+      "title": "दैनिक सीमा पहुंच गई",
+      "message": "आकस्मिक संग्राहक: दैनिक 3 कार्ड सीमा। गंभीर संग्राहक: असीमित।",
+      "upgradeToPremium": "प्रीमियम में अपग्रेड करें"
     }
   },
   "settings": {
+    "forceDetection": "भाषा पहचान बाध्यकारी करें",
+    "forceDetectionDescription": "यह सेटिंग ऐप को स्वचालित पहचान को दरकिनार करते हुए पाठ को एक विशिष्ट भाषा के रूप में मानने के लिए मजबूर करती है। उन भाषाओं के साथ काम करते समय इसका उपयोग करें जो एक दूसरे के साथ भ्रमित हो सकती हैं। जब कोई भाषा चुनी जाती है (\"स्वतः-पहचान\" के अलावा), ऐप केवल उस भाषा के पाठ को स्वीकार करेगा और यदि पाठ एक अलग भाषा में लगता है तो एक त्रुटि संदेश प्रदर्शित करेगा।",
+    "account": "खाता",
+    "preferences": "प्राथमिकताएं",
+    "subscription": "सदस्यता",
+    "usageStatistics": "उपयोग आंकड़े",
+    "signIn": "साइन इन",
+    "signInDescription": "अपने डिवाइसों में फ्लैशकार्ड सिंक करने के लिए लॉग इन करें",
+    "signOut": "साइन आउट",
     "translateTo": "में अनुवाद करें:",
+    "tapToChange": "(बदलने के लिए टैप करें)",
+    "forceWordDexDetect": "Word Dex को पहचान के लिए बाध्यकारी करें:",
+    "swapLanguages": "भाषाएं अदला-बदली करें",
+    "premiumPlan": "प्रीमियम योजना",
+    "freePlan": "मुफ्त योजना",
+    "unlimitedScans": "असीमित OCR स्कैन, कोई विज्ञापन नहीं",
+    "limitedScans": "प्रतिदिन {{maxScans}} OCR स्कैन, विज्ञापन समर्थित",
+    "ocrScansToday": "आज के OCR स्कैन",
+    "scansUsed": "{{used}}/{{max}} स्कैन उपयोग किए गए ({{remaining}} शेष)",
     "selectTargetLanguage": "लक्ष्य भाषा चुनें",
-    "cancel": "रद्द करें"
+    "cancel": "रद्द करें",
+    "signOutError": "साइन आउट करने में असफल। कृपया पुनः प्रयास करें।",
+    "swapLanguagesError": "भाषाएं अदला-बदली करने में असफल। कृपया पुनः प्रयास करें।",
+    "cannotSwapLanguages": "भाषाएं अदला-बदली नहीं कर सकते",
+    "setLanguageError": "भाषा सेट करने में असफल। कृपया पुनः प्रयास करें।",
+    "invalidLanguageSelection": "अमान्य भाषा चयन",
+    "setDetectionLanguageError": "पहचान भाषा सेट करने में असफल। कृपया पुनः प्रयास करें।"
+  },
+  "review": {
+    "remaining": "{{count}} शेष (समीक्षा के लिए ← स्वाइप करें, खारिज करने के लिए → स्वाइप करें)",
+    "nothingToReview": "समीक्षा के लिए कुछ नहीं",
+    "scanText": "अपने संग्रह में जोड़ने के लिए कुछ पाठ स्कैन करें!",
+    "finishedReview": "आपने अपनी समीक्षा पूरी की है!",
+    "reviewAgain": "फिर से समीक्षा करें",
+    "selectCollections": "संग्रह",
+    "collections": "संग्रह",
+    "selectCollectionsToReview": "समीक्षा के लिए संग्रह चुनें",
+    "selectAll": "सभी चुनें",
+    "saveSelection": "चयन सहेजें ({{count}} {{type}})",
+    "collection": "संग्रह",
+    "collections_plural": "संग्रह",
+    "required": "आवश्यक",
+    "atLeastOneCollection": "कम से कम एक संग्रह चुना जाना चाहिए",
+    "noCollectionsFound": "कोई संग्रह नहीं मिला। फ्लैशकार्ड स्क्रीन में संग्रह बनाएं।",
+    "loadingCollections": "संग्रह लोड हो रहे हैं...",
+    "failedToLoad": "संग्रह लोड करने में असफल। कृपया पुनः प्रयास करें।"
+  },
+  "savedFlashcards": {
+    "title": "आपके संग्रह",
+    "noCollections": "कोई संग्रह उपलब्ध नहीं",
+    "renameCollection": "संग्रह का नाम बदलें",
+    "deleteCollection": "संग्रह हटाएं",
+    "deleteCollectionConfirm": "क्या आप वाकई इस संग्रह को हटाना चाहते हैं? इस संग्रह के सभी फ्लैशकार्ड भी हटा दिए जाएंगे।",
+    "deleteFlashcard": "फ्लैशकार्ड हटाएं",
+    "deleteFlashcardConfirm": "क्या आप वाकई इस फ्लैशकार्ड को हटाना चाहते हैं?",
+    "createNewCollection": "नया संग्रह बनाएं",
+    "sendToCollection": "संग्रह में भेजें",
+    "enterNewCollectionName": "नया संग्रह नाम दर्ज करें",
+    "noOtherCollections": "कोई अन्य संग्रह उपलब्ध नहीं",
+    "back": "वापस",
+    "createAndMove": "बनाएं और स्थानांतरित करें",
+    "newCollection": "नया संग्रह",
+    "loadingFlashcards": "फ्लैशकार्ड लोड हो रहे हैं...",
+    "noFlashcardsTitle": "इस संग्रह में कोई फ्लैशकार्ड नहीं",
+    "noFlashcardsText": "आप इस संग्रह में जो फ्लैशकार्ड सहेजते हैं वे यहाँ दिखाई देंगे। कुछ पाठ स्कैन करें और इसे फ्लैशकार्ड के रूप में सहेजें!",
+    "moveSuccess": "फ्लैशकार्ड नए संग्रह में स्थानांतरित: {{name}}",
+    "enterDeckName": "कृपया डेक नाम दर्ज करें",
+    "loadCollectionsError": "संग्रह लोड करने में असफल। कृपया पुनः प्रयास करें।",
+    "loadFlashcardsError": "फ्लैशकार्ड लोड करने में असफल। कृपया पुनः प्रयास करें।",
+    "loadFlashcardsForCollectionError": "इस संग्रह के लिए फ्लैशकार्ड लोड करने में असफल। कृपया पुनः प्रयास करें।",
+    "deleteFlashcardError": "फ्लैशकार्ड हटाने में असफल। कृपया पुनः प्रयास करें।",
+    "deleteCollectionError": "संग्रह हटाने में असफल। कृपया पुनः प्रयास करें।",
+    "renameCollectionError": "संग्रह का नाम बदलने में असफल। कृपया पुनः प्रयास करें।",
+    "moveFlashcardError": "फ्लैशकार्ड स्थानांतरित करने में असफल",
+    "createDeckError": "डेक बनाने और फ्लैशकार्ड स्थानांतरित करने में असफल",
+    "updateFlashcardError": "फ्लैशकार्ड अपडेट करने में असफल। कृपया पुनः प्रयास करें।",
+    "unexpectedError": "एक अप्रत्याशित त्रुटि हुई। कृपया पुनः प्रयास करें।"
+  },
+  "imageHighlighter": {
+    "dragToRotate": "छवि को घुमाने के लिए खींचें",
+    "dragToHighlight": "हाइलाइट करने के लिए खींचें",
+    "dragToCrop": "क्रॉप करने के लिए खींचें"
+  },
+  "textInput": {
+    "placeholder": "अनुवाद के लिए पाठ दर्ज करें",
+    "cancel": "रद्द करें",
+    "translate": "अनुवाद करें"
   }
 } 

@@ -14,6 +14,7 @@ export const COLORS = {
   text: '#FFFFFF', // White text for contrast
   lightGray: '#D3D3D3', // Light gray for borders or secondary text
   darkGray: '#A9A9A9', // Darker gray for less emphasis
+  disabledDark: '#4A4A4A', // Much darker gray for disabled buttons
   danger: '#DC3545', // Red for errors or destructive actions
   success: '#28A745', // Green for success messages
   warning: '#FFC107', // Yellow for warnings

@@ -5,12 +5,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from './context/AuthContext';
 import { useSettings, AVAILABLE_LANGUAGES, DETECTABLE_LANGUAGES } from './context/SettingsContext';
-import { useOCRCounter } from './context/OCRCounterContext';
+import { useFlashcardCounter } from './context/FlashcardCounterContext';
 import { useSubscription } from './context/SubscriptionContext';
 import { useRouter } from 'expo-router';
 import { COLORS } from './constants/colors';
 import PokedexLayout from './components/shared/PokedexLayout';
-import SubscriptionTestButton from './components/subscription/SubscriptionTestButton';
 
 export default function SettingsScreen() {
   const { t } = useTranslation();
@@ -24,8 +23,8 @@ export default function SettingsScreen() {
     availableLanguages,
     detectableLanguages 
   } = useSettings();
-  const { ocrCount, maxOCRScans, remainingScans } = useOCRCounter();
-  const { subscription } = useSubscription();
+  const { flashcardCount, maxFlashcards, remainingFlashcards, resetFlashcardCount } = useFlashcardCounter();
+  const { subscription, setTestingSubscriptionPlan } = useSubscription();
   
   const router = useRouter();
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
@@ -98,6 +97,25 @@ export default function SettingsScreen() {
     code,
     name
   }));
+
+  // Function to handle flashcard count reset for testing
+  const handleResetFlashcardCount = async () => {
+    Alert.alert(
+      'Reset Flashcard Count',
+      'This will reset your daily flashcard count to 0. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Reset', 
+          style: 'destructive',
+          onPress: async () => {
+            await resetFlashcardCount();
+            Alert.alert('Success', 'Flashcard count has been reset to 0.');
+          }
+        }
+      ]
+    );
+  };
 
   return (
     <PokedexLayout>
@@ -191,8 +209,8 @@ export default function SettingsScreen() {
               </Text>
               <Text style={styles.settingDescription}>
                 {subscription.plan === 'PREMIUM' 
-                  ? t('settings.unlimitedScans')
-                  : t('settings.limitedScans', { maxScans: maxOCRScans })
+                  ? 'Unlimited flashcards and features'
+                  : `${maxFlashcards} flashcards per day`
                 }
               </Text>
             </View>
@@ -204,25 +222,72 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* Testing Section - Only shown in development */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🧪 Testing (Dev Only)</Text>
+          
+          <View style={styles.testingButtonContainer}>
+            <TouchableOpacity
+              style={[
+                styles.testingButton, 
+                subscription.plan === 'FREE' ? styles.activeTestingButton : styles.inactiveTestingButton
+              ]}
+              onPress={() => setTestingSubscriptionPlan('FREE')}
+            >
+              <Text style={[
+                styles.testingButtonText,
+                subscription.plan === 'FREE' ? styles.activeTestingButtonText : styles.inactiveTestingButtonText
+              ]}>
+                Switch to FREE (3 cards/day)
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[
+                styles.testingButton, 
+                subscription.plan === 'PREMIUM' ? styles.activeTestingButton : styles.inactiveTestingButton
+              ]}
+              onPress={() => setTestingSubscriptionPlan('PREMIUM')}
+            >
+              <Text style={[
+                styles.testingButtonText,
+                subscription.plan === 'PREMIUM' ? styles.activeTestingButtonText : styles.inactiveTestingButtonText
+              ]}>
+                Switch to PREMIUM (Unlimited)
+              </Text>
+            </TouchableOpacity>
+          </View>
+          
+          {/* Reset Button */}
+          <View style={styles.resetButtonContainer}>
+            <TouchableOpacity
+              style={styles.resetCountButton}
+              onPress={handleResetFlashcardCount}
+            >
+              <Ionicons name="refresh" size={16} color="white" style={{ marginRight: 8 }} />
+              <Text style={styles.resetCountButtonText}>
+                Reset Flashcard Count (Currently: {flashcardCount})
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('settings.usageStatistics')}</Text>
           
           <View style={styles.settingItem}>
-            <Ionicons name="camera-outline" size={24} color={COLORS.primary} style={styles.settingIcon} />
+            <Ionicons name="card-outline" size={24} color={COLORS.primary} style={styles.settingIcon} />
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingLabel}>{t('settings.ocrScansToday')}</Text>
+              <Text style={styles.settingLabel}>Flashcards Created Today</Text>
               <Text style={styles.settingDescription}>
-                {t('settings.scansUsed', { used: ocrCount, max: maxOCRScans, remaining: remainingScans })}
+                {flashcardCount} of {maxFlashcards} used ({remainingFlashcards} remaining)
               </Text>
             </View>
             <View style={styles.counterBadge}>
-              <Text style={styles.counterText}>{ocrCount}</Text>
+              <Text style={styles.counterText}>{flashcardCount}</Text>
             </View>
           </View>
         </View>
-
-        {/* Development Testing Component */}
-        <SubscriptionTestButton />
 
         {user && (
           <View style={styles.section}>
@@ -502,5 +567,56 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  testingButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  testingButton: {
+    flex: 1,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    borderWidth: 2,
+  },
+  activeTestingButton: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  inactiveTestingButton: {
+    backgroundColor: 'transparent',
+    borderColor: COLORS.darkGray,
+  },
+  testingButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  activeTestingButtonText: {
+    color: '#000',
+  },
+  inactiveTestingButtonText: {
+    color: COLORS.darkGray,
+  },
+  resetButtonContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  resetCountButton: {
+    backgroundColor: COLORS.danger,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  resetCountButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
   },
 }); 

@@ -32,6 +32,7 @@ export type SubscriptionPlan = 'FREE' | 'PREMIUM';
 
 export interface SubscriptionPlanConfig {
   ocrScansPerDay: number;
+  flashcardsPerDay: number;
   showAds: boolean;
   features: string[];
   price?: string;
@@ -54,6 +55,8 @@ export interface SubscriptionContextType {
   restorePurchases: () => Promise<boolean>;
   checkSubscriptionStatus: () => Promise<void>;
   getMaxOCRScans: () => number;
+  getMaxFlashcards: () => number;
   canShowAds: () => boolean;
   hasPremiumFeature: (feature: string) => boolean;
+  setTestingSubscriptionPlan: (plan: SubscriptionPlan) => Promise<void>;
 } 

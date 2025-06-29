@@ -92,6 +92,7 @@
       "withItalianAlphabet": "带意大利字母",
       "withTagalogAlphabet": "带他加禄语字母",
       "withHindiRomanization": "带印地语罗马字",
+      "withEsperantoRomanization": "带世界语文本",
       "originalText": "原文",
       "withPronunciationGuide": "带发音指南",
       "translation": "{{language}}翻译",
@@ -134,11 +135,16 @@
       "purchaseTitle": "测试高级版购买",
       "purchaseMessage": "这将在开发模式下模拟高级版购买。继续？",
       "purchase": "购买",
-      "premiumActivated": "高级版订阅已激活！",
+      "premiumActivated": "高级版激活！现在让我们添加到收藏集吧！",
       "restored": "已恢复！",
       "restoredMessage": "高级版订阅已恢复！",
       "noPurchaseFound": "未找到购买记录",
       "noPurchaseMessage": "没有可恢复的高级版订阅。"
+    },
+    "limit": {
+      "title": "每日限制已达到",
+      "message": "休闲收藏者：每日3卡限制。认真收藏者：无限制。",
+      "upgradeToPremium": "升级到高级版"
     }
   },
   "settings": {
