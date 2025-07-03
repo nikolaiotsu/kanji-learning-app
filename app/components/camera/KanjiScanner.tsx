@@ -23,6 +23,7 @@ import { useFocusEffect } from 'expo-router';
 import * as ProcessImage from '../../services/ProcessImage';
 import PokedexButton from '../shared/PokedexButton';
 import { useSubscription } from '../../context/SubscriptionContext';
+import MemoryManager from '../../services/memoryManager';
 
 interface KanjiScannerProps {
   onCardSwipe?: () => void;
@@ -52,6 +53,9 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
   // New state for image processing loading
   const [isImageProcessing, setIsImageProcessing] = useState(false);
   
+  // Safety timeout ref to automatically reset stuck processing states
+  const processingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   // State for rotate mode
   const [rotateModeActive, setRotateModeActive] = useState(false);
   const [rotateError, setRotateError] = useState<string | null>(null);
@@ -80,17 +84,61 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
     setCurrentRotationUIState(newState);
   }, []); // Empty dependency array as setCurrentRotationUIState is stable
 
+  // Safety mechanism: Auto-reset processing states after timeout
+  useEffect(() => {
+    if (isImageProcessing || localProcessing) {
+      // Set a 60-second timeout to automatically reset stuck processing states
+      processingTimeoutRef.current = setTimeout(() => {
+        console.warn('[KanjiScanner] Processing timeout reached - auto-resetting stuck states');
+        setIsImageProcessing(false);
+        setLocalProcessing(false);
+        setIsNavigating(false);
+      }, 60000); // Increased to 60 seconds to allow for longer processing
+    } else {
+      // Clear timeout when processing completes normally
+      if (processingTimeoutRef.current) {
+        clearTimeout(processingTimeoutRef.current);
+        processingTimeoutRef.current = null;
+      }
+    }
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (processingTimeoutRef.current) {
+        clearTimeout(processingTimeoutRef.current);
+        processingTimeoutRef.current = null;
+      }
+    };
+  }, [isImageProcessing, localProcessing]);
+
+
+
   // Reset navigation state when component becomes active
   useFocusEffect(
     React.useCallback(() => {
       setIsNavigating(false);
+      
+      // Only reset processing states if they've been stuck for a while
+      // Use a delay to avoid interrupting legitimate loading animations
+      const resetTimer = setTimeout(() => {
+        if (isImageProcessing) {
+          console.log('[KanjiScanner] Resetting stuck image processing state after delay');
+          setIsImageProcessing(false);
+        }
+        if (localProcessing) {
+          console.log('[KanjiScanner] Resetting stuck local processing state after delay');
+          setLocalProcessing(false);
+        }
+      }, 1000); // Only reset if states are still active after 1 second
+      
       // Don't allow navigation away if we're processing an image
       return () => {
+        clearTimeout(resetTimer);
         if (isImageProcessing) {
           console.log('[KanjiScanner] Preventing navigation during image processing');
         }
       };
-    }, [isImageProcessing])
+    }, [isImageProcessing, localProcessing])
   );
 
   const handleLogout = async () => {
@@ -198,50 +246,45 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
       return;
     }
     
+    const memoryManager = MemoryManager.getInstance();
+    
     try {
+      // Aggressive cleanup before new image selection
+      console.log('[KanjiScanner pickImage] Starting image selection with cleanup');
+      // Force cleanup if any images were processed, regardless of count
+      await memoryManager.forceCleanup();
+      
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 0.8, // Reduce quality to speed up processing
+        quality: 0.8, // Standard quality
         // exif: true, // We don't strictly need to request it, manipulateAsync handles it
       });
 
       if (!result.canceled) {
         const asset = result.assets[0];
-
-        // Check if image is too large and needs resizing for performance
-        const maxDimension = 2000; // Reasonable limit for mobile processing
-        const needsResize = asset.width > maxDimension || asset.height > maxDimension;
         
-        console.log('[KanjiScanner pickImage] Processing image:', asset.uri, 
-          `${asset.width}x${asset.height}`, needsResize ? '(will resize)' : '(no resize needed)');
+        console.log('[KanjiScanner pickImage] Selected image:', asset.uri, 
+          `${asset.width}x${asset.height}`);
 
         // Show loading indicator for any processing
         setIsImageProcessing(true);
+
+        // Get standard processing configuration
+        const standardConfig = memoryManager.getStandardImageConfig();
         
-        // Add small delay to ensure loading indicator shows before heavy processing
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        // OPTION 1: Skip processing entirely for maximum speed (uncomment to use)
-        // Modern image viewers handle orientation automatically via CSS/styles
-        // if (!needsResize) {
-        //   console.log('[KanjiScanner pickImage] Using original image (no processing needed)');
-        //   setCapturedImage({
-        //     uri: asset.uri,
-        //     width: asset.width || 0,
-        //     height: asset.height || 0,
-        //   });
-        //   setImageHistory([]);
-        //   setForwardHistory([]);
-        //   setHighlightModeActive(false);
-        //   setIsImageProcessing(false);
-        //   return;
-        // }
-
+        // Check if image needs resizing
+        const maxDimension = standardConfig.maxDimension;
+        const needsResize = (asset.width || 0) > maxDimension || (asset.height || 0) > maxDimension;
+        
+        // For very large images, use a more conservative max dimension to avoid memory issues
+        const isVeryLargeImage = (asset.width || 0) > 3000 || (asset.height || 0) > 3000;
+        const safeMaxDimension = isVeryLargeImage ? 1200 : maxDimension;
+        
         const transformations = [];
         
         // Add resize transformation if needed
         if (needsResize) {
-          const scale = maxDimension / Math.max(asset.width || 1, asset.height || 1);
+          const scale = safeMaxDimension / Math.max(asset.width || 1, asset.height || 1);
           transformations.push({
             resize: {
               width: Math.round((asset.width || 1) * scale),
@@ -250,18 +293,98 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
           });
         }
 
-        // Process image with optimized settings for speed
-        const processedImage = await ImageManipulator.manipulateAsync(
-          asset.uri,
-          transformations, // Only resize if needed, EXIF orientation is handled automatically
-          { 
-            compress: 0.8, // Good balance between quality and speed
-            format: ImageManipulator.SaveFormat.JPEG // Much faster than PNG
-          }
-        );
+        let processedImage;
+        let retryCount = 0;
+        const maxRetries = 2;
+        
+        // Retry logic with increasingly conservative settings
+        while (retryCount <= maxRetries) {
+          try {
+            console.log(`[KanjiScanner pickImage] Processing attempt ${retryCount + 1}/${maxRetries + 1}`);
+            
+            // Use more aggressive compression for retries
+            const compressionLevel = retryCount === 0 ? standardConfig.compress : 0.6;
+            
+            processedImage = await ImageManipulator.manipulateAsync(
+              asset.uri,
+              transformations,
+              { 
+                compress: compressionLevel,
+                format: ImageManipulator.SaveFormat.JPEG
+              }
+            );
 
-        console.log('[KanjiScanner pickImage] Processed image:', 
-          `${processedImage.width}x${processedImage.height}`, 'URI:', processedImage.uri);
+            // Validate the processed image by actually loading it
+            if (processedImage && processedImage.width > 0 && processedImage.height > 0) {
+              // Additional validation: verify the image file can be loaded properly
+              try {
+                const imageInfo = await ProcessImage.getImageInfo(processedImage.uri);
+                if (imageInfo.width === processedImage.width && imageInfo.height === processedImage.height) {
+                  console.log('[KanjiScanner pickImage] Processed image validated:', 
+                    `${processedImage.width}x${processedImage.height}`, 'URI:', processedImage.uri);
+                  break; // Success
+                } else {
+                  throw new Error(`Image file dimensions mismatch: expected ${processedImage.width}x${processedImage.height}, got ${imageInfo.width}x${imageInfo.height}`);
+                }
+                              } catch (validationError) {
+                  throw new Error(`Image validation failed: ${validationError instanceof Error ? validationError.message : 'Unknown error'}`);
+                }
+            } else {
+              throw new Error('Invalid processed image dimensions');
+            }
+            
+          } catch (processingError) {
+            console.error(`[KanjiScanner pickImage] Processing attempt ${retryCount + 1} failed:`, processingError);
+            
+            if (retryCount < maxRetries) {
+              // For retries, use even smaller dimensions
+              const retryMaxDimension = safeMaxDimension / (retryCount + 1.5);
+              const retryScale = retryMaxDimension / Math.max(asset.width || 1, asset.height || 1);
+              
+              transformations.length = 0; // Clear previous transformations
+              if (needsResize) {
+                transformations.push({
+                  resize: {
+                    width: Math.round((asset.width || 1) * retryScale),
+                    height: Math.round((asset.height || 1) * retryScale)
+                  }
+                });
+              }
+              
+              // Additional cleanup between retries
+              await memoryManager.forceCleanup();
+              
+              console.log(`[KanjiScanner pickImage] Retrying with smaller dimensions: ${Math.round((asset.width || 1) * retryScale)}x${Math.round((asset.height || 1) * retryScale)}`);
+              retryCount++;
+            } else {
+              throw processingError; // Re-throw if all retries failed
+            }
+          }
+        }
+
+        if (!processedImage) {
+          // Final fallback: use original image with a warning if all processing attempts fail
+          console.warn('[KanjiScanner pickImage] All processing attempts failed, using original image');
+          
+          // Check if original image is too large for safe use
+          const isOriginalTooLarge = (asset.width || 0) > 2500 || (asset.height || 0) > 2500;
+          if (isOriginalTooLarge) {
+            throw new Error('Image is too large and could not be processed');
+          }
+          
+          // Use original image as fallback
+          processedImage = {
+            uri: asset.uri,
+            width: asset.width || 0,
+            height: asset.height || 0
+          };
+          
+          console.log('[KanjiScanner pickImage] Using original image as fallback:', 
+            `${processedImage.width}x${processedImage.height}`, 'URI:', processedImage.uri);
+        }
+
+        // Track the processed image
+        memoryManager.trackProcessedImage(processedImage.uri);
 
         handlePhotoCapture({
           uri: processedImage.uri,
@@ -274,7 +397,13 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
     } catch (error) {
       console.error('[KanjiScanner] Error picking image:', error);
       setIsImageProcessing(false);
-      Alert.alert('Error', 'Failed to process image');
+      
+      // Attempt recovery by forcing cleanup
+      await memoryManager.forceCleanup();
+      
+      let errorMessage = 'Failed to process image. Please try selecting a different image.';
+      
+      Alert.alert('Error', errorMessage);
     }
   };
 
@@ -444,9 +573,11 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
         );
       }
     } finally {
-      // Only reset states if we're not navigating to prevent UI flash
+      // Always reset localProcessing since OCR is complete
+      setLocalProcessing(false);
+      
+      // Only reset UI states if we're not navigating to prevent UI flash
       if (!isNavigating) {
-        setLocalProcessing(false); // Ensure this is always called
         setHighlightRegion(null);
         setHasHighlightSelection(false);
         setHighlightModeActive(false);

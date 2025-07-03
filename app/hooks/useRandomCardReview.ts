@@ -1,8 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getFlashcards, getFlashcardsByDecks } from '../services/supabaseStorage';
 import { Flashcard } from '../types/Flashcard';
 import { useAuth } from '../context/AuthContext';
 import { AppState } from 'react-native';
+
+// Storage key for selected deck IDs
+const SELECTED_DECK_IDS_STORAGE_KEY = 'selectedDeckIds';
 
 /**
  * Custom hook for managing random flashcard review
@@ -16,6 +20,7 @@ export const useRandomCardReview = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedDeckIds, setSelectedDeckIds] = useState<string[]>([]);
+  const [deckIdsLoaded, setDeckIdsLoaded] = useState(false);
   
   // Use refs to track the last data state to prevent unnecessary updates
   const lastFetchedCardsRef = useRef<string>("");
@@ -26,6 +31,25 @@ export const useRandomCardReview = () => {
   const selectedDeckIdsRef = useRef<string[]>([]);
   
   const { user } = useAuth();
+
+  // Load selected deck IDs from AsyncStorage on initialization
+  useEffect(() => {
+    const loadSelectedDeckIds = async () => {
+      try {
+        const storedDeckIds = await AsyncStorage.getItem(SELECTED_DECK_IDS_STORAGE_KEY);
+        if (storedDeckIds) {
+          const deckIds = JSON.parse(storedDeckIds);
+          setSelectedDeckIds(deckIds);
+        }
+      } catch (error) {
+        console.error('Error loading selected deck IDs from AsyncStorage:', error);
+      } finally {
+        setDeckIdsLoaded(true);
+      }
+    };
+
+    loadSelectedDeckIds();
+  }, []);
 
   // Helper function to check if two arrays of flashcards are equal by serializing and comparing
   const areFlashcardsEqual = (cards1: Flashcard[], cards2: Flashcard[]): boolean => {
@@ -119,10 +143,10 @@ export const useRandomCardReview = () => {
 
   // Initial load and when user changes
   useEffect(() => {
-    if (user) {
+    if (user && deckIdsLoaded) {
       fetchAllFlashcards();
     }
-  }, [user, fetchAllFlashcards]);
+  }, [user, deckIdsLoaded, fetchAllFlashcards]);
 
   // Refresh data when app comes to foreground
   useEffect(() => {
@@ -139,7 +163,7 @@ export const useRandomCardReview = () => {
 
   // Set a polling interval to periodically refresh data
   useEffect(() => {
-    if (!user) return;
+    if (!user || !deckIdsLoaded) return;
     
     // Only refresh every 60 seconds and only when not in review mode
     // This prevents constant re-rendering and card flashing
@@ -150,7 +174,7 @@ export const useRandomCardReview = () => {
     }, 60000); // Increased to 60 seconds to reduce unnecessary updates
     
     return () => clearInterval(interval);
-  }, [user, fetchAllFlashcards, isInReviewMode]);
+  }, [user, deckIdsLoaded, fetchAllFlashcards, isInReviewMode]);
 
   // Update refs when state changes
   useEffect(() => {
@@ -249,8 +273,13 @@ export const useRandomCardReview = () => {
   };
 
   // Update selected deck IDs
-  const updateSelectedDeckIds = (deckIds: string[]) => {
-    setSelectedDeckIds(deckIds);
+  const updateSelectedDeckIds = async (deckIds: string[]) => {
+    try {
+      setSelectedDeckIds(deckIds);
+      await AsyncStorage.setItem(SELECTED_DECK_IDS_STORAGE_KEY, JSON.stringify(deckIds));
+    } catch (error) {
+      console.error('Error saving selected deck IDs to AsyncStorage:', error);
+    }
   };
 
   return {

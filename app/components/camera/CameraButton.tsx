@@ -5,6 +5,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import PokedexButton from '../shared/PokedexButton';
+import MemoryManager from '../../services/memoryManager';
 
 interface CameraButtonProps {
   onPhotoCapture: (imageInfo: {
@@ -39,9 +40,15 @@ export default function CameraButton({ onPhotoCapture, style, onProcessingStateC
       return;
     }
     
+    const memoryManager = MemoryManager.getInstance();
+    
     try {
+      // Aggressive cleanup before new photo capture
+      console.log('[CameraButton] Performing cleanup before photo capture');
+      await memoryManager.forceCleanup();
+      
       const result = await ImagePicker.launchCameraAsync({
-        quality: 1,
+        quality: 0.9, // Standard high quality for camera
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         exif: true,
       });
@@ -52,22 +59,87 @@ export default function CameraButton({ onPhotoCapture, style, onProcessingStateC
 
         // Show loading indicator for image processing
         onProcessingStateChange?.(true);
-        
-        // Add small delay to ensure loading indicator shows before heavy processing
-        await new Promise(resolve => setTimeout(resolve, 50));
 
         console.log('[CameraButton] Processing captured image:', asset.uri, 
           `${asset.width}x${asset.height}`);
 
-        // Normalize orientation so width/height reflect the actual bitmap after EXIF is stripped
-        const normalised = await ImageManipulator.manipulateAsync(
-          asset.uri,
-          [],
-          { compress: 1, format: ImageManipulator.SaveFormat.PNG }
-        );
+        // Get standard processing configuration
+        const standardConfig = memoryManager.getStandardImageConfig();
 
-        console.log('[CameraButton] Processed captured image:', 
-          `${normalised.width}x${normalised.height}`, 'URI:', normalised.uri);
+        let normalised;
+        let retryCount = 0;
+        const maxRetries = 1;
+        
+        // Retry logic for camera processing
+        while (retryCount <= maxRetries) {
+          try {
+            console.log(`[CameraButton] Processing attempt ${retryCount + 1}/${maxRetries + 1}`);
+            
+            // Use more aggressive compression for retries
+            const compressionLevel = retryCount === 0 ? standardConfig.compress : 0.6;
+            
+            normalised = await ImageManipulator.manipulateAsync(
+              asset.uri,
+              [],
+              { 
+                compress: compressionLevel, 
+                format: ImageManipulator.SaveFormat.JPEG
+              }
+            );
+
+                         // Validate the processed image by actually loading it
+             if (normalised && normalised.width > 0 && normalised.height > 0) {
+               // Additional validation: verify the image file can be loaded properly
+               try {
+                 const imageInfo = await ImageManipulator.manipulateAsync(
+                   normalised.uri,
+                   [],
+                   { format: ImageManipulator.SaveFormat.JPEG, compress: 0.1 }
+                 );
+                 if (imageInfo.width === normalised.width && imageInfo.height === normalised.height) {
+                   console.log('[CameraButton] Processed captured image validated:', 
+                     `${normalised.width}x${normalised.height}`, 'URI:', normalised.uri);
+                   break; // Success
+                 } else {
+                   throw new Error(`Image file dimensions mismatch: expected ${normalised.width}x${normalised.height}, got ${imageInfo.width}x${imageInfo.height}`);
+                 }
+               } catch (validationError) {
+                 throw new Error(`Image validation failed: ${validationError instanceof Error ? validationError.message : 'Unknown error'}`);
+               }
+             } else {
+               throw new Error('Invalid processed image dimensions');
+             }
+            
+          } catch (processingError) {
+            console.error(`[CameraButton] Processing attempt ${retryCount + 1} failed:`, processingError);
+            
+            if (retryCount < maxRetries) {
+              // Additional cleanup between retries
+              await memoryManager.forceCleanup();
+              retryCount++;
+            } else {
+              throw processingError; // Re-throw if all retries failed
+            }
+          }
+        }
+
+                 if (!normalised) {
+           // Final fallback: use original camera image with a warning
+           console.warn('[CameraButton] Camera image processing failed, using original image');
+           
+           // Use original camera image as fallback
+           normalised = {
+             uri: asset.uri,
+             width: asset.width || 0,
+             height: asset.height || 0
+           };
+           
+           console.log('[CameraButton] Using original camera image as fallback:', 
+             `${normalised.width}x${normalised.height}`, 'URI:', normalised.uri);
+         }
+
+        // Track the processed image
+        memoryManager.trackProcessedImage(normalised.uri);
 
         onPhotoCapture({
           uri: normalised.uri,
@@ -79,7 +151,13 @@ export default function CameraButton({ onPhotoCapture, style, onProcessingStateC
       }
     } catch (error) {
       onProcessingStateChange?.(false);
-      Alert.alert('Error', 'Failed to take photo');
+      
+      // Attempt recovery by forcing cleanup
+      await memoryManager.forceCleanup();
+      
+      let errorMessage = 'Failed to take photo. Please try again.';
+      
+      Alert.alert('Error', errorMessage);
       console.error(error);
     }
   };

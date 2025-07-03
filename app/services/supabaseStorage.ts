@@ -14,6 +14,28 @@ const generateUUID = (): string => {
 };
 
 /**
+ * Transform database flashcard format to app format
+ * @param card Raw flashcard data from database
+ * @returns Transformed flashcard object
+ */
+const transformFlashcard = (card: any): Flashcard => ({
+  id: card.id,
+  originalText: card.original_text,
+  furiganaText: card.furigana_text,
+  translatedText: card.translated_text,
+  createdAt: new Date(card.created_at).getTime(),
+  deckId: card.deck_id,
+  imageUrl: card.image_url || undefined, // Include image URL if available
+});
+
+/**
+ * Transform array of database flashcards to app format
+ * @param cards Raw flashcard data array from database
+ * @returns Array of transformed flashcard objects
+ */
+const transformFlashcards = (cards: any[]): Flashcard[] => cards.map(transformFlashcard);
+
+/**
  * Get all decks for the current user
  * @returns Array of decks
  */
@@ -236,15 +258,7 @@ export const getFlashcards = async (): Promise<Flashcard[]> => {
     }
     
     // Transform from database format to app format
-    return flashcards.map((card: any) => ({
-      id: card.id,
-      originalText: card.original_text,
-      furiganaText: card.furigana_text,
-      translatedText: card.translated_text,
-      createdAt: new Date(card.created_at).getTime(),
-      deckId: card.deck_id,
-      imageUrl: card.image_url || undefined, // Include image URL if available
-    }));
+    return transformFlashcards(flashcards);
   } catch (error) {
     console.error('Error getting flashcards:', error);
     return [];
@@ -270,15 +284,7 @@ export const getFlashcardsByDeck = async (deckId: string): Promise<Flashcard[]> 
     }
     
     // Transform from database format to app format
-    return flashcards.map((card: any) => ({
-      id: card.id,
-      originalText: card.original_text,
-      furiganaText: card.furigana_text,
-      translatedText: card.translated_text,
-      createdAt: new Date(card.created_at).getTime(),
-      deckId: card.deck_id,
-      imageUrl: card.image_url || undefined, // Include image URL if available
-    }));
+    return transformFlashcards(flashcards);
   } catch (error) {
     console.error('Error getting flashcards by deck:', error);
     return [];
@@ -308,14 +314,7 @@ export const getFlashcardsByDecks = async (deckIds: string[]): Promise<Flashcard
     }
     
     // Transform from database format to app format
-    return flashcards.map((card: any) => ({
-      id: card.id,
-      originalText: card.original_text,
-      furiganaText: card.furigana_text,
-      translatedText: card.translated_text,
-      createdAt: new Date(card.created_at).getTime(),
-      deckId: card.deck_id,
-    }));
+    return transformFlashcards(flashcards);
   } catch (error) {
     console.error('Error getting flashcards by decks:', error);
     return [];
@@ -341,14 +340,7 @@ export const getFlashcardById = async (id: string): Promise<Flashcard | null> =>
     }
     
     // Transform from database format to app format
-    return {
-      id: data.id,
-      originalText: data.original_text,
-      furiganaText: data.furigana_text,
-      translatedText: data.translated_text,
-      createdAt: new Date(data.created_at).getTime(),
-      deckId: data.deck_id,
-    };
+    return transformFlashcard(data);
   } catch (error) {
     console.error('Error getting flashcard by ID:', error);
     return null;

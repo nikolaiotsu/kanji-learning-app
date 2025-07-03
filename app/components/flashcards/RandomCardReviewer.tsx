@@ -187,12 +187,12 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
   };
 
   // Handle deck selection
-  const handleDeckSelection = useCallback((deckIds: string[]) => {
+  const handleDeckSelection = useCallback(async (deckIds: string[]) => {
     // Only do a full reset if the selection actually changed
     if (JSON.stringify(deckIds.sort()) !== JSON.stringify(selectedDeckIds.sort())) {
       // When changing decks, we want to reset the review session
       // This ensures we get a clean start with the newly selected decks
-      updateSelectedDeckIds(deckIds);
+      await updateSelectedDeckIds(deckIds);
       
       // Wait for the deck selection modal to close before resetting
       setTimeout(() => {

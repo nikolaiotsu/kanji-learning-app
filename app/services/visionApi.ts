@@ -4,6 +4,7 @@ import * as FileSystem from 'expo-file-system';
 import { captureRef } from 'react-native-view-shot';
 import { Platform } from 'react-native';
 import * as ImageManipulator from 'expo-image-manipulator';
+import MemoryManager from './memoryManager';
 
 interface VisionApiResponse {
   text: string;
@@ -97,13 +98,21 @@ export async function captureVisibleRegion(imageRef: any, region: Region): Promi
   }
 }
 
-// New helper function to crop image to exact region
+// New helper function to crop image to exact region - Memory-aware version
 export async function cropImageToRegion(imageUri: string, region: Region): Promise<string> {
+  const memoryManager = MemoryManager.getInstance();
+  
   try {
     // Only proceed with cropping if we have a valid region
     if (!region || region.width <= 0 || region.height <= 0) {
       console.log('Invalid region for cropping:', region);
       return imageUri;
+    }
+    
+    // Simple cleanup check before cropping
+    if (await memoryManager.shouldCleanup()) {
+      console.log('[cropImageToRegion] Performing cleanup before cropping');
+      await memoryManager.cleanupPreviousImages(imageUri);
     }
     
     // First, get the dimensions of the source image to validate crop boundaries
@@ -198,7 +207,12 @@ export async function cropImageToRegion(imageUri: string, region: Region): Promi
       return imageUri;
     }
     
-    // Use ImageManipulator to crop the image with the validated region
+    // Get standard compression settings
+    const standardConfig = memoryManager.getStandardImageConfig();
+    
+    console.log('[DEBUG] Using standard compression for crop:', standardConfig.compress);
+    
+    // Use ImageManipulator to crop the image with standard settings
     const result = await ImageManipulator.manipulateAsync(
       imageUri,
       [
@@ -206,7 +220,10 @@ export async function cropImageToRegion(imageUri: string, region: Region): Promi
           crop: safeRegion
         },
       ],
-      { format: ImageManipulator.SaveFormat.JPEG, compress: 0.95 }
+      { 
+        format: ImageManipulator.SaveFormat.JPEG, 
+        compress: standardConfig.compress // Use standard compression
+      }
     );
     
     // DEBUG: Log cropped image details
@@ -214,9 +231,16 @@ export async function cropImageToRegion(imageUri: string, region: Region): Promi
     console.log('[DEBUG] Cropped image dimensions:', result.width, 'x', result.height, 
                `(${(result.width / sourceImage.width * 100).toFixed(1)}% x ${(result.height / sourceImage.height * 100).toFixed(1)}% of original)`);
     
+    // Track the processed image
+    memoryManager.trackProcessedImage(result.uri);
+    
     return result.uri;
   } catch (error) {
     console.error('Error cropping image:', error);
+    
+    // Attempt recovery by forcing cleanup
+    await memoryManager.forceCleanup();
+    
     // Fall back to original image if cropping fails
     return imageUri;
   }

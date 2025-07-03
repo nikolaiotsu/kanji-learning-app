@@ -56,6 +56,118 @@ interface ClaudeContentItem {
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
+ * Cleans common JSON formatting issues from LLM responses
+ * @param jsonString The potentially malformed JSON string
+ * @returns Cleaned JSON string that should parse correctly
+ */
+function cleanJsonString(jsonString: string): string {
+  let cleaned = jsonString;
+  
+  // First, try to extract JSON from the text more aggressively
+  // Look for the first opening brace and last closing brace
+  const firstBrace = cleaned.indexOf('{');
+  const lastBrace = cleaned.lastIndexOf('}');
+  
+  if (firstBrace !== -1 && lastBrace !== -1 && firstBrace < lastBrace) {
+    // Extract just the JSON part
+    cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+  }
+  
+  console.log('🧹 Starting cleanup for:', cleaned.substring(0, 100) + '...');
+  
+  // EMERGENCY APPROACH: Extract values directly and rebuild JSON from scratch
+  // This bypasses all JSON parsing issues by manually extracting the actual content
+  
+  try {
+    // Find furiganaText value using simple string methods
+    const furiganaStart = cleaned.indexOf('"furiganaText"');
+    const translationStart = cleaned.indexOf('"translatedText"');
+    
+    if (furiganaStart === -1 || translationStart === -1) {
+      throw new Error('Could not find required fields');
+    }
+    
+    // Extract furiganaText value
+    const furiganaColonIndex = cleaned.indexOf(':', furiganaStart);
+    const furiganaQuoteStart = cleaned.indexOf('"', furiganaColonIndex) + 1;
+    let furiganaQuoteEnd = furiganaQuoteStart;
+    
+    // Find the end quote, handling escaped quotes
+    while (furiganaQuoteEnd < cleaned.length) {
+      if (cleaned[furiganaQuoteEnd] === '"' && cleaned[furiganaQuoteEnd - 1] !== '\\') {
+        break;
+      }
+      furiganaQuoteEnd++;
+    }
+    
+    // Extract translatedText value
+    const translationColonIndex = cleaned.indexOf(':', translationStart);
+    const translationQuoteStart = cleaned.indexOf('"', translationColonIndex) + 1;
+    let translationQuoteEnd = translationQuoteStart;
+    
+    // Find the end quote, handling escaped quotes
+    while (translationQuoteEnd < cleaned.length) {
+      if (cleaned[translationQuoteEnd] === '"' && cleaned[translationQuoteEnd - 1] !== '\\') {
+        break;
+      }
+      translationQuoteEnd++;
+    }
+    
+    // Extract the raw values
+    let furiganaValue = cleaned.substring(furiganaQuoteStart, furiganaQuoteEnd);
+    let translationValue = cleaned.substring(translationQuoteStart, translationQuoteEnd);
+    
+    // Clean up the extracted values - remove ALL problematic characters
+    furiganaValue = furiganaValue
+      .replace(/[""‚„«»]/g, '"')     // Unicode quotes → regular quotes
+      .replace(/[''‛‹›]/g, "'")      // Unicode single quotes → regular quotes  
+      .replace(/[–—]/g, '-')         // Unicode dashes → regular dashes
+      .replace(/[\u00A0\u2000-\u200B\u2028\u2029]/g, ' ') // Unicode spaces → regular spaces
+      .replace(/[\u2060\uFEFF\u200C\u200D]/g, '') // Remove zero-width characters
+      .replace(/[\n\r\t]/g, ' ')     // Replace line breaks and tabs with spaces
+      .replace(/\s+/g, ' ')          // Normalize multiple spaces
+      .trim();
+    
+    translationValue = translationValue
+      .replace(/[""‚„«»]/g, '"')     // Unicode quotes → regular quotes
+      .replace(/[''‛‹›]/g, "'")      // Unicode single quotes → regular quotes
+      .replace(/[–—]/g, '-')         // Unicode dashes → regular dashes
+      .replace(/[\u00A0\u2000-\u200B\u2028\u2029]/g, ' ') // Unicode spaces → regular spaces
+      .replace(/[\u2060\uFEFF\u200C\u200D]/g, '') // Remove zero-width characters
+      .replace(/[\n\r\t]/g, ' ')     // Replace line breaks and tabs with spaces
+      .replace(/\s+/g, ' ')          // Normalize multiple spaces
+      .trim();
+    
+    // Build clean JSON from scratch with properly escaped values
+    const cleanJson = JSON.stringify({
+      furiganaText: furiganaValue,
+      translatedText: translationValue
+    });
+    
+    console.log('✅ Successfully rebuilt JSON:', cleanJson.substring(0, 150) + '...');
+    return cleanJson;
+    
+  } catch (extractionError) {
+    console.warn('❌ Direct extraction failed, trying fallback...', extractionError);
+    
+    // Final fallback: comprehensive Unicode replacement and basic cleanup
+    cleaned = cleaned
+      .replace(/[""‚„«»]/g, '\\"')   // Replace Unicode quotes with escaped quotes
+      .replace(/[''‛‹›]/g, "'")      // Replace Unicode single quotes
+      .replace(/[–—]/g, '-')         // Replace Unicode dashes
+      .replace(/[\u00A0\u2000-\u200B\u2028\u2029]/g, ' ') // Replace Unicode spaces
+      .replace(/[\u2060\uFEFF\u200C\u200D]/g, '') // Remove zero-width characters
+      .replace(/\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})/g, '\\\\') // Fix invalid escapes
+      .replace(/,(\s*[}\]])/g, '$1') // Remove trailing commas
+      .replace(/,+/g, ',')           // Fix multiple commas
+      .trim();
+    
+    console.log('🔧 Fallback cleanup result:', cleaned);
+    return cleaned;
+  }
+}
+
+/**
  * Determines the primary language of a text while acknowledging it may contain other languages
  * @param text The text to analyze
  * @param forcedLanguage Optional code to force a specific language detection
@@ -992,8 +1104,56 @@ Format your response as valid JSON with these exact keys:
           try {
             // Look for JSON in the response text
             const jsonMatch = textContent.text.match(/\{[\s\S]*\}/);
-            const jsonString = jsonMatch ? jsonMatch[0] : textContent.text;
-            const parsedContent = JSON.parse(jsonString);
+            let jsonString = jsonMatch ? jsonMatch[0] : textContent.text;
+            
+            // Comprehensive JSON cleaning for common LLM output issues
+            jsonString = cleanJsonString(jsonString);
+            
+            // Add more detailed logging for debugging
+            console.log("Raw response text:", textContent.text);
+            console.log("Extracted JSON string:", jsonString);
+            console.log("First 100 chars of JSON:", jsonString.substring(0, 100));
+            
+            let parsedContent;
+            
+            try {
+              parsedContent = JSON.parse(jsonString);
+            } catch (parseError) {
+              console.log('🚨 Initial JSON parse failed, trying emergency fallback...');
+              
+              // Emergency fallback: manually extract values using regex
+              try {
+                const furiganaMatch = jsonString.match(/"furiganaText"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
+                const translationMatch = jsonString.match(/"translatedText"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
+                
+                if (furiganaMatch && translationMatch) {
+                  // Clean up extracted values
+                  const furiganaValue = furiganaMatch[1]
+                    .replace(/\\"/g, '"')
+                    .replace(/\\\\/g, '\\')
+                    .replace(/[""‚„]/g, '"')
+                    .replace(/[''‛‹›]/g, "'");
+                    
+                  const translationValue = translationMatch[1]
+                    .replace(/\\"/g, '"')
+                    .replace(/\\\\/g, '\\')
+                    .replace(/[""‚„]/g, '"')
+                    .replace(/[''‛‹›]/g, "'");
+                  
+                  parsedContent = {
+                    furiganaText: furiganaValue,
+                    translatedText: translationValue
+                  };
+                  
+                  console.log('✅ Emergency fallback parsing successful');
+                } else {
+                  throw new Error('Could not extract values with regex fallback');
+                }
+              } catch (fallbackError) {
+                console.error('❌ Emergency fallback also failed:', fallbackError);
+                throw parseError; // Re-throw original error
+              }
+            }
             
             // Check if the translation appears to be in the target language or if it's likely still in English
             const translatedText = parsedContent.translatedText || "";
@@ -1083,7 +1243,16 @@ Format as JSON:
                     if (retryTextContent && retryTextContent.text) {
                       try {
                         const retryJsonMatch = retryTextContent.text.match(/\{[\s\S]*\}/);
-                        const retryJsonString = retryJsonMatch ? retryJsonMatch[0] : retryTextContent.text;
+                        let retryJsonString = retryJsonMatch ? retryJsonMatch[0] : retryTextContent.text;
+                        
+                        // Comprehensive JSON cleaning for common LLM output issues
+                        retryJsonString = cleanJsonString(retryJsonString);
+                        
+                        // Add detailed logging for retry attempt
+                        console.log("Retry raw response text:", retryTextContent.text);
+                        console.log("Retry extracted JSON string:", retryJsonString);
+                        console.log("Retry first 100 chars of JSON:", retryJsonString.substring(0, 100));
+                        
                         const retryParsedContent = JSON.parse(retryJsonString);
                         
                         const retryFuriganaText = retryParsedContent.furiganaText || "";
@@ -1115,6 +1284,53 @@ Format as JSON:
           } catch (parseError) {
             console.error("Error parsing JSON from Claude response:", parseError);
             console.log("Raw content received:", textContent.text);
+            
+            // Try alternative JSON extraction methods
+            try {
+              console.log("Attempting alternative JSON extraction methods...");
+              
+              // Method 1: Look for JSON blocks with ```json markers
+              const jsonBlockMatch = textContent.text.match(/```json\s*(\{[\s\S]*?\})\s*```/);
+              if (jsonBlockMatch) {
+                console.log("Found JSON block with markers, trying to parse...");
+                const blockJsonString = cleanJsonString(jsonBlockMatch[1]);
+                const blockParsedContent = JSON.parse(blockJsonString);
+                console.log("Successfully parsed JSON from block markers");
+                return {
+                  furiganaText: blockParsedContent.furiganaText || "",
+                  translatedText: blockParsedContent.translatedText || ""
+                };
+              }
+              
+              // Method 2: Try to extract JSON with more flexible regex
+              const flexibleJsonMatch = textContent.text.match(/\{[^{}]*"furiganaText"[^{}]*"translatedText"[^{}]*\}/);
+              if (flexibleJsonMatch) {
+                console.log("Found JSON with flexible regex, trying to parse...");
+                const flexibleJsonString = cleanJsonString(flexibleJsonMatch[0]);
+                const flexibleParsedContent = JSON.parse(flexibleJsonString);
+                console.log("Successfully parsed JSON with flexible regex");
+                return {
+                  furiganaText: flexibleParsedContent.furiganaText || "",
+                  translatedText: flexibleParsedContent.translatedText || ""
+                };
+              }
+              
+              // Method 3: Try to extract values manually with regex
+              const furiganaMatch = textContent.text.match(/"furiganaText":\s*"([^"]*(?:\\.[^"]*)*)"/);
+              const translatedMatch = textContent.text.match(/"translatedText":\s*"([^"]*(?:\\.[^"]*)*)"/);
+              
+              if (furiganaMatch && translatedMatch) {
+                console.log("Extracted values manually with regex");
+                return {
+                  furiganaText: furiganaMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\'),
+                  translatedText: translatedMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\')
+                };
+              }
+              
+            } catch (alternativeError) {
+              console.error("Alternative JSON extraction also failed:", alternativeError);
+            }
+            
             throw new Error("Failed to parse Claude API response");
           }
         } else {

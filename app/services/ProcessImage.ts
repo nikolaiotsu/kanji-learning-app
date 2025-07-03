@@ -1,4 +1,5 @@
 import * as ImageManipulator from 'expo-image-manipulator';
+import MemoryManager from './memoryManager';
 
 // Define the Region interface to match visionApi.ts
 interface Region {
@@ -108,17 +109,27 @@ export async function cropImage(imageUri: string, region: Region): Promise<strin
   }
 }
 
-// Process image with multiple operations (crop and rotate)
+// Process image with multiple operations (crop and rotate) - Memory-aware version
 export async function processImage(
   imageUri: string, 
   operations: { crop?: Region; rotate?: number }
 ): Promise<string> {
+  const memoryManager = MemoryManager.getInstance();
+  
   try {
     console.log('[ProcessImage] Processing image with operations:', operations);
     
-    // PERFORMANCE OPTIMIZATION: Only get image info if we actually need it for crop validation
-    // const originalInfo = await getImageInfo(imageUri);
-    // console.log('[ProcessImage] Original image dimensions:', originalInfo.width, 'x', originalInfo.height);
+    // Simple cleanup check before processing
+    if (await memoryManager.shouldCleanup()) {
+      console.log('[ProcessImage] Performing cleanup before processing');
+      await memoryManager.cleanupPreviousImages(imageUri);
+    }
+    
+    // Get original image info
+    const originalInfo = await getImageInfo(imageUri);
+    const standardConfig = memoryManager.getStandardImageConfig();
+    
+    console.log('[ProcessImage] Original image dimensions:', originalInfo.width, 'x', originalInfo.height);
     
     // Check if this is a rotation-only operation
     const isRotationOnly = !operations.crop && operations.rotate !== undefined;
@@ -127,17 +138,21 @@ export async function processImage(
       // For rotation-only operations, ensure the entire image is preserved without resizing
       console.log('[ProcessImage] Performing rotation-only operation');
       
-      // Rotate the image with balanced quality settings
-      const rotatedResult = await ImageManipulator.manipulateAsync(
-        imageUri,
-        [{ rotate: operations.rotate! }],
-        { 
-          format: ImageManipulator.SaveFormat.JPEG, 
-          compress: 0.8, // Better balance between quality and speed
-        }
-      );
+              // Rotate the image with standard quality settings
+        const rotatedResult = await ImageManipulator.manipulateAsync(
+          imageUri,
+          [{ rotate: operations.rotate! }],
+          { 
+            format: ImageManipulator.SaveFormat.JPEG, 
+            compress: standardConfig.compress, // Use standard compression
+          }
+        );
       
       console.log('[ProcessImage] Rotated image dimensions:', rotatedResult.width, 'x', rotatedResult.height);
+      
+      // Track the processed image
+      memoryManager.trackProcessedImage(rotatedResult.uri);
+      
       return rotatedResult.uri;
     } else {
       // For other operations (crop + optional rotate, or just crop)
@@ -166,18 +181,27 @@ export async function processImage(
         return imageUri;
       }
       
-      // Process the image with all specified operations
+      // Process the image with standard settings
       const result = await ImageManipulator.manipulateAsync(
         imageUri,
         manipulations,
-        { format: ImageManipulator.SaveFormat.JPEG, compress: 0.8 } // Better balance
+        { 
+          format: ImageManipulator.SaveFormat.JPEG, 
+          compress: standardConfig.compress // Use standard compression
+        }
       );
       
       console.log('[ProcessImage] Processed image dimensions:', result.width, 'x', result.height);
+      
+      // Track the processed image
+      memoryManager.trackProcessedImage(result.uri);
+      
       return result.uri;
     }
   } catch (error) {
     console.error('Error processing image:', error);
+    // Attempt recovery by forcing cleanup
+    await memoryManager.forceCleanup();
     throw error;
   }
 } 

@@ -620,63 +620,75 @@ export default function LanguageFlashcardsScreen() {
                     </View>
                   )}
 
-                  {/* Save Flashcard Button */}
+                  {/* 2x2 Button Grid */}
                   {textProcessed && translatedText && (
                     <View style={styles.buttonContainer}>
-                      {/* Edit buttons for post-translation editing */}
-                      <View style={styles.editButtonsContainer}>
+                      {/* Top Row */}
+                      <View style={styles.gridRow}>
                         <TouchableOpacity 
-                          style={styles.editTranslationButton} 
-                          onPress={() => setShowEditTranslationModal(true)}
+                          style={styles.gridButton}
+                          onPress={handleViewSavedFlashcards}
                         >
-                          <Ionicons name="pencil" size={18} color="#ffffff" style={styles.buttonIcon} />
-                          <Text style={styles.editButtonText}>{t('flashcard.edit.editTranslation')}</Text>
+                          <Ionicons name="albums-outline" size={20} color="#ffffff" style={styles.buttonIcon} />
+                          <Text style={styles.gridButtonText}>{t('flashcard.save.viewSaved')}</Text>
                         </TouchableOpacity>
                         
                         <TouchableOpacity 
-                          style={styles.editInputButton} 
-                          onPress={handleEditInputAndRetranslate}
+                          style={[
+                            styles.gridButton,
+                            styles.saveGridButton,
+                            isSaved ? styles.savedButton : null,
+                            (isSaving || !canCreateFlashcard) ? styles.disabledButton : null,
+                            !canCreateFlashcard ? styles.darkDisabledButton : null,
+                          ]}
+                          onPress={handleShowDeckSelector}
+                          disabled={isSaving || isSaved}
                         >
-                          <Ionicons name="refresh" size={18} color="#ffffff" style={styles.buttonIcon} />
-                          <Text style={styles.editButtonText}>{t('flashcard.edit.editInputRetranslate')}</Text>
+                          {isSaving ? (
+                            <ActivityIndicator size="small" color="#ffffff" />
+                          ) : (
+                            <>
+                              <Ionicons 
+                                name={
+                                  isSaved ? "checkmark-circle" : 
+                                  !canCreateFlashcard ? "lock-closed" : 
+                                  "bookmark-outline"
+                                } 
+                                size={20} 
+                                color={!canCreateFlashcard ? COLORS.darkGray : "#ffffff"}
+                                style={styles.buttonIcon} 
+                              />
+                              <Text style={[
+                                styles.gridButtonText,
+                                !canCreateFlashcard ? { color: COLORS.darkGray } : null
+                              ]}>
+                                {isSaved ? t('flashcard.save.savedAsFlashcard') : 
+                                 !canCreateFlashcard ? `Limit reached (${remainingFlashcards} left)` :
+                                 t('flashcard.save.saveAsFlashcard')}
+                              </Text>
+                            </>
+                          )}
                         </TouchableOpacity>
                       </View>
 
-                      <TouchableOpacity 
-                        style={[
-                          styles.saveButton, 
-                          isSaved ? styles.savedButton : null,
-                          (isSaving || !canCreateFlashcard) ? styles.disabledButton : null,
-                          !canCreateFlashcard ? styles.darkDisabledButton : null,
-                        ]}
-                        onPress={handleShowDeckSelector}
-                        disabled={isSaving || isSaved}
-                      >
-                        {isSaving ? (
-                          <ActivityIndicator size="small" color="#ffffff" />
-                        ) : (
-                          <>
-                            <Ionicons 
-                              name={
-                                isSaved ? "checkmark-circle" : 
-                                !canCreateFlashcard ? "lock-closed" : 
-                                "bookmark-outline"
-                              } 
-                              size={20} 
-                              color={!canCreateFlashcard ? COLORS.darkGray : "#ffffff"}
-                              style={styles.buttonIcon} 
-                            />
-                            <Text style={[
-                              styles.buttonText,
-                              !canCreateFlashcard ? { color: COLORS.darkGray } : null
-                            ]}>
-                              {isSaved ? t('flashcard.save.savedAsFlashcard') : 
-                               !canCreateFlashcard ? `Limit reached (${remainingFlashcards} left)` :
-                               t('flashcard.save.saveAsFlashcard')}
-                            </Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
+                      {/* Bottom Row */}
+                      <View style={styles.gridRow}>
+                        <TouchableOpacity 
+                          style={[styles.gridButton, styles.editTranslationGridButton]} 
+                          onPress={() => setShowEditTranslationModal(true)}
+                        >
+                          <Ionicons name="pencil" size={18} color="#ffffff" style={styles.buttonIcon} />
+                          <Text style={styles.gridButtonText}>{t('flashcard.edit.editTranslation')}</Text>
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity 
+                          style={[styles.gridButton, styles.editInputGridButton]} 
+                          onPress={handleEditInputAndRetranslate}
+                        >
+                          <Ionicons name="refresh" size={18} color="#ffffff" style={styles.buttonIcon} />
+                          <Text style={styles.gridButtonText}>{t('flashcard.edit.editInputRetranslate')}</Text>
+                        </TouchableOpacity>
+                      </View>
 
                       {/* Deck Selector Modal */}
                       <DeckSelector
@@ -687,14 +699,6 @@ export default function LanguageFlashcardsScreen() {
                           handleSaveFlashcard(deckId);
                         }}
                       />
-                      
-                      <TouchableOpacity 
-                        style={styles.viewButton}
-                        onPress={handleViewSavedFlashcards}
-                        >
-                        <Ionicons name="albums-outline" size={20} color="#ffffff" style={styles.buttonIcon} />
-                        <Text style={styles.buttonText}>{t('flashcard.save.viewSaved')}</Text>
-                      </TouchableOpacity>
                     </View>
                   )}
                 </>
@@ -1187,5 +1191,44 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 14,
     marginLeft: 6,
+  },
+  // Grid layout styles
+  gridRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    gap: 10,
+  },
+  gridButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.darkGray,
+    borderRadius: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    flex: 1,
+    minHeight: 80,
+  },
+  gridButtonText: {
+    color: COLORS.text,
+    fontWeight: 'bold',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 4,
+    lineHeight: 16,
+  },
+  saveGridButton: {
+    backgroundColor: COLORS.darkGray,
+  },
+  editTranslationGridButton: {
+    backgroundColor: '#2CB67D',
+  },
+  editInputGridButton: {
+    backgroundColor: '#FF6B6B',
   },
 });
