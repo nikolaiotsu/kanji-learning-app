@@ -384,6 +384,12 @@ export default function SavedFlashcardsScreen() {
     router.replace('/');
   };
 
+  // Function to handle going back to the previous screen
+  const handleGoBack = () => {
+    // Always try to go back first
+    router.back();
+  };
+
   // Function to handle deck selection
   const handleDeckSelect = (deckId: string, index: number) => {
     // Update selected deck state
@@ -564,6 +570,12 @@ export default function SavedFlashcardsScreen() {
       <SafeAreaView style={styles.container}>
         {/* Custom Header */}
         <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={handleGoBack}
+          >
+            <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+          </TouchableOpacity>
           <View style={styles.titleContainer}>
             <Ionicons name="albums-outline" size={24} color={COLORS.text} style={styles.titleIcon} />
             <Text style={styles.title}>{t('savedFlashcards.title')}</Text>
@@ -945,6 +957,11 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   homeButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: COLORS.darkSurface,
+  },
+  backButton: {
     padding: 8,
     borderRadius: 20,
     backgroundColor: COLORS.darkSurface,

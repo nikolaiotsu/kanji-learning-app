@@ -87,11 +87,32 @@ export default function LanguageFlashcardsScreen() {
   
   // State for the image display
   const [showImagePreview, setShowImagePreview] = useState(false);
+  
+  // Flag to prevent main useEffect from running during manual operations
+  const [isManualOperation, setIsManualOperation] = useState(false);
+  
+  // Debug: Log state changes
+  useEffect(() => {
+    console.log('🔍 [DEBUG] showEditModal changed to:', showEditModal);
+  }, [showEditModal]);
+  
+  useEffect(() => {
+    console.log('🔍 [DEBUG] showEditTranslationModal changed to:', showEditTranslationModal);
+  }, [showEditTranslationModal]);
+  
+
 
   useEffect(() => {
     // Initialize the edited text with the cleaned text
     setEditedText(cleanedText);
-  }, [cleanedText]);
+  }, [cleanedText, imageUri]);
+
+  // Main useEffect to process the initial text when component loads
+  useEffect(() => {
+    if (cleanedText && !textProcessed && !isLoading && !isManualOperation) {
+      processTextWithClaude(cleanedText);
+    }
+  }, [cleanedText, textProcessed, isLoading, isManualOperation]);
 
   // Function to process text with Claude API
   const processTextWithClaude = async (text: string) => {
@@ -220,6 +241,7 @@ export default function LanguageFlashcardsScreen() {
       setError('Failed to process text with Claude API. Please try again later.');
     } finally {
       setIsLoading(false);
+      setIsManualOperation(false); // Reset manual operation flag when process completes
     }
   };
 
@@ -328,10 +350,7 @@ export default function LanguageFlashcardsScreen() {
           { 
             text: t('flashcard.save.viewSaved'), 
             onPress: () => {
-              if (router.canDismiss()) {
-                router.dismissAll();
-              }
-              router.replace('/saved-flashcards');
+              router.push('/saved-flashcards');
             }
           },
           { text: t('common.ok') }
@@ -347,11 +366,8 @@ export default function LanguageFlashcardsScreen() {
 
   // Function to view saved flashcards
   const handleViewSavedFlashcards = () => {
-    // Clear navigation stack completely, then navigate to saved flashcards
-    if (router.canDismiss()) {
-      router.dismissAll();
-    }
-    router.replace('/saved-flashcards');
+    // Push to saved flashcards to maintain navigation stack for back button
+    router.push('/saved-flashcards');
   };
 
   // Function to handle edit text button
@@ -419,6 +435,7 @@ export default function LanguageFlashcardsScreen() {
   // Function to save edited text
   const handleSaveEdit = () => {
     setShowEditModal(false);
+    setIsManualOperation(false); // Reset manual operation flag
     // Reset any previous results since the text has changed
     if (textProcessed) {
       setFuriganaText('');
@@ -434,33 +451,47 @@ export default function LanguageFlashcardsScreen() {
 
   // Function to handle editing input and retranslating
   const handleEditInputAndRetranslate = () => {
+    console.log('🔍 [DEBUG] Edit Input & Retranslate button pressed!');
+    
+    // Set manual operation flag to prevent main useEffect interference
+    setIsManualOperation(true);
+    
     // Store current translation state before clearing it
     setPreviousTranslatedText(translatedText);
     setPreviousFuriganaText(furiganaText);
     setPreviousTextProcessed(textProcessed);
     
-    // Reset the translation state and show the edit modal
+    // Reset the translation state
     setTextProcessed(false);
     setFuriganaText('');
     setTranslatedText('');
     setError('');
+    
+    // Show the modal
     setShowEditModal(true);
+    
+    // Process the text after a short delay to ensure states are set
+    setTimeout(() => {
+      processTextWithClaude(editedText);
+    }, 50);
   };
 
-  // Function to handle canceling edit modal
+  // Function to cancel editing
   const handleCancelEdit = () => {
     setShowEditModal(false);
-    // Restore previous translation results if they existed
+    setIsManualOperation(false); // Reset manual operation flag
+    
+    // Restore the previous state if available
     if (previousTextProcessed) {
-      setTranslatedText(previousTranslatedText);
       setFuriganaText(previousFuriganaText);
+      setTranslatedText(previousTranslatedText);
       setTextProcessed(previousTextProcessed);
-      
-      // Clear the temporary state
-      setPreviousTranslatedText('');
-      setPreviousFuriganaText('');
-      setPreviousTextProcessed(false);
     }
+    
+    // Clear the temporary state
+    setPreviousTranslatedText('');
+    setPreviousFuriganaText('');
+    setPreviousTextProcessed(false);
   };
 
   // Function to handle going back to home
@@ -479,6 +510,17 @@ export default function LanguageFlashcardsScreen() {
 
   // Get translated language name for display
   const translatedLanguageName = AVAILABLE_LANGUAGES[targetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'English';
+
+  // Function to handle editing translation
+  const handleEditTranslation = () => {
+    console.log('🔍 [DEBUG] Edit Translation button pressed!');
+    
+    // Set manual operation flag to prevent main useEffect interference
+    setIsManualOperation(true);
+    
+    // Show the translation edit modal
+    setShowEditTranslationModal(true);
+  };
 
   return (
     <PokedexLayout variant="flashcards">
@@ -686,7 +728,7 @@ export default function LanguageFlashcardsScreen() {
                       <View style={styles.gridRow}>
                         <TouchableOpacity 
                           style={[styles.gridButton, styles.editTranslationGridButton]} 
-                          onPress={() => setShowEditTranslationModal(true)}
+                          onPress={handleEditTranslation}
                         >
                           <Ionicons name="pencil" size={18} color="#ffffff" style={styles.buttonIcon} />
                           <Text style={styles.gridButtonText}>{t('flashcard.edit.editTranslation')}</Text>
@@ -730,10 +772,48 @@ export default function LanguageFlashcardsScreen() {
               behavior={Platform.OS === "ios" ? "padding" : "height"}
               style={styles.modalContainer}
               keyboardVerticalOffset={Platform.OS === "ios" ? -20 : 20}
+              key={`edit-modal-${showEditModal}`}
             >
               <View style={styles.modalContent}>
                 <Text style={styles.modalTitle}>{t('flashcard.edit.editText')}</Text>
-                <ScrollView style={styles.modalScrollContent}>
+                
+                {/* Image display within the modal */}
+                {imageUri && (
+                  <View style={styles.modalImageContainer}>
+                    <Text style={styles.modalImageLabel}>Original Image:</Text>
+                    <ScrollView 
+                      key={`edit-image-scroll-${showEditModal}`}
+                      style={styles.modalImageScrollView}
+                      contentContainerStyle={styles.modalImageScrollContent}
+                      maximumZoomScale={3}
+                      minimumZoomScale={0.5}
+                      showsVerticalScrollIndicator={false}
+                      showsHorizontalScrollIndicator={false}
+                      bounces={false}
+                      bouncesZoom={false}
+                      alwaysBounceVertical={false}
+                      alwaysBounceHorizontal={false}
+                      centerContent={true}
+                      scrollEnabled={true}
+                      pinchGestureEnabled={true}
+                      decelerationRate="normal"
+                      directionalLockEnabled={false}
+                    >
+                      <Image 
+                        source={{ uri: imageUri }} 
+                        style={styles.modalImage}
+                        resizeMode="contain"
+                      />
+                    </ScrollView>
+                  </View>
+                )}
+                
+                <ScrollView 
+                  key={`edit-text-scroll-${showEditModal}`}
+                  style={styles.modalScrollContent}
+                  contentOffset={{ x: 0, y: 0 }}
+                  scrollsToTop={false}
+                >
                   <TextInput
                     style={styles.textInput}
                     value={editedText}
@@ -768,17 +848,59 @@ export default function LanguageFlashcardsScreen() {
           visible={showEditTranslationModal}
           transparent={true}
           animationType="slide"
-          onRequestClose={() => setShowEditTranslationModal(false)}
+          onRequestClose={() => {
+            setShowEditTranslationModal(false);
+            setIsManualOperation(false); // Reset manual operation flag
+          }}
         >
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <KeyboardAvoidingView 
               behavior={Platform.OS === "ios" ? "padding" : "height"}
               style={styles.modalContainer}
               keyboardVerticalOffset={Platform.OS === "ios" ? -20 : 20}
+              key={`translation-modal-${showEditTranslationModal}`}
             >
               <View style={styles.modalContent}>
-                <Text style={styles.modalSubtitle}>{t('flashcard.edit.editTranslation')}</Text>
-                <ScrollView style={styles.modalScrollContent}>
+                <Text style={styles.modalTitle}>{t('flashcard.edit.editTranslation')}</Text>
+                
+                {/* Image display within the modal */}
+                {imageUri && (
+                  <View style={styles.modalImageContainer}>
+                    <Text style={styles.modalImageLabel}>Original Image:</Text>
+                    <ScrollView 
+                      key={`translation-image-scroll-${showEditTranslationModal}`}
+                      style={styles.modalImageScrollView}
+                      contentContainerStyle={styles.modalImageScrollContent}
+                      maximumZoomScale={3}
+                      minimumZoomScale={0.5}
+                      showsVerticalScrollIndicator={false}
+                      showsHorizontalScrollIndicator={false}
+                      bounces={false}
+                      bouncesZoom={false}
+                      alwaysBounceVertical={false}
+                      alwaysBounceHorizontal={false}
+                      centerContent={true}
+                      scrollEnabled={true}
+                      pinchGestureEnabled={true}
+                      decelerationRate="normal"
+                      directionalLockEnabled={false}
+                    >
+                      <Image 
+                        source={{ uri: imageUri }} 
+                        style={styles.modalImage}
+                        resizeMode="contain"
+                      />
+                    </ScrollView>
+                  </View>
+                )}
+                
+                <ScrollView 
+                  key={`translation-text-scroll-${showEditTranslationModal}`}
+                  style={styles.modalScrollContent}
+                  contentOffset={{ x: 0, y: 0 }}
+                  scrollsToTop={false}
+                >
+                  <Text style={styles.modalSubtitle}>{t('flashcard.edit.editTranslation')}</Text>
                   <TextInput
                     style={styles.textInput}
                     value={translatedText}
@@ -814,21 +936,28 @@ export default function LanguageFlashcardsScreen() {
                 <View style={styles.modalButtonsContainer}>
                   <TouchableOpacity 
                     style={styles.modalCancelButton} 
-                    onPress={() => setShowEditTranslationModal(false)}
+                    onPress={() => {
+                      setShowEditTranslationModal(false);
+                      setIsManualOperation(false); // Reset manual operation flag
+                    }}
                   >
                     <Text style={styles.modalButtonText}>{t('common.cancel')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={styles.modalSaveButton} 
-                    onPress={() => setShowEditTranslationModal(false)}
+                    onPress={() => {
+                      setShowEditTranslationModal(false);
+                      setIsManualOperation(false); // Reset manual operation flag
+                    }}
                   >
-                    <Text style={styles.modalButtonText}>{t('flashcard.edit.save')}</Text>
+                    <Text style={styles.modalButtonText}>{t('common.save')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
             </KeyboardAvoidingView>
           </TouchableWithoutFeedback>
         </Modal>
+
       </SafeAreaView>
     </PokedexLayout>
   );
@@ -1094,6 +1223,8 @@ const styles = StyleSheet.create({
     color: 'white',
     backgroundColor: COLORS.mediumSurface,
     marginBottom: 16,
+    textAlign: 'left',
+    width: '100%',
   },
   modalButtonsContainer: {
     flexDirection: 'row',
@@ -1241,5 +1372,38 @@ const styles = StyleSheet.create({
   },
   editInputGridButton: {
     backgroundColor: '#FF6B6B',
+  },
+  modalImageContainer: {
+    marginBottom: 16,
+    backgroundColor: COLORS.mediumSurface,
+    borderRadius: 8,
+    padding: 12,
+    height: 220, // Fixed height for consistent zoom behavior
+  },
+  modalImageLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: COLORS.text,
+  },
+  modalImageScrollView: {
+    height: 180,
+    width: '100%',
+    borderRadius: 8,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.darkGray,
+  },
+  modalImageScrollContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 180,
+    minWidth: '100%',
+  },
+  modalImage: {
+    width: '100%',
+    height: 180,
+    minWidth: 280,
+    borderRadius: 8,
   },
 });
