@@ -11,8 +11,15 @@ class MemoryManager {
   private imageUriHistory: string[] = [];
   private processedImageCount: number = 0;
   private maxHistorySize: number = 10;
+  private isPreviewBuild: boolean = false;
+  private lastCleanupTime: number = 0;
+  private cleanupCooldownMs: number = 2000; // 2 seconds between cleanups
 
-  private constructor() {}
+  private constructor() {
+    // Use consistent settings across all build types
+    this.isPreviewBuild = !__DEV__;
+    console.log(`[MemoryManager] Environment: ${this.isPreviewBuild ? 'Preview/Production' : 'Development'} (using consistent settings)`);
+  }
 
   public static getInstance(): MemoryManager {
     if (!MemoryManager.instance) {
@@ -21,21 +28,29 @@ class MemoryManager {
     return MemoryManager.instance;
   }
 
-
-
   /**
-   * Simple cleanup check - just ensures we clean up before new operations
+   * Enhanced cleanup check that considers build environment
    */
   public async shouldCleanup(): Promise<boolean> {
     try {
-      // Clean up if we have processed multiple images
-      if (this.processedImageCount > 3) {
+      const now = Date.now();
+      
+      // Respect cleanup cooldown to prevent excessive cleanup
+      if (now - this.lastCleanupTime < this.cleanupCooldownMs) {
+        console.log('[MemoryManager] Cleanup skipped - cooldown period active');
+        return false;
+      }
+
+             // Use consistent, conservative cleanup thresholds for all builds
+       const processedThreshold = 2;
+       const historyThreshold = 3;
+      
+      if (this.processedImageCount > processedThreshold) {
         console.log('[MemoryManager] Cleanup recommended after processing', this.processedImageCount, 'images');
         return true;
       }
       
-      // Clean up if we have many temporary files
-      if (this.imageUriHistory.length > 5) {
+      if (this.imageUriHistory.length > historyThreshold) {
         console.log('[MemoryManager] Cleanup recommended due to', this.imageUriHistory.length, 'temporary files');
         return true;
       }
@@ -43,27 +58,30 @@ class MemoryManager {
       return false;
     } catch (error) {
       console.error('[MemoryManager] Error checking cleanup need:', error);
-      return true; // Default to cleanup on error
+      return true;
     }
   }
 
   /**
-   * Gets standard image processing configuration (simplified)
+   * Gets consistent image processing configuration for all builds
    */
   public getStandardImageConfig(): ImageProcessingConfig {
     return {
-      maxDimension: 2000,
-      compress: 0.8,
+      maxDimension: 1800, // Conservative max dimension for all builds
+      compress: 0.75,     // Conservative compression for all builds
       format: 'JPEG'
     };
   }
 
   /**
-   * Cleans up previous image processing artifacts
+   * Cleans up previous image processing artifacts with enhanced timing
    */
   public async cleanupPreviousImages(excludeUri?: string): Promise<void> {
     try {
-      console.log(`[MemoryManager] Cleaning up ${this.imageUriHistory.length} previous image URIs`);
+      const now = Date.now();
+      this.lastCleanupTime = now;
+      
+      console.log(`[MemoryManager] Cleaning up ${this.imageUriHistory.length} previous image URIs${excludeUri ? ` (excluding current: ${excludeUri})` : ''}`);
       
       // Clean up temporary files, but exclude the current image being processed
       for (const uri of this.imageUriHistory) {
@@ -86,8 +104,9 @@ class MemoryManager {
         }
       }
       
-      // Clear cache directories periodically
-      if (this.processedImageCount > 20) {
+      // Clear cache directories with consistent threshold for all builds
+      const cacheThreshold = 10;
+      if (this.processedImageCount > cacheThreshold) {
         await this.clearCacheDirectories();
       }
       
@@ -154,7 +173,43 @@ class MemoryManager {
     }
   }
 
+     /**
+    * Enhanced garbage collection with consistent approach for all builds
+    */
+   private async performGarbageCollection(): Promise<void> {
+     try {
+       // Multiple attempts at garbage collection for all builds
+       const attempts = 2;
+       
+       for (let i = 0; i < attempts; i++) {
+         if (global.gc) {
+           global.gc();
+           console.log(`[MemoryManager] Forced garbage collection (attempt ${i + 1}/${attempts})`);
+           
+           // Small delay between attempts
+           if (i < attempts - 1) {
+             await new Promise(resolve => setTimeout(resolve, 100));
+           }
+         } else {
+           console.log('[MemoryManager] global.gc not available');
+           break;
+         }
+       }
+     } catch (error) {
+       console.error('[MemoryManager] Garbage collection failed:', error);
+     }
+   }
 
+  /**
+   * Gentle cleanup for use before new operations
+   */
+  public async gentleCleanup(excludeCurrentImage?: string): Promise<void> {
+    if (await this.shouldCleanup()) {
+      console.log('[MemoryManager] Performing gentle cleanup');
+      await this.cleanupPreviousImages(excludeCurrentImage);
+      await this.performGarbageCollection();
+    }
+  }
 
   /**
    * Forces garbage collection and cleanup
@@ -162,12 +217,7 @@ class MemoryManager {
   public async forceCleanup(): Promise<void> {
     await this.cleanupPreviousImages();
     await this.clearCacheDirectories();
-    
-    // Force garbage collection if available
-    if (global.gc) {
-      global.gc();
-      console.log('[MemoryManager] Forced garbage collection');
-    }
+    await this.performGarbageCollection();
   }
 
   /**
@@ -183,16 +233,12 @@ class MemoryManager {
     // Clear cache directories multiple times
     await this.clearCacheDirectories();
     
-    // Force garbage collection multiple times if available
-    if (global.gc) {
-      global.gc();
-      setTimeout(() => {
-        if (global.gc) {
-          global.gc();
-          console.log('[MemoryManager] Emergency garbage collection completed');
-        }
-      }, 100);
-    }
+    // Enhanced garbage collection for emergency situations
+    await this.performGarbageCollection();
+    
+    // Additional cleanup for all builds
+    await new Promise(resolve => setTimeout(resolve, 200));
+    await this.performGarbageCollection();
     
     console.log('[MemoryManager] Emergency cleanup completed');
   }
@@ -203,7 +249,26 @@ class MemoryManager {
   public reset(): void {
     this.imageUriHistory = [];
     this.processedImageCount = 0;
+    this.lastCleanupTime = 0;
     console.log('[MemoryManager] Reset completed');
+  }
+
+  /**
+   * Debug method to verify environment detection and settings
+   */
+  public getDebugInfo(): object {
+    return {
+      isPreviewBuild: this.isPreviewBuild,
+      processedImageCount: this.processedImageCount,
+      imageHistoryLength: this.imageUriHistory.length,
+      lastCleanupTime: this.lastCleanupTime,
+      cleanupCooldownMs: this.cleanupCooldownMs,
+      maxHistorySize: this.maxHistorySize,
+      standardConfig: this.getStandardImageConfig(),
+      environment: this.isPreviewBuild ? 'Preview/Production' : 'Development' + ' (consistent settings)',
+      globalGcAvailable: typeof global.gc !== 'undefined',
+      __DEV__: __DEV__
+    };
   }
 }
 

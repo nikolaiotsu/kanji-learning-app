@@ -35,6 +35,7 @@ import FuriganaText from './components/shared/FuriganaText';
 import { useFlashcardCounter } from './context/FlashcardCounterContext';
 import { useSubscription } from './context/SubscriptionContext';
 import { PRODUCT_IDS } from './constants/config';
+import MemoryManager from './services/memoryManager';
 
 export default function LanguageFlashcardsScreen() {
   const { t } = useTranslation();
@@ -301,6 +302,16 @@ export default function LanguageFlashcardsScreen() {
       
       // Increment flashcard counter after successful save
       await incrementFlashcardCount();
+      
+      // Perform cleanup after successful save to free memory for next operations
+      try {
+        const memoryManager = MemoryManager.getInstance();
+        // Image should be safely uploaded by now, so we can clean up
+        await memoryManager.gentleCleanup();
+        console.log('[FlashcardSave] Memory cleanup completed after successful save');
+      } catch (cleanupError) {
+        console.warn('[FlashcardSave] Memory cleanup failed:', cleanupError);
+      }
       
       setIsSaved(true);
       

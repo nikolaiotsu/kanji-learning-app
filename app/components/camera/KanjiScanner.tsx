@@ -249,10 +249,10 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
     const memoryManager = MemoryManager.getInstance();
     
     try {
-      // Aggressive cleanup before new image selection
-      console.log('[KanjiScanner pickImage] Starting image selection with cleanup');
-      // Force cleanup if any images were processed, regardless of count
-      await memoryManager.forceCleanup();
+      // Gentle cleanup before new image selection
+      console.log('[KanjiScanner pickImage] Starting image selection with gentle cleanup');
+      // Only cleanup if needed, avoiding aggressive cleanup that can cause memory pressure
+      await memoryManager.gentleCleanup();
       
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -393,6 +393,19 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
         });
         
         setIsImageProcessing(false);
+        
+        // Clean up memory after image processing is complete
+        // This ensures fresh memory for the next image selection regardless of whether
+        // the user saves a flashcard or not
+        try {
+          // IMPORTANT: Exclude the current processed image from cleanup to avoid deleting it
+          if (await memoryManager.shouldCleanup()) {
+            await memoryManager.cleanupPreviousImages(processedImage.uri);
+          }
+          console.log('[KanjiScanner] Memory cleanup completed after image processing (excluding current image)');
+        } catch (cleanupError) {
+          console.warn('[KanjiScanner] Memory cleanup failed after image processing:', cleanupError);
+        }
       }
     } catch (error) {
       console.error('[KanjiScanner] Error picking image:', error);
@@ -735,21 +748,43 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
     }
   };
 
-  const discardCropSelection = () => {
+  const discardCropSelection = async () => {
     if (cropModeActive && imageHighlighterRef.current) {
       console.log('[KanjiScanner] Discarding crop selection...');
       imageHighlighterRef.current.clearCropBox();
       setHasCropSelection(false); // Manually update as the mode is still active
+      
+      // Clean up memory when user discards crop selection
+      try {
+        const memoryManager = MemoryManager.getInstance();
+        if (await memoryManager.shouldCleanup()) {
+          await memoryManager.cleanupPreviousImages(capturedImage?.uri);
+        }
+        console.log('[KanjiScanner] Memory cleanup completed after discarding crop selection');
+      } catch (cleanupError) {
+        console.warn('[KanjiScanner] Memory cleanup failed after discarding crop selection:', cleanupError);
+      }
     } else {
       console.warn('[KanjiScanner] discardCropSelection called in invalid state');
     }
   };
 
-  const discardHighlightSelection = () => {
+  const discardHighlightSelection = async () => {
     if (highlightModeActive && imageHighlighterRef.current) {
       console.log('[KanjiScanner] Discarding highlight selection...');
       imageHighlighterRef.current.clearHighlightBox();
       setHasHighlightSelection(false); // Manually update as the mode is still active
+      
+      // Clean up memory when user discards highlight selection
+      try {
+        const memoryManager = MemoryManager.getInstance();
+        if (await memoryManager.shouldCleanup()) {
+          await memoryManager.cleanupPreviousImages(capturedImage?.uri);
+        }
+        console.log('[KanjiScanner] Memory cleanup completed after discarding highlight selection');
+      } catch (cleanupError) {
+        console.warn('[KanjiScanner] Memory cleanup failed after discarding highlight selection:', cleanupError);
+      }
     } else {
       console.warn('[KanjiScanner] discardHighlightSelection called in invalid state');
     }
@@ -780,16 +815,25 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
   }, [capturedImage]);
 
   // Restore the handleCancel function which was accidentally removed
-  const handleCancel = () => {
+  const handleCancel = async () => {
     setCapturedImage(null);
     setHighlightModeActive(false);
     setCropModeActive(false);
     setImageHistory([]);
     setForwardHistory([]);
+    
+    // Clean up memory when user cancels current session
+    try {
+      const memoryManager = MemoryManager.getInstance();
+      await memoryManager.gentleCleanup();
+      console.log('[KanjiScanner] Memory cleanup completed after cancel');
+    } catch (cleanupError) {
+      console.warn('[KanjiScanner] Memory cleanup failed after cancel:', cleanupError);
+    }
   };
 
   // Restore the handleBackToPreviousImage function which was accidentally removed
-  const handleBackToPreviousImage = () => {
+  const handleBackToPreviousImage = async () => {
     if (imageHistory.length > 0 && capturedImage) {
       // Clear any highlight box or selections
       imageHighlighterRef.current?.clearHighlightBox?.();
@@ -808,11 +852,22 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
       
       // Remove it from history
       setImageHistory(prev => prev.slice(0, -1));
+      
+      // Clean up memory when navigating to previous image
+      try {
+        const memoryManager = MemoryManager.getInstance();
+        if (await memoryManager.shouldCleanup()) {
+          await memoryManager.cleanupPreviousImages(previousImage.uri);
+        }
+        console.log('[KanjiScanner] Memory cleanup completed after navigating to previous image');
+      } catch (cleanupError) {
+        console.warn('[KanjiScanner] Memory cleanup failed after navigating to previous image:', cleanupError);
+      }
     }
   };
 
   // Restore the handleForwardToNextImage function which was accidentally removed
-  const handleForwardToNextImage = () => {
+  const handleForwardToNextImage = async () => {
     if (forwardHistory.length > 0 && capturedImage) {
       // Clear any highlight box or selections
       imageHighlighterRef.current?.clearHighlightBox?.();
@@ -831,6 +886,17 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
       
       // Remove it from forward history
       setForwardHistory(prev => prev.slice(0, -1));
+      
+      // Clean up memory when navigating to next image
+      try {
+        const memoryManager = MemoryManager.getInstance();
+        if (await memoryManager.shouldCleanup()) {
+          await memoryManager.cleanupPreviousImages(nextImage.uri);
+        }
+        console.log('[KanjiScanner] Memory cleanup completed after navigating to next image');
+      } catch (cleanupError) {
+        console.warn('[KanjiScanner] Memory cleanup failed after navigating to next image:', cleanupError);
+      }
     }
   };
 
@@ -944,6 +1010,17 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
       imageHighlighterRef.current?.toggleRotateMode(); // Explicitly exit rotate mode in ImageHighlighter
       setRotateModeActive(false); // Exit rotate mode in KanjiScanner state
       setLocalProcessing(false);
+      
+      // Clean up memory after rotation operation
+      try {
+        const memoryManager = MemoryManager.getInstance();
+        if (await memoryManager.shouldCleanup()) {
+          await memoryManager.cleanupPreviousImages(capturedImage?.uri);
+        }
+        console.log('[KanjiScanner] Memory cleanup completed after rotation');
+      } catch (cleanupError) {
+        console.warn('[KanjiScanner] Memory cleanup failed after rotation:', cleanupError);
+      }
     }
   };
 

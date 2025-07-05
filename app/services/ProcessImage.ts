@@ -125,6 +125,9 @@ export async function processImage(
       await memoryManager.cleanupPreviousImages(imageUri);
     }
     
+    // Small delay for all builds to prevent rapid image operations
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     // Get original image info
     const originalInfo = await getImageInfo(imageUri);
     const standardConfig = memoryManager.getStandardImageConfig();
@@ -200,8 +203,13 @@ export async function processImage(
     }
   } catch (error) {
     console.error('Error processing image:', error);
-    // Attempt recovery by forcing cleanup
-    await memoryManager.forceCleanup();
+    // Attempt recovery with emergency cleanup for memory pressure situations
+    try {
+      await memoryManager.emergencyCleanup();
+      console.log('[ProcessImage] Emergency cleanup completed, retrying operation');
+    } catch (cleanupError) {
+      console.error('[ProcessImage] Emergency cleanup failed:', cleanupError);
+    }
     throw error;
   }
 } 
