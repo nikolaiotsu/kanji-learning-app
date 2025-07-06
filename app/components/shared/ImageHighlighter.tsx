@@ -187,7 +187,9 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
     const aspectRatio = imageWidth / imageHeight;
     
     // Scale the image to fit within the wrapper while maintaining aspect ratio
-    if (aspectRatio > maxContainerWidth / maxContainerHeight) {
+    const containerAspectRatio = maxContainerWidth / maxContainerHeight;
+    
+    if (aspectRatio > containerAspectRatio) {
       // Image is wider relative to container - constrain by width
       scaledContainerWidth = maxContainerWidth;
       scaledContainerHeight = scaledContainerWidth / aspectRatio;
@@ -1285,7 +1287,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1, 
     width: '100%', 
-    overflow: 'visible',
+    overflow: 'hidden',
   },
   imageWrapper: {
     flex: 1, // Fill the container
@@ -1296,14 +1298,13 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
   imageContainer: {
-    overflow: 'visible',
+    overflow: 'hidden',
     backgroundColor: 'transparent',
   },
   image: {
     width: '100%', // Fill parent
     height: '100%', // Fill parent
     backgroundColor: 'transparent',
-    overflow: 'visible',
   },
   highlight: {
     position: 'absolute',

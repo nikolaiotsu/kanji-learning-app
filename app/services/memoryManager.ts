@@ -41,9 +41,9 @@ class MemoryManager {
         return false;
       }
 
-             // Use consistent, conservative cleanup thresholds for all builds
-       const processedThreshold = 2;
-       const historyThreshold = 3;
+                   // Use more conservative cleanup thresholds to prevent interference with image loading
+      const processedThreshold = 5;  // Increased from 2 to 5
+      const historyThreshold = 8;    // Increased from 3 to 8
       
       if (this.processedImageCount > processedThreshold) {
         console.log('[MemoryManager] Cleanup recommended after processing', this.processedImageCount, 'images');
@@ -104,8 +104,8 @@ class MemoryManager {
         }
       }
       
-      // Clear cache directories with consistent threshold for all builds
-      const cacheThreshold = 10;
+      // Clear cache directories with higher threshold to prevent interference with image loading
+      const cacheThreshold = 15;  // Increased from 10 to 15
       if (this.processedImageCount > cacheThreshold) {
         await this.clearCacheDirectories();
       }
@@ -209,6 +209,47 @@ class MemoryManager {
       await this.cleanupPreviousImages(excludeCurrentImage);
       await this.performGarbageCollection();
     }
+  }
+
+  /**
+   * Minimal cleanup that only cleans tracked images, not cache directories
+   * Safe to use before image operations
+   */
+  public async minimalCleanup(excludeCurrentImage?: string): Promise<void> {
+    console.log('[MemoryManager] Performing minimal cleanup (tracked images only)');
+    
+    const now = Date.now();
+    this.lastCleanupTime = now;
+    
+    // Only clean up tracked image files, not cache directories
+    for (const uri of this.imageUriHistory) {
+      try {
+        if (excludeCurrentImage && uri === excludeCurrentImage) {
+          console.log(`[MemoryManager] Skipping deletion of current image: ${uri}`);
+          continue;
+        }
+        
+        if (uri.startsWith('file://')) {
+          const fileInfo = await FileSystem.getInfoAsync(uri);
+          if (fileInfo.exists) {
+            await FileSystem.deleteAsync(uri, { idempotent: true });
+            console.log(`[MemoryManager] Deleted temporary file: ${uri}`);
+          }
+        }
+      } catch (error) {
+        console.warn(`[MemoryManager] Failed to delete ${uri}:`, error);
+      }
+    }
+    
+    // Reset tracking but keep the current image if it was excluded
+    if (excludeCurrentImage) {
+      this.imageUriHistory = this.imageUriHistory.filter(uri => uri === excludeCurrentImage);
+    } else {
+      this.imageUriHistory = [];
+    }
+    this.processedImageCount = 0;
+    
+    console.log('[MemoryManager] Minimal cleanup completed');
   }
 
   /**

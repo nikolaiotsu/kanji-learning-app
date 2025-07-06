@@ -45,8 +45,8 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
   const [detectedLanguage, setDetectedLanguage] = useState('');
   const [error, setError] = useState('');
 
-  // Get translated language name for display
-  const translatedLanguageName = AVAILABLE_LANGUAGES[targetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'English';
+  // Get translated language name for display (use the language stored with the flashcard)
+  const translatedLanguageName = AVAILABLE_LANGUAGES[flashcard?.targetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'English';
 
   // Initialize form when flashcard changes
   useEffect(() => {

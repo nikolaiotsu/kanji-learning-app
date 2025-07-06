@@ -47,8 +47,8 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   // Track if image is loaded to prevent unnecessary reloads
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   
-  // Get translated language name for display
-  const translatedLanguageName = AVAILABLE_LANGUAGES[targetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'English';
+  // Get translated language name for display (use the language stored with the flashcard)
+  const translatedLanguageName = AVAILABLE_LANGUAGES[flashcard.targetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'English';
 
   // Determine pronunciation guide type based on content (no language detection needed)
   useEffect(() => {

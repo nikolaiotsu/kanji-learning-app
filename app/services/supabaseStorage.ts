@@ -23,6 +23,7 @@ const transformFlashcard = (card: any): Flashcard => ({
   originalText: card.original_text,
   furiganaText: card.furigana_text,
   translatedText: card.translated_text,
+  targetLanguage: card.target_language || 'en', // Default to English for backward compatibility
   createdAt: new Date(card.created_at).getTime(),
   deckId: card.deck_id,
   imageUrl: card.image_url || undefined, // Include image URL if available
@@ -215,6 +216,7 @@ export const saveFlashcard = async (flashcard: Flashcard, deckId: string): Promi
       original_text: flashcard.originalText,
       furigana_text: flashcard.furiganaText,
       translated_text: flashcard.translatedText,
+      target_language: flashcard.targetLanguage,
       created_at: new Date().toISOString(),
       deck_id: deckId,
       image_url: flashcard.imageUrl || null, // Include image URL if available
@@ -486,6 +488,7 @@ export const updateFlashcard = async (flashcard: Flashcard): Promise<boolean> =>
         original_text: flashcard.originalText,
         furigana_text: flashcard.furiganaText,
         translated_text: flashcard.translatedText,
+        target_language: flashcard.targetLanguage,
         image_url: flashcard.imageUrl || null, // Include image URL in update
       })
       .eq('id', flashcard.id);

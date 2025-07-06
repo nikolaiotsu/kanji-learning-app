@@ -200,7 +200,7 @@
     "noCollections": "没有可用的收藏集",
     "renameCollection": "重命名收藏集",
     "deleteCollection": "删除收藏集",
-    "deleteCollectionConfirm": "您确定要删除此收藏集吗？此收藏集中的所有单词卡也将被删除。",
+    "deleteCollectionConfirm": "您确定要删除此收藏集吗？",
     "deleteFlashcard": "删除单词卡",
     "deleteFlashcardConfirm": "您确定要删除此单词卡吗？",
     "createNewCollection": "创建新收藏集",

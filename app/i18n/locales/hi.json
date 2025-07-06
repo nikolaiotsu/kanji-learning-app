@@ -200,7 +200,7 @@
     "noCollections": "कोई संग्रह उपलब्ध नहीं",
     "renameCollection": "संग्रह का नाम बदलें",
     "deleteCollection": "संग्रह हटाएं",
-    "deleteCollectionConfirm": "क्या आप वाकई इस संग्रह को हटाना चाहते हैं? इस संग्रह के सभी फ्लैशकार्ड भी हटा दिए जाएंगे।",
+    "deleteCollectionConfirm": "क्या आप वाकई इस संग्रह को हटाना चाहते हैं?",
     "deleteFlashcard": "फ्लैशकार्ड हटाएं",
     "deleteFlashcardConfirm": "क्या आप वाकई इस फ्लैशकार्ड को हटाना चाहते हैं?",
     "createNewCollection": "नया संग्रह बनाएं",

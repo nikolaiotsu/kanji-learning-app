@@ -25,6 +25,7 @@ import { saveFlashcard, uploadImageToStorage } from './services/supabaseStorage'
 import { Flashcard } from './types/Flashcard';
 import { Ionicons } from '@expo/vector-icons';
 import * as Crypto from 'expo-crypto';
+import * as FileSystem from 'expo-file-system';
 import DeckSelector from './components/flashcards/DeckSelector';
 import { useAuth } from './context/AuthContext';
 import { useSettings, AVAILABLE_LANGUAGES } from './context/SettingsContext';
@@ -36,6 +37,7 @@ import { useFlashcardCounter } from './context/FlashcardCounterContext';
 import { useSubscription } from './context/SubscriptionContext';
 import { PRODUCT_IDS } from './constants/config';
 import MemoryManager from './services/memoryManager';
+import * as Haptics from 'expo-haptics';
 
 export default function LanguageFlashcardsScreen() {
   const { t } = useTranslation();
@@ -108,11 +110,12 @@ export default function LanguageFlashcardsScreen() {
   }, [cleanedText, imageUri]);
 
   // Main useEffect to process the initial text when component loads
+  // Only auto-process if text didn't come from OCR (no imageUri)
   useEffect(() => {
-    if (cleanedText && !textProcessed && !isLoading && !isManualOperation) {
+    if (cleanedText && !textProcessed && !isLoading && !isManualOperation && !imageUri) {
       processTextWithClaude(cleanedText);
     }
-  }, [cleanedText, textProcessed, isLoading, isManualOperation]);
+  }, [cleanedText, textProcessed, isLoading, isManualOperation, imageUri]);
 
   // Function to process text with Claude API
   const processTextWithClaude = async (text: string) => {
@@ -314,6 +317,7 @@ export default function LanguageFlashcardsScreen() {
         originalText: editedText,
         furiganaText: needsRomanization ? furiganaText : "", // Store romanization in furiganaText field
         translatedText,
+        targetLanguage, // Store the current target language with the flashcard
         createdAt: Date.now(),
         deckId: deckId,
         imageUrl: storedImageUrl, // Include the image URL if available
@@ -325,14 +329,15 @@ export default function LanguageFlashcardsScreen() {
       // Increment flashcard counter after successful save
       await incrementFlashcardCount();
       
-      // Perform cleanup after successful save to free memory for next operations
+      // Clean up the local image file immediately after successful upload
       try {
-        const memoryManager = MemoryManager.getInstance();
-        // Image should be safely uploaded by now, so we can clean up
-        await memoryManager.gentleCleanup();
-        console.log('[FlashcardSave] Memory cleanup completed after successful save');
+        if (imageUri && storedImageUrl && imageUri.startsWith('file://')) {
+          await FileSystem.deleteAsync(imageUri, { idempotent: true });
+          console.log('[FlashcardSave] Cleaned up local image file after upload:', imageUri);
+        }
+        console.log('[FlashcardSave] Flashcard save and cleanup completed');
       } catch (cleanupError) {
-        console.warn('[FlashcardSave] Memory cleanup failed:', cleanupError);
+        console.warn('[FlashcardSave] Failed to cleanup local image file:', cleanupError);
       }
       
       setIsSaved(true);
@@ -366,17 +371,20 @@ export default function LanguageFlashcardsScreen() {
 
   // Function to view saved flashcards
   const handleViewSavedFlashcards = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     // Push to saved flashcards to maintain navigation stack for back button
     router.push('/saved-flashcards');
   };
 
   // Function to handle edit text button
   const handleEditText = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowEditModal(true);
   };
 
   // Function to handle translate button
   const handleTranslate = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (!editedText) {
       Alert.alert(t('common.error'), t('flashcard.edit.enterText'));
       return;
@@ -434,6 +442,7 @@ export default function LanguageFlashcardsScreen() {
 
   // Function to save edited text
   const handleSaveEdit = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowEditModal(false);
     setIsManualOperation(false); // Reset manual operation flag
     // Reset any previous results since the text has changed
@@ -478,6 +487,7 @@ export default function LanguageFlashcardsScreen() {
 
   // Function to cancel editing
   const handleCancelEdit = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowEditModal(false);
     setIsManualOperation(false); // Reset manual operation flag
     
@@ -496,6 +506,7 @@ export default function LanguageFlashcardsScreen() {
 
   // Function to handle going back to home
   const handleGoHome = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     // Clear navigation stack completely, then navigate to home
     if (router.canDismiss()) {
       router.dismissAll();
@@ -505,6 +516,7 @@ export default function LanguageFlashcardsScreen() {
 
   // Function to toggle image preview
   const toggleImagePreview = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowImagePreview(!showImagePreview);
   };
 
@@ -771,7 +783,7 @@ export default function LanguageFlashcardsScreen() {
             <KeyboardAvoidingView 
               behavior={Platform.OS === "ios" ? "padding" : "height"}
               style={styles.modalContainer}
-              keyboardVerticalOffset={Platform.OS === "ios" ? -20 : 20}
+              keyboardVerticalOffset={Platform.OS === "ios" ? -60 : 0}
               key={`edit-modal-${showEditModal}`}
             >
               <View style={styles.modalContent}>
@@ -813,6 +825,7 @@ export default function LanguageFlashcardsScreen() {
                   style={styles.modalScrollContent}
                   contentOffset={{ x: 0, y: 0 }}
                   scrollsToTop={false}
+                  showsVerticalScrollIndicator={true}
                 >
                   <TextInput
                     style={styles.textInput}
@@ -823,21 +836,21 @@ export default function LanguageFlashcardsScreen() {
                     placeholderTextColor="#aaa"
                     textAlignVertical="top"
                   />
+                  <View style={styles.modalButtonsContainer}>
+                    <TouchableOpacity 
+                      style={styles.modalCancelButton} 
+                      onPress={handleCancelEdit}
+                    >
+                      <Text style={styles.modalButtonText}>{t('common.cancel')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.modalSaveButton} 
+                      onPress={handleSaveEdit}
+                    >
+                      <Text style={styles.modalButtonText}>{t('flashcard.edit.save')}</Text>
+                    </TouchableOpacity>
+                  </View>
                 </ScrollView>
-                <View style={styles.modalButtonsContainer}>
-                  <TouchableOpacity 
-                    style={styles.modalCancelButton} 
-                    onPress={handleCancelEdit}
-                  >
-                    <Text style={styles.modalButtonText}>{t('common.cancel')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.modalSaveButton} 
-                    onPress={handleSaveEdit}
-                  >
-                    <Text style={styles.modalButtonText}>{t('flashcard.edit.save')}</Text>
-                  </TouchableOpacity>
-                </View>
               </View>
             </KeyboardAvoidingView>
           </TouchableWithoutFeedback>
@@ -857,7 +870,7 @@ export default function LanguageFlashcardsScreen() {
             <KeyboardAvoidingView 
               behavior={Platform.OS === "ios" ? "padding" : "height"}
               style={styles.modalContainer}
-              keyboardVerticalOffset={Platform.OS === "ios" ? -20 : 20}
+              keyboardVerticalOffset={Platform.OS === "ios" ? -60 : 0}
               key={`translation-modal-${showEditTranslationModal}`}
             >
               <View style={styles.modalContent}>
@@ -899,6 +912,7 @@ export default function LanguageFlashcardsScreen() {
                   style={styles.modalScrollContent}
                   contentOffset={{ x: 0, y: 0 }}
                   scrollsToTop={false}
+                  showsVerticalScrollIndicator={true}
                 >
                   <Text style={styles.modalSubtitle}>{t('flashcard.edit.editTranslation')}</Text>
                   <TextInput
@@ -932,27 +946,27 @@ export default function LanguageFlashcardsScreen() {
                       />
                     </>
                   )}
+                  <View style={styles.modalButtonsContainer}>
+                    <TouchableOpacity 
+                      style={styles.modalCancelButton} 
+                      onPress={() => {
+                        setShowEditTranslationModal(false);
+                        setIsManualOperation(false); // Reset manual operation flag
+                      }}
+                    >
+                      <Text style={styles.modalButtonText}>{t('common.cancel')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.modalSaveButton} 
+                      onPress={() => {
+                        setShowEditTranslationModal(false);
+                        setIsManualOperation(false); // Reset manual operation flag
+                      }}
+                    >
+                      <Text style={styles.modalButtonText}>{t('common.save')}</Text>
+                    </TouchableOpacity>
+                  </View>
                 </ScrollView>
-                <View style={styles.modalButtonsContainer}>
-                  <TouchableOpacity 
-                    style={styles.modalCancelButton} 
-                    onPress={() => {
-                      setShowEditTranslationModal(false);
-                      setIsManualOperation(false); // Reset manual operation flag
-                    }}
-                  >
-                    <Text style={styles.modalButtonText}>{t('common.cancel')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.modalSaveButton} 
-                    onPress={() => {
-                      setShowEditTranslationModal(false);
-                      setIsManualOperation(false); // Reset manual operation flag
-                    }}
-                  >
-                    <Text style={styles.modalButtonText}>{t('common.save')}</Text>
-                  </TouchableOpacity>
-                </View>
               </View>
             </KeyboardAvoidingView>
           </TouchableWithoutFeedback>
@@ -1187,14 +1201,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     width: '100%',
     maxWidth: 500,
-    maxHeight: '85%',
+    maxHeight: '90%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
   },
   modalScrollContent: {
-    maxHeight: '70%',
+    flexGrow: 1,
     marginBottom: 10,
   },
   modalTitle: {
@@ -1215,10 +1229,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.lightGray,
     borderRadius: 8,
-    padding: 12,
+    padding: 16,
     fontSize: 18,
-    minHeight: 120,
-    maxHeight: 200,
+    minHeight: 200,
+    maxHeight: 400,
     fontFamily: Platform.OS === 'ios' ? 'HiraginoSans-W3' : undefined,
     color: 'white',
     backgroundColor: COLORS.mediumSurface,
@@ -1230,6 +1244,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 20,
+    paddingBottom: 20,
   },
   modalCancelButton: {
     backgroundColor: COLORS.mediumSurface,

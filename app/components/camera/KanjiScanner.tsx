@@ -1371,7 +1371,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     position: 'relative',
-    overflow: 'visible',
+    overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
   },

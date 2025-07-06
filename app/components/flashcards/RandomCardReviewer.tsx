@@ -6,6 +6,7 @@ import FlashcardItem from './FlashcardItem';
 import { useRandomCardReview } from '../../hooks/useRandomCardReview';
 import { COLORS } from '../../constants/colors';
 import MultiDeckSelector from './MultiDeckSelector';
+import * as Haptics from 'expo-haptics';
 
 interface RandomCardReviewerProps {
   // Add onCardSwipe callback prop
@@ -283,7 +284,10 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.deckButton} 
-          onPress={() => setShowDeckSelector(true)}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setShowDeckSelector(true);
+          }}
         >
           <Ionicons name="albums-outline" size={20} color={COLORS.primary} />
           <Text style={styles.deckButtonText}>{t('review.collections')}</Text>

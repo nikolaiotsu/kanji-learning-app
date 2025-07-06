@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import PokedexButton from '../shared/PokedexButton';
 import MemoryManager from '../../services/memoryManager';
+import * as Haptics from 'expo-haptics';
 
 interface CameraButtonProps {
   onPhotoCapture: (imageInfo: {
@@ -40,17 +41,28 @@ export default function CameraButton({ onPhotoCapture, style, onProcessingStateC
       return;
     }
     
+    // Add haptic feedback when camera is launched
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
     const memoryManager = MemoryManager.getInstance();
     
     try {
-      // Aggressive cleanup before new photo capture
-      console.log('[CameraButton] Performing cleanup before photo capture');
-      await memoryManager.forceCleanup();
+      // Clear iOS ImagePicker/Camera cache before capture
+      console.log('[CameraButton] Clearing iOS cache before photo capture');
+      
+      // Force garbage collection
+      const globalAny = global as any;
+      if (globalAny.gc) {
+        globalAny.gc();
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
       
       const result = await ImagePicker.launchCameraAsync({
-        quality: 0.9, // Standard high quality for camera
+        quality: 0.8, // Reduced quality to save memory
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        exif: true,
+        allowsEditing: false, // Disable built-in editing to prevent memory conflicts
+        exif: false, // Disable EXIF to reduce memory usage
+        base64: false, // Disable base64 to save memory
       });
 
       if (!result.canceled) {

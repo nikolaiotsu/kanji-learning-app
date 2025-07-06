@@ -189,7 +189,7 @@
     "noCollections": "Neniuj kolektoj disponeblaj",
     "renameCollection": "Renomi Kolekton",
     "deleteCollection": "Forigi Kolekton",
-    "deleteCollectionConfirm": "Ĉu vi certe volas forigi ĉi tiun kolekton? Ĉiuj memorkaŕtoj en ĉi tiu kolekto ankaŭ estos forigitaj.",
+    "deleteCollectionConfirm": "Ĉu vi certe volas forigi ĉi tiun kolekton?",
     "deleteFlashcard": "Forigi Memorkaŕton",
     "deleteFlashcardConfirm": "Ĉu vi certe volas forigi ĉi tiun memorkaŕton?",
     "createNewCollection": "Krei Novan Kolekton",

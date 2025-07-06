@@ -16,10 +16,14 @@ CREATE TABLE flashcards (
   original_text TEXT NOT NULL,
   furigana_text TEXT,
   translated_text TEXT,
+  target_language TEXT NOT NULL DEFAULT 'en',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   deck_id UUID REFERENCES decks(id) ON DELETE CASCADE,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE
 );
+
+-- Migration for existing flashcards (run this if you have existing data)
+-- ALTER TABLE flashcards ADD COLUMN target_language TEXT NOT NULL DEFAULT 'en';
 
 -- Add indexes for faster querying
 CREATE INDEX flashcards_deck_id_idx ON flashcards(deck_id);

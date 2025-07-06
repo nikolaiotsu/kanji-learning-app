@@ -200,7 +200,7 @@
     "noCollections": "No collections available",
     "renameCollection": "Rename Collection",
     "deleteCollection": "Delete Collection",
-    "deleteCollectionConfirm": "Are you sure you want to delete this collection? All flashcards in this collection will also be deleted.",
+    "deleteCollectionConfirm": "Are you sure you want to delete this collection?",
     "deleteFlashcard": "Delete Flashcard",
     "deleteFlashcardConfirm": "Are you sure you want to delete this flashcard?",
     "createNewCollection": "Create New Collection",

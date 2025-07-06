@@ -39,7 +39,10 @@ export const useRandomCardReview = () => {
         const storedDeckIds = await AsyncStorage.getItem(SELECTED_DECK_IDS_STORAGE_KEY);
         if (storedDeckIds) {
           const deckIds = JSON.parse(storedDeckIds);
+          console.log('🔍 [DEBUG] Loaded deck IDs from AsyncStorage:', deckIds);
           setSelectedDeckIds(deckIds);
+        } else {
+          console.log('🔍 [DEBUG] No stored deck IDs found, selectedDeckIds remains empty');
         }
       } catch (error) {
         console.error('Error loading selected deck IDs from AsyncStorage:', error);
@@ -70,9 +73,12 @@ export const useRandomCardReview = () => {
       let cards;
       
       // If deck IDs are selected, filter by those decks
-      if (selectedDeckIdsRef.current.length > 0) {
-        cards = await getFlashcardsByDecks(selectedDeckIdsRef.current);
+      // Use the current selectedDeckIds state, not the ref, to ensure we have the latest values
+      if (selectedDeckIds.length > 0) {
+        console.log('🔍 [DEBUG] Fetching flashcards for specific decks:', selectedDeckIds);
+        cards = await getFlashcardsByDecks(selectedDeckIds);
       } else {
+        console.log('🔍 [DEBUG] Fetching all flashcards (no specific decks selected)');
         cards = await getFlashcards();
       }
       
@@ -139,11 +145,12 @@ export const useRandomCardReview = () => {
       setError('Failed to load flashcards. Please try again.');
       setIsLoading(false);
     }
-  }, [isInReviewMode, currentCard, reviewSessionCards]);
+  }, [isInReviewMode, currentCard, reviewSessionCards, selectedDeckIds]);
 
   // Initial load and when user changes
   useEffect(() => {
     if (user && deckIdsLoaded) {
+      console.log('🔍 [DEBUG] Initial load triggered - user:', !!user, 'deckIdsLoaded:', deckIdsLoaded, 'selectedDeckIds:', selectedDeckIds);
       fetchAllFlashcards();
     }
   }, [user, deckIdsLoaded, fetchAllFlashcards]);
@@ -189,7 +196,8 @@ export const useRandomCardReview = () => {
     selectedDeckIdsRef.current = selectedDeckIds;
     // Only force refresh if the selected decks changed and we're not in the middle of a review
     // This prevents unnecessary flashing of cards
-    if (!isInReviewMode && selectedDeckIds.length > 0) {
+    if (!isInReviewMode) {
+      console.log('🔍 [DEBUG] selectedDeckIds changed, refreshing flashcards:', selectedDeckIds);
       // Use a non-forced update to reduce chances of flashing cards
       fetchAllFlashcards(false);
     }

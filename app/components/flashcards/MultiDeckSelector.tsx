@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,14 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import * as Haptics from 'expo-haptics';
+import { Swipeable } from 'react-native-gesture-handler';
 import { Deck } from '../../types/Deck';
-import { getDecks } from '../../services/supabaseStorage';
+import { getDecks, deleteDeck } from '../../services/supabaseStorage';
 import { COLORS } from '../../constants/colors';
 
 interface MultiDeckSelectorProps {
@@ -34,6 +37,9 @@ export default function MultiDeckSelector({
   const [decks, setDecks] = useState<Deck[]>([]);
   const [selectedDeckIds, setSelectedDeckIds] = useState<string[]>(initialSelectedDeckIds);
   const [isLoading, setIsLoading] = useState(true);
+  const [longPressedDeckId, setLongPressedDeckId] = useState<string | null>(null);
+  const [deletingDeckId, setDeletingDeckId] = useState<string | null>(null);
+  const swipeableRefs = useRef<{ [key: string]: Swipeable | null }>({});
 
   // Load decks when the component mounts or becomes visible
   useEffect(() => {
@@ -43,6 +49,14 @@ export default function MultiDeckSelector({
     }
   }, [visible, initialSelectedDeckIds]);
 
+  // Ensure at least one deck is always selected
+  useEffect(() => {
+    if (decks.length > 0 && selectedDeckIds.length === 0) {
+      // Force select the first deck if no decks are selected
+      setSelectedDeckIds([decks[0].id]);
+    }
+  }, [decks, selectedDeckIds]);
+
   // Function to load decks from storage
   const loadDecks = async () => {
     setIsLoading(true);
@@ -50,9 +64,16 @@ export default function MultiDeckSelector({
       const savedDecks = await getDecks();
       setDecks(savedDecks);
       
-      // If no decks are selected initially and we have decks, select all by default
-      if (initialSelectedDeckIds.length === 0 && savedDecks.length > 0) {
-        setSelectedDeckIds(savedDecks.map(deck => deck.id));
+      // Filter out any invalid deck IDs from initial selection
+      const validSelectedIds = initialSelectedDeckIds.filter(id => 
+        savedDecks.some(deck => deck.id === id)
+      );
+      
+      // If no valid decks are selected and we have decks, select the first one
+      if (validSelectedIds.length === 0 && savedDecks.length > 0) {
+        setSelectedDeckIds([savedDecks[0].id]);
+      } else if (validSelectedIds.length > 0) {
+        setSelectedDeckIds(validSelectedIds);
       }
     } catch (error) {
       console.error('Error loading collections:', error);
@@ -78,9 +99,33 @@ export default function MultiDeckSelector({
     });
   };
 
+  // Function to close all swipeable actions
+  const closeAllSwipeables = () => {
+    Object.values(swipeableRefs.current).forEach(ref => {
+      if (ref) {
+        ref.close();
+      }
+    });
+  };
+
   // Function to handle saving the deck selection
   const handleSaveSelection = () => {
-    onSelectDecks(selectedDeckIds);
+    closeAllSwipeables();
+    
+    // Safety check: ensure at least one deck is selected
+    if (selectedDeckIds.length === 0 && decks.length > 0) {
+      setSelectedDeckIds([decks[0].id]);
+      onSelectDecks([decks[0].id]);
+    } else {
+      onSelectDecks(selectedDeckIds);
+    }
+    
+    onClose();
+  };
+
+  // Function to handle closing the modal
+  const handleCloseModal = () => {
+    closeAllSwipeables();
     onClose();
   };
 
@@ -89,38 +134,190 @@ export default function MultiDeckSelector({
     setSelectedDeckIds(decks.map(deck => deck.id));
   };
 
+  // Function to select only one deck (deselect all others)
+  const selectOnlyThisDeck = (deckId: string) => {
+    // Provide haptic feedback
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSelectedDeckIds([deckId]);
+    
+    // Clear the long press state after a short delay
+    setTimeout(() => {
+      setLongPressedDeckId(null);
+    }, 150);
+  };
+
+  // Handle long press start
+  const handleLongPressStart = (deckId: string) => {
+    setLongPressedDeckId(deckId);
+  };
+
+  // Handle long press end
+  const handleLongPressEnd = () => {
+    setLongPressedDeckId(null);
+  };
+
+  // Function to handle deck deletion
+  const handleDeleteDeck = async (deckId: string, deckName: string) => {
+    Alert.alert(
+      t('savedFlashcards.deleteCollection'),
+      t('savedFlashcards.deleteCollectionConfirm'),
+      [
+        {
+          text: t('settings.cancel'),
+          style: 'cancel',
+          onPress: () => {
+            // Close the swipeable after cancel
+            const swipeableRef = swipeableRefs.current[deckId];
+            if (swipeableRef) {
+              swipeableRef.close();
+            }
+          },
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const success = await deleteDeck(deckId, true);
+              
+              if (success) {
+                // Provide haptic feedback
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                
+                // Remove from local state immediately - this will cause the item to disappear
+                setDecks(prevDecks => prevDecks.filter(deck => deck.id !== deckId));
+                
+                // Remove from selected decks if it was selected
+                setSelectedDeckIds(prevSelected => {
+                  const newSelected = prevSelected.filter(id => id !== deckId);
+                  const remainingDecks = decks.filter(deck => deck.id !== deckId);
+                  
+                  // If no decks remain, return empty array
+                  if (remainingDecks.length === 0) {
+                    return [];
+                  }
+                  
+                  // ALWAYS ensure at least one deck is selected
+                  // If no decks would be selected after deletion, select the first remaining deck
+                  if (newSelected.length === 0) {
+                    return [remainingDecks[0].id];
+                  }
+                  
+                  // Otherwise, keep the current selection
+                  return newSelected;
+                });
+                
+                // Show success message (no alert needed, visual feedback is sufficient)
+                console.log('Collection deleted successfully:', deckName);
+              } else {
+                Alert.alert(
+                  'Error',
+                  t('savedFlashcards.deleteCollectionError')
+                );
+              }
+            } catch (error) {
+              console.error('Error deleting deck:', error);
+              Alert.alert(
+                'Error',
+                t('savedFlashcards.deleteCollectionError')
+              );
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  // Function to handle swipe completion (triggers delete confirmation)
+  const handleSwipeOpen = (deckId: string, deckName: string) => {
+    // Provide haptic feedback when swipe completes
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    // Trigger delete confirmation
+    handleDeleteDeck(deckId, deckName);
+  };
+
+  // Function to render the delete action
+  const renderDeleteAction = (deckId: string, deckName: string) => {
+    const isDeleting = deletingDeckId === deckId;
+    
+    return (
+      <View style={styles.deleteActionContainer}>
+        <View style={[styles.deleteAction, isDeleting && styles.deleteActionDisabled]}>
+          {isDeleting ? (
+            <ActivityIndicator size="small" color="white" />
+          ) : (
+            <Ionicons name="trash" size={24} color="white" />
+          )}
+        </View>
+      </View>
+    );
+  };
+
   // Render a deck item with checkbox
   const renderDeckItem = ({ item }: { item: Deck }) => {
     const isSelected = selectedDeckIds.includes(item.id);
+    const isLongPressed = longPressedDeckId === item.id;
+    const isDeleting = deletingDeckId === item.id;
     
     return (
-      <TouchableOpacity
-        style={styles.deckItem}
-        onPress={() => toggleDeckSelection(item.id)}
+      <Swipeable
+        key={item.id}
+        ref={(ref) => (swipeableRefs.current[item.id] = ref)}
+        renderRightActions={() => renderDeleteAction(item.id, item.name)}
+        rightThreshold={40}
+        friction={2}
+        overshootRight={false}
+        enabled={!isDeleting}
+        containerStyle={styles.swipeableContainer}
+        onSwipeableWillOpen={() => handleSwipeOpen(item.id, item.name)}
       >
-        <View style={styles.checkboxContainer}>
-          <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-            {isSelected && <Ionicons name="checkmark" size={16} color={COLORS.text} />}
+        <TouchableOpacity
+          style={[
+            styles.deckItem,
+            isLongPressed && styles.deckItemLongPressed,
+            isDeleting && styles.deckItemDeleting
+          ]}
+          onPress={() => !isDeleting && toggleDeckSelection(item.id)}
+          onLongPress={() => !isDeleting && selectOnlyThisDeck(item.id)}
+          onPressIn={() => !isDeleting && handleLongPressStart(item.id)}
+          onPressOut={() => handleLongPressEnd()}
+          delayLongPress={500}
+          disabled={isDeleting}
+        >
+          <View style={styles.checkboxContainer}>
+            <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+              {isSelected && <Ionicons name="checkmark" size={16} color={COLORS.text} />}
+            </View>
           </View>
-        </View>
-        
-        <View style={styles.deckInfo}>
-          <Text style={styles.deckName}>{item.name}</Text>
-          <Text style={styles.deckDate}>
-            {t('deck.created', { date: new Date(item.createdAt).toLocaleDateString() })}
-          </Text>
-        </View>
-      </TouchableOpacity>
+          
+          <View style={styles.deckInfo}>
+            <Text style={[styles.deckName, isDeleting && styles.deckNameDeleting]}>
+              {item.name}
+            </Text>
+            <Text style={[styles.deckDate, isDeleting && styles.deckDateDeleting]}>
+              {t('deck.created', { date: new Date(item.createdAt).toLocaleDateString() })}
+            </Text>
+          </View>
+          
+          {isDeleting && (
+            <View style={styles.deletingIndicator}>
+              <ActivityIndicator size="small" color={COLORS.lightGray} />
+            </View>
+          )}
+        </TouchableOpacity>
+      </Swipeable>
     );
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
-    >
+          <Modal
+        visible={visible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={handleCloseModal}
+      >
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -130,7 +327,7 @@ export default function MultiDeckSelector({
           <View style={styles.modalContent}>
             <View style={styles.header}>
               <Text style={styles.title}>{t('review.selectCollectionsToReview')}</Text>
-              <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+              <TouchableOpacity style={styles.closeButton} onPress={handleCloseModal}>
                 <Ionicons name="close" size={24} color={COLORS.primary} />
               </TouchableOpacity>
             </View>
@@ -229,7 +426,16 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     backgroundColor: COLORS.darkSurface,
-    marginBottom: 8,
+  },
+  deckItemLongPressed: {
+    backgroundColor: COLORS.primary,
+    transform: [{ scale: 0.98 }],
+    opacity: 0.8,
+  },
+  deckItemDeleting: {
+    backgroundColor: COLORS.darkSurface,
+    transform: [{ scale: 0.98 }],
+    opacity: 0.6,
   },
   checkboxContainer: {
     marginRight: 12,
@@ -259,9 +465,16 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: 4,
   },
+  deckNameDeleting: {
+    color: COLORS.lightGray,
+  },
   deckDate: {
     fontSize: 12,
     color: COLORS.lightGray,
+  },
+  deckDateDeleting: {
+    color: COLORS.lightGray,
+    opacity: 0.6,
   },
   emptyContainer: {
     padding: 20,
@@ -292,5 +505,33 @@ const styles = StyleSheet.create({
   selectAllText: {
     color: COLORS.primary,
     fontWeight: '600',
+  },
+  deleteActionContainer: {
+    flex: 1,
+    backgroundColor: '#FF4444',
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    borderRadius: 8,
+    minWidth: 80,
+    marginTop: 2,
+    marginBottom: 2,
+    marginRight: 2,
+    paddingRight: 20,
+  },
+  deleteAction: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100%',
+  },
+  deleteActionDisabled: {
+    opacity: 0.5,
+  },
+  deletingIndicator: {
+    padding: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  swipeableContainer: {
+    marginBottom: 8,
   },
 }); 

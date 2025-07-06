@@ -1,6 +1,7 @@
 import './i18n'; // Import i18n configuration FIRST
 import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from './context/AuthContext';
 import SettingsProvider from './context/SettingsContext';
 import { SubscriptionProvider } from './context/SubscriptionContext';
@@ -64,7 +65,7 @@ export default function RootLayout() {
   }
 
   return (
-    <View style={styles.container}>
+    <GestureHandlerRootView style={styles.container}>
       <SafeAreaProvider>
         <AuthProvider>
           <SettingsProvider>
@@ -118,7 +119,7 @@ export default function RootLayout() {
           </SettingsProvider>
         </AuthProvider>
       </SafeAreaProvider>
-    </View>
+    </GestureHandlerRootView>
   );
 }
 

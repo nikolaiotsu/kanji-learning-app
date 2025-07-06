@@ -3,6 +3,7 @@ export interface Flashcard {
   originalText: string;
   furiganaText: string;
   translatedText: string;
+  targetLanguage: string; // Language code (e.g., 'en', 'ru', 'fr') this flashcard was created with
   createdAt: number;
   deckId: string; // ID of the deck this flashcard belongs to
   imageUrl?: string; // URL to the image in Supabase storage (optional)

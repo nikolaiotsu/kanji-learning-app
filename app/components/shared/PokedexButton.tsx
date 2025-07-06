@@ -10,6 +10,7 @@ import {
 import { COLORS } from '../../constants/colors';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { createPokedexButtonStyles, createPokedexTextStyle } from '../../utils/styleUtils';
+import * as Haptics from 'expo-haptics';
 
 interface PokedexButtonProps {
   onPress: () => void;
@@ -38,6 +39,14 @@ export default function PokedexButton({
   darkDisabled = false,
   shape = 'default',
 }: PokedexButtonProps) {
+
+  // Handle press with haptic feedback
+  const handlePress = () => {
+    if (!disabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onPress();
+    }
+  };
 
   // Define size dimensions
   const isSquare = shape === 'square';
@@ -89,7 +98,7 @@ export default function PokedexButton({
   return (
     <View style={[styles.buttonContainer, style, { width: currentSize.width }]}>
       <Pressable
-        onPress={onPress}
+        onPress={handlePress}
         disabled={disabled}
         style={({pressed}) => [
           buttonStyles.button, // Base styles from util (includes border, default padding/height based on size)

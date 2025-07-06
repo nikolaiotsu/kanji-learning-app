@@ -200,7 +200,7 @@
     "noCollections": "利用可能なコレクションがありません",
     "renameCollection": "コレクション名を変更",
     "deleteCollection": "コレクションを削除",
-    "deleteCollectionConfirm": "このコレクションを削除してもよろしいですか？このコレクション内のすべてのフラッシュカードも削除されます。",
+    "deleteCollectionConfirm": "このコレクションを削除してもよろしいですか？",
     "deleteFlashcard": "フラッシュカードを削除",
     "deleteFlashcardConfirm": "このフラッシュカードを削除してもよろしいですか？",
     "createNewCollection": "新しいコレクションを作成",
