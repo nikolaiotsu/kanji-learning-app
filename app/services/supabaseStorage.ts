@@ -42,14 +42,24 @@ const transformFlashcards = (cards: any[]): Flashcard[] => cards.map(transformFl
  */
 export const getDecks = async (createDefaultIfEmpty: boolean = false): Promise<Deck[]> => {
   try {
-    const { data: decks, error } = await supabase
+    // Try ordering by order_index first (new schema). If the column does not exist yet, fall back to created_at.
+    let query = supabase
       .from('decks')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
+      .select('*');
+
+    // Attempt to order by order_index – if this fails (e.g., column missing) we will catch and retry.
+    let { data: decks, error } = await query.order('order_index', { ascending: true, nullsFirst: false });
+
     if (error) {
-      console.error('Error fetching decks:', error.message);
-      return [];
+      console.warn('order_index column missing or other error – falling back to created_at ordering:', error.message);
+      ({ data: decks, error } = await supabase
+        .from('decks')
+        .select('*')
+        .order('created_at', { ascending: false }));
+      if (error) {
+        console.error('Error fetching decks:', error.message);
+        return [];
+      }
     }
     
     // Create a default deck if requested and no decks exist
@@ -59,12 +69,16 @@ export const getDecks = async (createDefaultIfEmpty: boolean = false): Promise<D
       return [defaultDeck];
     }
     
-    // Transform from database format to app format
-    return decks.map((deck: any) => ({
+    // Ensure we have an array to map over
+    const deckList = decks || [];
+
+    // Transform from database format to app format, including orderIndex if present
+    return deckList.map((deck: any) => ({
       id: deck.id,
       name: deck.name,
       createdAt: new Date(deck.created_at).getTime(),
       updatedAt: new Date(deck.updated_at).getTime(),
+      orderIndex: deck.order_index ?? undefined,
     }));
   } catch (error) {
     console.error('Error getting decks:', error);
@@ -449,6 +463,41 @@ export const updateDeckName = async (deckId: string, newName: string): Promise<D
 };
 
 /**
+ * Update a deck's order_index
+ * @param deckId The ID of the deck to update
+ * @param newOrderIndex The new order_index for the deck
+ * @returns The updated deck if successful, null otherwise
+ */
+export const updateDeckOrder = async (deckId: string, newOrderIndex: number): Promise<Deck | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('decks')
+      .update({ 
+        order_index: newOrderIndex
+      })
+      .eq('id', deckId)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error updating deck order:', error.message);
+      return null;
+    }
+    
+    // Transform from database format to app format
+    return {
+      id: data.id,
+      name: data.name,
+      createdAt: new Date(data.created_at).getTime(),
+      updatedAt: new Date(data.updated_at).getTime(),
+    };
+  } catch (error) {
+    console.error('Error updating deck order:', error);
+    return null;
+  }
+};
+
+/**
  * Move a flashcard to a different deck
  * @param flashcardId The ID of the flashcard to move
  * @param targetDeckId The ID of the target deck
@@ -518,6 +567,7 @@ export default {
   deleteFlashcard,
   deleteDeck,
   updateDeckName,
+  updateDeckOrder,
   moveFlashcardToDeck,
   updateFlashcard
 }; 

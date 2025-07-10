@@ -51,6 +51,10 @@ export default memo(function PokedexLayout({
   
   const { mainLightAnim, smallLightsAnim } = animationValues;
 
+  // Ref to keep track of the currently running animation sequence so we can
+  // stop it prematurely when a new trigger is received
+  const animationSequenceRef = useRef<Animated.CompositeAnimation | null>(null);
+
   // --- DEBUG LOGS START ---
   console.log('[PokedexLayout] Props received:', { 
     showLights, 
@@ -80,9 +84,26 @@ export default memo(function PokedexLayout({
 
   // Animation effect for light-up sequence
   useEffect(() => {
-    // Create the animation sequence only when triggerLightAnimation becomes true
     if (triggerLightAnimation) {
-      // Create a new animation sequence each time rather than reusing
+      /*
+       * Stop any animation that might still be running from the previous
+       * trigger so that we can "restart" the light effect in sync with the
+       * latest card swipe.
+       */
+      if (animationSequenceRef.current) {
+        animationSequenceRef.current.stop();
+      }
+
+      // Ensure all animated values are reset to their initial state before
+      // we kick off a fresh sequence.
+      mainLightAnim.stopAnimation();
+      mainLightAnim.setValue(0);
+      smallLightsAnim.forEach(anim => {
+        anim.stopAnimation();
+        anim.setValue(0);
+      });
+
+      // Build a brand-new animation sequence for this trigger.
       const sequence = Animated.sequence([
         // Main light flash
         Animated.timing(mainLightAnim, {
@@ -90,9 +111,9 @@ export default memo(function PokedexLayout({
           duration: 300,
           useNativeDriver: false,
         }),
-        // Stagger the small lights
-        Animated.stagger(150, 
-          smallLightsAnim.map(anim => 
+        // Stagger the small lights so they illuminate one after another
+        Animated.stagger(150,
+          smallLightsAnim.map(anim =>
             Animated.timing(anim, {
               toValue: 1,
               duration: 200,
@@ -107,18 +128,23 @@ export default memo(function PokedexLayout({
             duration: 500,
             useNativeDriver: false,
           }),
-          ...smallLightsAnim.map(anim => 
+          ...smallLightsAnim.map(anim =>
             Animated.timing(anim, {
               toValue: 0,
               duration: 500,
               useNativeDriver: false,
             })
-          )
-        ])
+          ),
+        ]),
       ]);
-      
-      // Start the sequence
-      sequence.start();
+
+      // Keep a ref so we can cancel it next time if needed
+      animationSequenceRef.current = sequence;
+
+      // Start the sequence and clear the ref once it finishes cleanly
+      sequence.start(() => {
+        animationSequenceRef.current = null;
+      });
     }
   }, [triggerLightAnimation, mainLightAnim, smallLightsAnim]);
 

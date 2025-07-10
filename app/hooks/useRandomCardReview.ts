@@ -1,12 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getFlashcards, getFlashcardsByDecks } from '../services/supabaseStorage';
+import { getFlashcards } from '../services/supabaseStorage';
 import { Flashcard } from '../types/Flashcard';
 import { useAuth } from '../context/AuthContext';
 import { AppState } from 'react-native';
-
-// Storage key for selected deck IDs
-const SELECTED_DECK_IDS_STORAGE_KEY = 'selectedDeckIds';
 
 /**
  * Custom hook for managing random flashcard review
@@ -19,40 +15,16 @@ export const useRandomCardReview = () => {
   const [isInReviewMode, setIsInReviewMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedDeckIds, setSelectedDeckIds] = useState<string[]>([]);
-  const [deckIdsLoaded, setDeckIdsLoaded] = useState(false);
+  const [isSessionFinished, setIsSessionFinished] = useState(false);
   
   // Use refs to track the last data state to prevent unnecessary updates
   const lastFetchedCardsRef = useRef<string>("");
   
-  // Add refs to track current state values
+  // Add refs to track current state values (keeping minimal refs from old implementation)
   const currentCardRef = useRef<Flashcard | null>(null);
   const reviewSessionCardsRef = useRef<Flashcard[]>([]);
-  const selectedDeckIdsRef = useRef<string[]>([]);
   
   const { user } = useAuth();
-
-  // Load selected deck IDs from AsyncStorage on initialization
-  useEffect(() => {
-    const loadSelectedDeckIds = async () => {
-      try {
-        const storedDeckIds = await AsyncStorage.getItem(SELECTED_DECK_IDS_STORAGE_KEY);
-        if (storedDeckIds) {
-          const deckIds = JSON.parse(storedDeckIds);
-          console.log('🔍 [DEBUG] Loaded deck IDs from AsyncStorage:', deckIds);
-          setSelectedDeckIds(deckIds);
-        } else {
-          console.log('🔍 [DEBUG] No stored deck IDs found, selectedDeckIds remains empty');
-        }
-      } catch (error) {
-        console.error('Error loading selected deck IDs from AsyncStorage:', error);
-      } finally {
-        setDeckIdsLoaded(true);
-      }
-    };
-
-    loadSelectedDeckIds();
-  }, []);
 
   // Helper function to check if two arrays of flashcards are equal by serializing and comparing
   const areFlashcardsEqual = (cards1: Flashcard[], cards2: Flashcard[]): boolean => {
@@ -70,17 +42,7 @@ export const useRandomCardReview = () => {
     
     try {
       // Fetch without setting loading state first to avoid UI flashing
-      let cards;
-      
-      // If deck IDs are selected, filter by those decks
-      // Use the current selectedDeckIds state, not the ref, to ensure we have the latest values
-      if (selectedDeckIds.length > 0) {
-        console.log('🔍 [DEBUG] Fetching flashcards for specific decks:', selectedDeckIds);
-        cards = await getFlashcardsByDecks(selectedDeckIds);
-      } else {
-        console.log('🔍 [DEBUG] Fetching all flashcards (no specific decks selected)');
-        cards = await getFlashcards();
-      }
+      const cards = await getFlashcards();
       
       // Create a hash of the fetched cards to detect changes
       const cardsHash = JSON.stringify([...cards].sort((a, b) => a.id.localeCompare(b.id)));
@@ -98,43 +60,64 @@ export const useRandomCardReview = () => {
         
         // Update review session cards
         if (!isInReviewMode || forceUpdate) {
-          // Only initialize cards if not in review mode or we're forcing update
           setReviewSessionCards(cards);
-          
-          // Only select a random card if we're not already in review mode or the current card is null
-          if ((cards.length > 0) && (!currentCard || forceUpdate)) {
-            const randomIndex = Math.floor(Math.random() * cards.length);
-            setCurrentCard(cards[randomIndex]);
-          } else if (cards.length === 0) {
+
+          /*
+           * Avoid showing an intermediate random card on the initial load.
+           * We only want to pick a new random card here **if** we are already
+           * inside an active review session. When the component first mounts
+           * `isInReviewMode` is false; the caller (RandomCardReviewer) will
+           * subsequently invoke `startReviewWithCards`, which is the moment we
+           * really want to select the first card to review. Skipping the random
+           * selection here prevents the brief "flash" of a different card
+           * before the session officially starts.
+           */
+          if (isInReviewMode) {
+            if (cards.length > 0) {
+              const randomIndex = Math.floor(Math.random() * cards.length);
+              setCurrentCard(cards[randomIndex]);
+            } else {
+              setCurrentCard(null);
+            }
+          } else {
+            // Ensure we start with a clean state until the session begins
             setCurrentCard(null);
           }
         } else {
           // If we're in review mode, just remove cards that no longer exist
           // BUT DO NOT ADD CARDS BACK TO THE REVIEW SESSION
+          console.log('📥 [Hook] In review mode - checking for removed cards');
+          console.log('📥 [Hook] Current reviewSessionCards.length:', reviewSessionCards.length);
+          console.log('📥 [Hook] Database cards.length:', cards.length);
+          
           setReviewSessionCards(prevCards => {
             const updatedCards = prevCards.filter(card => 
-              cards.some((c: Flashcard) => c.id === card.id)
+              cards.some(c => c.id === card.id)
             );
+            
+            console.log('📥 [Hook] Updated reviewSessionCards.length:', updatedCards.length);
             
             // Only update if there's a change (cards were removed)
             // Important: Do NOT add cards back
             if (updatedCards.length !== prevCards.length) {
+              console.log('📥 [Hook] Cards were removed from review session');
               return updatedCards;
             }
             return prevCards;
           });
           
           // Update current card if needed
-          if (currentCard && !cards.some((c: Flashcard) => c.id === currentCard.id)) {
+          if (currentCard && !cards.some(c => c.id === currentCard.id)) {
             // Current card was deleted, select a new one
             const validReviewCards = reviewSessionCards.filter(card => 
-              cards.some((c: Flashcard) => c.id === card.id)
+              cards.some(c => c.id === card.id)
             );
-            if (validReviewCards.length > 0) {
-              selectRandomCard(validReviewCards);
-            } else {
-              setCurrentCard(null);
-            }
+            console.log('📥 [Hook] Current card was deleted, selecting new one from', validReviewCards.length, 'cards');
+            selectRandomCard(validReviewCards);
+          } else if (cards.length > 0 && !currentCard) {
+            // No current card but we have cards, select one
+            console.log('📥 [Hook] No current card but we have cards, selecting one');
+            selectRandomCard(cards);
           }
         }
         
@@ -145,15 +128,14 @@ export const useRandomCardReview = () => {
       setError('Failed to load flashcards. Please try again.');
       setIsLoading(false);
     }
-  }, [isInReviewMode, currentCard, reviewSessionCards, selectedDeckIds]);
+  }, [isInReviewMode, currentCard, reviewSessionCards]);
 
   // Initial load and when user changes
   useEffect(() => {
-    if (user && deckIdsLoaded) {
-      console.log('🔍 [DEBUG] Initial load triggered - user:', !!user, 'deckIdsLoaded:', deckIdsLoaded, 'selectedDeckIds:', selectedDeckIds);
+    if (user) {
       fetchAllFlashcards();
     }
-  }, [user, deckIdsLoaded, fetchAllFlashcards]);
+  }, [user, fetchAllFlashcards]);
 
   // Refresh data when app comes to foreground
   useEffect(() => {
@@ -170,63 +152,96 @@ export const useRandomCardReview = () => {
 
   // Set a polling interval to periodically refresh data
   useEffect(() => {
-    if (!user || !deckIdsLoaded) return;
+    if (!user) return;
     
-    // Only refresh every 60 seconds and only when not in review mode
-    // This prevents constant re-rendering and card flashing
+    // Refresh every 30 seconds instead of 5 seconds to reduce database calls
     const interval = setInterval(() => {
+      // Only automatically refresh if not in review mode
       if (!isInReviewMode) {
+        console.log('⏰ [Hook] Polling - fetching all flashcards (not in review mode)');
         fetchAllFlashcards();
+      } else {
+        console.log('⏰ [Hook] Polling - skipping fetch (in review mode)');
       }
-    }, 60000); // Increased to 60 seconds to reduce unnecessary updates
+    }, 30000);
     
     return () => clearInterval(interval);
-  }, [user, deckIdsLoaded, fetchAllFlashcards, isInReviewMode]);
+  }, [user, fetchAllFlashcards, isInReviewMode]);
 
   // Update refs when state changes
   useEffect(() => {
+    console.log('📋 [Hook] Updating currentCardRef:', currentCard?.id || 'null');
     currentCardRef.current = currentCard;
   }, [currentCard]);
 
   useEffect(() => {
+    console.log('📋 [Hook] Updating reviewSessionCardsRef, length:', reviewSessionCards.length);
     reviewSessionCardsRef.current = reviewSessionCards;
   }, [reviewSessionCards]);
 
-  useEffect(() => {
-    selectedDeckIdsRef.current = selectedDeckIds;
-    // Only force refresh if the selected decks changed and we're not in the middle of a review
-    // This prevents unnecessary flashing of cards
-    if (!isInReviewMode) {
-      console.log('🔍 [DEBUG] selectedDeckIds changed, refreshing flashcards:', selectedDeckIds);
-      // Use a non-forced update to reduce chances of flashing cards
-      fetchAllFlashcards(false);
-    }
-  }, [selectedDeckIds, isInReviewMode, fetchAllFlashcards]);
-
   // Select a random card from the given array or from the session cards
-  const selectRandomCard = (cards?: Flashcard[]) => {
+  const selectRandomCard = (cards?: Flashcard[], excludeCurrent: boolean = false) => {
     const cardArray = cards || reviewSessionCards;
     
+    console.log('🎯 [Hook] selectRandomCard called');
+    console.log('🎯 [Hook] cards parameter length:', cards?.length || 'undefined');
+    console.log('🎯 [Hook] reviewSessionCards.length:', reviewSessionCards.length);
+    console.log('🎯 [Hook] cardArray.length:', cardArray.length);
+    
     if (cardArray.length === 0) {
+      console.error('🎯 [Hook] ERROR: cardArray is empty in selectRandomCard!');
       setCurrentCard(null);
       return;
     }
+    // If requested, exclude the current card from selection when possible
+    let selectable = cardArray;
+    if (excludeCurrent && currentCardRef.current) {
+      selectable = cardArray.filter(card => card.id !== currentCardRef.current!.id);
+      if (selectable.length === 0) {
+        // Only the current card available; fallback to all cards
+        selectable = cardArray;
+      }
+    }
     // Select a random card for currentCard
-    const randomIndex = Math.floor(Math.random() * cardArray.length);
-    const newCurrentCard = cardArray[randomIndex];
+    const randomIndex = Math.floor(Math.random() * selectable.length);
+    const newCurrentCard = selectable[randomIndex];
+    console.log('🎯 [Hook] Selected card:', newCurrentCard.id);
     setCurrentCard(newCurrentCard);
   };
 
   // Handle swipe left (keep card in review session)
   const handleSwipeLeft = () => {
+    console.log('🔄 [Hook] handleSwipeLeft called');
+    console.log('🔄 [Hook] isInReviewMode:', isInReviewMode);
+    console.log('🔄 [Hook] reviewSessionCards.length:', reviewSessionCards.length);
+    console.log('🔄 [Hook] reviewSessionCardsRef.current.length:', reviewSessionCardsRef.current.length);
+    
+    // Always ensure we're in review mode
     if (!isInReviewMode) {
       setIsInReviewMode(true);
     }
-    selectRandomCard(reviewSessionCardsRef.current);
+    
+    // Use the ref to avoid relying on potentially stale state while React processes updates
+    const sessionCards = reviewSessionCardsRef.current;
+    if (sessionCards.length === 0) {
+      console.error('🔄 [Hook] ERROR: No cards left in review session!');
+      setIsInReviewMode(false);
+      setCurrentCard(null);
+      return;
+    }
+    
+    // Exclude the current card to ensure a visible change
+    selectRandomCard(sessionCards, true);
   };
 
   // Handle swipe right (dismiss card from review session)
   const handleSwipeRight = () => {
+    console.log('👉 [Hook] handleSwipeRight called');
+    console.log('👉 [Hook] isInReviewMode:', isInReviewMode);
+    console.log('👉 [Hook] reviewSessionCards.length:', reviewSessionCards.length);
+    console.log('👉 [Hook] reviewSessionCardsRef.current.length:', reviewSessionCardsRef.current.length);
+    
+    // Always ensure we're in review mode
     if (!isInReviewMode) {
       setIsInReviewMode(true);
     }
@@ -235,25 +250,33 @@ export const useRandomCardReview = () => {
     const reviewSessionCardsValue = reviewSessionCardsRef.current;
     
     if (!currentCardValue || reviewSessionCardsValue.length === 0) {
+      console.log('👉 [Hook] No current card or empty session, returning');
       return;
     }
     
     // Remove current card and select next
     const currentCardId = currentCardValue.id;
+    console.log('👉 [Hook] Removing card:', currentCardId);
     
     // Calculate remaining cards before removing the current one
     const remainingCards = reviewSessionCardsValue.filter(card => card.id !== currentCardId);
+    console.log('👉 [Hook] Remaining cards:', remainingCards.length);
     
     // Remove the card from session
     setReviewSessionCards(remainingCards);
     
-    // If there are no more cards, set current card to null
+    // If there are no more cards, set current card to null and exit review mode
     if (remainingCards.length === 0) {
+      console.log('👉 [Hook] No cards left, exiting review mode');
       setCurrentCard(null);
+      setIsInReviewMode(false);
+      setIsSessionFinished(true); // Mark session as finished
     } else {
       // Otherwise select a new random card
       const randomIndex = Math.floor(Math.random() * remainingCards.length);
-      setCurrentCard(remainingCards[randomIndex]);
+      const nextCard = remainingCards[randomIndex];
+      console.log('👉 [Hook] Selected next card:', nextCard.id);
+      setCurrentCard(nextCard);
     }
   };
 
@@ -266,6 +289,8 @@ export const useRandomCardReview = () => {
   const resetReviewSession = () => {
     // Force a reset of review mode
     setIsInReviewMode(false);
+    // Clear session finished flag
+    setIsSessionFinished(false);
     
     // Clear the current cache to force a refresh
     lastFetchedCardsRef.current = "";
@@ -280,32 +305,48 @@ export const useRandomCardReview = () => {
     fetchAllFlashcards(true);
   };
 
-  // Update selected deck IDs
-  const updateSelectedDeckIds = async (deckIds: string[]) => {
-    try {
-      setSelectedDeckIds(deckIds);
-      await AsyncStorage.setItem(SELECTED_DECK_IDS_STORAGE_KEY, JSON.stringify(deckIds));
-    } catch (error) {
-      console.error('Error saving selected deck IDs to AsyncStorage:', error);
+  // Start a review session with specific cards (for deck filtering)
+  const startReviewWithCards = useCallback((cards: Flashcard[]) => {
+    console.log('🚀 [Hook] startReviewWithCards called with', cards.length, 'cards');
+    console.log('🚀 [Hook] Current isInReviewMode:', isInReviewMode);
+    console.log('🚀 [Hook] Current reviewSessionCards.length:', reviewSessionCards.length);
+    
+    // Set the review session cards to the provided cards
+    setReviewSessionCards(cards);
+    // Reset session finished status when starting a new session
+    setIsSessionFinished(false);
+    
+    // Select a random card from the provided cards
+    if (cards.length > 0) {
+      const randomIndex = Math.floor(Math.random() * cards.length);
+      console.log('🚀 [Hook] Selected initial card:', cards[randomIndex].id);
+      setCurrentCard(cards[randomIndex]);
+      // Start review mode when we have cards
+      setIsInReviewMode(true);
+    } else {
+      console.log('🚀 [Hook] No cards provided, setting currentCard to null');
+      setCurrentCard(null);
+      // Exit review mode when we have no cards
+      setIsInReviewMode(false);
     }
-  };
+  }, []);
 
   return {
     allFlashcards,
     currentCard,
     reviewSessionCards,
     isInReviewMode,
+    isSessionFinished,
     isLoading,
     error,
-    selectedDeckIds,
     handleSwipeLeft,
     handleSwipeRight,
     resetReviewSession,
+    startReviewWithCards,
     selectRandomCard,
     fetchAllFlashcards,
     setCurrentCard,
-    removeCardFromSession,
-    updateSelectedDeckIds
+    removeCardFromSession
   };
 };
 
