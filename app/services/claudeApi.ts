@@ -87,35 +87,59 @@ function cleanJsonString(jsonString: string): string {
       throw new Error('Could not find required fields');
     }
     
-    // Extract furiganaText value
+    // Extract furiganaText value - improved extraction to handle large texts
     const furiganaColonIndex = cleaned.indexOf(':', furiganaStart);
     const furiganaQuoteStart = cleaned.indexOf('"', furiganaColonIndex) + 1;
-    let furiganaQuoteEnd = furiganaQuoteStart;
     
     // Find the end quote, handling escaped quotes
+    // Use a more robust approach to find the closing quote
+    let furiganaQuoteEnd = furiganaQuoteStart;
+    let inEscape = false;
+    
     while (furiganaQuoteEnd < cleaned.length) {
-      if (cleaned[furiganaQuoteEnd] === '"' && cleaned[furiganaQuoteEnd - 1] !== '\\') {
+      const char = cleaned[furiganaQuoteEnd];
+      
+      if (inEscape) {
+        inEscape = false;
+      } else if (char === '\\') {
+        inEscape = true;
+      } else if (char === '"') {
+        // Found unescaped quote
         break;
       }
+      
       furiganaQuoteEnd++;
     }
     
-    // Extract translatedText value
+    // Extract translatedText value with the same improved approach
     const translationColonIndex = cleaned.indexOf(':', translationStart);
     const translationQuoteStart = cleaned.indexOf('"', translationColonIndex) + 1;
-    let translationQuoteEnd = translationQuoteStart;
     
-    // Find the end quote, handling escaped quotes
+    let translationQuoteEnd = translationQuoteStart;
+    inEscape = false;
+    
     while (translationQuoteEnd < cleaned.length) {
-      if (cleaned[translationQuoteEnd] === '"' && cleaned[translationQuoteEnd - 1] !== '\\') {
+      const char = cleaned[translationQuoteEnd];
+      
+      if (inEscape) {
+        inEscape = false;
+      } else if (char === '\\') {
+        inEscape = true;
+      } else if (char === '"') {
+        // Found unescaped quote
         break;
       }
+      
       translationQuoteEnd++;
     }
     
     // Extract the raw values
     let furiganaValue = cleaned.substring(furiganaQuoteStart, furiganaQuoteEnd);
     let translationValue = cleaned.substring(translationQuoteStart, translationQuoteEnd);
+    
+    // Log the extracted values length for debugging
+    console.log(`Extracted furigana length: ${furiganaValue.length}`);
+    console.log(`Extracted translation length: ${translationValue.length}`);
     
     // Clean up the extracted values - remove ALL problematic characters
     furiganaValue = furiganaValue
@@ -124,7 +148,6 @@ function cleanJsonString(jsonString: string): string {
       .replace(/[–—]/g, '-')         // Unicode dashes → regular dashes
       .replace(/[\u00A0\u2000-\u200B\u2028\u2029]/g, ' ') // Unicode spaces → regular spaces
       .replace(/[\u2060\uFEFF\u200C\u200D]/g, '') // Remove zero-width characters
-      .replace(/[\n\r\t]/g, ' ')     // Replace line breaks and tabs with spaces
       .replace(/\s+/g, ' ')          // Normalize multiple spaces
       .trim();
     
@@ -134,7 +157,6 @@ function cleanJsonString(jsonString: string): string {
       .replace(/[–—]/g, '-')         // Unicode dashes → regular dashes
       .replace(/[\u00A0\u2000-\u200B\u2028\u2029]/g, ' ') // Unicode spaces → regular spaces
       .replace(/[\u2060\uFEFF\u200C\u200D]/g, '') // Remove zero-width characters
-      .replace(/[\n\r\t]/g, ' ')     // Replace line breaks and tabs with spaces
       .replace(/\s+/g, ' ')          // Normalize multiple spaces
       .trim();
     
@@ -623,7 +645,7 @@ CRITICAL REQUIREMENTS FOR JAPANESE TEXT - THESE ARE MANDATORY:
 3. The reading should cover the entire word (including any hiragana/katakana parts attached to the kanji)
 4. You MUST NOT skip any kanji - every single kanji character must have furigana
 5. Non-kanji words (pure hiragana/katakana), English words, and numbers should remain unchanged
-6. Translate into ${targetLangName} language, NOT English (unless English is specifically requested)
+6. Translate into ${targetLangName}
 
 CRITICAL WORD-LEVEL READING PRIORITY:
 - FIRST analyze the text for compound words, counter words, and context-dependent readings
@@ -651,17 +673,50 @@ INDIVIDUAL KANJI (ONLY when not part of compound):
 - "食べ物" → "食(た)べ物(もの)" [Individual readings when compound reading doesn't exist]
 - "読み書き" → "読(よ)み書(か)き" [Individual readings in coordinate compounds]
 
+COMPLEX EXAMPLES:
+- "今日は良い天気ですね" → "今日(きょう)は良(よ)い天気(てんき)ですね"
+- "新しい本を読みました" → "新(あたら)しい本(ほん)を読(よ)みました"
+- "駅まで歩いて行きます" → "駅(えき)まで歩(ある)いて行(い)きます"
+- "猫が三匹います" → "猫(ねこ)が三匹(さんびき)います"
+
+SPECIAL ATTENTION TO COUNTERS:
+- Numbers + counters (匹、人、本、個、枚、etc.) should be read as units with proper rendaku
+- 一匹 = いっぴき (NOT いちひき)
+- 三匹 = さんびき (NOT さんひき)  
+- 六匹 = ろっぴき (NOT ろくひき)
+- 八匹 = はっぴき (NOT はちひき)
+- 十匹 = じゅっぴき (NOT じゅうひき)
+
+COMMON COMPOUND WORDS TO READ AS UNITS:
+- 一人 = ひとり, 二人 = ふたり (NOT いちにん、にしん)
+- 一つ = ひとつ, 二つ = ふたつ (NOT いちつ、につ)
+- 今日 = きょう (NOT いまひ)
+- 明日 = あした/あす (NOT みょうにち)
+- 昨日 = きのう (NOT さくじつ)
+- 大人 = おとな (NOT だいじん)
+- 子供 = こども (NOT しきょう)
+- 時間 = じかん (compound)
+- 学校 = がっこう (compound)
+- 電話 = でんわ (compound)
+
 ERROR HANDLING:
 If you encounter a kanji whose reading you're uncertain about, use the most common reading and add [?] after the furigana like this: "難(むずか)[?]しい"
 
+CRITICAL RESPONSE FORMAT REQUIREMENTS:
+1. Format your response as valid JSON with these exact keys
+2. Do NOT truncate or abbreviate any part of the response
+3. Include the COMPLETE furiganaText and translatedText without omissions
+4. Ensure all special characters are properly escaped in the JSON
+5. Do NOT use ellipses (...) or any other abbreviation markers
+6. Do NOT split the response into multiple parts
+7. CRITICAL: Your response MUST include a COMPLETE translation - partial translations will cause errors
+8. CRITICAL: The translation must be a complete sentence that fully captures the meaning of the original text
+
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "Japanese text with furigana after EVERY kanji word as shown in examples - THIS IS MANDATORY",
-  "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
-}
-
-FINAL CHECK: Before responding, count the kanji in the original text and ensure your furiganaText has the same number of kanji with furigana readings.
-`;
+  "furiganaText": "Japanese text with furigana after EVERY kanji word as shown in examples - THIS IS MANDATORY AND MUST BE COMPLETE",
+  "translatedText": "Complete and accurate translation in ${targetLangName} without any truncation or abbreviation"
+}`;
       } else if (primaryLanguage === "Chinese" || forcedLanguage === 'zh') {
         console.log(`[DEBUG] Using Chinese prompt (pinyin) for primaryLanguage: ${primaryLanguage}, forcedLanguage: ${forcedLanguage}`);
         // Chinese-specific prompt with pinyin
@@ -979,7 +1034,7 @@ CRITICAL REQUIREMENTS FOR JAPANESE TEXT - THESE ARE MANDATORY:
 3. The reading should cover the entire word (including any hiragana/katakana parts attached to the kanji)
 4. You MUST NOT skip any kanji - every single kanji character must have furigana
 5. Non-kanji words (pure hiragana/katakana), English words, and numbers should remain unchanged
-6. Translate into ${targetLangName} language, NOT English (unless English is specifically requested)
+6. Translate into ${targetLangName}
 
 CRITICAL WORD-LEVEL READING PRIORITY:
 - FIRST analyze the text for compound words, counter words, and context-dependent readings
@@ -1036,14 +1091,21 @@ COMMON COMPOUND WORDS TO READ AS UNITS:
 ERROR HANDLING:
 If you encounter a kanji whose reading you're uncertain about, use the most common reading and add [?] after the furigana like this: "難(むずか)[?]しい"
 
+CRITICAL RESPONSE FORMAT REQUIREMENTS:
+1. Format your response as valid JSON with these exact keys
+2. Do NOT truncate or abbreviate any part of the response
+3. Include the COMPLETE furiganaText and translatedText without omissions
+4. Ensure all special characters are properly escaped in the JSON
+5. Do NOT use ellipses (...) or any other abbreviation markers
+6. Do NOT split the response into multiple parts
+7. CRITICAL: Your response MUST include a COMPLETE translation - partial translations will cause errors
+8. CRITICAL: The translation must be a complete sentence that fully captures the meaning of the original text
+
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "Japanese text with furigana after EVERY kanji word as shown in examples - THIS IS MANDATORY",
-  "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
-}
-
-FINAL CHECK: Before responding, count the kanji in the original text and ensure your furiganaText has the same number of kanji with furigana readings.
-`;
+  "furiganaText": "Japanese text with furigana after EVERY kanji word as shown in examples - THIS IS MANDATORY AND MUST BE COMPLETE",
+  "translatedText": "Complete and accurate translation in ${targetLangName} without any truncation or abbreviation"
+}`;
       } else {
         console.log(`[DEBUG] Using default prompt for primaryLanguage: ${primaryLanguage}`);
         // Default prompt for other languages
@@ -1075,7 +1137,7 @@ Format your response as valid JSON with these exact keys:
         'https://api.anthropic.com/v1/messages',
         {
           model: "claude-3-haiku-20240307",
-          max_tokens: 1000,
+          max_tokens: 4000,  // Increased from 1000 to ensure we get complete responses
           temperature: 0,
           messages: [
             {
@@ -1110,9 +1172,10 @@ Format your response as valid JSON with these exact keys:
             jsonString = cleanJsonString(jsonString);
             
             // Add more detailed logging for debugging
-            console.log("Raw response text:", textContent.text);
-            console.log("Extracted JSON string:", jsonString);
+            console.log("Raw response text length:", textContent.text.length);
+            console.log("Extracted JSON string length:", jsonString.length);
             console.log("First 100 chars of JSON:", jsonString.substring(0, 100));
+            console.log("Last 100 chars of JSON:", jsonString.substring(Math.max(0, jsonString.length - 100)));
             
             let parsedContent;
             
@@ -1123,8 +1186,9 @@ Format your response as valid JSON with these exact keys:
               
               // Emergency fallback: manually extract values using regex
               try {
-                const furiganaMatch = jsonString.match(/"furiganaText"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
-                const translationMatch = jsonString.match(/"translatedText"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
+                // Use a more comprehensive regex pattern that can handle multi-line values
+                const furiganaMatch = textContent.text.match(/"furiganaText"\s*:\s*"((?:\\.|[^"\\])*?)"/s);
+                const translationMatch = textContent.text.match(/"translatedText"\s*:\s*"((?:\\.|[^"\\])*?)"/s);
                 
                 if (furiganaMatch && translationMatch) {
                   // Clean up extracted values
@@ -1140,6 +1204,9 @@ Format your response as valid JSON with these exact keys:
                     .replace(/[""‚„]/g, '"')
                     .replace(/[''‛‹›]/g, "'");
                   
+                  console.log("Extracted furigana length:", furiganaValue.length);
+                  console.log("Extracted translation length:", translationValue.length);
+                  
                   parsedContent = {
                     furiganaText: furiganaValue,
                     translatedText: translationValue
@@ -1147,7 +1214,94 @@ Format your response as valid JSON with these exact keys:
                   
                   console.log('✅ Emergency fallback parsing successful');
                 } else {
-                  throw new Error('Could not extract values with regex fallback');
+                  // Try even more aggressive extraction
+                  console.log("Regex extraction failed, trying direct string search...");
+                  
+                  const furiganaTextKey = '"furiganaText":';
+                  const translatedTextKey = '"translatedText":';
+                  
+                  if (textContent.text.includes(furiganaTextKey) && textContent.text.includes(translatedTextKey)) {
+                    // Find the start positions
+                    const furiganaKeyPos = textContent.text.indexOf(furiganaTextKey);
+                    const translatedKeyPos = textContent.text.indexOf(translatedTextKey);
+                    
+                    // Determine which key comes first to extract values in correct order
+                    let firstKey, secondKey, firstKeyPos, secondKeyPos;
+                    
+                    if (furiganaKeyPos < translatedKeyPos) {
+                      firstKey = furiganaTextKey;
+                      secondKey = translatedTextKey;
+                      firstKeyPos = furiganaKeyPos;
+                      secondKeyPos = translatedKeyPos;
+                    } else {
+                      firstKey = translatedTextKey;
+                      secondKey = furiganaTextKey;
+                      firstKeyPos = translatedKeyPos;
+                      secondKeyPos = furiganaKeyPos;
+                    }
+                    
+                    // Extract the first value (from after its key until the second key or end)
+                    const firstValueStart = textContent.text.indexOf('"', firstKeyPos + firstKey.length) + 1;
+                    const firstValueEnd = textContent.text.lastIndexOf('"', secondKeyPos);
+                    const firstValue = textContent.text.substring(firstValueStart, firstValueEnd);
+                    
+                    // Extract the second value (from after its key until the end)
+                    const secondValueStart = textContent.text.indexOf('"', secondKeyPos + secondKey.length) + 1;
+                    
+                    // More robust approach to find the end of the second value
+                    // Look for the closing quote of the JSON value
+                    let secondValueEnd = secondValueStart;
+                    let inEscape = false;
+                    let braceCount = 0;
+                    
+                    // Scan through the text to find the proper end of the value
+                    while (secondValueEnd < textContent.text.length) {
+                      const char = textContent.text[secondValueEnd];
+                      
+                      if (inEscape) {
+                        inEscape = false;
+                      } else if (char === '\\') {
+                        inEscape = true;
+                      } else if (char === '{') {
+                        braceCount++;
+                      } else if (char === '}') {
+                        if (braceCount > 0) {
+                          braceCount--;
+                        } else {
+                          // We've reached the end of the JSON object
+                          // Look backward for the last quote before this closing brace
+                          const lastQuotePos = textContent.text.lastIndexOf('"', secondValueEnd);
+                          if (lastQuotePos > secondValueStart) {
+                            secondValueEnd = lastQuotePos;
+                          }
+                          break;
+                        }
+                      } else if (char === '"' && !inEscape && braceCount === 0) {
+                        // Found unescaped quote outside of any nested objects
+                        break;
+                      }
+                      
+                      secondValueEnd++;
+                    }
+                    
+                    const secondValue = textContent.text.substring(secondValueStart, secondValueEnd);
+                    
+                    // Assign values to correct fields
+                    const furiganaValue = firstKey === furiganaTextKey ? firstValue : secondValue;
+                    const translationValue = firstKey === translatedTextKey ? firstValue : secondValue;
+                    
+                    console.log("Direct extraction furigana length:", furiganaValue.length);
+                    console.log("Direct extraction translation length:", translationValue.length);
+                    
+                    parsedContent = {
+                      furiganaText: furiganaValue,
+                      translatedText: translationValue
+                    };
+                    
+                    console.log('✅ Direct string extraction successful');
+                  } else {
+                    throw new Error('Could not extract values with direct string search');
+                  }
                 }
               } catch (fallbackError) {
                 console.error('❌ Emergency fallback also failed:', fallbackError);
@@ -1160,8 +1314,250 @@ Format your response as valid JSON with these exact keys:
             const translatedPreview = translatedText.substring(0, 60) + (translatedText.length > 60 ? "..." : "");
             console.log(`Translation complete: "${translatedPreview}"`);
             
+            // Always verify translation completeness regardless of length
+            if (retryCount < MAX_RETRIES - 1) {
+              console.log("Verifying translation completeness...");
+              
+              // Increment retry counter
+              retryCount++;
+              
+              // Create a self-verification prompt
+              const verificationPrompt = `
+${promptTopSection}
+You are a translation quality expert. I need you to verify if the following translation is complete.
+
+Original text in source language: "${text}"
+
+Current translation: "${translatedText}"
+
+VERIFICATION TASK:
+1. Compare the original text and the translation
+2. Determine if the translation captures ALL content from the original text
+3. Check if any parts of the original text are missing from the translation
+4. Verify that the translation is a complete, coherent sentence/paragraph
+
+If the translation is incomplete, provide a new complete translation.
+
+Format your response as valid JSON with these exact keys:
+{
+  "isComplete": true/false (boolean indicating if the current translation is complete),
+  "analysis": "Brief explanation of what's missing or incomplete (if applicable)",
+  "furiganaText": "${parsedContent.furiganaText || ""}", 
+  "translatedText": "Complete and accurate translation in ${targetLangName} - either the original if it was complete, or a new complete translation if it wasn't"
+}`;
+
+              // Make verification request
+              const verificationResponse = await axios.post(
+                'https://api.anthropic.com/v1/messages',
+                {
+                  model: "claude-3-haiku-20240307",
+                  max_tokens: 4000,
+                  temperature: 0,
+                  messages: [
+                    {
+                      role: "user",
+                      content: verificationPrompt
+                    }
+                  ]
+                },
+                {
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'anthropic-version': '2023-06-01',
+                    'x-api-key': apiKey
+                  }
+                }
+              );
+              
+              // Process verification response
+              if (verificationResponse.data && verificationResponse.data.content && Array.isArray(verificationResponse.data.content)) {
+                const verificationTextContent = verificationResponse.data.content.find((item: ClaudeContentItem) => item.type === "text");
+                
+                if (verificationTextContent && verificationTextContent.text) {
+                  try {
+                    const verificationJsonMatch = verificationTextContent.text.match(/\{[\s\S]*\}/);
+                    let verificationJsonString = verificationJsonMatch ? verificationJsonMatch[0] : verificationTextContent.text;
+                    
+                    // Comprehensive JSON cleaning for common LLM output issues
+                    verificationJsonString = cleanJsonString(verificationJsonString);
+                    
+                    // Add detailed logging for verification attempt
+                    console.log("Verification raw response text length:", verificationTextContent.text.length);
+                    console.log("Verification extracted JSON string length:", verificationJsonString.length);
+                    
+                    const verificationParsedContent = JSON.parse(verificationJsonString);
+                    const isComplete = verificationParsedContent.isComplete === true;
+                    const analysis = verificationParsedContent.analysis || "";
+                    const verifiedTranslatedText = verificationParsedContent.translatedText || "";
+                    
+                    if (!isComplete && verifiedTranslatedText.length > translatedText.length) {
+                      console.log(`Translation was incomplete. Analysis: ${analysis}`);
+                      console.log("Using improved translation from verification");
+                      console.log(`New translation: "${verifiedTranslatedText.substring(0, 60)}${verifiedTranslatedText.length > 60 ? '...' : ''}"`);
+                      return {
+                        furiganaText: parsedContent.furiganaText || "",
+                        translatedText: verifiedTranslatedText
+                      };
+                    } else {
+                      console.log(`Translation verification result: ${isComplete ? 'Complete' : 'Incomplete'}`);
+                      if (!isComplete) {
+                        console.log(`Analysis: ${analysis}`);
+                        console.log("Verification did not provide a better translation - using original");
+                      }
+                    }
+                  } catch (verificationParseError) {
+                    console.error("Error parsing verification response:", verificationParseError);
+                    // Continue with original result
+                  }
+                }
+              }
+            }
+            
             // For Japanese text, validate furigana coverage
             let furiganaText = parsedContent.furiganaText || "";
+            
+            // Universal verification for readings (furigana, pinyin, etc.)
+            if (furiganaText && retryCount < MAX_RETRIES - 1) {
+              console.log("Verifying reading completeness...");
+              
+              // Increment retry counter
+              retryCount++;
+              
+              // Create language-specific verification instructions
+              let readingType = "readings";
+              let readingSpecificInstructions = "";
+              
+              if (primaryLanguage === "Japanese" || forcedLanguage === 'ja') {
+                readingType = "furigana";
+                readingSpecificInstructions = `
+For Japanese text:
+- EVERY kanji character or compound must have furigana readings
+- Readings should follow the pattern: 漢字(かんじ)
+- Check for any missing readings, especially in compound words
+- Verify readings are correct based on context`;
+              } else if (primaryLanguage === "Chinese" || forcedLanguage === 'zh') {
+                readingType = "pinyin";
+                readingSpecificInstructions = `
+For Chinese text:
+- EVERY hanzi character or compound must have pinyin readings with tone marks
+- Readings should follow the pattern: 汉字(hànzì)
+- Check for any missing readings or incorrect tones
+- Verify readings are correct based on context`;
+              } else if (primaryLanguage === "Korean" || forcedLanguage === 'ko') {
+                readingType = "romanization";
+                readingSpecificInstructions = `
+For Korean text:
+- EVERY hangul word should have romanization
+- Readings should follow the pattern: 한국어(han-gug-eo)
+- Check for any missing romanization
+- Verify romanization follows the Revised Romanization system`;
+              } else if (primaryLanguage === "Russian" || forcedLanguage === 'ru') {
+                readingType = "transliteration";
+                readingSpecificInstructions = `
+For Russian text:
+- EVERY Cyrillic word should have transliteration
+- Readings should follow the pattern: Русский(russkiy)
+- Check for any missing transliteration
+- Verify transliteration follows standard conventions`;
+              } else {
+                readingType = "pronunciation guide";
+                readingSpecificInstructions = `
+For this language:
+- EVERY non-Latin word should have a pronunciation guide
+- Check for any missing pronunciation guides
+- Verify the guides are consistent and follow standard conventions for this language`;
+              }
+              
+              // Create a reading verification prompt
+              const readingVerificationPrompt = `
+${promptTopSection}
+You are a language expert. I need you to verify if the following text with ${readingType} is complete.
+
+Original text: "${text}"
+
+Current text with ${readingType}: "${furiganaText}"
+
+${readingSpecificInstructions}
+
+VERIFICATION TASK:
+1. Compare the original text and the text with ${readingType}
+2. Determine if EVERY word that needs ${readingType} has them
+3. Check if any parts of the original text are missing ${readingType}
+4. Verify that the ${readingType} are correct and consistent
+
+If the ${readingType} are incomplete, provide a new complete version.
+
+Format your response as valid JSON with these exact keys:
+{
+  "isComplete": true/false (boolean indicating if the current ${readingType} are complete),
+  "analysis": "Brief explanation of what's missing or incomplete (if applicable)",
+  "furiganaText": "Complete text with ${readingType} for ALL appropriate words - either the original if it was complete, or a new complete version if it wasn't",
+  "translatedText": "${parsedContent.translatedText || ""}"
+}`;
+
+              // Make reading verification request
+              const readingVerificationResponse = await axios.post(
+                'https://api.anthropic.com/v1/messages',
+                {
+                  model: "claude-3-haiku-20240307",
+                  max_tokens: 4000,
+                  temperature: 0,
+                  messages: [
+                    {
+                      role: "user",
+                      content: readingVerificationPrompt
+                    }
+                  ]
+                },
+                {
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'anthropic-version': '2023-06-01',
+                    'x-api-key': apiKey
+                  }
+                }
+              );
+              
+              // Process reading verification response
+              if (readingVerificationResponse.data && readingVerificationResponse.data.content && Array.isArray(readingVerificationResponse.data.content)) {
+                const readingVerificationTextContent = readingVerificationResponse.data.content.find((item: ClaudeContentItem) => item.type === "text");
+                
+                if (readingVerificationTextContent && readingVerificationTextContent.text) {
+                  try {
+                    const readingVerificationJsonMatch = readingVerificationTextContent.text.match(/\{[\s\S]*\}/);
+                    let readingVerificationJsonString = readingVerificationJsonMatch ? readingVerificationJsonMatch[0] : readingVerificationTextContent.text;
+                    
+                    // Comprehensive JSON cleaning for common LLM output issues
+                    readingVerificationJsonString = cleanJsonString(readingVerificationJsonString);
+                    
+                    // Add detailed logging for reading verification attempt
+                    console.log("Reading verification raw response text length:", readingVerificationTextContent.text.length);
+                    console.log("Reading verification extracted JSON string length:", readingVerificationJsonString.length);
+                    
+                    const readingVerificationParsedContent = JSON.parse(readingVerificationJsonString);
+                    const isReadingComplete = readingVerificationParsedContent.isComplete === true;
+                    const readingAnalysis = readingVerificationParsedContent.analysis || "";
+                    const verifiedFuriganaText = readingVerificationParsedContent.furiganaText || "";
+                    
+                    if (!isReadingComplete && verifiedFuriganaText.length > furiganaText.length) {
+                      console.log(`${readingType} were incomplete. Analysis: ${readingAnalysis}`);
+                      console.log(`Using improved ${readingType} from verification`);
+                      furiganaText = verifiedFuriganaText;
+                    } else {
+                      console.log(`${readingType} verification result: ${isReadingComplete ? 'Complete' : 'Incomplete'}`);
+                      if (!isReadingComplete) {
+                        console.log(`Analysis: ${readingAnalysis}`);
+                        console.log(`Verification did not provide better ${readingType} - using original`);
+                      }
+                    }
+                  } catch (readingVerificationParseError) {
+                    console.error("Error parsing reading verification response:", readingVerificationParseError);
+                    // Continue with original result
+                  }
+                }
+              }
+            }
+            
             if ((primaryLanguage === "Japanese" || forcedLanguage === 'ja') && furiganaText) {
               const validation = validateJapaneseFurigana(text, furiganaText);
               console.log(`Furigana validation: ${validation.details}`);
@@ -1218,7 +1614,7 @@ Format as JSON:
                     'https://api.anthropic.com/v1/messages',
                     {
                       model: "claude-3-haiku-20240307",
-                      max_tokens: 1000,
+                      max_tokens: 4000,  // Increased from 1000 to ensure we get complete responses
                       temperature: 0,
                       messages: [
                         {
@@ -1252,6 +1648,7 @@ Format as JSON:
                         console.log("Retry raw response text:", retryTextContent.text);
                         console.log("Retry extracted JSON string:", retryJsonString);
                         console.log("Retry first 100 chars of JSON:", retryJsonString.substring(0, 100));
+                        console.log("Retry last 100 chars of JSON:", retryJsonString.substring(Math.max(0, retryJsonString.length - 100)));
                         
                         const retryParsedContent = JSON.parse(retryJsonString);
                         

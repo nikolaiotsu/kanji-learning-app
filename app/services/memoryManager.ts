@@ -14,6 +14,8 @@ class MemoryManager {
   private isPreviewBuild: boolean = false;
   private lastCleanupTime: number = 0;
   private cleanupCooldownMs: number = 2000; // 2 seconds between cleanups
+  // Add a persistent reference to the original image
+  private originalImageUri: string | null = null;
 
   private constructor() {
     // Use consistent settings across all build types
@@ -74,21 +76,68 @@ class MemoryManager {
   }
 
   /**
+   * Marks an image URI as the original image that should always be preserved
+   * This is used to ensure the original uncropped image is always available
+   */
+  public markAsOriginalImage(uri: string): void {
+    if (!uri || !uri.startsWith('file://')) return;
+    
+    // Store in the persistent original image reference
+    this.originalImageUri = uri;
+    
+    // Make sure it's in the history
+    if (!this.imageUriHistory.includes(uri)) {
+      this.trackProcessedImage(uri);
+    }
+    
+    console.log(`[MemoryManager] Marked as original image: ${uri}`);
+  }
+
+  /**
+   * Gets the original image URI if it exists
+   */
+  public getOriginalImageUri(): string | null {
+    return this.originalImageUri;
+  }
+
+  /**
+   * Checks if the original image still exists in the file system
+   */
+  public async originalImageExists(): Promise<boolean> {
+    if (!this.originalImageUri) return false;
+    
+    try {
+      const fileInfo = await FileSystem.getInfoAsync(this.originalImageUri);
+      return fileInfo.exists;
+    } catch (error) {
+      console.warn(`[MemoryManager] Error checking if original image exists:`, error);
+      return false;
+    }
+  }
+
+  /**
    * Cleans up previous image processing artifacts with enhanced timing
    */
-  public async cleanupPreviousImages(excludeUri?: string): Promise<void> {
+  public async cleanupPreviousImages(...excludeUris: string[]): Promise<void> {
     try {
       const now = Date.now();
       this.lastCleanupTime = now;
       
-      console.log(`[MemoryManager] Cleaning up ${this.imageUriHistory.length} previous image URIs${excludeUri ? ` (excluding current: ${excludeUri})` : ''}`);
+      // Always add the original image to the exclude list if it exists
+      let preserveUris = [...excludeUris];
+      if (this.originalImageUri && !preserveUris.includes(this.originalImageUri)) {
+        preserveUris.push(this.originalImageUri);
+        console.log(`[MemoryManager] Adding original image to preserved URIs: ${this.originalImageUri}`);
+      }
       
-      // Clean up temporary files, but exclude the current image being processed
+      console.log(`[MemoryManager] Cleaning up ${this.imageUriHistory.length} previous image URIs${preserveUris.length ? ` (excluding ${preserveUris.length} URIs)` : ''}`);
+      
+      // Clean up temporary files, but exclude the specified images
       for (const uri of this.imageUriHistory) {
         try {
-          // Skip deletion if this is the current image being processed
-          if (excludeUri && uri === excludeUri) {
-            console.log(`[MemoryManager] Skipping deletion of current image: ${uri}`);
+          // Skip deletion if this URI is in the excluded list
+          if (preserveUris.includes(uri)) {
+            console.log(`[MemoryManager] Skipping deletion of preserved image: ${uri}`);
             continue;
           }
           
@@ -110,13 +159,11 @@ class MemoryManager {
         await this.clearCacheDirectories();
       }
       
-      // Reset tracking but keep the current image if it was excluded
-      if (excludeUri) {
-        this.imageUriHistory = this.imageUriHistory.filter(uri => uri === excludeUri);
-        console.log(`[MemoryManager] Keeping current image in history: ${excludeUri}`);
-      } else {
-        this.imageUriHistory = [];
-      }
+      // Reset tracking but keep the excluded images and original image
+      const imagesToKeep = preserveUris;
+      this.imageUriHistory = this.imageUriHistory.filter(uri => imagesToKeep.includes(uri));
+      console.log(`[MemoryManager] Keeping ${this.imageUriHistory.length} images in history`);
+      
       this.processedImageCount = 0;
       
       console.log('[MemoryManager] Cleanup completed');
@@ -206,7 +253,11 @@ class MemoryManager {
   public async gentleCleanup(excludeCurrentImage?: string): Promise<void> {
     if (await this.shouldCleanup()) {
       console.log('[MemoryManager] Performing gentle cleanup');
-      await this.cleanupPreviousImages(excludeCurrentImage);
+      if (excludeCurrentImage && typeof excludeCurrentImage === 'string') {
+        await this.cleanupPreviousImages(excludeCurrentImage);
+      } else {
+        await this.cleanupPreviousImages();
+      }
       await this.performGarbageCollection();
     }
   }
@@ -221,11 +272,23 @@ class MemoryManager {
     const now = Date.now();
     this.lastCleanupTime = now;
     
+    // Create a list of images to preserve
+    let preserveUris: string[] = [];
+    if (excludeCurrentImage) {
+      preserveUris.push(excludeCurrentImage);
+    }
+    
+    // Always preserve the original image
+    if (this.originalImageUri && !preserveUris.includes(this.originalImageUri)) {
+      preserveUris.push(this.originalImageUri);
+      console.log(`[MemoryManager] Adding original image to preserved URIs during minimal cleanup: ${this.originalImageUri}`);
+    }
+    
     // Only clean up tracked image files, not cache directories
     for (const uri of this.imageUriHistory) {
       try {
-        if (excludeCurrentImage && uri === excludeCurrentImage) {
-          console.log(`[MemoryManager] Skipping deletion of current image: ${uri}`);
+        if (preserveUris.includes(uri)) {
+          console.log(`[MemoryManager] Skipping deletion of preserved image: ${uri}`);
           continue;
         }
         
@@ -241,12 +304,8 @@ class MemoryManager {
       }
     }
     
-    // Reset tracking but keep the current image if it was excluded
-    if (excludeCurrentImage) {
-      this.imageUriHistory = this.imageUriHistory.filter(uri => uri === excludeCurrentImage);
-    } else {
-      this.imageUriHistory = [];
-    }
+    // Reset tracking but keep the preserved images
+    this.imageUriHistory = this.imageUriHistory.filter(uri => preserveUris.includes(uri));
     this.processedImageCount = 0;
     
     console.log('[MemoryManager] Minimal cleanup completed');
@@ -255,8 +314,19 @@ class MemoryManager {
   /**
    * Forces garbage collection and cleanup
    */
-  public async forceCleanup(): Promise<void> {
-    await this.cleanupPreviousImages();
+  public async forceCleanup(...excludeUris: string[]): Promise<void> {
+    // Always add the original image to the exclude list if it exists
+    let preserveUris = [...excludeUris];
+    if (this.originalImageUri && !preserveUris.includes(this.originalImageUri)) {
+      preserveUris.push(this.originalImageUri);
+      console.log(`[MemoryManager] Adding original image to preserved URIs during force cleanup: ${this.originalImageUri}`);
+    }
+    
+    if (preserveUris.length > 0) {
+      await this.cleanupPreviousImages(...preserveUris);
+    } else {
+      await this.cleanupPreviousImages();
+    }
     await this.clearCacheDirectories();
     await this.performGarbageCollection();
   }
@@ -267,8 +337,26 @@ class MemoryManager {
   public async emergencyCleanup(): Promise<void> {
     console.log('[MemoryManager] Emergency cleanup initiated');
     
-    // Clear all tracked images
-    this.imageUriHistory = [];
+    // Preserve the original image if it exists
+    let originalImageToKeep = null;
+    if (this.originalImageUri) {
+      try {
+        const fileInfo = await FileSystem.getInfoAsync(this.originalImageUri);
+        if (fileInfo.exists) {
+          originalImageToKeep = this.originalImageUri;
+          console.log(`[MemoryManager] Preserving original image during emergency cleanup: ${this.originalImageUri}`);
+        }
+      } catch (error) {
+        console.warn(`[MemoryManager] Error checking original image during emergency cleanup:`, error);
+      }
+    }
+    
+    // Clear all tracked images except the original
+    if (originalImageToKeep) {
+      this.imageUriHistory = this.imageUriHistory.filter(uri => uri === originalImageToKeep);
+    } else {
+      this.imageUriHistory = [];
+    }
     this.processedImageCount = 0;
     
     // Clear cache directories multiple times
@@ -291,6 +379,7 @@ class MemoryManager {
     this.imageUriHistory = [];
     this.processedImageCount = 0;
     this.lastCleanupTime = 0;
+    this.originalImageUri = null; // Reset original image reference
     console.log('[MemoryManager] Reset completed');
   }
 
@@ -308,7 +397,8 @@ class MemoryManager {
       standardConfig: this.getStandardImageConfig(),
       environment: this.isPreviewBuild ? 'Preview/Production' : 'Development' + ' (consistent settings)',
       globalGcAvailable: typeof global.gc !== 'undefined',
-      __DEV__: __DEV__
+      __DEV__: __DEV__,
+      originalImageUri: this.originalImageUri || 'N/A'
     };
   }
 }

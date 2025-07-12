@@ -329,15 +329,22 @@ export default function LanguageFlashcardsScreen() {
       // Increment flashcard counter after successful save
       await incrementFlashcardCount();
       
-      // Clean up the local image file immediately after successful upload
+      // Do NOT delete the local image file after upload
+      // This ensures the image is still available for navigation in the KanjiScanner
+      // The MemoryManager will handle cleanup when appropriate
       try {
-        if (imageUri && storedImageUrl && imageUri.startsWith('file://')) {
-          await FileSystem.deleteAsync(imageUri, { idempotent: true });
-          console.log('[FlashcardSave] Cleaned up local image file after upload:', imageUri);
+        if (imageUri && storedImageUrl) {
+          // Get the original image URI from the params if available
+          // This helps preserve the original image for navigation history
+          const memoryManager = MemoryManager.getInstance();
+          
+          // Preserve both the current image and the original image if they're different
+          // This ensures we can navigate back to the original uncropped image
+          console.log('[FlashcardSave] Keeping local image file for navigation:', imageUri);
         }
-        console.log('[FlashcardSave] Flashcard save and cleanup completed');
-      } catch (cleanupError) {
-        console.warn('[FlashcardSave] Failed to cleanup local image file:', cleanupError);
+        console.log('[FlashcardSave] Flashcard save completed');
+      } catch (error) {
+        console.warn('[FlashcardSave] Error during flashcard save cleanup:', error);
       }
       
       setIsSaved(true);
