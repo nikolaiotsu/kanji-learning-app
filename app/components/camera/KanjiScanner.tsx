@@ -153,8 +153,15 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
         hasLostFocusRef.current = true;
         
         clearTimeout(resetTimer);
-        if (isImageProcessing) {
+        if (isImageProcessing || localProcessing) {
           console.log('[KanjiScanner] Preventing navigation during image processing');
+          // Prevent navigation by returning to this screen if processing is active
+          if (isImageProcessing || localProcessing) {
+            // This is a safety measure - the buttons should already be disabled
+            console.log('[KanjiScanner] Processing active, preventing navigation');
+            // We don't force navigation back here as it would create a loop,
+            // but the disabled buttons should prevent this situation
+          }
         }
       };
     }, [isImageProcessing, localProcessing, isNavigating])
@@ -1376,40 +1383,42 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
     >
       {!capturedImage ? (
         <>
-          {/* Settings Menu Button */}
-          <PokedexButton
-            onPress={toggleSettingsMenu}
-            icon="menu"
-            size="small"
-            shape="square"
-            style={styles.settingsButton}
-          />
-          
-          {/* Settings Menu Modal */}
-          {settingsMenuVisible && (
+          {/* Settings Button */}
+          {!capturedImage && (
             <>
               <TouchableOpacity 
-                style={styles.backdrop} 
-                activeOpacity={0} 
+                style={[styles.settingsButton, (localProcessing || isImageProcessing) ? styles.disabledButton : null]} 
                 onPress={toggleSettingsMenu}
-              />
-              <View style={styles.settingsMenu}>
-                <TouchableOpacity 
-                  style={styles.settingsMenuItem} 
-                  onPress={handleOpenSettings}
-                >
-                  <Ionicons name="settings-outline" size={20} color="white" />
-                  <Text style={styles.settingsMenuItemText}>Settings</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={styles.settingsMenuItem} 
-                  onPress={handleLogout}
-                >
-                  <MaterialIcons name="logout" size={20} color="white" />
-                  <Text style={styles.settingsMenuItemText}>Logout</Text>
-                </TouchableOpacity>
-              </View>
+                disabled={localProcessing || isImageProcessing} // Disable during processing
+              >
+                <Ionicons name="menu-outline" size={30} color="grey" />
+              </TouchableOpacity>
+              
+              {settingsMenuVisible && (
+                <>
+                  <TouchableOpacity 
+                    style={styles.backdrop}
+                    onPress={() => setSettingsMenuVisible(false)}
+                  />
+                  <View style={styles.settingsMenu}>
+                    <TouchableOpacity 
+                      style={styles.settingsMenuItem} 
+                      onPress={handleOpenSettings}
+                    >
+                      <Ionicons name="settings-outline" size={20} color="white" />
+                      <Text style={styles.settingsMenuItemText}>Settings</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity 
+                      style={styles.settingsMenuItem} 
+                      onPress={handleLogout}
+                    >
+                      <MaterialIcons name="logout" size={20} color="white" />
+                      <Text style={styles.settingsMenuItemText}>Logout</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
             </>
           )}
           
@@ -1426,8 +1435,8 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
               size="medium"
               shape="square"
               style={styles.rowButton}
-              disabled={false} // Never disable so onPress always works
-              darkDisabled={!canCreateFlashcard} // Show dark disabled appearance when limit reached
+              disabled={localProcessing || isImageProcessing} // Disable during processing
+              darkDisabled={!canCreateFlashcard || localProcessing || isImageProcessing} // Show dark disabled appearance when limit reached or processing
             />
             <PokedexButton
               onPress={() => router.push('/saved-flashcards')}
@@ -1435,17 +1444,18 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
               size="medium"
               shape="square"
               style={styles.rowButton}
+              disabled={localProcessing || isImageProcessing} // Disable during processing
             />
             <PokedexButton
               onPress={canCreateFlashcard ? pickImage : showUpgradeAlert}
-              icon={(!canCreateFlashcard || isImageProcessing) ? "lock-closed" : "images"}
+              icon={(!canCreateFlashcard || isImageProcessing || localProcessing) ? "lock-closed" : "images"}
               size="medium"
               shape="square"
               style={styles.rowButton}
-              disabled={isImageProcessing} // Only disable during processing
-              darkDisabled={!canCreateFlashcard} // Show dark disabled appearance when limit reached
+              disabled={localProcessing || isImageProcessing} // Disable during processing
+              darkDisabled={!canCreateFlashcard || localProcessing || isImageProcessing} // Show dark disabled appearance when limit reached or processing
             />
-            {isImageProcessing ? (
+            {isImageProcessing || localProcessing ? (
               <PokedexButton
                 onPress={() => {}} // No action when disabled
                 icon="lock-closed"
@@ -1459,9 +1469,9 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
                 onPhotoCapture={handlePhotoCapture} 
                 style={styles.rowButton}
                 onProcessingStateChange={setIsImageProcessing}
-                disabled={!canCreateFlashcard}
+                disabled={!canCreateFlashcard || localProcessing || isImageProcessing}
                 onDisabledPress={showUpgradeAlert}
-                darkDisabled={!canCreateFlashcard}
+                darkDisabled={!canCreateFlashcard || localProcessing || isImageProcessing}
               />
             )}
           </View>
@@ -1488,6 +1498,7 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
               size="small"
               shape="square"
               style={styles.toolbarFarButton}
+              disabled={localProcessing || isImageProcessing} // Disable during processing
             />
 
             {/* Flexible spacer to push center controls to the right */}
@@ -1505,14 +1516,14 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
                     icon="arrow-undo"
                     size="small"
                     shape="square"
-                    disabled={imageHistory.length === 0}
+                    disabled={imageHistory.length === 0 || localProcessing || isImageProcessing}
                   />
                   <PokedexButton
                     onPress={handleForwardToNextImage}
                     icon="arrow-redo"
                     size="small"
                     shape="square"
-                    disabled={forwardHistory.length === 0}
+                    disabled={forwardHistory.length === 0 || localProcessing || isImageProcessing}
                   />
                 </View>
               )}
@@ -1527,18 +1538,21 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
                       icon="create-outline"
                       size="small"
                       shape="square"
+                      disabled={localProcessing || isImageProcessing}
                     />
                     <PokedexButton
                       onPress={toggleCropMode}
                       icon="crop"
                       size="small"
                       shape="square"
+                      disabled={localProcessing || isImageProcessing}
                     />
                     <PokedexButton
                       onPress={toggleRotateMode}
                       icon="refresh"
                       size="small"
                       shape="square"
+                      disabled={localProcessing || isImageProcessing}
                     />
                   </>
                 )}
@@ -1551,6 +1565,7 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
                       icon="close"
                       size="small"
                       shape="square"
+                      disabled={localProcessing || isImageProcessing}
                     />
                     
                     {hasHighlightSelection && highlightModeActive && (
@@ -1560,12 +1575,14 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
                           icon="refresh-outline" 
                           size="small"
                           shape="square"
+                          disabled={localProcessing || isImageProcessing}
                         />
                         <PokedexButton
                           onPress={confirmHighlightSelection}
                           icon="checkmark"
                           size="small"
                           shape="square"
+                          disabled={localProcessing || isImageProcessing}
                         />
                       </>
                     )}
@@ -1577,12 +1594,14 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
                           icon="refresh-outline" 
                           size="small"
                           shape="square"
+                          disabled={localProcessing || isImageProcessing}
                         />
                         <PokedexButton
                           onPress={confirmCrop}
                           icon="checkmark"
                           size="small"
                           shape="square"
+                          disabled={localProcessing || isImageProcessing}
                         />
                       </>
                     )}
@@ -1596,6 +1615,7 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
                             icon="arrow-undo"
                             size="small"
                             shape="square"
+                            disabled={localProcessing || isImageProcessing}
                           />
                         )}
                         {currentRotationUIState.canRedo && (
@@ -1604,6 +1624,7 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
                             icon="arrow-redo"
                             size="small"
                             shape="square"
+                            disabled={localProcessing || isImageProcessing}
                           />
                         )}
                         {currentRotationUIState.hasRotated && (
@@ -1612,6 +1633,7 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
                             icon="checkmark"
                             size="small"
                             shape="square"
+                            disabled={localProcessing || isImageProcessing}
                           />
                         )}
                       </>
@@ -1672,14 +1694,16 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
               />
               <View style={styles.modalButtonsContainer}>
                 <TouchableOpacity 
-                  style={styles.modalCancelButton} 
+                  style={[styles.modalCancelButton, (localProcessing || isImageProcessing) ? styles.disabledButton : null]} 
                   onPress={handleCancelTextInput}
+                  disabled={localProcessing || isImageProcessing}
                 >
                   <Text style={styles.modalButtonText}>{t('textInput.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
-                  style={styles.modalSaveButton} 
+                  style={[styles.modalSaveButton, (localProcessing || isImageProcessing) ? styles.disabledButton : null]} 
                   onPress={handleSubmitTextInput}
+                  disabled={localProcessing || isImageProcessing}
                 >
                   <Text style={styles.modalButtonText}>{t('textInput.translate')}</Text>
                 </TouchableOpacity>
@@ -1973,5 +1997,8 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     zIndex: 1000,
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
 }); 

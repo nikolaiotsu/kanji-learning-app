@@ -653,8 +653,13 @@ CRITICAL WORD-LEVEL READING PRIORITY:
 - Counter words undergo sound changes (rendaku) and must be read as complete units
 - Only split into individual kanji readings when words cannot be read as compounds
 
-VALIDATION REQUIREMENT:
-Before providing your response, verify that EVERY kanji character in the original text has corresponding furigana in your output. If you cannot determine the reading for any kanji, use the most common reading and mark it with [?].
+SELF-VERIFICATION REQUIREMENT:
+After generating furigana readings, you MUST perform these verification steps:
+1. Review EVERY kanji compound word in your output
+2. For each compound, verify if the reading is the standard dictionary reading (not just combining individual kanji readings)
+3. Pay special attention to words where the compound reading differs from individual kanji readings
+4. If you find any errors, correct them before finalizing your response
+5. Double-check all compounds against the common examples provided below
 
 Examples of MANDATORY correct Japanese furigana formatting:
 
@@ -668,6 +673,9 @@ COMPOUND WORDS (READ AS SINGLE UNITS):
 - "百匹" → "百匹(ひゃっぴき)" [REQUIRED - counter with rendaku]
 - "大学生" → "大学生(だいがくせい)" [REQUIRED - compound word]
 - "図書館" → "図書館(としょかん)" [REQUIRED - compound word]
+- "車道" → "車道(しゃどう)" [REQUIRED - compound word with special reading]
+- "自動車" → "自動車(じどうしゃ)" [REQUIRED - compound word]
+- "電車" → "電車(でんしゃ)" [REQUIRED - compound word]
 
 INDIVIDUAL KANJI (ONLY when not part of compound):
 - "食べ物" → "食(た)べ物(もの)" [Individual readings when compound reading doesn't exist]
@@ -698,6 +706,21 @@ COMMON COMPOUND WORDS TO READ AS UNITS:
 - 時間 = じかん (compound)
 - 学校 = がっこう (compound)
 - 電話 = でんわ (compound)
+- 車道 = しゃどう (NOT くるまみち)
+- 歩道 = ほどう (NOT あるきみち)
+- 自転車 = じてんしゃ (compound)
+- 新聞 = しんぶん (NOT しんもん)
+- 会社 = かいしゃ (compound)
+- 銀行 = ぎんこう (compound)
+- 食堂 = しょくどう (compound)
+- 病院 = びょういん (compound)
+- 市場 = いちば (NOT しじょう, context dependent)
+- 今朝 = けさ (NOT いまあさ)
+- 今晩 = こんばん (compound)
+- 毎日 = まいにち (compound)
+- 毎週 = まいしゅう (compound)
+- 毎月 = まいつき (compound)
+- 毎年 = まいとし/まいねん (context dependent)
 
 ERROR HANDLING:
 If you encounter a kanji whose reading you're uncertain about, use the most common reading and add [?] after the furigana like this: "難(むずか)[?]しい"
@@ -1566,7 +1589,7 @@ Format your response as valid JSON with these exact keys:
                 console.warn(`Incomplete furigana coverage: ${validation.details}`);
                 
                 // If this is the first attempt and we have significant missing furigana, retry with more aggressive prompt
-                if (retryCount === 0 && validation.missingKanjiCount > 0) {
+                if (retryCount === 0 && (validation.missingKanjiCount > 0 || validation.details.includes("incorrect readings"))) {
                   console.log("Retrying with more aggressive furigana prompt...");
                   retryCount++;
                   
@@ -1575,7 +1598,7 @@ Format your response as valid JSON with these exact keys:
 ${promptTopSection}
 CRITICAL FURIGANA RETRY - PREVIOUS ATTEMPT FAILED
 
-You are a Japanese language expert. The previous attempt failed to add furigana to ALL kanji. You MUST fix this.
+You are a Japanese language expert. The previous attempt failed to add furigana to ALL kanji or used incorrect readings for compound words. You MUST fix this.
 
 Original text: "${text}"
 Previous result had ${validation.missingKanjiCount} missing furigana out of ${validation.totalKanjiCount} total kanji.
@@ -1593,15 +1616,32 @@ CRITICAL: PRIORITIZE COMPOUND WORD CONTEXTUAL READINGS:
 - 一匹 = いっぴき (NOT いちひき), 三匹 = さんびき (NOT さんひき)
 - Only split into individual kanji when no compound reading exists
 
+COMPOUND WORD VERIFICATION - MANDATORY:
+You MUST check these common compounds for their correct readings:
+- 車道 = しゃどう (NOT くるまみち)
+- 歩道 = ほどう (NOT あるきみち)
+- 自転車 = じてんしゃ (NOT じでんしゃ)
+- 新聞 = しんぶん (NOT しんもん)
+- 今朝 = けさ (NOT いまあさ)
+- 市場 = いちば (context dependent)
+- 一人 = ひとり (NOT いちにん)
+- 二人 = ふたり (NOT ににん)
+- 今日 = きょう (NOT いまひ/こんにち)
+- 明日 = あした/あす (NOT みょうにち)
+- 昨日 = きのう (NOT さくじつ)
+- 大人 = おとな (NOT だいじん)
+- 子供 = こども (NOT しきょう)
+
 MANDATORY FORMAT for each kanji word:
 - Counter words: 一匹(いっぴき), 三匹(さんびき), 一人(ひとり)
 - Compound words: 東京(とうきょう), 日本語(にほんご), 大学生(だいがくせい)
 - Mixed words: 勉強する(べんきょうする)
 - Individual kanji (only when not compound): 食(た)べ物(もの)
 
-VERIFICATION STEP: Before responding, manually count:
-- Original kanji count: ${validation.totalKanjiCount}
-- Your furigana count: [must equal ${validation.totalKanjiCount}]
+VERIFICATION STEP: Before responding, manually check:
+1. Original kanji count: ${validation.totalKanjiCount}
+2. Your furigana count: [must equal ${validation.totalKanjiCount}]
+3. All compound words have correct dictionary readings, not just individual kanji readings
 
 Format as JSON:
 {
@@ -1657,7 +1697,9 @@ Format as JSON:
                         
                         console.log(`Retry furigana validation: ${retryValidation.details}`);
                         
-                        if (retryValidation.isValid || retryValidation.missingKanjiCount < validation.missingKanjiCount) {
+                        if (retryValidation.isValid || 
+                            retryValidation.missingKanjiCount < validation.missingKanjiCount || 
+                            (!retryValidation.details.includes("incorrect readings") && validation.details.includes("incorrect readings"))) {
                           // Use retry result if it's better
                           furiganaText = retryFuriganaText;
                           console.log("Retry successful - using improved furigana result");
@@ -1836,12 +1878,53 @@ function validateJapaneseFurigana(originalText: string, furiganaText: string): {
     kanjiWithFurigana.push(...kanjiInMatch);
   });
   
-  const missingKanjiCount = Math.max(0, totalKanjiCount - kanjiWithFurigana.length);
-  const isValid = missingKanjiCount === 0;
+  // Check for common compound words with special readings
+  const commonCompounds: Record<string, string> = {
+    '車道': 'しゃどう',
+    '歩道': 'ほどう',
+    '自転車': 'じてんしゃ',
+    '新聞': 'しんぶん',
+    '今朝': 'けさ',
+    '市場': 'いちば',
+    '一人': 'ひとり',
+    '二人': 'ふたり',
+    '今日': 'きょう',
+    '明日': 'あした',
+    '昨日': 'きのう',
+    '大人': 'おとな',
+    '子供': 'こども'
+  };
   
-  const details = isValid 
-    ? `All ${totalKanjiCount} kanji have furigana`
-    : `${missingKanjiCount} out of ${totalKanjiCount} kanji are missing furigana`;
+  // Find all compound words in the text and check their readings
+  let incorrectReadings = 0;
+  Object.keys(commonCompounds).forEach(compound => {
+    if (originalText.includes(compound)) {
+      const expectedReading = commonCompounds[compound];
+      const compoundPattern = new RegExp(`${compound}\\(([^)]+)\\)`, 'g');
+      const match = compoundPattern.exec(furiganaText);
+      
+      if (match && match[1] !== expectedReading) {
+        console.log(`Incorrect reading for ${compound}: got ${match[1]}, expected ${expectedReading}`);
+        incorrectReadings++;
+      }
+    }
+  });
+  
+  const missingKanjiCount = Math.max(0, totalKanjiCount - kanjiWithFurigana.length);
+  const isValid = missingKanjiCount === 0 && incorrectReadings === 0;
+  
+  let details = '';
+  if (missingKanjiCount > 0) {
+    details += `${missingKanjiCount} out of ${totalKanjiCount} kanji are missing furigana. `;
+  } else {
+    details += `All ${totalKanjiCount} kanji have furigana. `;
+  }
+  
+  if (incorrectReadings > 0) {
+    details += `Found ${incorrectReadings} compound words with incorrect readings.`;
+  } else {
+    details += `No incorrect compound readings detected.`;
+  }
   
   return {
     isValid,

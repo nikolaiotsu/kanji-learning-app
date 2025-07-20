@@ -786,81 +786,82 @@ export default function LanguageFlashcardsScreen() {
           animationType="slide"
           onRequestClose={handleCancelEdit}
         >
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <KeyboardAvoidingView 
-              behavior={Platform.OS === "ios" ? "padding" : "height"}
-              style={styles.modalContainer}
-              keyboardVerticalOffset={Platform.OS === "ios" ? -60 : 0}
-              key={`edit-modal-${showEditModal}`}
-            >
-              <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>{t('flashcard.edit.editText')}</Text>
-                
-                {/* Image display within the modal */}
-                {imageUri && (
-                  <View style={styles.modalImageContainer}>
-                    <Text style={styles.modalImageLabel}>Original Image:</Text>
-                    <ScrollView 
-                      key={`edit-image-scroll-${showEditModal}`}
-                      style={styles.modalImageScrollView}
-                      contentContainerStyle={styles.modalImageScrollContent}
-                      maximumZoomScale={3}
-                      minimumZoomScale={0.5}
-                      showsVerticalScrollIndicator={false}
-                      showsHorizontalScrollIndicator={false}
-                      bounces={false}
-                      bouncesZoom={false}
-                      alwaysBounceVertical={false}
-                      alwaysBounceHorizontal={false}
-                      centerContent={true}
-                      scrollEnabled={true}
-                      pinchGestureEnabled={true}
-                      decelerationRate="normal"
-                      directionalLockEnabled={false}
-                    >
-                      <Image 
-                        source={{ uri: imageUri }} 
-                        style={styles.modalImage}
-                        resizeMode="contain"
-                      />
-                    </ScrollView>
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={styles.modalContainer}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0} // Changed from 40 to 10 to position closer to keyboard
+            key={`edit-modal-${showEditModal}`}
+          >
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>{t('flashcard.edit.editText')}</Text>
+              
+              {/* Image display within the modal */}
+              {imageUri && (
+                <View style={styles.modalImageContainer}>
+                  <Text style={styles.modalImageLabel}>Original Image:</Text>
+                  <ScrollView 
+                    style={styles.modalImageWrapper}
+                    contentContainerStyle={styles.modalImageScrollContent}
+                    maximumZoomScale={3}
+                    minimumZoomScale={1}
+                    showsVerticalScrollIndicator={false}
+                    showsHorizontalScrollIndicator={false}
+                    centerContent={true}
+                    pinchGestureEnabled={true}
+                    scrollEnabled={true}
+                    bounces={false}
+                  >
+                    <Image 
+                      source={{ uri: imageUri }} 
+                      style={styles.modalImage}
+                      resizeMode="contain"
+                    />
+                  </ScrollView>
+                </View>
+              )}
+              
+              <ScrollView 
+                key={`edit-text-scroll-${showEditModal}`}
+                style={styles.modalScrollContent}
+                contentOffset={{ x: 0, y: 0 }}
+                scrollsToTop={true}
+                showsVerticalScrollIndicator={true}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="interactive"
+                contentContainerStyle={{ paddingBottom: 20 }}
+              >
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                  <View>
+                    <Text style={styles.modalSubtitle}>{t('flashcard.edit.editText')}</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={editedText}
+                      onChangeText={setEditedText}
+                      multiline
+                      placeholder={t('flashcard.edit.editTextPlaceholder')}
+                      placeholderTextColor="#aaa"
+                      textAlignVertical="top"
+                    />
+                    
+                    <View style={styles.modalButtonsContainer}>
+                      <TouchableOpacity 
+                        style={styles.modalCancelButton} 
+                        onPress={handleCancelEdit}
+                      >
+                        <Text style={styles.modalButtonText}>{t('common.cancel')}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={styles.modalSaveButton} 
+                        onPress={handleSaveEdit}
+                      >
+                        <Text style={styles.modalButtonText}>{t('common.save')}</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                )}
-                
-                <ScrollView 
-                  key={`edit-text-scroll-${showEditModal}`}
-                  style={styles.modalScrollContent}
-                  contentOffset={{ x: 0, y: 0 }}
-                  scrollsToTop={false}
-                  showsVerticalScrollIndicator={true}
-                >
-                  <TextInput
-                    style={styles.textInput}
-                    value={editedText}
-                    onChangeText={setEditedText}
-                    multiline
-                    placeholder={t('flashcard.edit.editTextPlaceholder')}
-                    placeholderTextColor="#aaa"
-                    textAlignVertical="top"
-                  />
-                  <View style={styles.modalButtonsContainer}>
-                    <TouchableOpacity 
-                      style={styles.modalCancelButton} 
-                      onPress={handleCancelEdit}
-                    >
-                      <Text style={styles.modalButtonText}>{t('common.cancel')}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      style={styles.modalSaveButton} 
-                      onPress={handleSaveEdit}
-                    >
-                      <Text style={styles.modalButtonText}>{t('flashcard.edit.save')}</Text>
-                    </TouchableOpacity>
-                  </View>
-                </ScrollView>
-              </View>
-            </KeyboardAvoidingView>
-          </TouchableWithoutFeedback>
+                </TouchableWithoutFeedback>
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         {/* Edit Translation Modal */}
@@ -873,110 +874,109 @@ export default function LanguageFlashcardsScreen() {
             setIsManualOperation(false); // Reset manual operation flag
           }}
         >
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <KeyboardAvoidingView 
-              behavior={Platform.OS === "ios" ? "padding" : "height"}
-              style={styles.modalContainer}
-              keyboardVerticalOffset={Platform.OS === "ios" ? -60 : 0}
-              key={`translation-modal-${showEditTranslationModal}`}
-            >
-              <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>{t('flashcard.edit.editTranslation')}</Text>
-                
-                {/* Image display within the modal */}
-                {imageUri && (
-                  <View style={styles.modalImageContainer}>
-                    <Text style={styles.modalImageLabel}>Original Image:</Text>
-                    <ScrollView 
-                      key={`translation-image-scroll-${showEditTranslationModal}`}
-                      style={styles.modalImageScrollView}
-                      contentContainerStyle={styles.modalImageScrollContent}
-                      maximumZoomScale={3}
-                      minimumZoomScale={0.5}
-                      showsVerticalScrollIndicator={false}
-                      showsHorizontalScrollIndicator={false}
-                      bounces={false}
-                      bouncesZoom={false}
-                      alwaysBounceVertical={false}
-                      alwaysBounceHorizontal={false}
-                      centerContent={true}
-                      scrollEnabled={true}
-                      pinchGestureEnabled={true}
-                      decelerationRate="normal"
-                      directionalLockEnabled={false}
-                    >
-                      <Image 
-                        source={{ uri: imageUri }} 
-                        style={styles.modalImage}
-                        resizeMode="contain"
-                      />
-                    </ScrollView>
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={styles.modalContainer}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0} // Changed from 40 to 10 to position closer to keyboard
+            key={`translation-modal-${showEditTranslationModal}`}
+          >
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>{t('flashcard.edit.editTranslation')}</Text>
+              
+              {/* Image display within the modal */}
+              {imageUri && (
+                <View style={styles.modalImageContainer}>
+                  <Text style={styles.modalImageLabel}>Original Image:</Text>
+                  <ScrollView 
+                    style={styles.modalImageWrapper}
+                    contentContainerStyle={styles.modalImageScrollContent}
+                    maximumZoomScale={3}
+                    minimumZoomScale={1}
+                    showsVerticalScrollIndicator={false}
+                    showsHorizontalScrollIndicator={false}
+                    centerContent={true}
+                    pinchGestureEnabled={true}
+                    scrollEnabled={true}
+                    bounces={false}
+                  >
+                    <Image 
+                      source={{ uri: imageUri }} 
+                      style={styles.modalImage}
+                      resizeMode="contain"
+                    />
+                  </ScrollView>
+                </View>
+              )}
+              
+              <ScrollView 
+                key={`translation-text-scroll-${showEditTranslationModal}`}
+                style={styles.modalScrollContent}
+                contentOffset={{ x: 0, y: 0 }}
+                scrollsToTop={true}
+                showsVerticalScrollIndicator={true}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="interactive"
+                contentContainerStyle={{ paddingBottom: 20 }}
+              >
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                  <View>
+                    <Text style={styles.modalSubtitle}>{t('flashcard.edit.editTranslation')}</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={translatedText}
+                      onChangeText={setTranslatedText}
+                      multiline
+                      placeholder={t('flashcard.edit.editTranslationPlaceholder')}
+                      placeholderTextColor="#aaa"
+                      textAlignVertical="top"
+                    />
+                    {needsRomanization && (
+                      <>
+                        <Text style={styles.modalSubtitle}>
+                          {detectedLanguage === 'Japanese' ? t('flashcard.edit.editFurigana') :
+                           detectedLanguage === 'Chinese' ? t('flashcard.edit.editPinyin') :
+                           detectedLanguage === 'Korean' ? t('flashcard.edit.editRomanization') :
+                           detectedLanguage === 'Russian' ? t('flashcard.edit.editRomanization') :
+                           detectedLanguage === 'Arabic' ? t('flashcard.edit.editTransliteration') :
+                           detectedLanguage === 'Hindi' ? t('flashcard.edit.editRomanization') :
+                           t('flashcard.edit.editRomanization')}
+                        </Text>
+                        <TextInput
+                          style={styles.textInput}
+                          value={furiganaText}
+                          onChangeText={setFuriganaText}
+                          multiline
+                          placeholder={t('flashcard.edit.editRomanizationPlaceholder')}
+                          placeholderTextColor="#aaa"
+                          textAlignVertical="top"
+                        />
+                      </>
+                    )}
+                    <View style={styles.modalButtonsContainer}>
+                      <TouchableOpacity 
+                        style={styles.modalCancelButton} 
+                        onPress={() => {
+                          setShowEditTranslationModal(false);
+                          setIsManualOperation(false); // Reset manual operation flag
+                        }}
+                      >
+                        <Text style={styles.modalButtonText}>{t('common.cancel')}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={styles.modalSaveButton} 
+                        onPress={() => {
+                          setShowEditTranslationModal(false);
+                          setIsManualOperation(false); // Reset manual operation flag
+                        }}
+                      >
+                        <Text style={styles.modalButtonText}>{t('common.save')}</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                )}
-                
-                <ScrollView 
-                  key={`translation-text-scroll-${showEditTranslationModal}`}
-                  style={styles.modalScrollContent}
-                  contentOffset={{ x: 0, y: 0 }}
-                  scrollsToTop={false}
-                  showsVerticalScrollIndicator={true}
-                >
-                  <Text style={styles.modalSubtitle}>{t('flashcard.edit.editTranslation')}</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    value={translatedText}
-                    onChangeText={setTranslatedText}
-                    multiline
-                    placeholder={t('flashcard.edit.editTranslationPlaceholder')}
-                    placeholderTextColor="#aaa"
-                    textAlignVertical="top"
-                  />
-                  {needsRomanization && (
-                    <>
-                      <Text style={styles.modalSubtitle}>
-                        {detectedLanguage === 'Japanese' ? t('flashcard.edit.editFurigana') :
-                         detectedLanguage === 'Chinese' ? t('flashcard.edit.editPinyin') :
-                         detectedLanguage === 'Korean' ? t('flashcard.edit.editRomanization') :
-                         detectedLanguage === 'Russian' ? t('flashcard.edit.editRomanization') :
-                         detectedLanguage === 'Arabic' ? t('flashcard.edit.editTransliteration') :
-                         detectedLanguage === 'Hindi' ? t('flashcard.edit.editRomanization') :
-                         t('flashcard.edit.editRomanization')}
-                      </Text>
-                      <TextInput
-                        style={styles.textInput}
-                        value={furiganaText}
-                        onChangeText={setFuriganaText}
-                        multiline
-                        placeholder={t('flashcard.edit.editRomanizationPlaceholder')}
-                        placeholderTextColor="#aaa"
-                        textAlignVertical="top"
-                      />
-                    </>
-                  )}
-                  <View style={styles.modalButtonsContainer}>
-                    <TouchableOpacity 
-                      style={styles.modalCancelButton} 
-                      onPress={() => {
-                        setShowEditTranslationModal(false);
-                        setIsManualOperation(false); // Reset manual operation flag
-                      }}
-                    >
-                      <Text style={styles.modalButtonText}>{t('common.cancel')}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      style={styles.modalSaveButton} 
-                      onPress={() => {
-                        setShowEditTranslationModal(false);
-                        setIsManualOperation(false); // Reset manual operation flag
-                      }}
-                    >
-                      <Text style={styles.modalButtonText}>{t('common.save')}</Text>
-                    </TouchableOpacity>
-                  </View>
-                </ScrollView>
-              </View>
-            </KeyboardAvoidingView>
-          </TouchableWithoutFeedback>
+                </TouchableWithoutFeedback>
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
         </Modal>
 
       </SafeAreaView>
@@ -1205,10 +1205,10 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 0,
     padding: 20,
     paddingBottom: 30,
-    marginBottom: 10,
+    marginBottom: 0, // Changed from 10 to 0 to position closer to keyboard
     width: '100%',
     maxWidth: 500,
-    maxHeight: '90%',
+    maxHeight: '95%', // Increased from 90% to 95% to allow more space
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.25,
@@ -1217,6 +1217,7 @@ const styles = StyleSheet.create({
   modalScrollContent: {
     flexGrow: 1,
     marginBottom: 10,
+    maxHeight: Platform.OS === 'ios' ? '70%' : '75%', // Added maxHeight to ensure scroll area is large enough
   },
   modalTitle: {
     fontSize: 18,
@@ -1238,8 +1239,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 16,
     fontSize: 18,
-    minHeight: 200,
-    maxHeight: 400,
+    minHeight: 250, // Increased from 200 to 250
+    maxHeight: 500, // Increased from 400 to 500
     fontFamily: Platform.OS === 'ios' ? 'HiraginoSans-W3' : undefined,
     color: 'white',
     backgroundColor: COLORS.mediumSurface,
@@ -1408,13 +1409,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     color: COLORS.text,
   },
-  modalImageScrollView: {
-    height: 180,
+  modalImageWrapper: {
     width: '100%',
+    height: 180,
     borderRadius: 8,
     backgroundColor: COLORS.background,
     borderWidth: 1,
     borderColor: COLORS.darkGray,
+    overflow: 'hidden',
   },
   modalImageScrollContent: {
     alignItems: 'center',
@@ -1424,8 +1426,7 @@ const styles = StyleSheet.create({
   },
   modalImage: {
     width: '100%',
-    height: 180,
-    minWidth: 280,
+    height: '100%',
     borderRadius: 8,
   },
 });
