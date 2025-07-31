@@ -51,13 +51,14 @@ const FuriganaText: React.FC<FuriganaTextProps> = ({
     }
     
     // Regex to match CJK characters, Korean Hangul, Cyrillic, Arabic, and Devanagari followed by readings in parentheses
+    // Now supports punctuation between the text and romanization
     // For Japanese: 東京(とうきょう) - kanji with hiragana
     // For Chinese: 中国(zhōngguó) - hanzi with pinyin
-    // For Korean: 한국어(han-gug-eo) - hangul with romanization
+    // For Korean: 한국어(han-gug-eo) or 안녕하세요!(an-nyeong-ha-se-yo!) - hangul with romanization
     // For Russian: Русский(russkiy) - cyrillic with romanization
     // For Arabic: العربية(al-arabiya) - arabic with transliteration
     // For Hindi: हिन्दी(hindī) - devanagari with IAST romanization
-    const readingRegex = /([\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F]+)\(([ぁ-ゟa-zA-Zāēīōūǎěǐǒǔàèìòùáéíóúǘǜɑśṅñṭḍṇḷṛṣḥṁṃḷ̥ṝṟĝśḱńṗṟť\s\-0-9]+)\)/g;
+    const readingRegex = /([\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F]+)([!?.,;:'"'"‚""„‹›«»‑–—…\s]*)\(([ぁ-ゟa-zA-Zāēīōūǎěǐǒǔàèìòùáéíóúǘǜɑśṅñṭḍṇḷṛṣḥṁṃḷ̥ṝṟĝśḱńṗṟť\s\-0-9!?.,;:'"'"‚""„‹›«»‑–—…]+)\)/g;
     
     let lastIndex = 0;
     let match;
@@ -76,9 +77,10 @@ const FuriganaText: React.FC<FuriganaTextProps> = ({
       }
       
       // Add the furigana segment
+      // match[1] = Korean/CJK characters, match[2] = punctuation, match[3] = romanization
       segments.push({
-        kanji: match[1],
-        furigana: match[2],
+        kanji: match[1] + (match[2] || ''), // Include punctuation with the main text
+        furigana: match[3],
         type: 'furigana'
       });
       

@@ -551,7 +551,8 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
 export async function processWithClaude(
   text: string, 
   targetLanguage: string = 'en',
-  forcedLanguage: string = 'auto'
+  forcedLanguage: string = 'auto',
+  onProgress?: (checkpoint: number) => void
 ): Promise<ClaudeResponse> {
   // Validate Claude API key
   const apiKey = Constants.expoConfig?.extra?.EXPO_PUBLIC_CLAUDE_API_KEY;
@@ -600,6 +601,10 @@ export async function processWithClaude(
   if (forcedLanguage === 'ja') {
     console.log(`[DEBUG] Japanese forced detection active. Using Japanese prompt.`);
   }
+
+  // Checkpoint 1: Language validation complete, starting processing
+  console.log('🎯 [Claude API] Checkpoint 1: Language validation complete');
+  onProgress?.(1);
 
   while (retryCount < MAX_RETRIES) {
     try {
@@ -742,33 +747,140 @@ Format your response as valid JSON with these exact keys:
 }`;
       } else if (primaryLanguage === "Chinese" || forcedLanguage === 'zh') {
         console.log(`[DEBUG] Using Chinese prompt (pinyin) for primaryLanguage: ${primaryLanguage}, forcedLanguage: ${forcedLanguage}`);
-        // Chinese-specific prompt with pinyin
+        // Enhanced Chinese-specific prompt with comprehensive pinyin rules
         userMessage = `
 ${promptTopSection}
-You are a Chinese language expert. I need you to analyze and translate this text: "${text}"
+You are a Chinese language expert. I need you to analyze and add pinyin to this Chinese text: "${text}"
 
-IMPORTANT FORMATTING REQUIREMENTS FOR CHINESE TEXT:
-- Keep all original text as is (including any English words, numbers, punctuation, or other language characters)
-- For CHINESE CHARACTERS ONLY, add the Hanyu Pinyin romanization in parentheses immediately after each Chinese word
-- Do NOT add pinyin to English words, numbers, Japanese characters, or other non-Chinese content
-- The pinyin should include tone marks (e.g., "你好" should become "你好(nǐ hǎo)")
-- Do NOT use Japanese furigana/hiragana style - only use pinyin with Latin characters and tone marks
-- If the text contains mixed languages, focus on the Chinese parts and leave other languages as-is
-- Translate into ${targetLangName} language, NOT English (unless English is specifically requested)
+CRITICAL FORMATTING REQUIREMENTS - THESE ARE MANDATORY:
+1. KEEP ALL ORIGINAL CHINESE CHARACTERS in the text exactly as they appear
+2. For EACH Chinese word/phrase, add pinyin in parentheses IMMEDIATELY AFTER the Chinese characters
+3. Format: 中文(zhōngwén) - Chinese characters followed by pinyin in parentheses
+4. Do NOT replace Chinese characters with pinyin - ADD pinyin after Chinese characters
+5. Use STANDARD Hanyu Pinyin with proper tone marks (ā é ǐ ò ū ǖ)
+6. For compound words, provide pinyin for the COMPLETE word unit, not individual characters
+7. Keep all non-Chinese content (English, numbers, punctuation) exactly as is - do NOT add pinyin to non-Chinese content
+8. Translate into ${targetLangName} language, NOT English (unless English is specifically requested)
 
-Example of correct Chinese pinyin formatting for mixed content:
-- "Hello 中国" should become "Hello 中国(zhōngguó)"
-- "我爱你 and I love you" should become "我爱你(wǒ ài nǐ) and I love you"
-- Mixed Chinese-Japanese: "中国語を勉強している" should become "中国語(zhōngguóyǔ)を勉強している"
+CRITICAL COMPOUND WORD PRIORITY:
+- FIRST analyze the text for compound words, proper nouns, and multi-character expressions
+- Compound words should be read as single units with their standard pronunciation
+- Institution names, place names, and common phrases must be treated as complete units
+- Only split into individual character readings when words cannot be read as compounds
+
+MANDATORY TONE SANDHI RULES:
+- 不 (bù) becomes (bú) before fourth tone: 不是(búshì), 不对(búduì), 不要(búyào)
+- 不 (bù) becomes (bù) before first, second, third tones: 不好(bùhǎo), 不来(bùlái)
+- 一 changes tone based on following tone:
+  * 一 + first tone = yī: 一天(yītiān)
+  * 一 + second/third tone = yí: 一年(yínián), 一点(yìdiǎn)
+  * 一 + fourth tone = yí: 一个(yíge), 一样(yíyàng)
+- Third tone + third tone: first becomes second tone: 你好(níhǎo), 老老实(láolǎoshí)
+- Neutral tone particles (的, 了, 吗, 吧, 呢) - mark without tone marks: de, le, ma, ba, ne
+
+CONTEXT-DEPENDENT READINGS - Verify meaning before choosing:
+- 行: háng (bank, row, industry) vs xíng (walk, do, travel)
+- 长: cháng (long, length) vs zhǎng (grow, elder, leader)
+- 数: shù (number, amount) vs shǔ (count, enumerate)
+- 调: diào (tone, tune, melody) vs tiáo (adjust, regulate)
+- 当: dāng (when, should, ought) vs dàng (suitable, proper)
+- 好: hǎo (good, well) vs hào (like, fond of)
+- 中: zhōng (middle, center) vs zhòng (hit target)
+- 重: zhòng (heavy, serious) vs chóng (repeat, duplicate)
+
+SELF-VERIFICATION REQUIREMENT:
+After generating pinyin, you MUST perform these verification steps:
+1. Review EVERY Chinese compound word in your output
+2. For each compound, verify the reading is the standard dictionary pronunciation (not just combining individual character readings)
+3. Check that all tone sandhi rules are correctly applied
+4. Ensure context-dependent characters use the appropriate reading for their meaning
+5. Verify all tone marks are present and correct (including neutral tones marked without tone marks)
+6. Double-check compound words against the examples below
+
+Examples of MANDATORY correct Chinese pinyin formatting:
+
+COMPOUND WORDS (READ AS SINGLE UNITS):
+- "普通话" → "普通话(pǔtōnghuà)" [REQUIRED - complete compound, not individual characters]
+- "中华人民共和国" → "中华人民共和国(Zhōnghuá Rénmín Gònghéguó)" [REQUIRED - proper noun as unit]
+- "北京大学" → "北京大学(Běijīng Dàxué)" [REQUIRED - institution name as unit]
+- "第一次" → "第一次(dì-yī-cì)" [REQUIRED - ordinal compound with tone sandhi]
+- "电视机" → "电视机(diànshìjī)" [REQUIRED - compound word]
+- "计算机" → "计算机(jìsuànjī)" [REQUIRED - compound word]
+- "图书馆" → "图书馆(túshūguǎn)" [REQUIRED - compound word]
+- "飞机场" → "飞机场(fēijīchǎng)" [REQUIRED - compound word]
+- "火车站" → "火车站(huǒchēzhàn)" [REQUIRED - compound word]
+- "大学生" → "大学生(dàxuéshēng)" [REQUIRED - compound word]
+- "中国人" → "中国人(Zhōngguórén)" [REQUIRED - nationality compound]
+- "外国人" → "外国人(wàiguórén)" [REQUIRED - compound word]
+
+TONE SANDHI EXAMPLES (CRITICAL ACCURACY):
+- "不是" → "不是(búshì)" [REQUIRED - 不 becomes bú before 4th tone]
+- "不对" → "不对(búduì)" [REQUIRED - 不 becomes bú before 4th tone]
+- "不好" → "不好(bùhǎo)" [REQUIRED - 不 stays bù before 3rd tone]
+- "一个" → "一个(yíge)" [REQUIRED - 一 becomes yí before 4th tone]
+- "一年" → "一年(yínián)" [REQUIRED - 一 becomes yí before 2nd tone]
+- "一天" → "一天(yītiān)" [REQUIRED - 一 stays yī before 1st tone]
+- "你好" → "你好(níhǎo)" [REQUIRED - 3rd+3rd tone sandhi]
+
+CONTEXT-DEPENDENT EXAMPLES:
+- "银行" → "银行(yínháng)" [háng = bank/institution]
+- "行走" → "行走(xíngzǒu)" [xíng = walk/travel]
+- "很长" → "很长(hěn cháng)" [cháng = long/length]
+- "班长" → "班长(bānzhǎng)" [zhǎng = leader/head]
+- "数学" → "数学(shùxué)" [shù = mathematics/number]
+- "数一数" → "数一数(shǔ yī shǔ)" [shǔ = count/enumerate]
+
+NEUTRAL TONE EXAMPLES:
+- "的" → "的(de)" [REQUIRED - no tone mark for neutral tone]
+- "了" → "了(le)" [REQUIRED - no tone mark for neutral tone]  
+- "吗" → "吗(ma)" [REQUIRED - no tone mark for neutral tone]
+- "走了" → "走了(zǒu le)" [REQUIRED - neutral tone for particle]
+- "我的" → "我的(wǒ de)" [REQUIRED - neutral tone for possessive]
+
+COMPLEX SENTENCE EXAMPLES - EXACT FORMAT REQUIRED:
+- "今天天气很好" → "今天(jīntiān)天气(tiānqì)很(hěn)好(hǎo)"
+- "我在北京大学学习中文" → "我(wǒ)在(zài)北京大学(Běijīng Dàxué)学习(xuéxí)中文(zhōngwén)"
+- "这是一本很有意思的书" → "这(zhè)是(shì)一(yì)本(běn)很(hěn)有意思(yǒu yìsi)的(de)书(shū)"
+
+CRITICAL: Notice how EVERY example keeps the original Chinese characters and adds pinyin in parentheses after them!
+
+MIXED CONTENT FORMATTING:
+- "Hello 中国" → "Hello 中国(Zhōngguó)" [English unchanged, Chinese with pinyin]
+- "我爱你 and I love you" → "我爱你(wǒ ài nǐ) and I love you" [Mixed content]
+- "中国語を勉強している" → "中国語(zhōngguóyǔ)を勉強している" [Chinese-Japanese mixed]
+
+VALIDATION CHECKLIST - Verify each item before responding:
+✓ Are all tone marks correct and complete? (including neutral tones without marks)
+✓ Are compound words treated as units with correct standard readings?
+✓ Are tone sandhi rules properly applied (不, 一, third tone combinations)?
+✓ Do context-dependent characters use appropriate readings for their meaning?
+✓ Are there any missing pinyin for Chinese characters?
+✓ Do all readings match the context, not just dictionary defaults?
+
+ERROR HANDLING:
+If you encounter a character whose reading you're uncertain about, use the most common contextual reading and add [?] after the pinyin like this: "难(nán)[?]"
+
+CRITICAL RESPONSE FORMAT REQUIREMENTS:
+1. Format your response as valid JSON with these exact keys
+2. Do NOT truncate or abbreviate any part of the response
+3. Include the COMPLETE furiganaText and translatedText without omissions
+4. Ensure all special characters are properly escaped in the JSON
+5. Do NOT use ellipses (...) or any other abbreviation markers
+6. CRITICAL: Your response MUST include a COMPLETE translation - partial translations will cause errors
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "Text with pinyin added only to Chinese characters/words, other content unchanged",
-  "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
+  "furiganaText": "ORIGINAL Chinese characters with pinyin in parentheses after each word as shown in examples above - DO NOT REPLACE Chinese characters with pinyin, ADD pinyin after them",
+  "translatedText": "Complete and accurate translation in ${targetLangName} without any truncation or abbreviation"
 }
+
+FINAL CHECK BEFORE RESPONDING:
+✓ Does your furiganaText contain the ORIGINAL Chinese characters?
+✓ Is pinyin added IN PARENTHESES after each Chinese word?
+✓ Did you follow the format: 中文(zhōngwén) not just "zhōngwén"?
 `;
       } else if (primaryLanguage === "Korean") {
-        // Korean-specific prompt with Revised Romanization
+        // Korean-specific prompt with Enhanced Revised Romanization
         userMessage = `
 ${promptTopSection}
 You are a Korean language expert. I need you to analyze and translate this Korean text: "${text}"
@@ -782,16 +894,40 @@ CRITICAL FORMATTING REQUIREMENTS FOR KOREAN TEXT:
 - Do NOT mix English translations in the romanization - only provide pronunciation guide
 - Translate into ${targetLangName} language, NOT English (unless English is specifically requested)
 
+KOREAN-SPECIFIC VALIDATION:
+- Double-check ㅓ/ㅗ vowel distinctions (ㅓ = eo, ㅗ = o)
+- Ensure consistent ㅡ (eu) vs ㅜ (u) representation
+- Verify compound word boundaries are logical
+- Check that formal endings (-습니다, -았습니다) are complete
+
+COMMON KOREAN PATTERNS:
+- Past tense: -았/었/였 = -ass/-eoss/-yeoss
+- Formal polite: -습니다 = -seum-ni-da
+- Topic particle: 은/는 = eun/neun
+- Object particle: 을/를 = eul/reul
+- Causative verb forms: -시키다 = -si-ki-da
+- Abstract noun formations: -성 = -seong
+- Time expressions: 시 = si, 시간 = si-gan
+- Compound words: maintain syllable boundaries clearly
+
 Examples of CORRECT Korean romanization formatting:
 - "안녕하세요" should become "안녕하세요(an-nyeong-ha-se-yo)"
 - "저는 학생입니다" should become "저는(jeo-neun) 학생입니다(hag-saeng-im-ni-da)"
 - "오늘 날씨가 좋아요" should become "오늘(o-neul) 날씨가(nal-ssi-ga) 좋아요(jo-a-yo)"
+- "변화시키고" should become "변화시키고(byeon-hwa-si-ki-go)"
+- "중요성" should become "중요성(jung-yo-seong)"
+- "평생교육" should become "평생교육(pyeong-saeng-gyo-yug)"
+- "일곱시" should become "일곱시(il-gop-si)"
+- "점심시간" should become "점심시간(jeom-sim-si-gan)"
+- "구경했습니다" should become "구경했습니다(gu-gyeong-haess-seum-ni-da)"
 - Mixed content: "Hello 한국어" should become "Hello 한국어(han-gug-eo)"
 
 WRONG examples (do NOT use these formats):
 - "jeo-neun (I)" ❌
 - "han-gug-eo (Korean)" ❌
 - "gong-bu-ha-go (study)" ❌
+- Inconsistent vowels: "학생" as "hag-sang" instead of "hag-saeng" ❌
+- Missing syllable boundaries in compounds ❌
 
 Format your response as valid JSON with these exact keys:
 {
@@ -1156,6 +1292,8 @@ Format your response as valid JSON with these exact keys:
         .replace(/\${promptTopSection}/g, promptTopSection);
       
       // Make API request to Claude using latest API format
+      console.log('🎯 [Claude API] Starting API request to Claude...');
+      
       const response = await axios.post(
         'https://api.anthropic.com/v1/messages',
         {
@@ -1178,7 +1316,23 @@ Format your response as valid JSON with these exact keys:
         }
       );
 
+      // Checkpoint 2: API request completed, response received (purple light)
+      console.log('🎯 [Claude API] Checkpoint 2: API response received, triggering purple light');
+      onProgress?.(2);
+      
+      // Schedule yellow light to appear after 2 seconds for better visual progression
+      const yellowLightTimer = setTimeout(() => {
+        console.log('🎯 [Claude API] Checkpoint 3: Scheduled yellow light trigger (2s after purple)');
+        onProgress?.(3);
+      }, 2000);
+      
+      // Store timer reference for potential cleanup
+      (global as any).yellowLightTimer = yellowLightTimer;
+
       console.log("Claude API response received");
+      
+      // API response received, now processing results
+      console.log('🎯 [Claude API] API response received, now processing results');
       
       // Extract and parse the content from Claude's response
       if (response.data && response.data.content && Array.isArray(response.data.content)) {
@@ -1337,6 +1491,9 @@ Format your response as valid JSON with these exact keys:
             const translatedPreview = translatedText.substring(0, 60) + (translatedText.length > 60 ? "..." : "");
             console.log(`Translation complete: "${translatedPreview}"`);
             
+            // Translation processing complete (yellow light now triggers on timer)
+            console.log('🎯 [Claude API] Translation processing complete (yellow light on timer)');
+            
             // Always verify translation completeness regardless of length
             if (retryCount < MAX_RETRIES - 1) {
               console.log("Verifying translation completeness...");
@@ -1417,6 +1574,17 @@ Format your response as valid JSON with these exact keys:
                       console.log(`Translation was incomplete. Analysis: ${analysis}`);
                       console.log("Using improved translation from verification");
                       console.log(`New translation: "${verifiedTranslatedText.substring(0, 60)}${verifiedTranslatedText.length > 60 ? '...' : ''}"`);
+                      
+                            // Clear yellow light timer if processing completes early
+      if ((global as any).yellowLightTimer) {
+        clearTimeout((global as any).yellowLightTimer);
+        console.log('🎯 [Claude API] Cleared yellow light timer - processing completed early');
+      }
+      
+      // Checkpoint 4: Processing complete successfully
+      console.log('🎯 [Claude API] Checkpoint 4: Processing complete successfully (verification path)');
+      onProgress?.(4);
+                      
                       return {
                         furiganaText: parsedContent.furiganaText || "",
                         translatedText: verifiedTranslatedText
@@ -1473,7 +1641,12 @@ For Korean text:
 - EVERY hangul word should have romanization
 - Readings should follow the pattern: 한국어(han-gug-eo)
 - Check for any missing romanization
-- Verify romanization follows the Revised Romanization system`;
+- Verify romanization follows the Revised Romanization system
+- Ensure ㅓ/ㅗ vowel distinctions are correct (ㅓ = eo, ㅗ = o)
+- Verify ㅡ (eu) vs ㅜ (u) consistency
+- Check compound word boundaries are logical with clear syllable separation
+- Validate formal endings are complete (-습니다 = -seum-ni-da, -았습니다 = -ass-seum-ni-da)
+- Verify common patterns: particles (은/는 = eun/neun), time expressions (시 = si), causative forms (-시키다 = -si-ki-da)`;
               } else if (primaryLanguage === "Russian" || forcedLanguage === 'ru') {
                 readingType = "transliteration";
                 readingSpecificInstructions = `
@@ -1715,6 +1888,251 @@ Format as JSON:
                 }
               }
             }
+
+            // Chinese pinyin validation and smart retry logic
+            if ((primaryLanguage === "Chinese" || forcedLanguage === 'zh') && furiganaText) {
+              const validation = validatePinyinAccuracy(text, furiganaText);
+              console.log(`Pinyin validation: ${validation.details}`);
+              
+              if (!validation.isValid && validation.accuracy < 85) {
+                console.warn(`Pinyin quality issues detected: ${validation.details}`);
+                
+                // If this is the first attempt and we have significant issues, retry with enhanced correction prompt
+                if (retryCount === 0 && validation.issues.length > 0) {
+                  console.log("Retrying with enhanced pinyin correction prompt...");
+                  retryCount++;
+                  
+                  // Create specific correction prompt based on validation issues
+                  const correctionPrompt = `
+${promptTopSection}
+CRITICAL PINYIN RETRY - PREVIOUS ATTEMPT HAD QUALITY ISSUES
+
+You are a Chinese language expert. The previous attempt had these specific issues that must be fixed:
+
+DETECTED ISSUES:
+${validation.issues.map(issue => `- ${issue}`).join('\n')}
+
+SUGGESTED CORRECTIONS:
+${validation.suggestions.map(suggestion => `- ${suggestion}`).join('\n')}
+
+Original text: "${text}"
+Previous result accuracy: ${validation.accuracy}%
+
+MANDATORY CORRECTIONS - Fix these specific problems:
+1. ${validation.issues.includes('Missing tone mark') ? 'ADD ALL MISSING TONE MARKS - every syllable needs proper tone marks (ā é ǐ ò ū)' : ''}
+2. ${validation.issues.some(i => i.includes('Tone sandhi')) ? 'APPLY TONE SANDHI RULES CORRECTLY - 不 becomes bú before 4th tone, 一 changes based on following tone' : ''}
+3. ${validation.issues.some(i => i.includes('compound')) ? 'USE STANDARD COMPOUND READINGS - treat multi-character words as units with dictionary pronunciations' : ''}
+4. ${validation.issues.some(i => i.includes('coverage')) ? 'ENSURE COMPLETE COVERAGE - every Chinese character must have pinyin' : ''}
+
+CRITICAL REQUIREMENTS FOR RETRY:
+- Use STANDARD Hanyu Pinyin with proper tone marks (ā é ǐ ò ū ǖ)
+- For compound words, provide pinyin for the COMPLETE word unit, not individual characters
+- Apply tone sandhi rules correctly:
+  * 不 + 4th tone = bú: 不是(búshì), 不对(búduì)
+  * 一 + 4th tone = yí: 一个(yíge), 一样(yíyàng)  
+  * 3rd + 3rd tone = 2nd+3rd: 你好(níhǎo)
+- Neutral tone particles without tone marks: 的(de), 了(le), 吗(ma)
+
+Examples of CORRECT formatting:
+- "普通话" → "普通话(pǔtōnghuà)" [compound word]
+- "不是" → "不是(búshì)" [tone sandhi]
+- "一个" → "一个(yíge)" [tone sandhi]
+- "你好" → "你好(níhǎo)" [3rd+3rd tone sandhi]
+- "我的" → "我的(wǒ de)" [neutral tone]
+
+SELF-VERIFICATION BEFORE RESPONDING:
+✓ Are all tone marks present and correct?
+✓ Are compound words treated as units?
+✓ Are tone sandhi rules applied?
+✓ Is coverage complete for all Chinese characters?
+
+Format as JSON:
+{
+  "furiganaText": "Chinese text with corrected pinyin addressing all issues above",
+  "translatedText": "Translation in ${targetLangName}"
+}`;
+
+                  // Make retry request
+                  const retryResponse = await axios.post(
+                    'https://api.anthropic.com/v1/messages',
+                    {
+                      model: "claude-3-haiku-20240307",
+                      max_tokens: 4000,
+                      temperature: 0,
+                      messages: [
+                        {
+                          role: "user",
+                          content: correctionPrompt
+                        }
+                      ]
+                    },
+                    {
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'anthropic-version': '2023-06-01',
+                        'x-api-key': apiKey
+                      }
+                    }
+                  );
+
+                  // Process retry response
+                  if (retryResponse.data && retryResponse.data.content && Array.isArray(retryResponse.data.content)) {
+                    const retryTextContent = retryResponse.data.content.find((item: ClaudeContentItem) => item.type === "text");
+                    
+                    if (retryTextContent && retryTextContent.text) {
+                      try {
+                        const retryJsonMatch = retryTextContent.text.match(/\{[\s\S]*\}/);
+                        let retryJsonString = retryJsonMatch ? retryJsonMatch[0] : retryTextContent.text;
+                        
+                        retryJsonString = cleanJsonString(retryJsonString);
+                        const retryParsedContent = JSON.parse(retryJsonString);
+                        
+                        const retryPinyinText = retryParsedContent.furiganaText || "";
+                        const retryValidation = validatePinyinAccuracy(text, retryPinyinText);
+                        
+                        console.log(`Retry pinyin validation: ${retryValidation.details}`);
+                        console.log(`Retry accuracy: ${retryValidation.accuracy}%`);
+                        
+                        // Use retry result if it's significantly better
+                        if (retryValidation.accuracy > validation.accuracy + 10 || 
+                            (retryValidation.isValid && !validation.isValid)) {
+                          furiganaText = retryPinyinText;
+                          console.log(`Retry successful - improved accuracy from ${validation.accuracy}% to ${retryValidation.accuracy}%`);
+                        } else {
+                          console.log(`Retry did not significantly improve pinyin quality - using original result`);
+                        }
+                      } catch (retryParseError) {
+                        console.error("Error parsing pinyin retry response:", retryParseError);
+                        // Continue with original result
+                      }
+                    }
+                  }
+                }
+              } else if (validation.isValid) {
+                console.log(`Pinyin validation passed with ${validation.accuracy}% accuracy`);
+              }
+            }
+
+            // Korean romanization validation and smart retry logic
+            if ((primaryLanguage === "Korean" || forcedLanguage === 'ko') && furiganaText) {
+              const validation = validateKoreanRomanization(text, furiganaText);
+              console.log(`Korean romanization validation: ${validation.details}`);
+              
+              if (!validation.isValid && validation.accuracy < 90) {
+                console.warn(`Korean romanization quality issues detected: ${validation.details}`);
+                
+                // If this is the first attempt and we have significant issues, retry with enhanced correction prompt
+                if (retryCount === 0 && validation.issues.length > 0) {
+                  console.log("Retrying with enhanced Korean romanization correction prompt...");
+                  retryCount++;
+                  
+                  // Create specific correction prompt based on validation issues
+                  const correctionPrompt = `
+${promptTopSection}
+CRITICAL KOREAN ROMANIZATION RETRY - PREVIOUS ATTEMPT HAD QUALITY ISSUES
+
+You are a Korean language expert. The previous attempt had these specific issues that must be fixed:
+
+DETECTED ISSUES:
+${validation.issues.map(issue => `- ${issue}`).join('\n')}
+
+SUGGESTED CORRECTIONS:
+${validation.suggestions.map(suggestion => `- ${suggestion}`).join('\n')}
+
+Original text: "${text}"
+Previous result accuracy: ${validation.accuracy}%
+
+MANDATORY CORRECTIONS - Fix these specific problems:
+1. ${validation.issues.some(i => i.includes('Vowel distinction')) ? 'FIX VOWEL DISTINCTIONS - ㅓ = eo, ㅗ = o, ㅡ = eu, ㅜ = u' : ''}
+2. ${validation.issues.some(i => i.includes('formal ending')) ? 'COMPLETE FORMAL ENDINGS - ensure -습니다 = -seum-ni-da, past tense endings are complete' : ''}
+3. ${validation.issues.some(i => i.includes('compound')) ? 'MAINTAIN SYLLABLE BOUNDARIES - compound words need clear hyphen separation' : ''}
+4. ${validation.issues.some(i => i.includes('coverage')) ? 'ENSURE COMPLETE COVERAGE - every Korean word must have romanization' : ''}
+5. ${validation.issues.some(i => i.includes('romanization')) ? 'USE STANDARD ROMANIZATION - follow Revised Romanization system exactly' : ''}
+
+SPECIFIC PATTERN FIXES REQUIRED:
+- Past tense: -았/었/였 = -ass/-eoss/-yeoss  
+- Formal polite: -습니다 = -seum-ni-da
+- Particles: 은/는 = eun/neun, 을/를 = eul/reul
+- Time expressions: 시 = si, 시간 = si-gan
+- Causative forms: -시키다 = -si-ki-da
+
+Format your response as valid JSON with these exact keys:
+{
+  "furiganaText": "Korean text with corrected romanization addressing all issues above",
+  "translatedText": "Accurate translation in ${targetLangName} language"
+}
+
+CRITICAL: Address every issue listed above. Double-check vowel distinctions and syllable boundaries.
+`;
+
+                  try {
+                    console.log('Making Korean romanization correction request to Claude...');
+                    const retryResponse = await axios.post(
+                      'https://api.anthropic.com/v1/messages',
+                      {
+                        model: "claude-3-5-sonnet-20241022",
+                        max_tokens: 4000,
+                        temperature: 0.1,
+                        messages: [{
+                          role: "user",
+                          content: correctionPrompt
+                        }]
+                      },
+                      {
+                        headers: {
+                          'Authorization': `Bearer ${apiKey}`,
+                          'Content-Type': 'application/json',
+                          'anthropic-version': '2023-06-01'
+                        },
+                        timeout: 60000
+                      }
+                    );
+
+                    if (retryResponse.data && retryResponse.data.content && retryResponse.data.content[0] && retryResponse.data.content[0].text) {
+                      try {
+                        const retryResponseText = retryResponse.data.content[0].text;
+                        console.log("Retry response received:", retryResponseText.substring(0, 200) + "...");
+                        
+                        const retryCleanedJson = cleanJsonString(retryResponseText);
+                        const retryParsedResponse = JSON.parse(retryCleanedJson);
+                        const retryRomanizedText = retryParsedResponse.furiganaText;
+                        
+                        // Validate the retry result
+                        const retryValidation = validateKoreanRomanization(text, retryRomanizedText);
+                        console.log(`Korean retry validation: ${retryValidation.details}`);
+                        
+                        // Use retry result if it's significantly better
+                        if (retryValidation.accuracy > validation.accuracy + 5 || 
+                            (retryValidation.isValid && !validation.isValid)) {
+                          furiganaText = retryRomanizedText;
+                          console.log(`Korean retry successful - improved accuracy from ${validation.accuracy}% to ${retryValidation.accuracy}%`);
+                        } else {
+                          console.log(`Korean retry did not significantly improve romanization quality - using original result`);
+                        }
+                      } catch (retryParseError) {
+                        console.error("Error parsing Korean romanization retry response:", retryParseError);
+                        // Continue with original result
+                      }
+                    }
+                  } catch (retryError) {
+                    console.error("Error during Korean romanization retry:", retryError);
+                    // Continue with original result
+                  }
+                }
+              } else if (validation.isValid) {
+                console.log(`Korean romanization validation passed with ${validation.accuracy}% accuracy`);
+              }
+            }
+            
+                  // Clear yellow light timer if processing completes early
+      if ((global as any).yellowLightTimer) {
+        clearTimeout((global as any).yellowLightTimer);
+        console.log('🎯 [Claude API] Cleared yellow light timer - processing completed early');
+      }
+      
+      // Checkpoint 4: Processing complete successfully
+      console.log('🎯 [Claude API] Checkpoint 4: Processing complete successfully');
+      onProgress?.(4);
             
             return {
               furiganaText: furiganaText,
@@ -1840,6 +2258,117 @@ export default {
 };
 
 /**
+ * Validates that Chinese text with pinyin has proper coverage and accuracy
+ * @param originalText The original Chinese text
+ * @param pinyinText The text with pinyin added
+ * @returns Object with validation result and details
+ */
+function validatePinyinAccuracy(originalText: string, pinyinText: string): {
+  isValid: boolean;
+  issues: string[];
+  suggestions: string[];
+  accuracy: number;
+  details: string;
+} {
+  const issues: string[] = [];
+  const suggestions: string[] = [];
+  
+  // Extract all Chinese characters from original text
+  const chineseCharRegex = /[\u4e00-\u9fff]/g;
+  const originalChinese = originalText.match(chineseCharRegex) || [];
+  const totalChineseCount = originalChinese.length;
+  
+  if (totalChineseCount === 0) {
+    return {
+      isValid: true,
+      issues: [],
+      suggestions: [],
+      accuracy: 100,
+      details: "No Chinese characters found in text"
+    };
+  }
+  
+  // Check 1: Tone mark consistency
+  const toneMarkRegex = /[āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]/g;
+  const pinyinSections = pinyinText.match(/[\u4e00-\u9fff]+\([^)]+\)/g) || [];
+  
+  let missingToneMarks = 0;
+  pinyinSections.forEach(section => {
+    const pinyinPart = section.split('(')[1]?.split(')')[0] || '';
+    const syllables = pinyinPart.split(/[\s\-]+/).filter(s => s.length > 0);
+    
+    syllables.forEach(syllable => {
+      // Check for missing tone marks (excluding neutral tone particles)
+      if (!/[āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]/.test(syllable) && 
+          !['de', 'le', 'ma', 'ba', 'ne', 'zi', 'zhe'].includes(syllable)) {
+        issues.push(`Missing tone mark: ${syllable}`);
+        suggestions.push(`Add appropriate tone mark to ${syllable}`);
+        missingToneMarks++;
+      }
+    });
+  });
+  
+  // Check 2: Complete coverage - ensure all Chinese characters have pinyin
+  const chineseWordsWithPinyin = pinyinText.match(/[\u4e00-\u9fff]+(?=\([^)]+\))/g) || [];
+  const totalCoveredChars = chineseWordsWithPinyin.join('').length;
+  
+  if (totalCoveredChars < totalChineseCount * 0.9) { // Allow 10% tolerance for edge cases
+    issues.push("Incomplete pinyin coverage - some Chinese characters missing pinyin");
+    suggestions.push("Ensure all Chinese characters have pinyin readings");
+  }
+  
+  // Check 3: Common tone sandhi validation
+  const toneSandhiPatterns = [
+    { pattern: /不是\(bùshì\)/g, correct: '不是(búshì)', rule: '不 + 4th tone should be bú' },
+    { pattern: /不对\(bùduì\)/g, correct: '不对(búduì)', rule: '不 + 4th tone should be bú' },
+    { pattern: /一个\(yīge\)/g, correct: '一个(yíge)', rule: '一 + 4th tone should be yí' },
+    { pattern: /你好\(nǐhǎo\)/g, correct: '你好(níhǎo)', rule: '3rd + 3rd tone: first becomes 2nd' }
+  ];
+  
+  toneSandhiPatterns.forEach(({ pattern, correct, rule }) => {
+    if (pattern.test(pinyinText)) {
+      issues.push(`Tone sandhi error detected - ${rule}`);
+      suggestions.push(`Use ${correct} instead`);
+    }
+  });
+  
+  // Check 4: Common compound word validation
+  const commonCompounds: Record<string, string> = {
+    '普通话': 'pǔtōnghuà',
+    '北京大学': 'Běijīng Dàxué',
+    '中华人民共和国': 'Zhōnghuá Rénmín Gònghéguó',
+    '电视机': 'diànshìjī',
+    '计算机': 'jìsuànjī',
+    '图书馆': 'túshūguǎn',
+    '大学生': 'dàxuéshēng',
+    '火车站': 'huǒchēzhàn'
+  };
+  
+  Object.entries(commonCompounds).forEach(([compound, correctPinyin]) => {
+    if (originalText.includes(compound)) {
+      const compoundPattern = new RegExp(`${compound}\\(([^)]+)\\)`);
+      const match = pinyinText.match(compoundPattern);
+      if (match && match[1] !== correctPinyin) {
+        issues.push(`Incorrect compound reading: ${compound}(${match[1]})`);
+        suggestions.push(`Use standard reading: ${compound}(${correctPinyin})`);
+      }
+    }
+  });
+  
+  // Calculate accuracy score
+  const maxIssues = Math.max(1, totalChineseCount / 2); // Reasonable max issues threshold
+  const accuracy = Math.max(0, Math.round(100 - (issues.length / maxIssues) * 100));
+  
+  return {
+    isValid: issues.length === 0,
+    issues,
+    suggestions,
+    accuracy,
+    details: `Checked ${totalChineseCount} Chinese characters, found ${issues.length} issues`
+  };
+}
+
+/**
  * Validates that Japanese text with furigana has proper coverage of all kanji
  * @param originalText The original Japanese text
  * @param furiganaText The text with furigana added
@@ -1935,6 +2464,181 @@ function validateJapaneseFurigana(originalText: string, furiganaText: string): {
 }
 
 /**
- * Exported validation function for use in other parts of the app
+ * Validates Korean text with romanization for accuracy and completeness
+ * @param originalText The original Korean text
+ * @param romanizedText The text with romanization added
+ * @returns Object with validation result and details
  */
-export { validateJapaneseFurigana }; 
+function validateKoreanRomanization(originalText: string, romanizedText: string): {
+  isValid: boolean;
+  issues: string[];
+  suggestions: string[];
+  accuracy: number;
+  details: string;
+} {
+  const issues: string[] = [];
+  const suggestions: string[] = [];
+  
+  // Extract all Korean characters from original text (Hangul syllables)
+  const koreanRegex = /[\uAC00-\uD7AF]/g;
+  const originalKorean = originalText.match(koreanRegex) || [];
+  const totalKoreanCount = originalKorean.length;
+  
+  if (totalKoreanCount === 0) {
+    return {
+      isValid: true,
+      issues: [],
+      suggestions: [],
+      accuracy: 100,
+      details: "No Korean characters found in text"
+    };
+  }
+  
+  // Check 1: Complete coverage - ensure all Korean words have romanization
+  // Updated regex to handle punctuation between Korean text and romanization
+  const koreanWordsWithRomanization = romanizedText.match(/[\uAC00-\uD7AF]+(?=[!?.,;:'"'"‚""„‹›«»‑–—…\s]*\([^)]+\))/g) || [];
+  const totalCoveredChars = koreanWordsWithRomanization.join('').length;
+  
+  if (totalCoveredChars < totalKoreanCount * 0.9) { // Allow 10% tolerance for edge cases
+    issues.push("Incomplete romanization coverage - some Korean words missing romanization");
+    suggestions.push("Ensure all Korean words have romanization readings");
+  }
+  
+  // Check 2: ㅓ/ㅗ vowel distinction accuracy
+  const vowelDistinctionChecks = [
+    { korean: '서', romanized: 'seo', wrong: 'so', description: 'ㅓ should be "eo" not "o"' },
+    { korean: '소', romanized: 'so', wrong: 'seo', description: 'ㅗ should be "o" not "eo"' },
+    { korean: '어', romanized: 'eo', wrong: 'o', description: 'ㅓ should be "eo" not "o"' },
+    { korean: '오', romanized: 'o', wrong: 'eo', description: 'ㅗ should be "o" not "eo"' }
+  ];
+  
+  vowelDistinctionChecks.forEach(check => {
+    const wrongPattern = new RegExp(`${check.korean}[!?.,;:'"'"‚""„‹›«»‑–—…\\s]*\\([^)]*${check.wrong}[^)]*\\)`, 'g');
+    if (wrongPattern.test(romanizedText)) {
+      issues.push(`Vowel distinction error: ${check.description}`);
+      suggestions.push(`Use "${check.romanized}" for ${check.korean}`);
+    }
+  });
+  
+  // Check 3: ㅡ (eu) vs ㅜ (u) consistency
+  const euVsUChecks = [
+    { korean: '으', romanized: 'eu', wrong: 'u', description: 'ㅡ should be "eu" not "u"' },
+    { korean: '우', romanized: 'u', wrong: 'eu', description: 'ㅜ should be "u" not "eu"' }
+  ];
+  
+  euVsUChecks.forEach(check => {
+    const wrongPattern = new RegExp(`${check.korean}[!?.,;:'"'"‚""„‹›«»‑–—…\\s]*\\([^)]*${check.wrong}[^)]*\\)`, 'g');
+    if (wrongPattern.test(romanizedText)) {
+      issues.push(`Vowel consistency error: ${check.description}`);
+      suggestions.push(`Use "${check.romanized}" for ${check.korean}`);
+    }
+  });
+  
+  // Check 4: Common Korean pattern validation
+  const commonPatterns: Record<string, string> = {
+    // Formal polite endings
+    '습니다': 'seum-ni-da',
+    '했습니다': 'haess-seum-ni-da',
+    '갔습니다': 'gass-seum-ni-da',
+    '왔습니다': 'wass-seum-ni-da',
+    '봤습니다': 'bwass-seum-ni-da',
+    '구경했습니다': 'gu-gyeong-haess-seum-ni-da',
+    
+    // Particles
+    '에서': 'e-seo',
+    '에게': 'e-ge',
+    '에만': 'e-man',
+    '에도': 'e-do',
+    '은는': 'eun-neun',
+    '을를': 'eul-reul',
+    
+    // Time expressions
+    '일곱시': 'il-gop-si',
+    '여덟시': 'yeo-deol-si',
+    '아홉시': 'a-hop-si',
+    '열시': 'yeol-si',
+    '점심시간': 'jeom-sim-si-gan',
+    '저녁시간': 'jeo-nyeok-si-gan',
+    
+    // Common compounds
+    '변화시키고': 'byeon-hwa-si-ki-go',
+    '중요성': 'jung-yo-seong',
+    '평생교육': 'pyeong-saeng-gyo-yug',
+    '자갈치시장': 'ja-gal-chi-si-jang',
+    '김수진': 'gim-su-jin',
+    
+    // Common verbs and adjectives  
+    '좋아요': 'jo-a-yo',
+    '좋습니다': 'jo-seum-ni-da',
+    '안녕하세요': 'an-nyeong-ha-se-yo',
+    '감사합니다': 'gam-sa-ham-ni-da',
+    '죄송합니다': 'joe-song-ham-ni-da'
+  };
+  
+  Object.entries(commonPatterns).forEach(([korean, correctRomanization]) => {
+    if (originalText.includes(korean)) {
+      const pattern = new RegExp(`${korean}[!?.,;:'"'"‚""„‹›«»‑–—…\\s]*\\(([^)]+)\\)`);
+      const match = romanizedText.match(pattern);
+      if (match && match[1] !== correctRomanization) {
+        issues.push(`Incorrect romanization: ${korean}(${match[1]})`);
+        suggestions.push(`Use standard romanization: ${korean}(${correctRomanization})`);
+      }
+    }
+  });
+  
+  // Check 5: Formal ending completeness
+  const formalEndingPatterns = [
+    { pattern: /습니다[!?.,;:'"'"‚""„‹›«»‑–—…\s]*\([^)]*\)/g, check: 'seum-ni-da', description: 'Formal polite ending' },
+    { pattern: /었습니다[!?.,;:'"'"‚""„‹›«»‑–—…\s]*\([^)]*\)/g, check: 'eoss-seum-ni-da', description: 'Past formal ending' },
+    { pattern: /았습니다[!?.,;:'"'"‚""„‹›«»‑–—…\s]*\([^)]*\)/g, check: 'ass-seum-ni-da', description: 'Past formal ending' },
+    { pattern: /였습니다[!?.,;:'"'"‚""„‹›«»‑–—…\s]*\([^)]*\)/g, check: 'yeoss-seum-ni-da', description: 'Past formal ending' }
+  ];
+  
+  formalEndingPatterns.forEach(({ pattern, check, description }) => {
+    const matches = romanizedText.match(pattern);
+    if (matches) {
+      matches.forEach(match => {
+        const romanizedPart = match.match(/\(([^)]+)\)/)?.[1];
+        if (romanizedPart && !romanizedPart.includes(check.split('-').pop() || '')) {
+          issues.push(`Incomplete formal ending: ${description} should end with proper romanization`);
+          suggestions.push(`Ensure formal endings are complete (e.g., -seum-ni-da)`);
+        }
+      });
+    }
+  });
+  
+  // Check 6: Common compound word boundary validation
+  const compoundBoundaryChecks = [
+    { word: '평생교육', expected: 'pyeong-saeng-gyo-yug', description: 'Compound should maintain clear syllable boundaries' },
+    { word: '자갈치시장', expected: 'ja-gal-chi-si-jang', description: 'Place names should have clear boundaries' },
+    { word: '점심시간', expected: 'jeom-sim-si-gan', description: 'Time compounds should have clear boundaries' }
+  ];
+  
+  compoundBoundaryChecks.forEach(({ word, expected, description }) => {
+    if (originalText.includes(word)) {
+      const pattern = new RegExp(`${word}[!?.,;:'"'"‚""„‹›«»‑–—…\\s]*\\(([^)]+)\\)`);
+      const match = romanizedText.match(pattern);
+      if (match && match[1] && !match[1].includes('-')) {
+        issues.push(`Missing syllable boundaries in compound: ${word}`);
+        suggestions.push(`Use clear boundaries: ${word}(${expected}) - ${description}`);
+      }
+    }
+  });
+  
+  // Calculate accuracy score
+  const maxIssues = Math.max(1, totalKoreanCount / 3); // Reasonable max issues threshold
+  const accuracy = Math.max(0, Math.round(100 - (issues.length / maxIssues) * 100));
+  
+  return {
+    isValid: issues.length === 0,
+    issues,
+    suggestions,
+    accuracy,
+    details: `Checked ${totalKoreanCount} Korean characters, found ${issues.length} issues. Accuracy: ${accuracy}%`
+  };
+}
+
+/**
+ * Exported validation functions for use in other parts of the app
+ */
+export { validateJapaneseFurigana, validateKoreanRomanization }; 

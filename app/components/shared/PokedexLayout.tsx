@@ -23,6 +23,11 @@ interface PokedexLayoutProps {
   logoStyle?: ImageStyle;
   triggerLightAnimation?: boolean;
   textureVariant?: 'gradient' | 'subtle' | 'modern' | 'radial' | 'default';
+  // Progressive loading props
+  loadingProgress?: number; // 0-4 indicating how many lights should be on
+  isProcessing?: boolean; // Whether processing is currently active
+  processingFailed?: boolean; // Whether processing failed (for red lights)
+  logoLoaded?: boolean; // Controls logo fade-in animation
 }
 
 export default memo(function PokedexLayout({
@@ -35,6 +40,10 @@ export default memo(function PokedexLayout({
   logoStyle,
   triggerLightAnimation = false,
   textureVariant = 'default',
+  loadingProgress = 0,
+  isProcessing = false,
+  processingFailed = false,
+  logoLoaded = false,
 }: PokedexLayoutProps) {
   // Animation values - create them with useMemo to avoid recreating on rerenders
   const animationValues = useMemo(() => {
@@ -45,11 +54,12 @@ export default memo(function PokedexLayout({
         new Animated.Value(0),
         new Animated.Value(0),
         new Animated.Value(0)
-      ]
+      ],
+      logoOpacityAnim: new Animated.Value(0)
     };
   }, []);
   
-  const { mainLightAnim, smallLightsAnim } = animationValues;
+  const { mainLightAnim, smallLightsAnim, logoOpacityAnim } = animationValues;
 
   // Ref to keep track of the currently running animation sequence so we can
   // stop it prematurely when a new trigger is received
@@ -77,10 +87,13 @@ export default memo(function PokedexLayout({
   const mainLightPulseColor = variant === 'flashcards' ? COLORS.pokedexAmberPulse : '#F22E27';
 
   const smallLightColors = variant === 'flashcards' ? 
-    [COLORS.lightGray, COLORS.mediumSurface, COLORS.pokedexYellow, COLORS.pokedexGreen] :
+    [COLORS.lightGray, COLORS.pokedexPurple, COLORS.pokedexYellow, COLORS.pokedexGreen] :
     ['#DDAD43', '#01A84F', '#4FC3F7'];
   
   const flashcardsControlIconSize = 18;
+
+  // NOTE: Removed createBrightGlow function - it was causing glows to not render properly
+  // Now using natural light colors for glows, same as main screen (which works perfectly)
 
   // Animation effect for light-up sequence
   useEffect(() => {
@@ -148,48 +161,216 @@ export default memo(function PokedexLayout({
     }
   }, [triggerLightAnimation, mainLightAnim, smallLightsAnim]);
 
+  // Logo fade-in animation effect
+  useEffect(() => {
+    if (logoLoaded && logoSource) {
+      // Add a subtle delay for a more elegant entrance
+      const fadeInTimer = setTimeout(() => {
+        Animated.timing(logoOpacityAnim, {
+          toValue: 1,
+          duration: 800, // Smooth 800ms fade-in
+          useNativeDriver: true, // Use native driver for better performance
+        }).start();
+      }, 300); // 300ms delay for elegance
+
+      return () => clearTimeout(fadeInTimer);
+    } else if (!logoLoaded) {
+      // Reset opacity when logo is not loaded
+      logoOpacityAnim.setValue(0);
+    }
+  }, [logoLoaded, logoSource, logoOpacityAnim]);
+
+  // Progressive loading animation effect
+  useEffect(() => {
+    console.log('🔥 [PokedexLayout] Progressive loading effect triggered:', { isProcessing, loadingProgress });
+    
+    if (isProcessing) {
+      console.log('🟠 [PokedexLayout] Starting main light animation (toValue: 1)');
+      // Turn on main light when processing starts
+      Animated.timing(mainLightAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: false,
+      }).start(() => {
+        console.log('🟠 [PokedexLayout] Main light animation completed');
+      });
+
+      // Turn on lights progressively based on loadingProgress
+      // Only animate the specific light for the current checkpoint to avoid re-animating previous lights
+      const currentLightIndex = loadingProgress - 1; // Convert 1-based checkpoint to 0-based index
+      
+      if (currentLightIndex >= 0 && currentLightIndex < smallLightsAnim.length) {
+        console.log(`💡 [PokedexLayout] Checkpoint ${loadingProgress}: Animating light ${currentLightIndex}`);
+        
+        // Animate only the current light for this checkpoint
+        Animated.timing(smallLightsAnim[currentLightIndex], {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: false,
+        }).start(() => {
+          console.log(`💡 [PokedexLayout] Light ${currentLightIndex} animation completed`);
+        });
+        
+        // Ensure all previous lights are also on (without re-animating)
+        for (let i = 0; i < currentLightIndex; i++) {
+          smallLightsAnim[i].setValue(1);
+          console.log(`🔛 [PokedexLayout] Light ${i} set to on (previous checkpoint)`);
+        }
+        
+        // Ensure all future lights are off (but don't turn off lights from higher completed checkpoints)
+        for (let i = currentLightIndex + 1; i < smallLightsAnim.length; i++) {
+          // Only turn off lights that weren't already turned on by a higher checkpoint
+          const currentValue = (smallLightsAnim[i] as any)._value || 0;
+          if (currentValue === 0) {
+            smallLightsAnim[i].setValue(0);
+            console.log(`⚫ [PokedexLayout] Light ${i} set to off (future checkpoint)`);
+          } else {
+            console.log(`✅ [PokedexLayout] Light ${i} staying on (from higher checkpoint)`);
+          }
+        }
+      }
+    } else {
+      console.log('⚪ [PokedexLayout] Fading out all lights');
+      // Processing complete - fade out all lights
+      Animated.parallel([
+        Animated.timing(mainLightAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: false,
+        }),
+        ...smallLightsAnim.map(anim =>
+          Animated.timing(anim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: false,
+          })
+        ),
+      ]).start(() => {
+        console.log('⚪ [PokedexLayout] All lights faded out');
+      });
+    }
+  }, [isProcessing, loadingProgress, mainLightAnim, smallLightsAnim]);
+
   // Pre-compute animated styles to avoid creating new ones during render
   const mainLightAnimatedStyle = {
-    shadowColor: variant === 'flashcards' ? '#FFA500' : '#F22E27',
+    shadowColor: variant === 'flashcards' ? mainLightBaseColor : '#F22E27', // Use natural colors, not overly bright ones
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: Animated.multiply(mainLightAnim, variant === 'flashcards' ? 1.5 : 1.2),
+    // Try both iOS and Android shadow approaches
+    shadowOpacity: Animated.multiply(mainLightAnim, variant === 'flashcards' ? 0.9 : 0.8),
     shadowRadius: mainLightAnim.interpolate({
       inputRange: [0, 1],
-      outputRange: [0, variant === 'flashcards' ? 25 : 20]
+      outputRange: [0, variant === 'flashcards' ? 25 : 20] // Reduced radius for better compatibility
+    }),
+    elevation: mainLightAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, variant === 'flashcards' ? 20 : 15] // Android elevation for glow effect
     }),
     opacity: Animated.add(0.6, Animated.multiply(mainLightAnim, variant === 'flashcards' ? 0.4 : 0.3))
   };
+  
+  // DEBUG: Log the current animation values
+  console.log('🎨 [PokedexLayout] Animation values:', {
+    variant,
+    isProcessing,
+    loadingProgress,
+    mainLightBaseColor,
+    shadowColor: variant === 'flashcards' ? mainLightBaseColor : '#F22E27'
+  });
 
   // Create a simpler way to render the small lights without interpolation
   const renderSmallLight = (color: string, index: number) => {
-    // Use golden glow for the blue light (index 2) to make it more visible
-    const glowColor = variant === 'flashcards' ? '#FFA500' : 
-                     (index === 2 ? '#FFD700' : color);
+    // Override color to red if processing failed
+    const lightColor = processingFailed ? '#FF0000' : color;
+    
+    // Use natural light color for glow, not overly bright colors
+    const glowColor = processingFailed ? '#FF0000' : color;
+    
+    // Boost opacity for darker colors like purple to match visibility of lighter colors
+    const isDarkColor = lightColor === COLORS.pokedexPurple || lightColor === COLORS.mediumSurface;
+    const opacityMultiplier = isDarkColor ? 1.8 : 1.0; // Increased from 1.3 to 1.8 to better match yellow brightness
     
     const animStyle = {
       shadowColor: glowColor,
       shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: Animated.multiply(smallLightsAnim[index], variant === 'flashcards' ? 1.5 : 1.2),
+      // Try both iOS and Android shadow approaches
+      shadowOpacity: Animated.multiply(smallLightsAnim[index], variant === 'flashcards' ? 0.9 : 0.8),
       shadowRadius: smallLightsAnim[index].interpolate({
         inputRange: [0, 1],
-        outputRange: [0, variant === 'flashcards' ? 15 : 12]
+        outputRange: [0, variant === 'flashcards' ? 15 : 12] // Reduced radius for better compatibility
       }),
-      opacity: Animated.add(0.6, Animated.multiply(smallLightsAnim[index], variant === 'flashcards' ? 0.4 : 0.3))
+      elevation: smallLightsAnim[index].interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, variant === 'flashcards' ? 15 : 10] // Android elevation for glow effect
+      }),
+      // Higher opacity to make animation more visible
+      opacity: Animated.add(0.7, Animated.multiply(smallLightsAnim[index], 0.3))
     };
     
     return (
-      <Animated.View 
-        key={index}
-        style={[
-          variant === 'flashcards' ? styles.flashcardsSmallLight : styles.smallLight,
-          { backgroundColor: color },
-          animStyle
-        ]}
-      >
-        {variant !== 'flashcards' && (
-          <View style={styles.smallLightReflection} />
-        )}
-      </Animated.View>
+      <View key={index} style={styles.smallLightContainer}>
+        {/* Multiple glow layers for natural effect */}
+        {/* Outermost glow - largest and most transparent */}
+        <Animated.View 
+          style={[
+            {
+              position: 'absolute',
+              width: variant === 'flashcards' ? 50 : 40,
+              height: variant === 'flashcards' ? 25 : 40, 
+              borderRadius: variant === 'flashcards' ? 12 : 20,
+              backgroundColor: glowColor,
+              opacity: Animated.multiply(smallLightsAnim[index], 0.06 * opacityMultiplier),
+              top: variant === 'flashcards' ? -8 : -10,
+              left: variant === 'flashcards' ? -13 : -11,
+              zIndex: 3,
+            }
+          ]}
+        />
+        {/* Middle glow layer */}
+        <Animated.View 
+          style={[
+            {
+              position: 'absolute',
+              width: variant === 'flashcards' ? 40 : 32,
+              height: variant === 'flashcards' ? 18 : 32, 
+              borderRadius: variant === 'flashcards' ? 9 : 16,
+              backgroundColor: glowColor,
+              opacity: Animated.multiply(smallLightsAnim[index], 0.10 * opacityMultiplier),
+              top: variant === 'flashcards' ? -5 : -7,
+              left: variant === 'flashcards' ? -8 : -7,
+              zIndex: 4,
+            }
+          ]}
+        />
+        {/* Inner glow layer - smallest and slightly more visible */}
+        <Animated.View 
+          style={[
+            {
+              position: 'absolute',
+              width: variant === 'flashcards' ? 32 : 26,
+              height: variant === 'flashcards' ? 14 : 26, 
+              borderRadius: variant === 'flashcards' ? 7 : 13,
+              backgroundColor: glowColor,
+              opacity: Animated.multiply(smallLightsAnim[index], 0.15 * opacityMultiplier),
+              top: variant === 'flashcards' ? -3 : -4,
+              left: variant === 'flashcards' ? -4 : -4,
+              zIndex: 5,
+            }
+          ]}
+        />
+        {/* Main light element */}
+        <Animated.View 
+          style={[
+            variant === 'flashcards' ? styles.flashcardsSmallLight : styles.smallLight,
+            { backgroundColor: lightColor },
+            animStyle,
+            { zIndex: 10 }
+          ]}
+        >
+          {variant !== 'flashcards' && (
+            <View style={styles.smallLightReflection} />
+          )}
+        </Animated.View>
+      </View>
     );
   };
 
@@ -202,16 +383,69 @@ export default memo(function PokedexLayout({
           <View style={[styles.topSection, topSectionVariantStyle]}>
             {variant === 'flashcards' ? (
               <>
-                {/* Flashcards Variant: Thin oval lights */}
-                <Animated.View 
-                  style={[
-                    styles.flashcardsMainStatusBar,
-                    mainLightAnimatedStyle
-                  ]}
-                >
-                  <View style={[styles.flashcardsMainStatusBar_Inner, { backgroundColor: mainLightInnerColor }]} />
-                  <View style={[styles.flashcardsMainStatusBar_Reflection, { backgroundColor: mainLightPulseColor }]} />
-                </Animated.View>
+                {/* Flashcards Variant: Main light with outer glow */}
+                <View style={{ position: 'relative', marginRight: 15 }}>
+                  {/* Outer glow layers for main light - multiple layers for natural effect */}
+                  {/* Outermost glow - largest and most transparent */}
+                  <Animated.View 
+                    style={[
+                      {
+                        position: 'absolute',
+                        width: 140,
+                        height: 50,
+                        borderRadius: 25,
+                        backgroundColor: mainLightBaseColor,
+                        opacity: Animated.multiply(mainLightAnim, 0.08),
+                        top: -15,
+                        left: -20,
+                        zIndex: 3,
+                      }
+                    ]}
+                  />
+                  {/* Middle glow layer */}
+                  <Animated.View 
+                    style={[
+                      {
+                        position: 'absolute',
+                        width: 120,
+                        height: 35,
+                        borderRadius: 17,
+                        backgroundColor: mainLightBaseColor,
+                        opacity: Animated.multiply(mainLightAnim, 0.12),
+                        top: -7,
+                        left: -10,
+                        zIndex: 4,
+                      }
+                    ]}
+                  />
+                  {/* Inner glow layer - smallest and slightly more visible */}
+                  <Animated.View 
+                    style={[
+                      {
+                        position: 'absolute',
+                        width: 110,
+                        height: 25,
+                        borderRadius: 12,
+                        backgroundColor: mainLightBaseColor,
+                        opacity: Animated.multiply(mainLightAnim, 0.15),
+                        top: -2,
+                        left: -5,
+                        zIndex: 5,
+                      }
+                    ]}
+                  />
+                  {/* Main light element */}
+                  <Animated.View 
+                    style={[
+                      styles.flashcardsMainStatusBar,
+                      mainLightAnimatedStyle,
+                      { zIndex: 10 }
+                    ]}
+                  >
+                    <View style={[styles.flashcardsMainStatusBar_Inner, { backgroundColor: mainLightInnerColor }]} />
+                    <View style={[styles.flashcardsMainStatusBar_Reflection, { backgroundColor: mainLightPulseColor }]} />
+                  </Animated.View>
+                </View>
                 <View style={styles.flashcardsSmallLightContainer}>
                   {smallLightColors.map((color, index) => renderSmallLight(color, index))}
                 </View>
@@ -242,11 +476,14 @@ export default memo(function PokedexLayout({
             )}
             {/* Logo - positioned absolutely within topSection */}
             {logoSource && (
-              <Image
+              <Animated.Image
                 source={logoSource}
-                style={[styles.logoImage, logoStyle]}
+                style={[
+                  styles.logoImage, 
+                  logoStyle,
+                  { opacity: logoOpacityAnim }
+                ]}
                 resizeMode="contain"
-                fadeDuration={0}
               />
             )}
           </View>
@@ -286,7 +523,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 3,
     borderBottomColor: COLORS.pokedexBlack,
     position: 'relative',
-    zIndex: 1,
+    zIndex: 10, // Increased z-index to ensure shadows aren't covered
   },
   flashcardsTopSection: {
     backgroundColor: COLORS.background,
@@ -296,7 +533,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.5,
     shadowRadius: 1,
-    elevation: 2,
+    elevation: 10, // Increased elevation to ensure shadows aren't covered
   },
   // Main page - circular light
   mainLight: {
@@ -531,13 +768,10 @@ const styles = StyleSheet.create({
     borderColor: COLORS.pokedexBlack,
     justifyContent: 'center',
     position: 'relative',
-    overflow: 'hidden',
-    marginRight: 15,
-    // Add futuristic glow
-    shadowColor: COLORS.pokedexAmberGlow,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 5,
+    // REMOVED overflow: 'hidden' - it was clipping the shadows!
+    // REMOVED marginRight: 15 - moved to wrapper
+    zIndex: 15, // Ensure this light and its shadow are on top
+    // Removed base shadow - will be completely controlled by animation
   },
   flashcardsMainStatusBar_Inner: {
     height: '70%',
@@ -567,11 +801,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
     borderWidth: 1,
     borderColor: COLORS.pokedexBlack,
-    shadowColor: COLORS.pokedexAmberGlow,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 3,
-    elevation: 2,
+    // Removed base shadow - will be completely controlled by animation
+    elevation: 15, // Increased elevation to ensure shadows are visible
+    zIndex: 15, // Ensure these lights and their shadows are on top
   },
   logoImage: {
     position: 'absolute',

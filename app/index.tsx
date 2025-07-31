@@ -49,6 +49,7 @@ export default function App() {
     // 2. Pass it to the logoSource prop and add logoStyle, only show logo when loaded
     <PokedexLayout 
       logoSource={logoLoaded ? worddexLogo : undefined}
+      logoLoaded={logoLoaded}
       logoStyle={{ 
         width: 80, // Increased width from 100
         height: 65, // Increased height from 30

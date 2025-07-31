@@ -23,6 +23,7 @@ export const COLORS = {
   pokedexBlue: '#2a62fa', // Changed to custom blue
   pokedexGreen: '#4CAF50', // Green accent (like the light or buttons)
   pokedexYellow: '#FFCC00', // Yellow accent (like the light or buttons)
+  pokedexPurple: '#8E44AD', // Purple accent for secondary lights
   pokedexBlack: '#1C1C1C', // Deep black for outlines and details
   pokedexDarkRed: '#A6221B', // Darker red for accents or variants
   rubberGrey: '#808080', // Rubber grey for buttons

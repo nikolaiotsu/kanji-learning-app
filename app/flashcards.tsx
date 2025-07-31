@@ -87,6 +87,10 @@ export default function LanguageFlashcardsScreen() {
   const [detectedLanguage, setDetectedLanguage] = useState('');
   const [needsRomanization, setNeedsRomanization] = useState(true);
   
+  // State for progressive loading
+  const [processingProgress, setProcessingProgress] = useState(0);
+  const [processingFailed, setProcessingFailed] = useState(false);
+  
   // State for the image display
   const [showImagePreview, setShowImagePreview] = useState(false);
   
@@ -119,9 +123,13 @@ export default function LanguageFlashcardsScreen() {
 
   // Function to process text with Claude API
   const processTextWithClaude = async (text: string) => {
+    console.log('🌟 [Flashcards] Starting text processing with Claude API');
     setIsLoading(true);
     setError('');
     setTextProcessed(false);
+    setProcessingProgress(0);
+    setProcessingFailed(false);
+    console.log('🔄 [Flashcards] State set - isLoading: true, processingProgress: 0, processingFailed: false');
     
           try {
         // Check if the text contains Japanese, Chinese, Korean, Russian, Arabic, Hindi, Esperanto characters
@@ -212,7 +220,14 @@ export default function LanguageFlashcardsScreen() {
       
       setDetectedLanguage(language);
       
-      const result = await processWithClaude(text, targetLanguage, forcedDetectionLanguage);
+      // Progress callback to update loading lights
+      const progressCallback = (checkpoint: number) => {
+        console.log('🚀 [Flashcards] Progress callback triggered:', checkpoint);
+        setProcessingProgress(checkpoint);
+        console.log('📊 [Flashcards] Processing progress set to:', checkpoint);
+      };
+      
+      const result = await processWithClaude(text, targetLanguage, forcedDetectionLanguage, progressCallback);
       
       // Check if we got valid results back
       if (result.translatedText) {
@@ -235,16 +250,34 @@ export default function LanguageFlashcardsScreen() {
         
         // Mark as processed if we have what we need
         setTextProcessed(true);
+        
+        // Add a delay to show the 4th (green) light prominently before fade-out
+        console.log('✅ [Flashcards] Processing successful - showing final light for adequate time');
+        setTimeout(() => {
+          console.log('✅ [Flashcards] Delay complete - setting isLoading to false');
+          setIsLoading(false);
+          setIsManualOperation(false); // Reset manual operation flag when process completes
+        }, 1500); // 1500ms delay to give green light proper visibility time
+        
       } else {
         // If we didn't get valid results, show the error message from the API
         setError(result.translatedText || 'Failed to process text with Claude API. Please try again later.');
+        setProcessingFailed(true);
+        
+        // For errors, complete immediately
+        console.log('❌ [Flashcards] Processing failed - setting isLoading to false immediately');
+        setIsLoading(false);
+        setIsManualOperation(false);
       }
     } catch (err) {
       console.error('Error processing with Claude:', err);
       setError('Failed to process text with Claude API. Please try again later.');
-    } finally {
+      setProcessingFailed(true);
+      
+      // For errors, complete immediately
+      console.log('❌ [Flashcards] Processing error - setting isLoading to false immediately');
       setIsLoading(false);
-      setIsManualOperation(false); // Reset manual operation flag when process completes
+      setIsManualOperation(false);
     }
   };
 
@@ -542,7 +575,12 @@ export default function LanguageFlashcardsScreen() {
   };
 
   return (
-    <PokedexLayout variant="flashcards">
+    <PokedexLayout 
+      variant="flashcards"
+      loadingProgress={processingProgress}
+      isProcessing={isLoading}
+      processingFailed={processingFailed}
+    >
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>{t('flashcard.input.title')}</Text>

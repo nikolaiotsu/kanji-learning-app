@@ -89,6 +89,7 @@ const LoginScreen = () => {
   return (
     <PokedexLayout 
       logoSource={worddexLogo}
+      logoLoaded={true}
       logoStyle={{ 
         width: 80,
         height: 65,
