@@ -65,14 +65,7 @@
     "created": "创建时间：{{date}}"
   },
   "flashcard": {
-    "edit": {
-      "emptyOriginal": "原文不能为空。",
-      "emptyRomanization": "拼音/注音文本为空。您想继续吗？",
-      "emptyTranslation": "翻译为空。您想继续吗？",
-      "enterText": "请输入要翻译的文本。",
-      "retranslateFailed": "使用Claude API处理文本失败。请稍后重试。",
-      "romanizationFailed": "获取此文本的正确拼音失败。翻译仍然可用。"
-    },
+
     "translate": {
       "languageMismatch": "语言不匹配",
       "languageMismatchMessage": "文本似乎不是{{language}}。请尝试不同的文本或更改您的强制语言设置。"
@@ -116,7 +109,19 @@
     "input": {
       "title": "单词卡输入"
     },
+    "processing": {
+      "analyzing": "正在检查文本样本...",
+      "detecting": "正在识别词汇种类...",
+      "cultural": "正在准备词条记录...",
+      "translating": "正在完善新收藏..."
+    },
     "edit": {
+      "emptyOriginal": "原始文本不能为空。",
+      "emptyRomanization": "拼音/假名文本为空。您想继续吗？",
+      "emptyTranslation": "翻译为空。您想继续吗？",
+      "enterText": "请输入要翻译的文本。",
+      "retranslateFailed": "使用Claude API处理文本失败。请稍后再试。",
+      "romanizationFailed": "无法为此文本获取正确的拼音。翻译仍然可用。",
       "editText": "编辑文本",
       "editTranslation": "编辑翻译", 
       "editInputRetranslate": "编辑输入并重新翻译",

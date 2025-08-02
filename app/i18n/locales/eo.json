@@ -54,14 +54,7 @@
     "created": "Kreita: {{date}}"
   },
   "flashcard": {
-    "edit": {
-      "emptyOriginal": "Originala teksto ne povas esti malplena.",
-      "emptyRomanization": "Latiniga/Furigana teksto estas malplena. Ĉu vi volas daŭrigi?",
-      "emptyTranslation": "Traduko estas malplena. Ĉu vi volas daŭrigi?",
-      "enterText": "Bonvolu enmeti tekston por traduki.",
-      "retranslateFailed": "Malsukcesis prilabori tekston per Claude API. Bonvolu reprovi poste.",
-      "romanizationFailed": "Malsukcesis akiri taŭgan latinigon por ĉi tiu teksto. La traduko estas ankoraŭ disponebla."
-    },
+
     "translate": {
       "languageMismatch": "Lingva Malkongruo",
       "languageMismatchMessage": "La teksto ankoraŭ ne ŝajnas esti en {{language}}. Bonvolu provi kun alia teksto aŭ ŝanĝi viajn devigatajn lingvajn agordojn."
@@ -106,6 +99,12 @@
       "title": "Memorkaŕta Enigaĵo"
     },
     "edit": {
+      "emptyOriginal": "Originala teksto ne povas esti malplena.",
+      "emptyRomanization": "Latiniga/Furigana teksto estas malplena. Ĉu vi volas daŭrigi?",
+      "emptyTranslation": "Traduko estas malplena. Ĉu vi volas daŭrigi?",
+      "enterText": "Bonvolu enmeti tekston por traduki.",
+      "retranslateFailed": "Malsukcesis prilabori tekston per Claude API. Bonvolu reprovi poste.",
+      "romanizationFailed": "Malsukcesis akiri taŭgan latinigon por ĉi tiu teksto. La traduko estas ankoraŭ disponebla.",
       "editText": "Redakti Tekston",
       "editTranslation": "Redakti Tradukon", 
       "editInputRetranslate": "Redakti Enigaĵon kaj Retraduki",
@@ -117,6 +116,12 @@
       "editRomanization": "Redakti Latinigon",
       "editTransliteration": "Redakti Transliteradon",
       "save": "Konservi"
+    },
+    "processing": {
+      "analyzing": "Ekzamenante tekstan specimenon...",
+      "detecting": "Identigante vortspecojn...",
+      "cultural": "Preparante viajn vort-enigojn...",
+      "translating": "Polurigante vian novan kolekton..."
     }
   },
   "subscription": {

@@ -65,14 +65,7 @@
     "created": "Created: {{date}}"
   },
   "flashcard": {
-    "edit": {
-      "emptyOriginal": "Original text cannot be empty.",
-      "emptyRomanization": "Romanization/Furigana text is empty. Would you like to continue?",
-      "emptyTranslation": "Translation is empty. Would you like to continue?",
-      "enterText": "Please enter text to translate.",
-      "retranslateFailed": "Failed to process text with Claude API. Please try again later.",
-      "romanizationFailed": "Failed to get proper romanization for this text. The translation is still available."
-    },
+
     "translate": {
       "languageMismatch": "Language Mismatch",
       "languageMismatchMessage": "The text still doesn't appear to be in {{language}}. Please try with a different text or change your forced language settings."
@@ -116,7 +109,19 @@
     "input": {
       "title": "Flashcard Input"
     },
+    "processing": {
+      "analyzing": "Examining text specimen...",
+      "detecting": "Identifying word species...",
+      "cultural": "Preparing your word entries...",
+      "translating": "Polishing your new collection..."
+    },
     "edit": {
+      "emptyOriginal": "Original text cannot be empty.",
+      "emptyRomanization": "Romanization/Furigana text is empty. Would you like to continue?",
+      "emptyTranslation": "Translation is empty. Would you like to continue?",
+      "enterText": "Please enter text to translate.",
+      "retranslateFailed": "Failed to process text with Claude API. Please try again later.",
+      "romanizationFailed": "Failed to get proper romanization for this text. The translation is still available.",
       "editText": "Edit Text",
       "editTranslation": "Edit Translation", 
       "editInputRetranslate": "Edit Input & Retranslate",

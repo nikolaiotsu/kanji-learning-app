@@ -59,6 +59,9 @@ export default function LanguageFlashcardsScreen() {
   
   // Clean the detected text, preserving spaces for languages that need them
   const cleanedText = cleanText(displayText);
+  
+  // Check if the text is Russian for compact display styling
+  const isRussianText = containsRussianText(cleanedText);
 
   // State for Claude API response
   const [isLoading, setIsLoading] = useState(false);
@@ -598,7 +601,7 @@ export default function LanguageFlashcardsScreen() {
           showsVerticalScrollIndicator={true}
         >
           <View style={styles.textContainer}>
-            <Text style={styles.originalText} numberOfLines={0}>{editedText}</Text>
+            <Text style={isRussianText ? styles.russianText : styles.originalText} numberOfLines={0}>{editedText}</Text>
             
             {/* Show image thumbnail and preview button if image is available */}
             {imageUri && (
@@ -651,7 +654,13 @@ export default function LanguageFlashcardsScreen() {
           {isLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#007AFF" />
-              <Text style={styles.loadingText}>Processing...</Text>
+              <Text style={styles.loadingText}>
+                {processingProgress === 1 ? t('flashcard.processing.analyzing') :
+                 processingProgress === 2 ? t('flashcard.processing.detecting') :
+                 processingProgress === 3 ? t('flashcard.processing.cultural') :
+                 processingProgress === 4 ? t('flashcard.processing.translating') :
+                 t('common.loading')}
+              </Text>
             </View>
           ) : (
             <>
@@ -1068,6 +1077,16 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'HiraginoSans-W3' : undefined,
     letterSpacing: 0.5,
     lineHeight: 28,
+    flexWrap: 'wrap',
+    color: COLORS.text,
+  },
+  russianText: {
+    fontSize: 18,
+    writingDirection: 'ltr',
+    textAlign: 'left',
+    fontFamily: Platform.OS === 'ios' ? 'HiraginoSans-W3' : undefined,
+    letterSpacing: 0.2,
+    lineHeight: 22,
     flexWrap: 'wrap',
     color: COLORS.text,
   },

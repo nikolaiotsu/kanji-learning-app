@@ -65,14 +65,7 @@
     "created": "作成日: {{date}}"
   },
   "flashcard": {
-    "edit": {
-      "emptyOriginal": "元のテキストを入力してください。",
-      "emptyRomanization": "ローマ字/ふりがなテキストが空です。続行しますか？",
-      "emptyTranslation": "翻訳が空です。続行しますか？",
-      "enterText": "翻訳するテキストを入力してください。",
-      "retranslateFailed": "Claude APIでのテキスト処理に失敗しました。後でもう一度お試しください。",
-      "romanizationFailed": "このテキストの適切なローマ字化に失敗しました。翻訳は利用可能です。"
-    },
+
     "translate": {
       "languageMismatch": "言語の不一致",
       "languageMismatchMessage": "テキストが{{language}}ではないようです。別のテキストを試すか、強制言語設定を変更してください。"
@@ -116,7 +109,19 @@
     "input": {
       "title": "フラッシュカード入力"
     },
+    "processing": {
+      "analyzing": "テキスト標本を調査中...",
+      "detecting": "単語の種類を特定中...",
+      "cultural": "単語エントリーを準備中...",
+      "translating": "新しいコレクションを仕上げ中..."
+    },
     "edit": {
+      "emptyOriginal": "元のテキストは空にできません。",
+      "emptyRomanization": "ローマ字/ふりがなテキストが空です。続行しますか？",
+      "emptyTranslation": "翻訳が空です。続行しますか？",
+      "enterText": "翻訳するテキストを入力してください。",
+      "retranslateFailed": "Claude APIでのテキスト処理に失敗しました。後でもう一度お試しください。",
+      "romanizationFailed": "このテキストの適切なローマ字化に失敗しました。翻訳は利用可能です。",
       "editText": "テキストを編集",
       "editTranslation": "翻訳を編集", 
       "editInputRetranslate": "入力を編集して再翻訳",
