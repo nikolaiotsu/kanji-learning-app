@@ -59,9 +59,6 @@ export default function LanguageFlashcardsScreen() {
   
   // Clean the detected text, preserving spaces for languages that need them
   const cleanedText = cleanText(displayText);
-  
-  // Check if the text is Russian for compact display styling
-  const isRussianText = containsRussianText(cleanedText);
 
   // State for Claude API response
   const [isLoading, setIsLoading] = useState(false);
@@ -488,17 +485,14 @@ export default function LanguageFlashcardsScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowEditModal(false);
     setIsManualOperation(false); // Reset manual operation flag
-    // Reset any previous results since the text has changed
-    if (textProcessed) {
-      setFuriganaText('');
-      setTranslatedText('');
-      setTextProcessed(false);
-    }
     
     // Clear the temporary state since user is committing to the new text
     setPreviousTranslatedText('');
     setPreviousFuriganaText('');
     setPreviousTextProcessed(false);
+    
+    // Now process the edited text with Claude
+    processTextWithClaude(editedText);
   };
 
   // Function to handle editing input and retranslating
@@ -522,10 +516,7 @@ export default function LanguageFlashcardsScreen() {
     // Show the modal
     setShowEditModal(true);
     
-    // Process the text after a short delay to ensure states are set
-    setTimeout(() => {
-      processTextWithClaude(editedText);
-    }, 50);
+    // Don't process automatically - only process when user saves
   };
 
   // Function to cancel editing
@@ -601,7 +592,7 @@ export default function LanguageFlashcardsScreen() {
           showsVerticalScrollIndicator={true}
         >
           <View style={styles.textContainer}>
-            <Text style={isRussianText ? styles.russianText : styles.originalText} numberOfLines={0}>{editedText}</Text>
+            <Text style={styles.originalText} numberOfLines={0}>{editedText}</Text>
             
             {/* Show image thumbnail and preview button if image is available */}
             {imageUri && (
@@ -655,11 +646,12 @@ export default function LanguageFlashcardsScreen() {
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#007AFF" />
               <Text style={styles.loadingText}>
-                {processingProgress === 1 ? t('flashcard.processing.analyzing') :
+                {processingProgress === 0 ? t('flashcard.processing.analyzing') :
+                 processingProgress === 1 ? t('flashcard.processing.analyzing') :
                  processingProgress === 2 ? t('flashcard.processing.detecting') :
                  processingProgress === 3 ? t('flashcard.processing.cultural') :
                  processingProgress === 4 ? t('flashcard.processing.translating') :
-                 t('common.loading')}
+                 t('flashcard.processing.analyzing')}
               </Text>
             </View>
           ) : (
@@ -1077,16 +1069,6 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'HiraginoSans-W3' : undefined,
     letterSpacing: 0.5,
     lineHeight: 28,
-    flexWrap: 'wrap',
-    color: COLORS.text,
-  },
-  russianText: {
-    fontSize: 18,
-    writingDirection: 'ltr',
-    textAlign: 'left',
-    fontFamily: Platform.OS === 'ios' ? 'HiraginoSans-W3' : undefined,
-    letterSpacing: 0.2,
-    lineHeight: 22,
     flexWrap: 'wrap',
     color: COLORS.text,
   },

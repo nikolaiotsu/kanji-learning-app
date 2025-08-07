@@ -1,8 +1,5 @@
 // @ts-nocheck
 import React, { useState, useEffect, useRef } from 'react';
-// Reorder support
-// @ts-ignore
-import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
 import * as Haptics from 'expo-haptics';
 import { View, Text, StyleSheet, FlatList, Alert, TouchableOpacity, ActivityIndicator, TextInput, Dimensions, Platform, SafeAreaView } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -21,6 +18,7 @@ import {
 } from './services/supabaseStorage';
 import FlashcardItem from './components/flashcards/FlashcardItem';
 import EditFlashcardModal from './components/flashcards/EditFlashcardModal';
+import DeckReorderModal from './components/flashcards/DeckReorderModal';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from './context/AuthContext';
 import { supabase } from './services/supabaseClient';
@@ -50,9 +48,8 @@ export default function SavedFlashcardsScreen() {
   const { user } = useAuth();
   const router = useRouter();
 
-  // Reorder mode flag
-  const [isReordering, setIsReordering] = useState(false);
-  const [autoDragDeckId, setAutoDragDeckId] = useState<string | null>(null);
+  // Reorder modal state
+  const [showReorderModal, setShowReorderModal] = useState(false);
 
   const flashcardsListRef = useRef<FlatList>(null);
   const deckSelectorRef = useRef<FlatList>(null);
@@ -298,17 +295,14 @@ export default function SavedFlashcardsScreen() {
 
   // Function to handle long press on deck item
   const handleDeckLongPress = (deckId: string) => {
-    if (isReordering) return; // Ignore long press while already reordering
-
     Alert.alert(
       'Collection Options',
       'What would you like to do with this collection?',
       [
         {
-          text: t('savedFlashcards.reorderCollections', 'Reorder Collections'),
+          text: t('deck.reorder.title'),
           onPress: () => {
-            setIsReordering(true);
-            setAutoDragDeckId(deckId);
+            setShowReorderModal(true);
             Haptics.selectionAsync();
           },
         },
@@ -490,36 +484,15 @@ export default function SavedFlashcardsScreen() {
     }
   };
 
-  interface DeckChipProps {
-    item: Deck;
-    index: number;
-    drag: () => void;
-    isActive: boolean;
-  }
-
-  const DeckChip: React.FC<DeckChipProps> = ({ item, index, drag, isActive }) => {
-    React.useEffect(() => {
-      if (isReordering && autoDragDeckId === item.id) {
-        setTimeout(() => drag(), 0);
-        setAutoDragDeckId(null);
-      }
-    }, [isReordering, autoDragDeckId]);
-
+  const DeckChip: React.FC<{ item: Deck; index: number }> = ({ item, index }) => {
     return (
       <TouchableOpacity
         style={[
           styles.deckItem,
           selectedDeckId === item.id && styles.selectedDeckItem,
-          isActive && styles.activeDeckItem,
         ]}
-        onPress={() => !isReordering && handleDeckSelect(item.id, index)}
-        onLongPress={() => {
-          if (isReordering) {
-            drag();
-          } else {
-            handleDeckLongPress(item.id);
-          }
-        }}
+        onPress={() => handleDeckSelect(item.id, index)}
+        onLongPress={() => handleDeckLongPress(item.id)}
         delayLongPress={500}
       >
         <Text
@@ -536,33 +509,64 @@ export default function SavedFlashcardsScreen() {
     );
   };
 
-  // shared render function for both FlatList and DraggableFlatList
-  const renderDeckItem = ({ item, index, drag, isActive }: RenderItemParams<Deck>) => (
-    <DeckChip item={item} index={index} drag={drag} isActive={isActive} />
-  );
-
-  // Handle drag end to update state & persist
-  const handleDeckDragEnd = async ({ data }: { data: Deck[] }) => {
-    setDecks(data);
-    setAutoDragDeckId(null);
-
-    // Update selectedDeckIndex according to new order
-    const newIndex = data.findIndex(d => d.id === selectedDeckId);
-    setSelectedDeckIndex(newIndex >= 0 ? newIndex : 0);
-
-    try {
-      const updates = data.map((d, idx) => ({ id: d.id, name: d.name, order_index: idx }));
-      const { error } = await supabase.from('decks').upsert(updates);
-      if (error) {
-        console.error('Error updating deck order:', error.message);
-        Alert.alert(t('common.error'), t('deck.reorder.failed', 'Failed to update order'));
+  // Handle reorder completion from modal
+  const handleReorderComplete = (newDecks: Deck[]) => {
+    console.log(`[handleReorderComplete] Updating deck order, current selectedDeckId: ${selectedDeckId}`);
+    
+    setDecks(newDecks);
+    
+    // Find the new index of the currently selected deck
+    const newIndex = newDecks.findIndex(d => d.id === selectedDeckId);
+    
+    if (newIndex >= 0) {
+      // Current deck still exists, update index and ensure it stays selected
+      console.log(`[handleReorderComplete] Current deck found at new index: ${newIndex}`);
+      setSelectedDeckIndex(newIndex);
+      
+      // Force reload flashcards for the selected deck to ensure they appear
+      if (selectedDeckId) {
+        // Add a small delay to ensure state is fully updated
+        setTimeout(() => {
+          loadFlashcardsByDeck(selectedDeckId);
+        }, 50);
       }
-    } catch (e) {
-      console.error('Error updating deck order:', e);
+      
+      // Scroll both deck selector and flashcard pager to show the selected deck after reordering
+      if (newIndex >= 0) {
+        // Use setTimeout to ensure the deck list has been updated
+        setTimeout(() => {
+          // Scroll deck selector
+          if (deckSelectorRef.current) {
+            deckSelectorRef.current.scrollToIndex({
+              index: newIndex,
+              animated: true,
+              viewPosition: 0.5
+            });
+          }
+          
+          // Scroll main flashcard pager
+          if (flashcardsListRef.current) {
+            flashcardsListRef.current.scrollToIndex({
+              index: newIndex,
+              animated: true,
+            });
+          }
+        }, 100);
+      }
+    } else if (newDecks.length > 0) {
+      // Current deck no longer exists, select the first deck
+      console.log(`[handleReorderComplete] Current deck not found, selecting first deck: ${newDecks[0].name}`);
+      setSelectedDeckId(newDecks[0].id);
+      setSelectedDeckIndex(0);
+    } else {
+      // No decks available
+      console.log(`[handleReorderComplete] No decks available after reorder`);
+      setSelectedDeckId(null);
+      setSelectedDeckIndex(0);
+      setFlashcards([]);
+      setIsLoadingFlashcards(false);
     }
   };
-
-  const exitReorderMode = () => setIsReordering(false);
 
   // Render empty state
   const renderEmptyState = () => (
@@ -657,12 +661,7 @@ export default function SavedFlashcardsScreen() {
           </TouchableOpacity>
         </View>
 
-        {isReordering && (
-          <View style={styles.reorderHeader}>
-            <Text style={styles.reorderText}>{t('deck.reorderHint', 'Drag to reorder')}</Text>
-            <TouchableOpacity onPress={exitReorderMode}><Text style={styles.doneText}>{t('common.done', 'Done')}</Text></TouchableOpacity>
-          </View>
-        )}
+
 
         {isLoadingDecks ? (
           <View style={styles.deckSelectorPlaceholder}>
@@ -670,35 +669,22 @@ export default function SavedFlashcardsScreen() {
           </View>
         ) : (
           <View style={styles.deckSelectorContainer}>
-            {isReordering ? (
-              <DraggableFlatList
-                ref={deckSelectorRef}
-                data={decks}
-                horizontal
-                renderItem={renderDeckItem}
-                keyExtractor={(item) => item.id}
-                onDragEnd={handleDeckDragEnd}
-                activationDistance={20}
-                contentContainerStyle={styles.deckSelector}
-              />
-            ) : (
-              <FlatList
-                ref={deckSelectorRef}
-                data={decks}
-                renderItem={({ item, index }) => (
-                  <DeckChip item={item} index={index} drag={() => {}} isActive={false} />
-                )}
-                keyExtractor={(item) => item.id}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.deckSelector}
-                ListEmptyComponent={
-                  <View style={styles.noDecksContainer}>
-                    <Text style={styles.noDecksText}>{t('savedFlashcards.noCollections')}</Text>
-                  </View>
-                }
-              />
-            )}
+            <FlatList
+              ref={deckSelectorRef}
+              data={decks}
+              renderItem={({ item, index }) => (
+                <DeckChip item={item} index={index} />
+              )}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.deckSelector}
+              ListEmptyComponent={
+                <View style={styles.noDecksContainer}>
+                  <Text style={styles.noDecksText}>{t('savedFlashcards.noCollections')}</Text>
+                </View>
+              }
+            />
           </View>
         )}
         
@@ -853,6 +839,14 @@ export default function SavedFlashcardsScreen() {
           flashcard={flashcardToEdit}
           onClose={() => setShowEditModal(false)}
           onSave={handleSaveEditedFlashcard}
+        />
+
+        {/* Deck reorder modal */}
+        <DeckReorderModal
+          visible={showReorderModal}
+          onClose={() => setShowReorderModal(false)}
+          decks={decks}
+          onReorderComplete={handleReorderComplete}
         />
       </SafeAreaView>
     </PokedexLayout>
@@ -1127,23 +1121,5 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.5,
   },
-  activeDeckItem: {
-    backgroundColor: COLORS.lightGray,
-  },
-  reorderHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 4,
-    backgroundColor: COLORS.mediumSurface,
-  },
-  reorderText: {
-    color: COLORS.text,
-    fontSize: 14,
-  },
-  doneText: {
-    color: COLORS.primary,
-    fontWeight: 'bold',
-  },
+
 }); 

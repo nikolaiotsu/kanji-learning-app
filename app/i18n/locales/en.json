@@ -12,7 +12,8 @@
     "retry": "Retry",
     "or": "or",
     "delete": "Delete",
-    "save": "Save"
+    "save": "Save",
+    "done": "Done"
   },
   "auth": {
     "login": {
@@ -62,7 +63,12 @@
       "error": "Please enter a name for the new collection",
       "failed": "Failed to create new collection. Please try again."
     },
-    "created": "Created: {{date}}"
+    "created": "Created: {{date}}",
+    "reorder": {
+      "title": "Reorder Collections",
+      "instruction": "Long press and drag to reorder your collections",
+      "failed": "Failed to update collection order"
+    }
   },
   "flashcard": {
 

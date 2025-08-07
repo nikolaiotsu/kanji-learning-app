@@ -12,7 +12,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableWithoutFeedback,
-  Keyboard
+  Keyboard,
+  SafeAreaView,
+  Dimensions
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Flashcard } from '../../types/Flashcard';
@@ -21,6 +23,8 @@ import { processWithClaude } from '../../services/claudeApi';
 // Removed text formatting imports - no longer needed for direct content analysis
 import { useSettings, AVAILABLE_LANGUAGES } from '../../context/SettingsContext';
 import { COLORS } from '../../constants/colors';
+
+const { height: screenHeight } = Dimensions.get('window');
 
 interface EditFlashcardModalProps {
   visible: boolean;
@@ -202,87 +206,113 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
       transparent={true}
       onRequestClose={onClose}
     >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <SafeAreaView style={styles.modalOverlay}>
+        <TouchableWithoutFeedback onPress={onClose}>
+          <View style={styles.backdrop} />
+        </TouchableWithoutFeedback>
+        
         <KeyboardAvoidingView 
           behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.modalOverlay}
+          style={styles.keyboardAvoidingView}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
         >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Edit Flashcard</Text>
-            
-            <ScrollView style={styles.scrollContent}>
-              <Text style={styles.inputLabel}>Original Text:</Text>
-              <TextInput
-                style={styles.textInput}
-                value={originalText}
-                onChangeText={setOriginalText}
-                multiline
-                placeholder="Enter original text"
-                placeholderTextColor={COLORS.darkGray}
-                textAlignVertical="top"
-              />
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalContent}>
+              {/* Header */}
+              <View style={styles.header}>
+                <Text style={styles.modalTitle}>Edit Flashcard</Text>
+                <TouchableOpacity 
+                  style={styles.closeButton} 
+                  onPress={onClose}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Text style={styles.closeButtonText}>✕</Text>
+                </TouchableOpacity>
+              </View>
               
-              {needsRomanization && (
-                <>
-                  <Text style={styles.inputLabel}>
-                    {detectedLanguage === 'Japanese' ? 'Furigana Text:' : 
-                    detectedLanguage === 'Chinese' ? 'Pinyin Text:' :
-                    detectedLanguage === 'Korean' ? 'Romanized Text:' :
-                    detectedLanguage === 'Russian' ? 'Romanized Text:' :
-                    detectedLanguage === 'Arabic' ? 'Transliterated Text:' :
-                    detectedLanguage === 'Italian' ? 'Transliterated Text:' :
-                    detectedLanguage === 'Tagalog' ? 'Transliterated Text:' :
-                    'Romanized Text:'}
-                  </Text>
-                  <TextInput
-                    style={styles.textInput}
-                    value={furiganaText}
-                    onChangeText={setFuriganaText}
-                    multiline
-                    placeholder="Enter romanized text"
-                    placeholderTextColor={COLORS.darkGray}
-                    textAlignVertical="top"
-                  />
-                </>
-              )}
-              
-              <Text style={styles.inputLabel}>Translated Text: ({translatedLanguageName})</Text>
-              <TextInput
-                style={styles.textInput}
-                value={translatedText}
-                onChangeText={setTranslatedText}
-                multiline
-                placeholder="Enter translation"
-                placeholderTextColor={COLORS.darkGray}
-                textAlignVertical="top"
-              />
-              
-              {error ? <Text style={styles.errorText}>{error}</Text> : null}
-              
-              <TouchableOpacity
-                style={[styles.retranslateButton, isRetranslating && styles.disabledButton]}
-                onPress={handleRetranslate}
-                disabled={isRetranslating}
+              {/* Content */}
+              <ScrollView 
+                style={styles.scrollContent}
+                contentContainerStyle={styles.scrollContentContainer}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
               >
-                {isRetranslating ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.buttonText}>Retranslate</Text>
+                <Text style={styles.inputLabel}>Original Text:</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={originalText}
+                  onChangeText={setOriginalText}
+                  multiline
+                  placeholder="Enter original text"
+                  placeholderTextColor={COLORS.darkGray}
+                  textAlignVertical="top"
+                />
+                
+                {needsRomanization && (
+                  <>
+                    <Text style={styles.inputLabel}>
+                      {detectedLanguage === 'Japanese' ? 'Furigana Text:' : 
+                      detectedLanguage === 'Chinese' ? 'Pinyin Text:' :
+                      detectedLanguage === 'Korean' ? 'Romanized Text:' :
+                      detectedLanguage === 'Russian' ? 'Romanized Text:' :
+                      detectedLanguage === 'Arabic' ? 'Transliterated Text:' :
+                      detectedLanguage === 'Italian' ? 'Transliterated Text:' :
+                      detectedLanguage === 'Tagalog' ? 'Transliterated Text:' :
+                      'Romanized Text:'}
+                    </Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={furiganaText}
+                      onChangeText={setFuriganaText}
+                      multiline
+                      placeholder="Enter romanized text"
+                      placeholderTextColor={COLORS.darkGray}
+                      textAlignVertical="top"
+                    />
+                  </>
                 )}
-              </TouchableOpacity>
-            </ScrollView>
-            
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                <Text style={styles.buttonText}>Save</Text>
-              </TouchableOpacity>
+                
+                <Text style={styles.inputLabel}>Translated Text: ({translatedLanguageName})</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={translatedText}
+                  onChangeText={setTranslatedText}
+                  multiline
+                  placeholder="Enter translation"
+                  placeholderTextColor={COLORS.darkGray}
+                  textAlignVertical="top"
+                />
+                
+                {error ? <Text style={styles.errorText}>{error}</Text> : null}
+                
+                <TouchableOpacity
+                  style={[styles.retranslateButton, isRetranslating && styles.disabledButton]}
+                  onPress={handleRetranslate}
+                  disabled={isRetranslating}
+                >
+                  {isRetranslating ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.buttonText}>Retranslate</Text>
+                  )}
+                </TouchableOpacity>
+              </ScrollView>
+              
+              {/* Footer */}
+              <View style={styles.footer}>
+                <View style={styles.buttonContainer}>
+                  <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+                    <Text style={styles.buttonText}>Save</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
-          </View>
+          </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
-      </TouchableWithoutFeedback>
+      </SafeAreaView>
     </Modal>
   );
 };
@@ -290,98 +320,142 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  },
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  keyboardAvoidingView: {
+    flex: 1,
+    justifyContent: 'flex-end',
   },
   modalContent: {
-    width: '90%',
-    maxHeight: '80%',
     backgroundColor: COLORS.darkSurface,
-    borderRadius: 12,
-    padding: 20,
-    elevation: 5,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: screenHeight * 0.9, // Use 90% of screen height maximum
+    minHeight: screenHeight * 0.4, // Minimum 40% of screen height
+    elevation: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowRadius: 8,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.mediumSurface,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 15,
-    textAlign: 'center',
     color: COLORS.text,
+    flex: 1,
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.mediumSurface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    fontSize: 18,
+    color: COLORS.text,
+    fontWeight: 'bold',
   },
   scrollContent: {
-    maxHeight: '80%',
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  scrollContentContainer: {
+    paddingVertical: 16,
+    paddingBottom: 20,
   },
   inputLabel: {
     fontSize: 16,
     fontWeight: '600',
-    marginTop: 10,
-    marginBottom: 5,
+    marginTop: 16,
+    marginBottom: 8,
     color: COLORS.text,
   },
   textInput: {
     borderWidth: 1,
     borderColor: COLORS.mediumSurface,
-    borderRadius: 5,
-    padding: 10,
+    borderRadius: 8,
+    padding: 12,
     fontSize: 16,
     minHeight: 80,
-    marginBottom: 15,
+    maxHeight: 120, // Limit input height to prevent oversized inputs
+    marginBottom: 16,
     backgroundColor: COLORS.mediumSurface,
-    color: 'white',
+    color: COLORS.text,
   },
   errorText: {
     color: COLORS.danger,
-    marginBottom: 10,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 10,
-  },
-  saveButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 5,
-    flex: 1,
-    marginLeft: 10,
-    alignItems: 'center',
+    fontSize: 14,
+    marginBottom: 12,
+    fontWeight: '500',
   },
   retranslateButton: {
     backgroundColor: '#2CB67D',
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 5,
+    borderRadius: 8,
     alignItems: 'center',
-    marginBottom: 15,
+    marginTop: 8,
+    marginBottom: 16,
   },
   disabledButton: {
-    opacity: 0.7,
+    opacity: 0.6,
+  },
+  footer: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 20,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.mediumSurface,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: 12, // Modern gap property for spacing
+  },
+  saveButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    flex: 1,
+    alignItems: 'center',
   },
   cancelButton: {
-    borderWidth: 1,
-    borderColor: COLORS.mediumSurface,
     backgroundColor: COLORS.mediumSurface,
-    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: COLORS.lightGray,
+    paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 5,
+    borderRadius: 8,
     flex: 1,
-    marginRight: 10,
     alignItems: 'center',
   },
   buttonText: {
     color: COLORS.text,
-    fontWeight: 'bold',
+    fontWeight: '600',
     fontSize: 16,
   },
   cancelButtonText: {
     color: COLORS.text,
-    fontWeight: 'bold',
+    fontWeight: '600',
     fontSize: 16,
   },
 });
