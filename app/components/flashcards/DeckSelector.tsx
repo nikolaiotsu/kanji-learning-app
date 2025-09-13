@@ -195,21 +195,45 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
 
     // Optimistically update order on Supabase
     try {
-      const updates = data.map((deck, idx) => ({ id: deck.id, name: deck.name, order_index: idx }));
+      // Only update order_index using RPC function for safe batch update
+      const updates = data.map((deck, idx) => ({ 
+        id: deck.id, 
+        order_index: idx 
+      }));
       console.log(`[handleDragEnd] Updating Supabase with new order:`, updates);
-      // Batch update via upsert
+      // Batch update via RPC function to match DeckReorderModal approach
       const { error } = await supabase
-        .from('decks')
-        .upsert(updates);
+        .rpc('update_deck_order', {
+          deck_updates: updates
+        });
 
       if (error) {
         console.error('Error updating deck order:', error.message);
-        Alert.alert(t('common.error'), t('deck.reorder.failed'));
+        
+        // Provide more specific error message if it's a column missing issue
+        let errorMessage = t('deck.reorder.failed');
+        if (error.message.toLowerCase().includes('order_index') && 
+            (error.message.toLowerCase().includes('column') || error.message.toLowerCase().includes('does not exist'))) {
+          errorMessage = 'Database needs to be updated. Please contact support or check the migration instructions.';
+        }
+        
+        Alert.alert(t('common.error'), errorMessage);
       } else {
         console.log(`[handleDragEnd] Successfully updated deck order in Supabase`);
       }
     } catch (error) {
       console.error('Error updating deck order:', error);
+      
+      // Provide user feedback for catch block errors too
+      let errorMessage = t('deck.reorder.failed');
+      if (error && typeof error === 'object' && 'message' in error) {
+        const errorMsg = (error as { message: string }).message.toLowerCase();
+        if (errorMsg.includes('order_index') && (errorMsg.includes('column') || errorMsg.includes('does not exist'))) {
+          errorMessage = 'Database needs to be updated. Please contact support or check the migration instructions.';
+        }
+      }
+      
+      Alert.alert(t('common.error'), errorMessage);
     }
   };
 

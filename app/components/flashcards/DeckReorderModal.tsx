@@ -121,7 +121,7 @@ export default function DeckReorderModal({
         return;
       }
 
-      // Update order in database - only update order_index to avoid name corruption
+      // Update order in database using RPC function for safe batch update
       const updates = validDecks.map((deck, idx) => ({
         id: deck.id,
         order_index: idx
@@ -129,10 +129,8 @@ export default function DeckReorderModal({
 
       console.log(`[DeckReorderModal] Updating database with:`, updates);
       const { error } = await supabase
-        .from('decks')
-        .upsert(updates, {
-          onConflict: 'id',
-          ignoreDuplicates: false
+        .rpc('update_deck_order', {
+          deck_updates: updates
         });
 
       if (error) {
@@ -148,7 +146,17 @@ export default function DeckReorderModal({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       console.error('Error saving deck order:', error);
-      Alert.alert(t('common.error'), t('deck.reorder.failed'));
+      
+      // Provide more specific error message if it's a column missing issue
+      let errorMessage = t('deck.reorder.failed');
+      if (error && typeof error === 'object' && 'message' in error) {
+        const errorMsg = (error as { message: string }).message.toLowerCase();
+        if (errorMsg.includes('order_index') && (errorMsg.includes('column') || errorMsg.includes('does not exist'))) {
+          errorMessage = 'Database needs to be updated. Please contact support or check the migration instructions.';
+        }
+      }
+      
+      Alert.alert(t('common.error'), errorMessage);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setIsLoading(false);

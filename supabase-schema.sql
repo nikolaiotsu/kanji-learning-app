@@ -7,7 +7,8 @@ CREATE TABLE decks (
   name TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  order_index INTEGER DEFAULT 0
 );
 
 -- Create flashcards table
@@ -25,9 +26,14 @@ CREATE TABLE flashcards (
 -- Migration for existing flashcards (run this if you have existing data)
 -- ALTER TABLE flashcards ADD COLUMN target_language TEXT NOT NULL DEFAULT 'en';
 
+-- Migration for existing decks (run this if you have existing data without order_index)
+-- ALTER TABLE decks ADD COLUMN order_index INTEGER DEFAULT 0;
+-- UPDATE decks SET order_index = (row_number() OVER (PARTITION BY user_id ORDER BY created_at ASC)) - 1 WHERE order_index IS NULL;
+
 -- Add indexes for faster querying
 CREATE INDEX flashcards_deck_id_idx ON flashcards(deck_id);
 CREATE INDEX decks_user_id_idx ON decks(user_id);
+CREATE INDEX decks_order_index_idx ON decks(order_index);
 
 -- Row-level security policies (RLS)
 -- This ensures that users can only access their own data

@@ -9,7 +9,8 @@ console.log('CLAUDE_API_KEY:', process.env.CLAUDE_API_KEY ? 'defined' : 'undefin
 
 export default {
   expo: {
-    name: "kanji-learning-app",
+    name: "Worddex",
+    slug: "kanji-learning-app",
     // ... other existing config
     scheme: "kanjiapp",
     plugins: [
