@@ -50,15 +50,17 @@ const FuriganaText: React.FC<FuriganaTextProps> = ({
       return segments;
     }
     
-    // Regex to match CJK characters, Korean Hangul, Cyrillic, Arabic, and Devanagari followed by readings in parentheses
-    // Now supports punctuation between the text and romanization
+    // Regex to match text with readings in parentheses
+    // Now supports mixed kanji-hiragana-katakana words and punctuation
     // For Japanese: 東京(とうきょう) - kanji with hiragana
+    //              落ち着いた(おちついた) - mixed kanji-hiragana with hiragana reading
+    //              食べ物(たべもの) - mixed kanji-hiragana with hiragana reading
     // For Chinese: 中国(zhōngguó) - hanzi with pinyin
     // For Korean: 한국어(han-gug-eo) or 안녕하세요!(an-nyeong-ha-se-yo!) - hangul with romanization
     // For Russian: Русский(russkiy) - cyrillic with romanization
     // For Arabic: العربية(al-arabiya) - arabic with transliteration
     // For Hindi: हिन्दी(hindī) - devanagari with IAST romanization
-    const readingRegex = /([\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F]+)([!?.,;:'"'"‚""„‹›«»‑–—…\s]*)\(([ぁ-ゟa-zA-Zāēīōūǎěǐǒǔàèìòùáéíóúǘǜɑśṅñṭḍṇḷṛṣḥṁṃḷ̥ṝṟĝśḱńṗṟť\s\-0-9!?.,;:'"'"‚""„‹›«»‑–—…]+)\)/g;
+    const readingRegex = /([\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F\u3040-\u309f\u30a0-\u30ff]+)([!?.,;:'"'"‚""„‹›«»‑–—…\s]*)\(([ぁ-ゟa-zA-Zāēīōūǎěǐǒǔàèìòùáéíóúǘǜɑśṅñṭḍṇḷṛṣḥṁṃḷ̥ṝṟĝśḱńṗṟť\s\-0-9!?.,;:'"'"‚""„‹›«»‑–—…]+)\)/g;
     
     let lastIndex = 0;
     let match;

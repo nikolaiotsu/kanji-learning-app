@@ -8,6 +8,9 @@ const FuriganaTextDemo: React.FC = () => {
   const examples = [
     { text: "こんばんは！", language: "Japanese" },
     { text: "恋愛(れんあい)は長い(ながい)会話(かいわ)のようなもの", language: "Japanese" },
+    { text: "落ち着いた(おちついた)空間(くうかん)で", language: "Japanese - Mixed Kanji-Hiragana" },
+    { text: "食べ物(たべもの)が美味しい(おいしい)", language: "Japanese - Mixed Kanji-Hiragana" },
+    { text: "読み書き(よみかき)の練習(れんしゅう)", language: "Japanese - Mixed Kanji-Hiragana" },
     { text: "你好(nǐ hǎo)世界(shìjiè)！", language: "Chinese" },
     { text: "我(wǒ)爱(ài)学习(xuéxí)中文(zhōngwén)", language: "Chinese" },
     { text: "今天(jīntiān)天气(tiānqì)很好(hěn hǎo)", language: "Chinese" },

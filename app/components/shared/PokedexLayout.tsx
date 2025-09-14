@@ -3,13 +3,13 @@ import {
   View, 
   StyleSheet, 
   ViewStyle,
-  SafeAreaView,
   StatusBar,
   Image,
   ImageSourcePropType,
   ImageStyle,
   Animated
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../../constants/colors';
 import TexturedBackground from './TexturedBackground';
 
@@ -45,6 +45,18 @@ export default memo(function PokedexLayout({
   processingFailed = false,
   logoLoaded = false,
 }: PokedexLayoutProps) {
+  const insets = useSafeAreaInsets();
+  
+  // Debug: Log safe area insets to check for asymmetry
+  useEffect(() => {
+    console.log('SafeAreaInsets:', {
+      top: insets.top,
+      right: insets.right,
+      bottom: insets.bottom,
+      left: insets.left
+    });
+  }, [insets]);
+
   // Animation values - create them with useMemo to avoid recreating on rerenders
   const animationValues = useMemo(() => {
     return {
@@ -384,7 +396,7 @@ export default memo(function PokedexLayout({
             {variant === 'flashcards' ? (
               <>
                 {/* Flashcards Variant: Main light with outer glow */}
-                <View style={{ position: 'relative', marginRight: 15 }}>
+                <View style={{ position: 'relative', marginRight: 10 }}>
                   {/* Outer glow layers for main light - multiple layers for natural effect */}
                   {/* Outermost glow - largest and most transparent */}
                   <Animated.View 
@@ -499,8 +511,6 @@ export default memo(function PokedexLayout({
           {children}
         </View>
         
-        {/* Right border detail */}
-        <View style={styles.rightBorderDetail} />
       </SafeAreaView>
     </TexturedBackground>
   );
@@ -543,13 +553,13 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 15,
+    marginRight: 10,
     elevation: 5,
     position: 'relative',
     borderColor: '#000000',
     // Add inset shadow effect
     shadowColor: '#000000',
-    shadowOffset: { width: 2, height: 2 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
   },
@@ -606,7 +616,7 @@ const styles = StyleSheet.create({
     elevation: 3,
     // Add depth shadow effect
     shadowColor: '#000000',
-    shadowOffset: { width: 1, height: 1 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.3,
     shadowRadius: 2,
   },
@@ -640,47 +650,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#00000080',
     marginBottom: 3,
     borderRadius: 1,
-  },
-  leftSideDecoration: {
-    position: 'absolute',
-    left: 0,
-    top: '30%',
-    width: 18,
-    height: 80,
-    backgroundColor: COLORS.pokedexBlack,
-    borderTopRightRadius: 8,
-    borderBottomRightRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  leftSideCircle: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#555',
-    borderWidth: 1,
-    borderColor: '#333',
-    marginBottom: 10,
-  },
-  leftSideLine: {
-    width: 10,
-    height: 30,
-    borderRadius: 5,
-    backgroundColor: '#444',
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  rightBorderDetail: {
-    position: 'absolute',
-    right: 0,
-    top: '60%',
-    width: 8,
-    height: 40,
-    backgroundColor: COLORS.pokedexBlack,
-    borderTopLeftRadius: 4,
-    borderBottomLeftRadius: 4,
-    zIndex: 10,
   },
   screenCorner: {
     position: 'absolute',

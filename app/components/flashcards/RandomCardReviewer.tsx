@@ -41,6 +41,9 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
   const [selectedDeckIds, setSelectedDeckIds] = useState<string[]>([]);
   const [deckIdsLoaded, setDeckIdsLoaded] = useState(false);
   const [filteredCards, setFilteredCards] = useState(allFlashcards);
+  
+  // Add initialization state to prevent flickering during startup
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Local state for remaining cards count to prevent flickering
   const [remainingCount, setRemainingCount] = useState(reviewSessionCards.length);
@@ -128,7 +131,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
 
   // Handle smooth card transitions when card changes
   useEffect(() => {
-    if (currentCard && currentCard.id !== lastCardId && !isProcessing) {
+    if (currentCard && currentCard.id !== lastCardId && !isProcessing && isInitialized) {
       // Reset position and rotation
       slideAnim.setValue(0);
       rotateAnim.setValue(0);
@@ -142,12 +145,16 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
       }).start();
       
       setLastCardId(currentCard.id);
-    } else if (!currentCard) {
-      // Handle case when no card is selected
+    } else if (!currentCard && isInitialized) {
+      // Handle case when no card is selected (only after initialization)
       opacityAnim.setValue(0);
       setLastCardId(null);
+    } else if (currentCard && !isInitialized) {
+      // For initial load, set opacity to 1 immediately to prevent flash
+      opacityAnim.setValue(1);
+      setLastCardId(currentCard.id);
     }
-  }, [currentCard, lastCardId, isProcessing]);
+  }, [currentCard, lastCardId, isProcessing, isInitialized]);
 
   // Configure PanResponder
   const panResponder = useRef(
@@ -267,13 +274,20 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
   useEffect(() => {
     if (filteredCards.length > 0 && deckIdsLoaded) {
       startReviewWithCards(filteredCards);
+      // Mark as initialized once we've started the review session
+      if (!isInitialized) {
+        setIsInitialized(true);
+      }
     }
-  }, [filteredCards, deckIdsLoaded, startReviewWithCards]);
+  }, [filteredCards, deckIdsLoaded, startReviewWithCards, isInitialized]);
 
   // Handle deck selection
   const handleDeckSelection = useCallback(async (deckIds: string[]) => {
     // Only do a full reset if the selection actually changed
     if (JSON.stringify(deckIds.sort()) !== JSON.stringify(selectedDeckIds.sort())) {
+      // Reset initialization state to show loading during deck change
+      setIsInitialized(false);
+      
       // Clear current card immediately to avoid on-screen flicker while new deck loads
       setCurrentCard(null);
 
@@ -295,9 +309,10 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
   ), [showDeckSelector, selectedDeckIds, handleDeckSelection]);
 
   // Unified loading / preparing state: show only the spinner (no text)
+  // Only show loading spinner if we're actually loading or not yet initialized
   if (
     isLoading ||
-    (!currentCard && !isSessionFinished)
+    (!isInitialized && !isSessionFinished)
   ) {
     return (
       <View style={styles.container}>

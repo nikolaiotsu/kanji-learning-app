@@ -34,13 +34,15 @@ export function validateFuriganaFormat(text: string): boolean {
   
   // Check if text contains properly formatted readings
   // Japanese: 東京(とうきょう) - kanji with hiragana
+  //          落ち着いた(おちついた) - mixed kanji-hiragana with hiragana reading
+  //          食べ物(たべもの) - mixed kanji-hiragana with hiragana reading
   // Chinese: 中国(zhōngguó) - hanzi with pinyin
   // Korean: 한국어(han-gug-eo) - hangul with romanization
   // Russian: Русский(russkiy) - cyrillic with romanization
   // Arabic: العربية(al-arabiya) - arabic with transliteration
   // Hindi: हिन्दी(hindī) - devanagari with romanization
   // Esperanto: Esperanto characters with Latin script
-  const readingRegex = /([\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F]+)\(([ぁ-ゟa-zA-ZāēīōūǎěǐǒǔàèìòùáéíóúǘǜɑĉĝĥĵŝŭĈĜĤĴŜŬ\s\-0-9]+)\)/;
+  const readingRegex = /([\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F\u3040-\u309f\u30a0-\u30ff]+)\(([ぁ-ゟa-zA-ZāēīōūǎěǐǒǔàèìòùáéíóúǘǜɑĉĝĥĵŝŭĈĜĤĴŜŬ\s\-0-9]+)\)/;
   return readingRegex.test(text);
 }
 
@@ -60,7 +62,8 @@ export function extractKanji(text: string): string[] {
  * @returns Number of furigana pairs found
  */
 export function countFuriganaPairs(text: string): number {
-  const furiganaRegex = /([\u4e00-\u9fff\u3400-\u4dbf]+)\(([ぁ-ゟ]+)\)/g;
+  // Updated to handle mixed kanji-hiragana-katakana words like 落ち着いた(おちついた)
+  const furiganaRegex = /([\u4e00-\u9fff\u3400-\u4dbf\u3040-\u309f\u30a0-\u30ff]+)\(([ぁ-ゟ]+)\)/g;
   const matches = text.match(furiganaRegex);
   return matches ? matches.length : 0;
 }

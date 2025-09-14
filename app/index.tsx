@@ -53,7 +53,7 @@ export default function App() {
       logoStyle={{ 
         width: 80, // Increased width from 100
         height: 65, // Increased height from 30
-        right: 10,  // Moved further to the right (closer to edge, default was 20)
+        right: 20,  // Restore balanced positioning (same as left padding of topSection)
         top: 0 // top position remains the same as default, can be adjusted if needed
       }}
       triggerLightAnimation={triggerLightAnimation}
