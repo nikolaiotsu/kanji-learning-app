@@ -23,8 +23,8 @@ export default function SettingsScreen() {
     availableLanguages,
     detectableLanguages 
   } = useSettings();
-  const { flashcardCount, maxFlashcards, remainingFlashcards, resetFlashcardCount } = useFlashcardCounter();
-  const { subscription, setTestingSubscriptionPlan } = useSubscription();
+  const { resetFlashcardCount } = useFlashcardCounter();
+  const { subscription, setTestingSubscriptionPlan, getMaxFlashcards } = useSubscription();
   
   const router = useRouter();
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
@@ -210,7 +210,7 @@ export default function SettingsScreen() {
               <Text style={styles.settingDescription}>
                 {subscription.plan === 'PREMIUM' 
                   ? 'Unlimited flashcards and features'
-                  : `${maxFlashcards} flashcards per day`
+                  : `${getMaxFlashcards()} flashcards per day`
                 }
               </Text>
             </View>
@@ -224,7 +224,7 @@ export default function SettingsScreen() {
 
         {/* Testing Section - Only shown in development */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🧪 Testing (Dev Only)</Text>
+          <Text style={styles.sectionTitle}>🧪 Beta Testing</Text>
           
           <View style={styles.testingButtonContainer}>
             <TouchableOpacity
@@ -266,28 +266,13 @@ export default function SettingsScreen() {
             >
               <Ionicons name="refresh" size={16} color="white" style={{ marginRight: 8 }} />
               <Text style={styles.resetCountButtonText}>
-                Reset Flashcard Count (Currently: {flashcardCount})
+                Reset Daily Limits
               </Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('settings.usageStatistics')}</Text>
-          
-          <View style={styles.settingItem}>
-            <Ionicons name="card-outline" size={24} color={COLORS.primary} style={styles.settingIcon} />
-            <View style={styles.settingTextContainer}>
-              <Text style={styles.settingLabel}>Flashcards Created Today</Text>
-              <Text style={styles.settingDescription}>
-                {flashcardCount} of {maxFlashcards} used ({remainingFlashcards} remaining)
-              </Text>
-            </View>
-            <View style={styles.counterBadge}>
-              <Text style={styles.counterText}>{flashcardCount}</Text>
-            </View>
-          </View>
-        </View>
+        {/* Usage Statistics section removed - internal metrics only */}
 
         {user && (
           <View style={styles.section}>
@@ -426,15 +411,10 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.accentMedium,
+    color: COLORS.text,
     marginLeft: 16,
-    marginBottom: 8,
-    marginTop: -10,
-    position: 'absolute',
-    top: -8,
-    backgroundColor: COLORS.background,
-    paddingHorizontal: 8,
-    zIndex: 1,
+    marginBottom: 12,
+    marginTop: 4,
   },
   settingItem: {
     flexDirection: 'row',
@@ -618,5 +598,11 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontWeight: '600',
+  },
+  testingInstructions: {
+    fontSize: 14,
+    color: COLORS.muted,
+    marginBottom: 12,
+    lineHeight: 20,
   },
 }); 

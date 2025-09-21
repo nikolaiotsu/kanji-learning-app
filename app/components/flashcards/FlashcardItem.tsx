@@ -205,14 +205,24 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
     })
   };
 
-  // Pre-load the image when the component mounts
+  // Enhanced image preloading with better error handling
   useEffect(() => {
     if (flashcard.imageUrl) {
-      Image.prefetch(flashcard.imageUrl).catch(() => {
-        // Silent catch - we'll still try to load the image normally if prefetch fails
-      });
+      // Preload image to prevent layout shifts and improve perceived performance
+      const preloadImage = async () => {
+        try {
+          // TypeScript now knows imageUrl is not undefined due to the if check above
+          await Image.prefetch(flashcard.imageUrl!);
+          console.log('🖼️ [FlashcardItem] Image preloaded successfully:', flashcard.id);
+        } catch (error) {
+          console.warn('🖼️ [FlashcardItem] Image preload failed for:', flashcard.id, error);
+          // Image will still attempt to load normally in the component
+        }
+      };
+      
+      preloadImage();
     }
-  }, [flashcard.imageUrl]);
+  }, [flashcard.imageUrl, flashcard.id]);
 
   return (
     <View style={[

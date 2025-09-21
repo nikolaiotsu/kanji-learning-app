@@ -4,6 +4,14 @@ import { Flashcard } from '../types/Flashcard';
 import { useAuth } from '../context/AuthContext';
 import { AppState } from 'react-native';
 
+// Enhanced loading states for better UX
+export enum LoadingState {
+  IDLE = 'idle',
+  SKELETON_LOADING = 'skeleton_loading', 
+  CONTENT_READY = 'content_ready',
+  ERROR = 'error'
+}
+
 /**
  * Custom hook for managing random flashcard review
  * @returns Object containing various state and handlers for random card review
@@ -14,11 +22,13 @@ export const useRandomCardReview = () => {
   const [reviewSessionCards, setReviewSessionCards] = useState<Flashcard[]>([]);
   const [isInReviewMode, setIsInReviewMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingState, setLoadingState] = useState<LoadingState>(LoadingState.IDLE);
   const [error, setError] = useState<string | null>(null);
   const [isSessionFinished, setIsSessionFinished] = useState(false);
   
   // Use refs to track the last data state to prevent unnecessary updates
   const lastFetchedCardsRef = useRef<string>("");
+  const isInitialLoadRef = useRef<boolean>(true); // Track if this is the first load
   
   // Add refs to track current state values (keeping minimal refs from old implementation)
   const currentCardRef = useRef<Flashcard | null>(null);
@@ -36,12 +46,17 @@ export const useRandomCardReview = () => {
     return JSON.stringify(sortedCards1) === JSON.stringify(sortedCards2);
   };
 
-  // Fetch all flashcards and refresh the session
+  // Fetch all flashcards with enhanced loading states
   const fetchAllFlashcards = useCallback(async (forceUpdate = false) => {
     if (isLoading) return; // Prevent concurrent fetches
     
     try {
-      // Fetch without setting loading state first to avoid UI flashing
+      // Set skeleton loading state for initial loads or force updates
+      if (isInitialLoadRef.current || forceUpdate) {
+        setLoadingState(LoadingState.SKELETON_LOADING);
+      }
+      
+      // Fetch without setting old loading state first to avoid UI flashing
       const cards = await getFlashcards();
       
       // Create a hash of the fetched cards to detect changes
@@ -63,16 +78,13 @@ export const useRandomCardReview = () => {
           setReviewSessionCards(cards);
 
           /*
-           * Avoid showing an intermediate random card on the initial load.
-           * We only want to pick a new random card here **if** we are already
-           * inside an active review session. When the component first mounts
-           * `isInReviewMode` is false; the caller (RandomCardReviewer) will
-           * subsequently invoke `startReviewWithCards`, which is the moment we
-           * really want to select the first card to review. Skipping the random
-           * selection here prevents the brief "flash" of a different card
-           * before the session officially starts.
+           * CRITICAL: Do not select a card here during initial load!
+           * This prevents the flicker issue. Card selection should only happen
+           * when explicitly starting a review session via startReviewWithCards.
            */
-          if (isInReviewMode) {
+          if (isInReviewMode && !isInitialLoadRef.current) {
+            // Only select a card if we're already in an active review session
+            // and this isn't the initial load
             if (cards.length > 0) {
               const randomIndex = Math.floor(Math.random() * cards.length);
               setCurrentCard(cards[randomIndex]);
@@ -122,11 +134,20 @@ export const useRandomCardReview = () => {
         }
         
         setIsLoading(false);
+        
+        // Mark initial load as complete
+        if (isInitialLoadRef.current) {
+          isInitialLoadRef.current = false;
+        }
+        
+        // Set content ready state only after all data is loaded
+        setLoadingState(LoadingState.CONTENT_READY);
       }
     } catch (err) {
       console.error('Error fetching flashcards:', err);
       setError('Failed to load flashcards. Please try again.');
       setIsLoading(false);
+      setLoadingState(LoadingState.ERROR);
     }
   }, [isInReviewMode, currentCard, reviewSessionCards]);
 
@@ -305,29 +326,35 @@ export const useRandomCardReview = () => {
     fetchAllFlashcards(true);
   };
 
-  // Start a review session with specific cards (for deck filtering)
+  // Start a review session with specific cards (for deck filtering) - ATOMIC OPERATION
   const startReviewWithCards = useCallback((cards: Flashcard[]) => {
     console.log('🚀 [Hook] startReviewWithCards called with', cards.length, 'cards');
     console.log('🚀 [Hook] Current isInReviewMode:', isInReviewMode);
     console.log('🚀 [Hook] Current reviewSessionCards.length:', reviewSessionCards.length);
     
-    // Set the review session cards to the provided cards
-    setReviewSessionCards(cards);
-    // Reset session finished status when starting a new session
-    setIsSessionFinished(false);
-    
-    // Select a random card from the provided cards
+    // ATOMIC INITIALIZATION: Set all states together to prevent flicker
     if (cards.length > 0) {
+      // Select the card BEFORE setting any state to ensure atomicity
       const randomIndex = Math.floor(Math.random() * cards.length);
-      console.log('🚀 [Hook] Selected initial card:', cards[randomIndex].id);
-      setCurrentCard(cards[randomIndex]);
-      // Start review mode when we have cards
+      const selectedCard = cards[randomIndex];
+      
+      console.log('🚀 [Hook] Selected initial card:', selectedCard.id);
+      
+      // Set all states atomically to prevent intermediate renders
+      setReviewSessionCards(cards);
+      setCurrentCard(selectedCard);
       setIsInReviewMode(true);
+      setIsSessionFinished(false);
+      setLoadingState(LoadingState.CONTENT_READY);
+      
+      console.log('🚀 [Hook] Review session started successfully');
     } else {
-      console.log('🚀 [Hook] No cards provided, setting currentCard to null');
+      console.log('🚀 [Hook] No cards provided, clearing session');
+      setReviewSessionCards([]);
       setCurrentCard(null);
-      // Exit review mode when we have no cards
       setIsInReviewMode(false);
+      setIsSessionFinished(false);
+      setLoadingState(LoadingState.CONTENT_READY);
     }
   }, []);
 
@@ -338,6 +365,7 @@ export const useRandomCardReview = () => {
     isInReviewMode,
     isSessionFinished,
     isLoading,
+    loadingState,
     error,
     handleSwipeLeft,
     handleSwipeRight,

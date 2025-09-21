@@ -1,11 +1,6 @@
 import 'dotenv/config';
 
-// Debug logs to check environment variables
-console.log('Loading environment variables in app.config.js:');
-console.log('EXPO_PUBLIC_SUPABASE_URL:', process.env.EXPO_PUBLIC_SUPABASE_URL ? 'defined' : 'undefined');
-console.log('EXPO_PUBLIC_SUPABASE_ANON_KEY:', process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ? 'defined' : 'undefined');
-console.log('EXPO_PUBLIC_CLAUDE_API_KEY:', process.env.EXPO_PUBLIC_CLAUDE_API_KEY ? 'defined' : 'undefined');
-console.log('CLAUDE_API_KEY:', process.env.CLAUDE_API_KEY ? 'defined' : 'undefined');
+// Environment variables loaded for app configuration
 
 export default {
   expo: {

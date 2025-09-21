@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Animated, PanResponder } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import FlashcardItem from './FlashcardItem';
-import { useRandomCardReview } from '../../hooks/useRandomCardReview';
+import { useRandomCardReview, LoadingState } from '../../hooks/useRandomCardReview';
 import { getFlashcardsByDecks } from '../../services/supabaseStorage';
+import { Flashcard } from '../../types/Flashcard';
 import { COLORS } from '../../constants/colors';
 import MultiDeckSelector from './MultiDeckSelector';
 import * as Haptics from 'expo-haptics';
@@ -23,6 +24,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
   const {
     currentCard,
     isLoading,
+    loadingState,
     error,
     reviewSessionCards,
     isInReviewMode,
@@ -40,10 +42,23 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
   // Deck selection state (moved from hook to component)
   const [selectedDeckIds, setSelectedDeckIds] = useState<string[]>([]);
   const [deckIdsLoaded, setDeckIdsLoaded] = useState(false);
-  const [filteredCards, setFilteredCards] = useState(allFlashcards);
+  const [filteredCards, setFilteredCards] = useState<Flashcard[]>([]);
   
-  // Add initialization state to prevent flickering during startup
-  const [isInitialized, setIsInitialized] = useState(false);
+  // Consolidated loading state management to prevent flickering
+  const [componentLoadingState, setComponentLoadingState] = useState<'initializing' | 'loading_deck_change' | 'ready'>('initializing');
+  const [isCardTransitioning, setIsCardTransitioning] = useState(false);
+  const [isCardVisible, setIsCardVisible] = useState(false);
+  
+  // Prevent multiple initialization calls with refs
+  const initializationInProgressRef = useRef(false);
+  const lastFilteredCardsHashRef = useRef<string>('');
+  
+  // Bulletproof loading coordination - prevent any card visibility until fully ready
+  const [isContentFullyReady, setIsContentFullyReady] = useState(false);
+  
+  // Cancellation-based approach for deck selection operations
+  const currentDeckSelectionRef = useRef<number>(0);
+  const deckSelectionCancelledRef = useRef(false);
 
   // Local state for remaining cards count to prevent flickering
   const [remainingCount, setRemainingCount] = useState(reviewSessionCards.length);
@@ -56,13 +71,24 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
   // Track the last card ID to prevent duplicate transitions
   const [lastCardId, setLastCardId] = useState<string | null>(null);
   
-  // Animation values
+  // Animation values - Initialize with proper starting values
   const slideAnim = useRef(new Animated.Value(0)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current; // Start with 0 opacity
+  const opacityAnim = useRef(new Animated.Value(0)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
   // Define swipe threshold
   const SWIPE_THRESHOLD = 120;
+
+  // Loading animation component - clean spinner without text
+  const LoadingCard = () => (
+    <View style={styles.cardStage}>
+      <View style={styles.cardContainer}>
+        <View style={styles.loadingCardContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      </View>
+    </View>
+  );
 
   // Load selected deck IDs from AsyncStorage on initialization
   useEffect(() => {
@@ -83,23 +109,44 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
     loadSelectedDeckIds();
   }, []);
 
-  // Filter cards based on selected decks
+  // Filter cards based on selected decks with proper loading states and operation tracking
   useEffect(() => {
     const filterCards = async () => {
       if (!deckIdsLoaded) return;
+      
+      // Only set loading state for deck changes after initial load
+      if (componentLoadingState === 'ready') {
+        setComponentLoadingState('loading_deck_change');
+      }
+      
+      // Get the current operation ID to ensure we're processing the latest request
+      const currentOpId = currentDeckSelectionRef.current;
+      console.log('🔍 [Component] Filtering cards for operation:', currentOpId, 'selectedDecks:', selectedDeckIds.length);
       
       if (selectedDeckIds.length > 0) {
         // Fetch cards for selected decks
         try {
           const cards = await getFlashcardsByDecks(selectedDeckIds);
-          setFilteredCards(cards);
+          
+          // Check if this operation is still current
+          if (currentDeckSelectionRef.current === currentOpId) {
+            console.log('✅ [Component] Filtered cards ready for operation:', currentOpId, 'cards:', cards.length);
+            setFilteredCards(cards);
+          } else {
+            console.log('🚫 [Component] Filtering cancelled - operation changed from', currentOpId, 'to', currentDeckSelectionRef.current);
+          }
         } catch (error) {
           console.error('Error fetching cards for selected decks:', error);
-          setFilteredCards(allFlashcards);
+          if (currentDeckSelectionRef.current === currentOpId) {
+            setFilteredCards(allFlashcards);
+          }
         }
       } else {
         // Use all cards if no specific decks selected
-        setFilteredCards(allFlashcards);
+        if (currentDeckSelectionRef.current === currentOpId) {
+          console.log('✅ [Component] Using all cards for operation:', currentOpId, 'cards:', allFlashcards.length);
+          setFilteredCards(allFlashcards);
+        }
       }
     };
 
@@ -129,32 +176,80 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
     }
   }, [reviewSessionCards.length, currentCard, setCurrentCard, remainingCount]);
 
-  // Handle smooth card transitions when card changes
+  // Bulletproof card transition handling with strict loading coordination
   useEffect(() => {
-    if (currentCard && currentCard.id !== lastCardId && !isProcessing && isInitialized) {
+    if (currentCard && 
+        currentCard.id !== lastCardId && 
+        !isProcessing && 
+        componentLoadingState === 'ready' && 
+        isContentFullyReady) {
+      
+      console.log('🎬 [Component] Starting bulletproof card transition for:', currentCard.id);
+      setIsCardTransitioning(true);
+      
       // Reset position and rotation
       slideAnim.setValue(0);
       rotateAnim.setValue(0);
       
-      // Smooth fade-in animation for new card
+      // Start with card invisible, then fade in
       opacityAnim.setValue(0);
-      Animated.timing(opacityAnim, {
-        toValue: 1,
-        duration: lastCardId === null ? 400 : 300, // Slightly longer for initial load
-        useNativeDriver: true,
-      }).start();
+      setIsCardVisible(true);
+      
+      // Use double-RAF for bulletproof timing
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          Animated.timing(opacityAnim, {
+            toValue: 1,
+            duration: 400, // Smooth appearance
+            useNativeDriver: true,
+          }).start(() => {
+            setIsCardTransitioning(false);
+            console.log('🎬 [Component] Bulletproof card transition complete');
+          });
+        });
+      });
       
       setLastCardId(currentCard.id);
-    } else if (!currentCard && isInitialized) {
-      // Handle case when no card is selected (only after initialization)
+    } else if (!currentCard && componentLoadingState === 'ready') {
+      // Handle case when no card is selected
+      setIsCardVisible(false);
       opacityAnim.setValue(0);
       setLastCardId(null);
-    } else if (currentCard && !isInitialized) {
-      // For initial load, set opacity to 1 immediately to prevent flash
-      opacityAnim.setValue(1);
-      setLastCardId(currentCard.id);
+      setIsCardTransitioning(false);
+    } else if (currentCard && (componentLoadingState !== 'ready' || !isContentFullyReady)) {
+      // Card exists but component isn't fully ready - keep it invisible
+      console.log('🚫 [Component] Keeping card invisible - not fully ready');
+      setIsCardVisible(false);
+      opacityAnim.setValue(0);
     }
-  }, [currentCard, lastCardId, isProcessing, isInitialized]);
+  }, [currentCard, lastCardId, isProcessing, componentLoadingState, isContentFullyReady]);
+
+  // Reset card visibility when component loading state changes to prevent flashes
+  useEffect(() => {
+    if (componentLoadingState === 'loading_deck_change') {
+      setIsCardVisible(false);
+      setIsContentFullyReady(false);
+      opacityAnim.setValue(0);
+      setLastCardId(null);
+    }
+  }, [componentLoadingState]);
+
+  // Initialize card opacity to 0 when component first mounts
+  useLayoutEffect(() => {
+    opacityAnim.setValue(0);
+  }, []);
+
+  // Reset initialization state when component unmounts or remounts
+  useEffect(() => {
+    return () => {
+      // Clean up refs on unmount to prevent stale state
+      initializationInProgressRef.current = false;
+      lastFilteredCardsHashRef.current = '';
+      currentDeckSelectionRef.current = 0;
+      deckSelectionCancelledRef.current = false;
+      setIsContentFullyReady(false);
+    };
+  }, []);
 
   // Configure PanResponder
   const panResponder = useRef(
@@ -233,6 +328,9 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
         useNativeDriver: true,
       })
     ]).start(() => {
+      // Hide the card completely during the transition
+      setIsCardVisible(false);
+      
       // Reset position and rotation for next card
       slideAnim.setValue(0);
       rotateAnim.setValue(0);
@@ -270,33 +368,134 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
     completeSwipe('right');
   };
 
-  // Start review session with filtered cards whenever they change
+  // Consolidated initialization and deck change handling with proper loading coordination
   useEffect(() => {
-    if (filteredCards.length > 0 && deckIdsLoaded) {
-      startReviewWithCards(filteredCards);
-      // Mark as initialized once we've started the review session
-      if (!isInitialized) {
-        setIsInitialized(true);
+    if (!deckIdsLoaded) return;
+    
+    const initializeReviewSession = async () => {
+      // Wait for hook to finish initial loading before component initialization
+      if (loadingState === LoadingState.SKELETON_LOADING) {
+        console.log('🔄 [Component] Waiting for hook to finish loading...');
+        return;
       }
-    }
-  }, [filteredCards, deckIdsLoaded, startReviewWithCards, isInitialized]);
+      
+      // Prevent multiple initialization calls for the same cards
+      const cardsHash = filteredCards.map(card => card.id).sort().join(',');
+      if (initializationInProgressRef.current || cardsHash === lastFilteredCardsHashRef.current) {
+        console.log('🔄 [Component] Skipping duplicate initialization - inProgress:', initializationInProgressRef.current, 'sameCards:', cardsHash === lastFilteredCardsHashRef.current, 'Op:', currentDeckSelectionRef.current);
+        return;
+      }
+      
+      if (filteredCards.length > 0) {
+        console.log('🔄 [Component] Starting review session with', filteredCards.length, 'cards for operation:', currentDeckSelectionRef.current);
+        
+        // Mark initialization as in progress
+        initializationInProgressRef.current = true;
+        lastFilteredCardsHashRef.current = cardsHash;
+        
+        // Capture the current operation ID to ensure we're still processing the right request
+        const initOpId = currentDeckSelectionRef.current;
+        
+        // Start review session atomically
+        startReviewWithCards(filteredCards);
+        
+        // Wait for next tick to ensure hook state is fully updated
+        setTimeout(() => {
+          // Check if this initialization was cancelled by a new deck selection
+          if (deckSelectionCancelledRef.current || currentDeckSelectionRef.current !== initOpId) {
+            console.log('🚫 [Component] Initialization cancelled - operation changed from', initOpId, 'to', currentDeckSelectionRef.current);
+            initializationInProgressRef.current = false;
+            return;
+          }
+          
+          // Set component as ready
+          setComponentLoadingState('ready');
+          
+          // Small additional delay to ensure all state is synchronized
+          setTimeout(() => {
+            // Triple-check operation ID before final completion
+            if (!deckSelectionCancelledRef.current && currentDeckSelectionRef.current === initOpId) {
+              setIsContentFullyReady(true);
+              initializationInProgressRef.current = false;
+              console.log('🔄 [Component] Bulletproof initialization complete (Op:', initOpId, ')');
+            } else {
+              console.log('🚫 [Component] Final initialization cancelled - operation changed from', initOpId, 'to', currentDeckSelectionRef.current);
+              initializationInProgressRef.current = false;
+            }
+          }, 50);
+        }, 10);
+      } else {
+        // Handle case where no cards are available
+        console.log('🔄 [Component] No cards available after filtering');
+        setComponentLoadingState('ready');
+        lastFilteredCardsHashRef.current = '';
+      }
+    };
+    
+    initializeReviewSession();
+  }, [filteredCards, deckIdsLoaded, startReviewWithCards, componentLoadingState, loadingState]);
 
-  // Handle deck selection
+  // Handle deck selection with cancellation-based approach for rapid selections
   const handleDeckSelection = useCallback(async (deckIds: string[]) => {
     // Only do a full reset if the selection actually changed
     if (JSON.stringify(deckIds.sort()) !== JSON.stringify(selectedDeckIds.sort())) {
-      // Reset initialization state to show loading during deck change
-      setIsInitialized(false);
+      // Cancel any previous deck selection operation
+      deckSelectionCancelledRef.current = true;
       
-      // Clear current card immediately to avoid on-screen flicker while new deck loads
+      // Create new operation ID
+      const operationId = ++currentDeckSelectionRef.current;
+      deckSelectionCancelledRef.current = false;
+      
+      console.log('🎯 [Component] Deck selection changed, starting transition (Op:', operationId, ')');
+      
+      // Reset initialization state to allow fresh loading
+      initializationInProgressRef.current = false;
+      lastFilteredCardsHashRef.current = '';
+      
+      // Start loading state for deck change
+      setComponentLoadingState('loading_deck_change');
+      
+      // Hide current card immediately and show loading
       setCurrentCard(null);
-
-      // Update selected deck IDs – this triggers filtering and a fresh review session
-      await updateSelectedDeckIds(deckIds);
+      setIsCardVisible(false);
+      setIsContentFullyReady(false);
+      
+      try {
+        // Update deck selection and handle filtering inline to prevent race conditions
+        setSelectedDeckIds(deckIds);
+        await AsyncStorage.setItem(SELECTED_DECK_IDS_STORAGE_KEY, JSON.stringify(deckIds));
+        
+        // Immediately filter cards for this operation to prevent race conditions
+        let newFilteredCards: Flashcard[];
+        if (deckIds.length > 0) {
+          try {
+            newFilteredCards = await getFlashcardsByDecks(deckIds);
+            console.log('✅ [Component] Inline filtered cards for operation:', operationId, 'cards:', newFilteredCards.length);
+          } catch (error) {
+            console.error('Error fetching cards for selected decks:', error);
+            newFilteredCards = allFlashcards;
+          }
+        } else {
+          newFilteredCards = allFlashcards;
+        }
+        
+        // Check if this operation was cancelled while we were updating
+        if (currentDeckSelectionRef.current !== operationId) {
+          console.log('🚫 [Component] Deck selection cancelled (Op:', operationId, ', Current:', currentDeckSelectionRef.current, ')');
+          return;
+        }
+        
+        // Set filtered cards and trigger initialization
+        setFilteredCards(newFilteredCards);
+        
+        console.log('🎯 [Component] Deck selection update complete (Op:', operationId, ')');
+      } catch (error) {
+        console.error('🚫 [Component] Deck selection error (Op:', operationId, '):', error);
+      }
     }
     
     setShowDeckSelector(false);
-  }, [selectedDeckIds, updateSelectedDeckIds, setCurrentCard]);
+  }, [selectedDeckIds, allFlashcards, setCurrentCard]);
 
   // Memoize the MultiDeckSelector to prevent unnecessary re-renders
   const deckSelector = useMemo(() => (
@@ -308,12 +507,29 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
     />
   ), [showDeckSelector, selectedDeckIds, handleDeckSelection]);
 
-  // Unified loading / preparing state: show only the spinner (no text)
-  // Only show loading spinner if we're actually loading or not yet initialized
-  if (
-    isLoading ||
-    (!isInitialized && !isSessionFinished)
-  ) {
+  // Industry standard: Only show hook loading for initial data fetch
+  if (loadingState === LoadingState.SKELETON_LOADING && componentLoadingState === 'initializing') {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.deckButton} 
+            disabled={true}
+          >
+            <Ionicons name="albums-outline" size={20} color={COLORS.lightGray} />
+            <Text style={[styles.deckButtonText, { color: COLORS.lightGray }]}>{t('review.collections')}</Text>
+          </TouchableOpacity>
+        </View>
+        <LoadingCard />
+        <View style={styles.controlsContainer}>
+          <Text style={[styles.countText, { opacity: 0.5 }]}>•••</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Fallback loading spinner for other loading states
+  if (isLoading && loadingState !== LoadingState.CONTENT_READY) {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color={COLORS.primary} />
@@ -332,7 +548,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
     );
   }
 
-  if (!currentCard) {
+  if (!currentCard && componentLoadingState === 'ready') {
     // No flashcards at all
     if (reviewSessionCards.length === 0 && filteredCards.length === 0) {
       return (
@@ -346,8 +562,15 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
               <Text style={styles.deckButtonText}>{t('review.collections')}</Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.noCardsText}>{t('review.nothingToReview')}</Text>
-          <Text style={styles.guidanceText}>{t('review.scanText')}</Text>
+          <View style={styles.cardStage}>
+            <View style={styles.noCardsContainer}>
+              <Text style={styles.noCardsText}>{t('review.nothingToReview')}</Text>
+              <Text style={styles.guidanceText}>{t('review.scanText')}</Text>
+            </View>
+          </View>
+          <View style={styles.controlsContainer}>
+            <Text style={styles.countText}>{t('review.remaining', { count: 0 })}</Text>
+          </View>
           {deckSelector}
         </View>
       );
@@ -365,24 +588,24 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
               <Text style={styles.deckButtonText}>{t('review.collections')}</Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.noCardsText}>{t('review.finishedReview')}</Text>
-          <TouchableOpacity 
-            style={styles.reviewAgainButton} 
-            onPress={onReviewAgain}
-          >
-            <Text style={styles.reviewAgainText}>{t('review.reviewAgain')}</Text>
-          </TouchableOpacity>
+          <View style={styles.cardStage}>
+            <View style={styles.noCardsContainer}>
+              <Text style={styles.noCardsText}>{t('review.finishedReview')}</Text>
+              <TouchableOpacity 
+                style={styles.reviewAgainButton} 
+                onPress={onReviewAgain}
+              >
+                <Text style={styles.reviewAgainText}>{t('review.reviewAgain')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <View style={styles.controlsContainer}>
+            <Text style={styles.countText}>{t('review.remaining', { count: 0 })}</Text>
+          </View>
           {deckSelector}
         </View>
       );
     }
-
-    // Fallback (should rarely hit) – show spinner
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
-    );
   }
 
   return (
@@ -394,43 +617,50 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             setShowDeckSelector(true);
           }}
+          disabled={isCardTransitioning || componentLoadingState !== 'ready'}
         >
           <Ionicons name="albums-outline" size={20} color={COLORS.primary} />
           <Text style={styles.deckButtonText}>{t('review.collections')}</Text>
         </TouchableOpacity>
       </View>
+      
       <View style={styles.cardStage}>
-        <Animated.View 
-          style={[
-            styles.cardContainer, 
-            { 
-              transform: [
-                { translateX: slideAnim },
-                { rotate: rotateAnim.interpolate({
-                  inputRange: [-300, 0, 300],
-                  outputRange: ['-10deg', '0deg', '10deg']
-                }) }
-              ],
-              opacity: opacityAnim
-            }
-          ]}
-          {...panResponder.panHandlers}
-        >
-          <FlashcardItem 
-            key={currentCard.id}
-            flashcard={currentCard} 
-            disableTouchHandling={false}
-            onImageToggle={(showImage) => {
-              setIsImageExpanded(showImage);
-            }} 
-          />
-        </Animated.View>
+        {/* Show loading animation only during deck changes (not initial load) */}
+        {componentLoadingState === 'loading_deck_change' ? (
+          <LoadingCard />
+        ) : currentCard && isCardVisible ? (
+          <Animated.View 
+            style={[
+              styles.cardContainer, 
+              { 
+                transform: [
+                  { translateX: slideAnim },
+                  { rotate: rotateAnim.interpolate({
+                    inputRange: [-300, 0, 300],
+                    outputRange: ['-10deg', '0deg', '10deg']
+                  }) }
+                ],
+                opacity: opacityAnim
+              }
+            ]}
+            {...panResponder.panHandlers}
+          >
+            <FlashcardItem 
+              key={currentCard.id}
+              flashcard={currentCard} 
+              disableTouchHandling={false}
+              onImageToggle={(showImage) => {
+                setIsImageExpanded(showImage);
+              }} 
+            />
+          </Animated.View>
+        ) : null}
       </View>
 
       {!isImageExpanded && (
         <View style={styles.controlsContainer}>
           <Text style={styles.countText}>
-            {t('review.remaining', { count: remainingCount })}
+            {componentLoadingState === 'ready' ? t('review.remaining', { count: remainingCount }) : '•••'}
           </Text>
         </View>
       )}
@@ -509,9 +739,21 @@ const styles = StyleSheet.create({
     color: '#b3b3b3',
     fontSize: 12,
   },
-  loadingText: {
-    color: COLORS.text,
-    marginTop: 10,
+  loadingCardContainer: {
+    width: '100%',
+    height: 380,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.darkSurface,
+    borderRadius: 15,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   errorText: {
     color: COLORS.danger,
@@ -527,6 +769,23 @@ const styles = StyleSheet.create({
   retryText: {
     color: COLORS.text,
     fontWeight: 'bold',
+  },
+  noCardsContainer: {
+    width: '100%',
+    height: 380,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.darkSurface,
+    borderRadius: 15,
+    padding: 20,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   noCardsText: {
     fontSize: 18,

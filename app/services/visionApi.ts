@@ -42,9 +42,7 @@ export function convertToOriginalImageCoordinates(
   // Extract all the transform data
   const { scale, translateX, translateY, imageWidth, imageHeight, scaledWidth, scaledHeight } = transformData;
   
-  // DEBUG: Log inputs
-  console.log('[DEBUG][convertToOriginal] Input region:', JSON.stringify(region));
-  console.log('[DEBUG][convertToOriginal] Transform data:', JSON.stringify(transformData));
+  // Removed debug logs for production build
 
   // The region passed to this function is ALREADY in un-transformed coordinates 
   // (we removed the scale and translation effects in the component)
@@ -53,7 +51,7 @@ export function convertToOriginalImageCoordinates(
   // Calculate the ratio between the original image and the container
   const widthRatio = imageWidth / scaledWidth;
   const heightRatio = imageHeight / scaledHeight;
-  console.log('[DEBUG][convertToOriginal] Width/height ratios:', { widthRatio, heightRatio });
+  // Width/height ratios calculated for coordinate conversion
   
   // Simply apply the ratio to convert to original image coordinates
   // We clamp the values to ensure they stay within image bounds
@@ -69,8 +67,6 @@ export function convertToOriginalImageCoordinates(
   );
   
   const resultRegion = { x, y, width, height };
-  console.log('[DEBUG][convertToOriginal] Output region:', JSON.stringify(resultRegion));
-
   return resultRegion;
 }
 
@@ -486,19 +482,7 @@ export async function detectJapaneseText(
 
     const data = await response.json();
     
-    // Debug logs - remove in production
-    console.log('API Response:', data);
-    
-    // Add more detailed logging of the response
-    if (data.responses?.[0]?.textAnnotations) {
-      console.log('Text annotations found:', data.responses[0].textAnnotations.length);
-      // Log the first few annotations to help with debugging
-      data.responses[0].textAnnotations.slice(0, 3).forEach((annotation: any, idx: number) => {
-        console.log(`Annotation ${idx}:`, annotation.description);
-      });
-    } else {
-      console.log('No text annotations found in API response');
-    }
+    // Process API response
     
     // For complex regions, check if we have document text results (from DOCUMENT_TEXT_DETECTION)
     const textDetectionResults = data.responses?.[0]?.textAnnotations?.length 
@@ -506,9 +490,6 @@ export async function detectJapaneseText(
       : null;
     
     const documentTextResults = data.responses?.[0]?.fullTextAnnotation?.text || null;
-    
-    console.log('Text detection result:', textDetectionResults);
-    console.log('Document text detection result:', documentTextResults);
     
     // For wide regions, preferentially use document text results if available
     let finalText;

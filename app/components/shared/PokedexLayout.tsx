@@ -47,15 +47,7 @@ export default memo(function PokedexLayout({
 }: PokedexLayoutProps) {
   const insets = useSafeAreaInsets();
   
-  // Debug: Log safe area insets to check for asymmetry
-  useEffect(() => {
-    console.log('SafeAreaInsets:', {
-      top: insets.top,
-      right: insets.right,
-      bottom: insets.bottom,
-      left: insets.left
-    });
-  }, [insets]);
+  // Safe area insets handling
 
   // Animation values - create them with useMemo to avoid recreating on rerenders
   const animationValues = useMemo(() => {
@@ -77,18 +69,7 @@ export default memo(function PokedexLayout({
   // stop it prematurely when a new trigger is received
   const animationSequenceRef = useRef<Animated.CompositeAnimation | null>(null);
 
-  // --- DEBUG LOGS START ---
-  console.log('[PokedexLayout] Props received:', { 
-    showLights, 
-    variant, 
-    logoSource: !!logoSource, 
-    logoStyle, 
-    triggerLightAnimation 
-  });
-  if (logoSource) {
-    console.log('[PokedexLayout] logoSource value:', logoSource);
-  }
-  // --- DEBUG LOGS END ---
+  // Component configuration loaded
 
   const topSectionVariantStyle = variant === 'flashcards' ? styles.flashcardsTopSection : {};
   const screenVariantStyle = variant === 'flashcards' ? styles.flashcardsScreen : {};
