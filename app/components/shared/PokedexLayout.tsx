@@ -21,13 +21,13 @@ interface PokedexLayoutProps {
   variant?: 'main' | 'flashcards';
   logoSource?: ImageSourcePropType;
   logoStyle?: ImageStyle;
+  logoVisible?: boolean; // Control when logo should be visible/animated
   triggerLightAnimation?: boolean;
   textureVariant?: 'gradient' | 'subtle' | 'modern' | 'radial' | 'default';
   // Progressive loading props
   loadingProgress?: number; // 0-4 indicating how many lights should be on
   isProcessing?: boolean; // Whether processing is currently active
   processingFailed?: boolean; // Whether processing failed (for red lights)
-  logoLoaded?: boolean; // Controls logo fade-in animation
 }
 
 export default memo(function PokedexLayout({
@@ -38,12 +38,12 @@ export default memo(function PokedexLayout({
   variant = 'main',
   logoSource,
   logoStyle,
+  logoVisible = true,
   triggerLightAnimation = false,
   textureVariant = 'default',
   loadingProgress = 0,
   isProcessing = false,
   processingFailed = false,
-  logoLoaded = false,
 }: PokedexLayoutProps) {
   const insets = useSafeAreaInsets();
   
@@ -154,24 +154,23 @@ export default memo(function PokedexLayout({
     }
   }, [triggerLightAnimation, mainLightAnim, smallLightsAnim]);
 
-  // Logo fade-in animation effect
+  // Logo elegant fade-in animation - synchronized with content visibility
   useEffect(() => {
-    if (logoLoaded && logoSource) {
-      // Add a subtle delay for a more elegant entrance
-      const fadeInTimer = setTimeout(() => {
-        Animated.timing(logoOpacityAnim, {
-          toValue: 1,
-          duration: 800, // Smooth 800ms fade-in
-          useNativeDriver: true, // Use native driver for better performance
-        }).start();
-      }, 300); // 300ms delay for elegance
-
-      return () => clearTimeout(fadeInTimer);
-    } else if (!logoLoaded) {
-      // Reset opacity when logo is not loaded
+    if (logoSource && logoVisible) {
+      // Start invisible
+      logoOpacityAnim.setValue(0);
+      
+      // Elegant fade-in synchronized with card transitions (300ms to match card animations)
+      Animated.timing(logoOpacityAnim, {
+        toValue: 1,
+        duration: 300, // Match card animation duration for synchronization
+        useNativeDriver: true,
+      }).start();
+    } else {
+      // Hide logo when no source provided or not visible
       logoOpacityAnim.setValue(0);
     }
-  }, [logoLoaded, logoSource, logoOpacityAnim]);
+  }, [logoSource, logoVisible, logoOpacityAnim]);
 
   // Progressive loading animation effect
   useEffect(() => {

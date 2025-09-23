@@ -388,15 +388,6 @@ export default function SavedFlashcardsScreen() {
     setNewDeckNameForSend('');
   };
 
-  // Function to handle going back to home
-  const handleGoHome = () => {
-    // Clear navigation stack completely, then navigate to home
-    if (router.canDismiss()) {
-      router.dismissAll();
-    }
-    router.replace('/');
-  };
-
   // Function to handle going back to the previous screen
   const handleGoBack = () => {
     // Always try to go back first
@@ -653,12 +644,7 @@ export default function SavedFlashcardsScreen() {
             <Ionicons name="albums-outline" size={24} color={COLORS.text} style={styles.titleIcon} />
             <Text style={styles.title}>{t('savedFlashcards.title')}</Text>
           </View>
-          <TouchableOpacity 
-            style={styles.homeButton}
-            onPress={handleGoHome}
-          >
-            <Ionicons name="home-outline" size={24} color={COLORS.text} />
-          </TouchableOpacity>
+          <View style={styles.headerSpacer} />
         </View>
 
 
@@ -1041,15 +1027,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: COLORS.text,
   },
-  homeButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: COLORS.darkSurface,
-  },
   backButton: {
     padding: 8,
     borderRadius: 20,
     backgroundColor: COLORS.darkSurface,
+  },
+  headerSpacer: {
+    width: 40, // Match the approximate width of the back button to center the title
   },
   deckPage: {
     alignItems: 'center', 

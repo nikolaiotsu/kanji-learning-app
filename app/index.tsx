@@ -10,28 +10,18 @@ const worddexLogo = require('../assets/images/worddexlogo.png'); // Adjusted pat
 
 export default function App() {
   const [triggerLightAnimation, setTriggerLightAnimation] = useState(false);
-  const [logoLoaded, setLogoLoaded] = useState(false);
-
-  // Preload the logo image when the component mounts
-  useEffect(() => {
-    const preloadLogo = async () => {
-      try {
-        await Image.prefetch(Image.resolveAssetSource(worddexLogo).uri);
-        setLogoLoaded(true);
-      } catch (error) {
-        console.warn('Failed to preload logo:', error);
-        // Still set to true so the logo attempts to load normally
-        setLogoLoaded(true);
-      }
-    };
-
-    preloadLogo();
-  }, []);
+  const [logoVisible, setLogoVisible] = useState(false);
+  // Remove logoLoaded state - local assets don't need preloading
 
   // Callback to trigger the light animation
   const handleCardSwipe = useCallback(() => {
     // Just set the trigger to true and let the useEffect handle the reset
     setTriggerLightAnimation(true);
+  }, []);
+
+  // Callback to control logo visibility based on content readiness
+  const handleContentReady = useCallback((isReady: boolean) => {
+    setLogoVisible(isReady);
   }, []);
 
   // Reset animation trigger after it's been activated
@@ -46,10 +36,10 @@ export default function App() {
   }, [triggerLightAnimation]);
 
   return (
-    // 2. Pass it to the logoSource prop and add logoStyle, only show logo when loaded
+    // 2. Pass it to the logoSource prop and add logoStyle - synchronized with content readiness
     <PokedexLayout 
-      logoSource={logoLoaded ? worddexLogo : undefined}
-      logoLoaded={logoLoaded}
+      logoSource={worddexLogo}
+      logoVisible={logoVisible}
       logoStyle={{ 
         width: 80, // Increased width from 100
         height: 65, // Increased height from 30
@@ -65,7 +55,7 @@ export default function App() {
           // console.log(`[AppIndexRootView] onLayout: x:${x}, y:${y}, width:${width}, height:${height}`);
         }}
       >
-        <KanjiScanner onCardSwipe={handleCardSwipe} />
+        <KanjiScanner onCardSwipe={handleCardSwipe} onContentReady={handleContentReady} />
       </View>
     </PokedexLayout>
   );

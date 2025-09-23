@@ -17,9 +17,11 @@ const SELECTED_DECK_IDS_STORAGE_KEY = 'selectedDeckIds';
 interface RandomCardReviewerProps {
   // Add onCardSwipe callback prop
   onCardSwipe?: () => void;
+  // Add callback to notify when content is ready for display
+  onContentReady?: (isReady: boolean) => void;
 }
 
-const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) => {
+const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, onContentReady }) => {
   const { t } = useTranslation();
   const {
     currentCard,
@@ -240,6 +242,18 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
     };
   }, []);
 
+  // Notify parent when content is ready for display
+  useEffect(() => {
+    const isContentReady = !isInitializing && 
+                          !isCardTransitioning && 
+                          loadingState === LoadingState.CONTENT_READY &&
+                          !isLoading;
+    
+    if (onContentReady) {
+      onContentReady(isContentReady);
+    }
+  }, [isInitializing, isCardTransitioning, loadingState, isLoading, onContentReady]);
+
   // Configure PanResponder
   const panResponder = useRef(
     PanResponder.create({
@@ -361,9 +375,14 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
     if (!deckIdsLoaded) return;
     
     const initializeReviewSession = async () => {
-      // Wait for hook to finish initial loading before component initialization
-      if (loadingState === LoadingState.SKELETON_LOADING) {
-        console.log('🔄 [Component] Waiting for hook to finish loading...');
+      // Wait for hook to reach a stable state, but allow CONTENT_READY to proceed immediately
+      if (loadingState === LoadingState.SKELETON_LOADING && allFlashcards.length === 0) {
+        console.log('🔄 [Component] Waiting for hook to load initial data...');
+        return;
+      }
+      
+      if (loadingState === LoadingState.ERROR) {
+        console.log('🔄 [Component] Waiting for error state to resolve...');
         return;
       }
       
@@ -502,8 +521,8 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe }) 
             style={styles.deckButton} 
             disabled={true}
           >
-            <Ionicons name="albums-outline" size={20} color={COLORS.lightGray} />
-            <Text style={[styles.deckButtonText, { color: COLORS.lightGray }]}>{t('review.collections')}</Text>
+            <Ionicons name="albums-outline" size={20} color={COLORS.primary} />
+            <Text style={styles.deckButtonText}>{t('review.collections')}</Text>
           </TouchableOpacity>
         </View>
         <LoadingCard />

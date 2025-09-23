@@ -28,9 +28,10 @@ import * as FileSystem from 'expo-file-system';
 
 interface KanjiScannerProps {
   onCardSwipe?: () => void;
+  onContentReady?: (isReady: boolean) => void;
 }
 
-export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
+export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScannerProps) {
   const { t } = useTranslation();
   const [capturedImage, setCapturedImage] = useState<CapturedImage | null>(null);
   const [imageHistory, setImageHistory] = useState<CapturedImage[]>([]);
@@ -1424,7 +1425,7 @@ export default function KanjiScanner({ onCardSwipe }: KanjiScannerProps) {
           
           {/* Random Card Reviewer */}
           <View style={styles.reviewerContainer}>
-            <RandomCardReviewer onCardSwipe={onCardSwipe} />
+            <RandomCardReviewer onCardSwipe={onCardSwipe} onContentReady={onContentReady} />
           </View>
           
           {/* Button Row - moved below the reviewer */}
