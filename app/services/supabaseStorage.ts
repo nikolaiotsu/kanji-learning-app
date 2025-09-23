@@ -3,6 +3,7 @@ import { Flashcard } from '../types/Flashcard';
 import { Deck } from '../types/Deck';
 import { decode } from 'base64-arraybuffer';
 import * as FileSystem from 'expo-file-system';
+import { logFlashcardCreation } from './apiUsageLogger';
 
 // Simple UUID generator that doesn't rely on crypto.getRandomValues()
 const generateUUID = (): string => {
@@ -247,12 +248,32 @@ export const saveFlashcard = async (flashcard: Flashcard, deckId: string): Promi
     
     console.log('Flashcard saved successfully to deck:', deckId);
     
+    // Log successful flashcard creation
+    await logFlashcardCreation(true, {
+      deckId,
+      originalTextLength: flashcard.originalText.length,
+      targetLanguage: flashcard.targetLanguage,
+      hasImage: !!flashcard.imageUrl,
+      hasFurigana: !!flashcard.furiganaText
+    });
+    
     // Import the flashcard counter hook dynamically to avoid circular dependencies
     // This will be handled in the component that calls saveFlashcard instead
     // to keep the service layer clean
     
   } catch (error) {
     console.error('Error saving flashcard:', error);
+    
+    // Log failed flashcard creation
+    await logFlashcardCreation(false, {
+      deckId,
+      originalTextLength: flashcard.originalText.length,
+      targetLanguage: flashcard.targetLanguage,
+      hasImage: !!flashcard.imageUrl,
+      hasFurigana: !!flashcard.furiganaText,
+      errorMessage: error instanceof Error ? error.message : String(error)
+    });
+    
     throw error;
   }
 };

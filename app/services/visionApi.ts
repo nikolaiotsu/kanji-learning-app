@@ -5,6 +5,7 @@ import { captureRef } from 'react-native-view-shot';
 import { Platform } from 'react-native';
 import * as ImageManipulator from 'expo-image-manipulator';
 import MemoryManager from './memoryManager';
+import { apiLogger, logVisionAPI, APIUsageMetrics } from './apiUsageLogger';
 
 interface VisionApiResponse {
   text: string;
@@ -358,6 +359,13 @@ export async function detectJapaneseText(
   region: Region,
   isVisibleRegion: boolean = false
 ): Promise<VisionApiResponse[]> {
+  // Start logging metrics
+  const metrics: APIUsageMetrics = apiLogger.startAPICall('https://vision.googleapis.com/v1/images:annotate', {
+    regionSize: region.width * region.height,
+    isVisibleRegion,
+    imageUri: imageUri.substring(0, 50) // Log first 50 chars for debugging
+  });
+
   // Use the imported environment variable
   const API_KEY = EXPO_PUBLIC_GOOGLE_CLOUD_VISION_API_KEY;
   
@@ -525,8 +533,27 @@ export async function detectJapaneseText(
       });
     }
     
+    // Log successful API call
+    await logVisionAPI(metrics, true, visionApiResponse, undefined, {
+      regionSize: region.width * region.height,
+      isComplexRegion,
+      isWideRegion,
+      extractedTextLength: finalText?.length || 0,
+      responseCount: visionApiResponse.length
+    });
+    
     return visionApiResponse;
   } catch (error: any) {
+    // Log failed API call
+    const apiError = error instanceof Error ? error : new Error(String(error));
+    await logVisionAPI(metrics, false, undefined, apiError, {
+      regionSize: region.width * region.height,
+      isComplexRegion,
+      isWideRegion,
+      errorType: error.name || 'unknown',
+      isTimeout: error.name === 'AbortError'
+    });
+
     if (error.name === 'AbortError') {
       console.error('Vision API request timed out after', isComplexRegion ? '90' : '30', 'seconds');
       throw new Error('Text recognition timed out. The selected region may be too complex.');

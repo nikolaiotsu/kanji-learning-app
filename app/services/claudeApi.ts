@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import axios, { AxiosError } from 'axios';
 import { Alert } from 'react-native';
+import { apiLogger, logClaudeAPI, APIUsageMetrics } from './apiUsageLogger';
 import { 
   containsJapanese, 
   containsChinese, 
@@ -554,6 +555,14 @@ export async function processWithClaude(
   forcedLanguage: string = 'auto',
   onProgress?: (checkpoint: number) => void
 ): Promise<ClaudeResponse> {
+  // Start logging metrics
+  const metrics: APIUsageMetrics = apiLogger.startAPICall('https://api.anthropic.com/v1/messages', {
+    text: text.substring(0, 100), // Log first 100 chars for debugging
+    targetLanguage,
+    forcedLanguage,
+    textLength: text.length
+  });
+
   // Validate Claude API key
   const apiKey = Constants.expoConfig?.extra?.EXPO_PUBLIC_CLAUDE_API_KEY;
   const apiKeyLength = apiKey ? String(apiKey).length : 0;
@@ -2452,10 +2461,22 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
             console.log('🎯 [Claude API] Checkpoint 4: Processing complete successfully, polishing complete');
             onProgress?.(4);
             
-            return {
+            const result = {
               furiganaText: furiganaText,
               translatedText: translatedText
             };
+
+            // Log successful API call
+            await logClaudeAPI(metrics, true, JSON.stringify(result), undefined, {
+              model: 'claude-3-haiku-20240307',
+              targetLanguage,
+              forcedLanguage,
+              textLength: text.length,
+              hasJapanese: result.furiganaText ? true : false,
+              parseMethod: 'direct'
+            });
+
+            return result;
           } catch (parseError) {
             console.error("Error parsing JSON from Claude response:", parseError);
             console.log("Raw content received:", textContent.text);
@@ -2471,10 +2492,22 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
                 const blockJsonString = cleanJsonString(jsonBlockMatch[1]);
                 const blockParsedContent = JSON.parse(blockJsonString);
                 console.log("Successfully parsed JSON from block markers");
-                return {
+                const result = {
                   furiganaText: blockParsedContent.furiganaText || "",
                   translatedText: blockParsedContent.translatedText || ""
                 };
+
+                // Log successful API call
+                await logClaudeAPI(metrics, true, JSON.stringify(result), undefined, {
+                  model: 'claude-3-haiku-20240307',
+                  targetLanguage,
+                  forcedLanguage,
+                  textLength: text.length,
+                  hasJapanese: result.furiganaText ? true : false,
+                  parseMethod: 'block'
+                });
+
+                return result;
               }
               
               // Method 2: Try to extract JSON with more flexible regex
@@ -2484,10 +2517,22 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
                 const flexibleJsonString = cleanJsonString(flexibleJsonMatch[0]);
                 const flexibleParsedContent = JSON.parse(flexibleJsonString);
                 console.log("Successfully parsed JSON with flexible regex");
-                return {
+                const result = {
                   furiganaText: flexibleParsedContent.furiganaText || "",
                   translatedText: flexibleParsedContent.translatedText || ""
                 };
+
+                // Log successful API call
+                await logClaudeAPI(metrics, true, JSON.stringify(result), undefined, {
+                  model: 'claude-3-haiku-20240307',
+                  targetLanguage,
+                  forcedLanguage,
+                  textLength: text.length,
+                  hasJapanese: result.furiganaText ? true : false,
+                  parseMethod: 'flexible'
+                });
+
+                return result;
               }
               
               // Method 3: Try to extract values manually with regex
@@ -2496,10 +2541,22 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
               
               if (furiganaMatch && translatedMatch) {
                 console.log("Extracted values manually with regex");
-                return {
+                const result = {
                   furiganaText: furiganaMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\'),
                   translatedText: translatedMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\')
                 };
+
+                // Log successful API call
+                await logClaudeAPI(metrics, true, JSON.stringify(result), undefined, {
+                  model: 'claude-3-haiku-20240307',
+                  targetLanguage,
+                  forcedLanguage,
+                  textLength: text.length,
+                  hasJapanese: result.furiganaText ? true : false,
+                  parseMethod: 'manual'
+                });
+
+                return result;
               }
               
             } catch (alternativeError) {
@@ -2563,6 +2620,17 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
   if (retryCount >= MAX_RETRIES) {
     console.error(`Claude API still unavailable after ${MAX_RETRIES} retry attempts`);
   }
+  
+  // Log failed API call
+  const finalError = lastError instanceof Error ? lastError : new Error(String(lastError));
+  await logClaudeAPI(metrics, false, undefined, finalError, {
+    model: 'claude-3-haiku-20240307',
+    targetLanguage,
+    forcedLanguage,
+    textLength: text.length,
+    retryCount,
+    maxRetries: MAX_RETRIES
+  });
   
   return {
     furiganaText: '',
