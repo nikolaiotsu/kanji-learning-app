@@ -645,8 +645,66 @@ If the target language is Arabic, the translation must use Arabic script.
 
 `;
       
+      // Check if we're translating TO Japanese from a non-Japanese source
+      if (targetLanguage === 'ja' && forcedLanguage !== 'ja' && primaryLanguage !== 'Japanese') {
+        console.log(`[DEBUG] TRANSLATING TO JAPANESE: Using natural Japanese translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
+        // Natural Japanese translation prompt - for translating TO Japanese
+        userMessage = `
+${promptTopSection}
+You are a professional Japanese translator. I need you to translate this text into natural, native-level Japanese: "${text}"
+
+CRITICAL REQUIREMENTS FOR TRANSLATING TO JAPANESE:
+1. Translate the text into natural, fluent Japanese as a native speaker would write it
+2. Use appropriate kanji, hiragana, and katakana as naturally used in modern Japanese
+3. Do NOT add furigana readings - provide clean, natural Japanese text
+4. Use proper Japanese grammar, sentence structure, and expressions
+5. Choose the most natural and contextually appropriate translation
+6. Maintain the original meaning and tone of the text
+
+TRANSLATION GUIDELINES:
+- Use kanji where naturally appropriate (not overly simplified hiragana)
+- Follow standard Japanese writing conventions
+- Choose appropriate levels of politeness/formality based on context
+- Use natural Japanese expressions rather than literal translations
+- Ensure proper particle usage and sentence flow
+
+Format your response as valid JSON with these exact keys:
+{
+  "furiganaText": "",
+  "translatedText": "Natural Japanese translation using appropriate kanji, hiragana, and katakana - NO furigana readings"
+}`;
+      }
+      // Check if we're translating TO Chinese from a non-Chinese source
+      else if (targetLanguage === 'zh' && forcedLanguage !== 'zh' && primaryLanguage !== 'Chinese') {
+        console.log(`[DEBUG] TRANSLATING TO CHINESE: Using natural Chinese translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
+        // Natural Chinese translation prompt - for translating TO Chinese
+        userMessage = `
+${promptTopSection}
+You are a professional Chinese translator. I need you to translate this text into natural, native-level Chinese: "${text}"
+
+CRITICAL REQUIREMENTS FOR TRANSLATING TO CHINESE:
+1. Translate the text into natural, fluent Chinese as a native speaker would write it
+2. Use appropriate simplified or traditional Chinese characters based on context
+3. Do NOT add pinyin readings - provide clean, natural Chinese text
+4. Use proper Chinese grammar, sentence structure, and expressions
+5. Choose the most natural and contextually appropriate translation
+6. Maintain the original meaning and tone of the text
+
+TRANSLATION GUIDELINES:
+- Use appropriate Chinese characters (simplified or traditional as contextually appropriate)
+- Follow standard Chinese writing conventions
+- Choose appropriate levels of formality based on context
+- Use natural Chinese expressions rather than literal translations
+- Ensure proper sentence structure and flow
+
+Format your response as valid JSON with these exact keys:
+{
+  "furiganaText": "",
+  "translatedText": "Natural Chinese translation using appropriate Chinese characters - NO pinyin readings"
+}`;
+      }
       // FAILSAFE: If Japanese is forced, always use Japanese prompt regardless of detected language
-      if (forcedLanguage === 'ja') {
+      else if (forcedLanguage === 'ja') {
         console.log(`[DEBUG] FORCED JAPANESE: Using Japanese prompt (furigana) regardless of primaryLanguage: ${primaryLanguage}`);
         // Japanese prompt - Enhanced for contextual compound word readings
         userMessage = `
@@ -888,6 +946,35 @@ FINAL CHECK BEFORE RESPONDING:
 ✓ Is pinyin added IN PARENTHESES after each Chinese word?
 ✓ Did you follow the format: 中文(zhōngwén) not just "zhōngwén"?
 `;
+      }
+      // Check if we're translating TO Korean from a non-Korean source
+      else if (targetLanguage === 'ko' && forcedLanguage !== 'ko' && primaryLanguage !== 'Korean') {
+        console.log(`[DEBUG] TRANSLATING TO KOREAN: Using natural Korean translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
+        // Natural Korean translation prompt - for translating TO Korean
+        userMessage = `
+${promptTopSection}
+You are a professional Korean translator. I need you to translate this text into natural, native-level Korean: "${text}"
+
+CRITICAL REQUIREMENTS FOR TRANSLATING TO KOREAN:
+1. Translate the text into natural, fluent Korean as a native speaker would write it
+2. Use appropriate Hangul characters and proper Korean grammar
+3. Do NOT add romanization - provide clean, natural Korean text
+4. Use proper Korean sentence structure and expressions
+5. Choose the most natural and contextually appropriate translation
+6. Maintain the original meaning and tone of the text
+
+TRANSLATION GUIDELINES:
+- Use natural Korean vocabulary and expressions
+- Follow standard Korean writing conventions
+- Choose appropriate levels of politeness/formality based on context
+- Use natural Korean sentence endings and particles
+- Ensure proper grammar and sentence flow
+
+Format your response as valid JSON with these exact keys:
+{
+  "furiganaText": "",
+  "translatedText": "Natural Korean translation using Hangul characters - NO romanization"
+}`;
       } else if (primaryLanguage === "Korean") {
         // Korean-specific prompt with Enhanced Revised Romanization
         userMessage = `
@@ -944,6 +1031,35 @@ Format your response as valid JSON with these exact keys:
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
+      }
+      // Check if we're translating TO Russian from a non-Russian source
+      else if (targetLanguage === 'ru' && forcedLanguage !== 'ru' && primaryLanguage !== 'Russian') {
+        console.log(`[DEBUG] TRANSLATING TO RUSSIAN: Using natural Russian translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
+        // Natural Russian translation prompt - for translating TO Russian
+        userMessage = `
+${promptTopSection}
+You are a professional Russian translator. I need you to translate this text into natural, native-level Russian: "${text}"
+
+CRITICAL REQUIREMENTS FOR TRANSLATING TO RUSSIAN:
+1. Translate the text into natural, fluent Russian as a native speaker would write it
+2. Use appropriate Cyrillic characters and proper Russian grammar
+3. Do NOT add romanization - provide clean, natural Russian text
+4. Use proper Russian sentence structure and expressions
+5. Choose the most natural and contextually appropriate translation
+6. Maintain the original meaning and tone of the text
+
+TRANSLATION GUIDELINES:
+- Use natural Russian vocabulary and expressions
+- Follow standard Russian writing conventions and spelling rules
+- Choose appropriate levels of formality based on context
+- Use proper Russian case system and verb aspects
+- Ensure proper grammar and sentence flow
+
+Format your response as valid JSON with these exact keys:
+{
+  "furiganaText": "",
+  "translatedText": "Natural Russian translation using Cyrillic characters - NO romanization"
+}`;
       } else if (primaryLanguage === "Russian") {
         // Russian-specific prompt with Enhanced Practical Romanization
         userMessage = `
@@ -1020,6 +1136,35 @@ Format your response as valid JSON with these exact keys:
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
+      }
+      // Check if we're translating TO Arabic from a non-Arabic source
+      else if (targetLanguage === 'ar' && forcedLanguage !== 'ar' && primaryLanguage !== 'Arabic') {
+        console.log(`[DEBUG] TRANSLATING TO ARABIC: Using natural Arabic translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
+        // Natural Arabic translation prompt - for translating TO Arabic
+        userMessage = `
+${promptTopSection}
+You are a professional Arabic translator. I need you to translate this text into natural, native-level Arabic: "${text}"
+
+CRITICAL REQUIREMENTS FOR TRANSLATING TO ARABIC:
+1. Translate the text into natural, fluent Arabic as a native speaker would write it
+2. Use appropriate Arabic script and proper Arabic grammar
+3. Do NOT add transliteration - provide clean, natural Arabic text
+4. Use proper Arabic sentence structure and expressions
+5. Choose the most natural and contextually appropriate translation
+6. Maintain the original meaning and tone of the text
+
+TRANSLATION GUIDELINES:
+- Use natural Arabic vocabulary and expressions
+- Follow standard Arabic writing conventions
+- Choose appropriate levels of formality based on context
+- Use proper Arabic grammar and sentence structure
+- Ensure proper text flow and readability
+
+Format your response as valid JSON with these exact keys:
+{
+  "furiganaText": "",
+  "translatedText": "Natural Arabic translation using Arabic script - NO transliteration"
+}`;
       } else if (primaryLanguage === "Arabic") {
         // Arabic-specific prompt with Enhanced Arabic Chat Alphabet including Sun Letter Assimilation
         userMessage = `
@@ -1224,6 +1369,35 @@ Format your response as valid JSON with these exact keys:
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
+      }
+      // Check if we're translating TO Hindi from a non-Hindi source
+      else if (targetLanguage === 'hi' && forcedLanguage !== 'hi' && primaryLanguage !== 'Hindi') {
+        console.log(`[DEBUG] TRANSLATING TO HINDI: Using natural Hindi translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
+        // Natural Hindi translation prompt - for translating TO Hindi
+        userMessage = `
+${promptTopSection}
+You are a professional Hindi translator. I need you to translate this text into natural, native-level Hindi: "${text}"
+
+CRITICAL REQUIREMENTS FOR TRANSLATING TO HINDI:
+1. Translate the text into natural, fluent Hindi as a native speaker would write it
+2. Use appropriate Devanagari script and proper Hindi grammar
+3. Do NOT add romanization - provide clean, natural Hindi text
+4. Use proper Hindi sentence structure and expressions
+5. Choose the most natural and contextually appropriate translation
+6. Maintain the original meaning and tone of the text
+
+TRANSLATION GUIDELINES:
+- Use natural Hindi vocabulary and expressions
+- Follow standard Devanagari writing conventions
+- Choose appropriate levels of formality based on context
+- Use proper Hindi grammar and sentence structure
+- Ensure proper text flow and readability
+
+Format your response as valid JSON with these exact keys:
+{
+  "furiganaText": "",
+  "translatedText": "Natural Hindi translation using Devanagari script - NO romanization"
+}`;
       } else if (primaryLanguage === "Hindi") {
         // Enhanced Hindi-specific prompt with comprehensive romanization accuracy
         userMessage = `
