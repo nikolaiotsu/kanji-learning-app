@@ -4,6 +4,7 @@ import { Deck } from '../types/Deck';
 import { decode } from 'base64-arraybuffer';
 import * as FileSystem from 'expo-file-system';
 import { logFlashcardCreation } from './apiUsageLogger';
+import { validateImageFile, validateDeckName } from '../utils/inputValidation';
 
 // Simple UUID generator that doesn't rely on crypto.getRandomValues()
 const generateUUID = (): string => {
@@ -94,10 +95,16 @@ export const getDecks = async (createDefaultIfEmpty: boolean = false): Promise<D
  */
 export const createDeck = async (name: string): Promise<Deck> => {
   try {
+    // Validate deck name
+    const validation = validateDeckName(name);
+    if (!validation.isValid) {
+      throw new Error(validation.error);
+    }
+
     // Let Supabase generate the UUID on the server when possible
     // Only generate locally if needed for specific use cases
     const newDeck = {
-      name,
+      name: name.trim(), // Trim whitespace
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -148,6 +155,18 @@ export const uploadImageToStorage = async (imageUri: string): Promise<string | n
   try {
     console.log('Uploading image to storage:', imageUri);
     
+    // Validate image before upload (security + cost protection)
+    const validation = await validateImageFile(imageUri, async (uri: string) => {
+      const info = await FileSystem.getInfoAsync(uri);
+      return { size: info.exists ? info.size : undefined };
+    });
+    
+    if (!validation.isValid) {
+      console.error('Image validation failed:', validation.error);
+      // Throw error with specific message so it can be caught and displayed
+      throw new Error(validation.error);
+    }
+    
     // Generate a unique filename for the image
     const fileExt = imageUri.split('.').pop();
     const fileName = `${generateUUID()}.${fileExt}`;
@@ -172,7 +191,7 @@ export const uploadImageToStorage = async (imageUri: string): Promise<string | n
     
     if (error) {
       console.error('Error uploading image:', error.message);
-      return null;
+      throw new Error('Failed to upload image to storage.');
     }
     
     // Get public URL for the uploaded image
@@ -185,7 +204,8 @@ export const uploadImageToStorage = async (imageUri: string): Promise<string | n
     return publicUrl;
   } catch (error) {
     console.error('Error uploading image:', error);
-    return null;
+    // Re-throw to preserve error message for user display
+    throw error;
   }
 };
 
@@ -455,10 +475,16 @@ export const deleteDeck = async (deckId: string, deleteFlashcards: boolean = tru
  */
 export const updateDeckName = async (deckId: string, newName: string): Promise<Deck | null> => {
   try {
+    // Validate deck name
+    const validation = validateDeckName(newName);
+    if (!validation.isValid) {
+      throw new Error(validation.error);
+    }
+
     const { data, error } = await supabase
       .from('decks')
       .update({ 
-        name: newName,
+        name: newName.trim(), // Trim whitespace
         updated_at: new Date().toISOString()
       })
       .eq('id', deckId)

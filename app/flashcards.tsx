@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Platform, ActivityIndicator, ScrollView, Toucha
 import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { processWithClaude, validateTextMatchesLanguage } from './services/claudeApi';
+import { processWithClaude } from './services/claudeApi';
 import { 
   cleanText, 
   containsJapanese, 
@@ -182,14 +182,8 @@ export default function LanguageFlashcardsScreen() {
         }
         console.log(`Using forced language detection: ${language}`);
         
-        // Validate that text matches the forced language
-        const isValidLanguage = validateTextMatchesLanguage(text, forcedDetectionLanguage);
-        if (!isValidLanguage) {
-          // Show error notification if text doesn't match forced language
-          setIsLoading(false);
-          setError(t('flashcard.forcedLanguage.errorMessage', { language }));
-          return;
-        }
+        // Language validation now handled by hybrid AI/pattern validation in processWithClaude
+        // No need for pre-validation here - let the hybrid system handle it
       } else if (hasJapanese && !hasChinese && !hasKorean) {
         language = 'Japanese';
       } else if (hasChinese) {
@@ -270,8 +264,10 @@ export default function LanguageFlashcardsScreen() {
         setIsManualOperation(false);
       }
     } catch (err) {
-      console.error('Error processing with Claude:', err);
-      setError('Failed to process text with Claude API. Please try again later.');
+      console.log('Error processing with Claude:', err);
+      // Show specific error message if available (e.g., text too long, language mismatch)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to process text with Claude API. Please try again later.';
+      setError(errorMessage);
       setProcessingFailed(true);
       
       // For errors, complete immediately
@@ -283,8 +279,8 @@ export default function LanguageFlashcardsScreen() {
 
   // Retry processing with Claude API
   const handleRetry = () => {
-    if (error.includes("Forced language not detected")) {
-      // If the error is about forced language detection, navigate home
+    if (error.includes("Language mismatch") || error.includes("Forced language not detected")) {
+      // If the error is about language validation/forced language detection, navigate home
       router.push('/');
     } else if (editedText) {
       // For other errors, try processing the text again
@@ -339,9 +335,18 @@ export default function LanguageFlashcardsScreen() {
       // Upload image to storage if available
       let storedImageUrl: string | undefined = undefined;
       if (imageUri) {
-        const uploadedUrl = await uploadImageToStorage(imageUri);
-        if (uploadedUrl) {
-          storedImageUrl = uploadedUrl;
+        try {
+          const uploadedUrl = await uploadImageToStorage(imageUri);
+          if (uploadedUrl) {
+            storedImageUrl = uploadedUrl;
+          }
+        } catch (imageError) {
+          // Image upload failed (validation or upload error)
+          const errorMsg = imageError instanceof Error ? imageError.message : 'Unable to upload image.';
+          Alert.alert(
+            'Image Upload Failed',
+            `${errorMsg}\n\nThe flashcard will be saved without the image.`
+          );
         }
       }
 
@@ -403,7 +408,9 @@ export default function LanguageFlashcardsScreen() {
       );
     } catch (err) {
       console.error('Error saving flashcard:', err);
-      Alert.alert(t('flashcard.save.saveError'), t('flashcard.save.saveFailed'));
+      // Show specific error message if available
+      const errorMessage = err instanceof Error ? err.message : t('flashcard.save.saveFailed');
+      Alert.alert(t('flashcard.save.saveError'), errorMessage);
     } finally {
       setIsSaving(false);
     }
@@ -439,44 +446,8 @@ export default function LanguageFlashcardsScreen() {
       return;
     }
 
-    // Check if text matches the forced language before proceeding
-    if (forcedDetectionLanguage !== 'auto') {
-      const isValidLanguage = validateTextMatchesLanguage(editedText, forcedDetectionLanguage);
-      
-      if (!isValidLanguage) {
-        // Map language code to name for display
-        let languageName;
-        switch (forcedDetectionLanguage) {
-          case 'en': languageName = 'English'; break;
-          case 'zh': languageName = 'Chinese'; break;
-          case 'ja': languageName = 'Japanese'; break;
-          case 'ko': languageName = 'Korean'; break;
-                      case 'ru': languageName = 'Russian'; break;
-            case 'ar': languageName = 'Arabic'; break;
-            case 'hi': languageName = 'Hindi'; break;
-            case 'eo': languageName = 'Esperanto'; break;
-            case 'it': languageName = 'Italian'; break;
-            case 'es': languageName = 'Spanish'; break;
-          case 'fr': languageName = 'French'; break;
-          case 'tl': languageName = 'Tagalog'; break;
-          case 'pt': languageName = 'Portuguese'; break;
-          case 'de': languageName = 'German'; break;
-          default: languageName = forcedDetectionLanguage;
-        }
-        
-        // Show popup when text still doesn't match the forced language
-        Alert.alert(
-          t('flashcard.translate.languageMismatch'),
-          t('flashcard.translate.languageMismatchMessage', { language: languageName }),
-          [
-            { text: t('common.ok') }
-          ]
-        );
-        return;
-      }
-    }
-    
-    // If validation passes or auto-detect is enabled, proceed with translation
+    // Language validation now handled by hybrid AI/pattern validation in processWithClaude
+    // Proceed directly to translation - validation errors will be caught there
     processTextWithClaude(editedText);
   };
 
@@ -660,13 +631,13 @@ export default function LanguageFlashcardsScreen() {
                 <View style={styles.errorContainer}>
                   <Text style={styles.errorText}>{error}</Text>
                   <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
-                    <Ionicons name={error.includes("Forced language not detected") ? "arrow-back" : "refresh"} size={18} color="#ffffff" style={styles.buttonIcon} />
+                    <Ionicons name={(error.includes("Language mismatch") || error.includes("Forced language not detected")) ? "arrow-back" : "refresh"} size={18} color="#ffffff" style={styles.buttonIcon} />
                     <Text style={styles.retryButtonText}>
-                      {error.includes("Forced language not detected") ? t('flashcard.forcedLanguage.goBack') : t('flashcard.forcedLanguage.tryAgain')}
+                      {(error.includes("Language mismatch") || error.includes("Forced language not detected")) ? t('flashcard.forcedLanguage.goBack') : t('flashcard.forcedLanguage.tryAgain')}
                     </Text>
                   </TouchableOpacity>
                   
-                  {error.includes("Forced language not detected") && (
+                  {(error.includes("Language mismatch") || error.includes("Forced language not detected")) && (
                     <TouchableOpacity 
                       style={styles.settingsButton}
                       onPress={() => router.push('/settings')}
@@ -676,7 +647,7 @@ export default function LanguageFlashcardsScreen() {
                     </TouchableOpacity>
                   )}
                   
-                  {error.includes("Forced language not detected") && (
+                  {(error.includes("Language mismatch") || error.includes("Forced language not detected")) && (
                     <TouchableOpacity 
                       style={styles.translateAgainButton}
                       onPress={handleRetryWithValidation}

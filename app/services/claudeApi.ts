@@ -2,6 +2,7 @@ import Constants from 'expo-constants';
 import axios, { AxiosError } from 'axios';
 import { Alert } from 'react-native';
 import { apiLogger, logClaudeAPI, APIUsageMetrics } from './apiUsageLogger';
+import { validateTextLength } from '../utils/inputValidation';
 import { 
   containsJapanese, 
   containsChinese, 
@@ -445,7 +446,7 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
   }
   
   // Case 2: Latin-based languages (English, Italian, Spanish, etc.)
-  // In force mode, be permissive and let Claude API handle the processing
+  // In force mode, validate that the text is actually in the expected language
   const latinLanguages = ['English', 'Italian', 'Spanish', 'French', 'Portuguese', 'German', 'Tagalog', 'Esperanto'];
   if (latinLanguages.includes(expectedLanguage)) {
     console.log('[validateTextMatchesLanguage] Handling Latin language force mode validation');
@@ -460,7 +461,7 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
       return false;
     }
     
-    // In force mode, check for specific language patterns when available, but be permissive
+    // In force mode, check for specific language patterns when available
     let hasSpecificPatterns = false;
     
     if (expectedLanguage === 'Italian' && containsItalianText(text)) {
@@ -489,14 +490,21 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
       hasSpecificPatterns = true;
     }
     
-    // In force mode, allow even if specific patterns aren't found - let Claude API handle it
+    // In force mode, validate the detected language matches OR specific patterns are found
     if (hasSpecificPatterns) {
-      console.log('[validateTextMatchesLanguage] Force mode: specific language patterns found, allowing');
-    } else {
-      console.log('[validateTextMatchesLanguage] Force mode: no specific patterns found, but allowing mixed/unclear content');
+      console.log('[validateTextMatchesLanguage] Force mode: specific language patterns found, validation passed');
+      return true;
     }
     
-    return true; // Always allow in force mode if Latin characters are present
+    // If no specific patterns found, check if detected language matches expected language
+    if (detectedLang === expectedLanguage) {
+      console.log('[validateTextMatchesLanguage] Force mode: detected language matches expected language, validation passed');
+      return true;
+    }
+    
+    // Otherwise, validation fails - the text doesn't match the forced language
+    console.log(`[validateTextMatchesLanguage] Force mode validation failed: Expected ${expectedLanguage} but detected ${detectedLang}, and no specific patterns found`);
+    return false;
   }
   
   // Case 3: Other languages (Russian, Arabic, etc.) - handle force mode permissively
@@ -543,6 +551,111 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
 }
 
 /**
+ * Validates text language using Claude AI's superior language detection
+ * This is more accurate than pattern matching, especially for similar Latin languages
+ * @param text The text to validate
+ * @param forcedLanguage The expected language code
+ * @param apiKey The Claude API key
+ * @returns Object with validation result and detected language
+ */
+async function validateLanguageWithClaude(
+  text: string,
+  forcedLanguage: string,
+  apiKey: string
+): Promise<{ isValid: boolean; detectedLanguage: string; confidence: string }> {
+  console.log(`[Claude Language Validation] Starting AI-based language detection for forced language: ${forcedLanguage}`);
+  
+  // Map language code to full name for the prompt
+  const expectedLanguageName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || forcedLanguage;
+  
+  const validationPrompt = `You are a language detection expert. Analyze the following text and identify its primary language.
+
+Text to analyze: "${text}"
+
+Expected language: ${expectedLanguageName}
+
+CRITICAL INSTRUCTIONS:
+1. Determine the PRIMARY language of the text (the language that makes up most of the content)
+2. Ignore any mixed content - focus on what language the MAIN content is written in
+3. Be very precise in distinguishing between similar languages (e.g., Spanish vs Portuguese, French vs Italian)
+4. Return your analysis in the following JSON format with NO additional text:
+
+{
+  "detectedLanguage": "The primary language name (e.g., 'English', 'French', 'Spanish', 'Japanese', 'Chinese')",
+  "confidence": "high/medium/low",
+  "matches": true/false (whether detected language matches expected language "${expectedLanguageName}")
+}
+
+Examples:
+- If text is "Bonjour le monde" and expected is French → {"detectedLanguage": "French", "confidence": "high", "matches": true}
+- If text is "Hello world" and expected is French → {"detectedLanguage": "English", "confidence": "high", "matches": false}
+- If text is "Hola mundo" and expected is Italian → {"detectedLanguage": "Spanish", "confidence": "high", "matches": false}
+
+Be precise and return ONLY the JSON with no additional explanation.`;
+
+  try {
+    const response = await axios.post(
+      'https://api.anthropic.com/v1/messages',
+      {
+        model: "claude-3-haiku-20240307",
+        max_tokens: 200, // Small response, just need the JSON
+        temperature: 0,
+        messages: [
+          {
+            role: "user",
+            content: validationPrompt
+          }
+        ]
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'anthropic-version': '2023-06-01',
+          'x-api-key': apiKey
+        },
+        timeout: 10000 // 10 second timeout for quick validation
+      }
+    );
+
+    // Extract JSON from response
+    if (response.data && response.data.content && Array.isArray(response.data.content)) {
+      const textContent = response.data.content.find((item: ClaudeContentItem) => item.type === "text");
+      
+      if (textContent && textContent.text) {
+        const jsonMatch = textContent.text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const result = JSON.parse(jsonMatch[0]);
+          
+          console.log(`[Claude Language Validation] Detected: ${result.detectedLanguage}, Confidence: ${result.confidence}, Matches: ${result.matches}`);
+          
+          return {
+            isValid: result.matches === true,
+            detectedLanguage: result.detectedLanguage || 'Unknown',
+            confidence: result.confidence || 'low'
+          };
+        }
+      }
+    }
+    
+    // Fallback if parsing fails
+    console.warn('[Claude Language Validation] Could not parse Claude response, falling back to pattern matching');
+    return {
+      isValid: true, // Fall back to allowing the request
+      detectedLanguage: 'Unknown',
+      confidence: 'low'
+    };
+  } catch (error) {
+    console.error('[Claude Language Validation] Error during validation:', error);
+    // If validation fails, fall back to allowing the request rather than blocking it
+    return {
+      isValid: true,
+      detectedLanguage: 'Unknown',
+      confidence: 'low'
+    };
+  }
+}
+
+/**
  * Processes text with Claude AI API to add furigana/romanization and provide translation
  * @param text The text to be processed
  * @param targetLanguage The language to translate into (default: 'en' for English)
@@ -563,6 +676,14 @@ export async function processWithClaude(
     textLength: text.length
   });
 
+  // Validate text length (prevent API abuse)
+  const textValidation = validateTextLength(text);
+  if (!textValidation.isValid) {
+    const errorMessage = textValidation.error || 'Text validation failed';
+    console.error('[Claude API] Text validation failed:', errorMessage);
+    throw new Error(errorMessage);
+  }
+
   // Validate Claude API key
   const apiKey = Constants.expoConfig?.extra?.EXPO_PUBLIC_CLAUDE_API_KEY;
   const apiKeyLength = apiKey ? String(apiKey).length : 0;
@@ -575,16 +696,83 @@ export async function processWithClaude(
     throw new Error(errorMessage);
   }
 
-  // Validate that the detected language matches the forced language if specified
+  // Checkpoint 1: Initial validation complete, starting language detection
+  console.log('🎯 [Claude API] Checkpoint 1: Initial validation complete, starting language detection');
+  onProgress?.(1);
+
+  // HYBRID LANGUAGE VALIDATION STRATEGY (for forced language modes)
+  // - Latin languages (en, fr, es, it, pt, de, tl, eo): Use AI validation (overlapping patterns)
+  // - Non-Latin languages (ja, zh, ko, ru, ar, hi): Use pattern matching (unique character sets)
   if (forcedLanguage && forcedLanguage !== 'auto') {
-    const validationResult = validateTextMatchesLanguage(text, forcedLanguage);
-    console.log(`[DEBUG] Language validation for forced ${forcedLanguage}: ${validationResult}`);
+    // Define which languages use which validation method
+    const latinLanguages = ['en', 'fr', 'es', 'it', 'pt', 'de', 'tl', 'eo'];
+    const nonLatinLanguages = ['ja', 'zh', 'ko', 'ru', 'ar', 'hi'];
     
-    if (!validationResult) {
-      const autoDetectedLang = detectPrimaryLanguage(text, 'auto');
-      console.error(`Claude API: Detected language ${autoDetectedLang} does not match forced language ${forcedLanguage}`);
-      console.error(`Text sample: "${text.substring(0, 100)}..."`);
-      throw new Error(`Claude API: Detected language ${autoDetectedLang} does not match forced language ${forcedLanguage}`);
+    const useAIValidation = latinLanguages.includes(forcedLanguage);
+    const usePatternValidation = nonLatinLanguages.includes(forcedLanguage);
+    
+    if (useAIValidation) {
+      // AI-POWERED VALIDATION for Latin languages (similar scripts, pattern matching unreliable)
+      console.log(`[Claude API] Performing AI-based language validation for Latin language: ${forcedLanguage}`);
+      
+      try {
+        const aiValidation = await validateLanguageWithClaude(text, forcedLanguage, apiKey);
+        
+        if (!aiValidation.isValid) {
+          const expectedLanguageName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || forcedLanguage;
+          const errorMessage = `Language mismatch: Expected ${expectedLanguageName} but detected ${aiValidation.detectedLanguage} (confidence: ${aiValidation.confidence})`;
+          
+          console.log(`[Claude API] ${errorMessage}`);
+          console.log(`[Claude API] Text sample: "${text.substring(0, 100)}..."`);
+          
+          throw new Error(errorMessage);
+        }
+        
+        console.log(`[Claude API] AI language validation passed: ${aiValidation.detectedLanguage} matches expected ${forcedLanguage}`);
+      } catch (error) {
+        // If the error is already a language mismatch, re-throw it
+        if (error instanceof Error && error.message.includes('Language mismatch')) {
+          throw error;
+        }
+        
+        // For other errors during AI validation, log but continue (fallback behavior)
+        console.warn('[Claude API] AI language validation encountered an error, falling back to pattern matching');
+        
+        // Fallback to pattern-based validation
+        const validationResult = validateTextMatchesLanguage(text, forcedLanguage);
+        if (!validationResult) {
+          const expectedLanguageName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || forcedLanguage;
+          const errorMessage = `Language mismatch: Could not detect ${expectedLanguageName} in the provided text`;
+          console.log(`[Claude API] ${errorMessage}`);
+          throw new Error(errorMessage);
+        }
+      }
+    } else if (usePatternValidation) {
+      // PATTERN-BASED VALIDATION for non-Latin languages (unique scripts, pattern matching works perfectly)
+      console.log(`[Claude API] Performing pattern-based language validation for non-Latin language: ${forcedLanguage}`);
+      
+      const validationResult = validateTextMatchesLanguage(text, forcedLanguage);
+      if (!validationResult) {
+        const expectedLanguageName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || forcedLanguage;
+        const errorMessage = `Language mismatch: Could not detect ${expectedLanguageName} in the provided text`;
+        
+        console.log(`[Claude API] ${errorMessage}`);
+        console.log(`[Claude API] Text sample: "${text.substring(0, 100)}..."`);
+        
+        throw new Error(errorMessage);
+      }
+      
+      console.log(`[Claude API] Pattern-based language validation passed for ${forcedLanguage}`);
+    } else {
+      // Unknown language code - use pattern matching as fallback
+      console.log(`[Claude API] Using pattern-based validation for unknown language code: ${forcedLanguage}`);
+      const validationResult = validateTextMatchesLanguage(text, forcedLanguage);
+      if (!validationResult) {
+        const expectedLanguageName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || forcedLanguage;
+        const errorMessage = `Language mismatch: Could not detect ${expectedLanguageName} in the provided text`;
+        console.log(`[Claude API] ${errorMessage}`);
+        throw new Error(errorMessage);
+      }
     }
   }
 
@@ -611,9 +799,9 @@ export async function processWithClaude(
     console.log(`[DEBUG] Japanese forced detection active. Using Japanese prompt.`);
   }
 
-  // Checkpoint 1: Language validation complete, starting processing
-  console.log('🎯 [Claude API] Checkpoint 1: Language validation complete');
-  onProgress?.(1);
+  // Checkpoint 1.5: AI language validation complete, proceeding to translation
+  console.log('🎯 [Claude API] Checkpoint 1.5: AI language validation complete, proceeding to translation');
+  // Note: We don't call onProgress here to keep the existing 4-checkpoint system intact
 
   while (retryCount < MAX_RETRIES) {
     try {

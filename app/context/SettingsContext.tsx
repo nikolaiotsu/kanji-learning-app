@@ -108,7 +108,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       settings.targetLanguage = lang;
       await AsyncStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
     } catch (error) {
-      console.error('Error saving settings to storage:', error);
+      console.log('Error saving settings to storage:', error);
       throw error; // Re-throw to allow UI to handle the error
     }
   };
@@ -126,7 +126,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       settings.forcedDetectionLanguage = lang;
       await AsyncStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
     } catch (error) {
-      console.error('Error saving settings to storage:', error);
+      console.log('Error saving settings to storage:', error);
       throw error; // Re-throw to allow UI to handle the error
     }
   };

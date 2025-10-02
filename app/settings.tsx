@@ -80,7 +80,7 @@ export default function SettingsScreen() {
       await setForcedDetectionLanguage(langCode);
       setShowDetectionSelector(false);
     } catch (error) {
-      console.error('Error setting detection language:', error);
+      console.log('Error setting detection language:', error);
       const errorMessage = error instanceof Error ? error.message : t('settings.setDetectionLanguageError');
       Alert.alert(t('settings.invalidLanguageSelection'), errorMessage);
     }
