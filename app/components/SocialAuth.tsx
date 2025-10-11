@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert, ActivityIndicator, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, StyleSheet, TouchableOpacity, Text, Alert, ActivityIndicator, Platform, Animated } from 'react-native';
 import { signInWithGoogle, signInWithApple, signUpWithGoogle } from '../services/authService';
 import { COLORS } from '../constants/colors';
 import { AntDesign, FontAwesome } from '@expo/vector-icons';
@@ -14,6 +14,11 @@ const SocialAuth = ({ mode }: SocialAuthProps) => {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isAppleLoading, setIsAppleLoading] = useState(false);
   const [isAppleSignInSupported, setIsAppleSignInSupported] = useState(false);
+  const [isCheckingAppleSupport, setIsCheckingAppleSupport] = useState(true);
+  
+  // Animated values for smooth fade-in (both buttons fade in together)
+  const googleButtonOpacity = useRef(new Animated.Value(0)).current;
+  const appleButtonOpacity = useRef(new Animated.Value(0)).current;
 
   // Check Apple Sign In availability on component mount
   useEffect(() => {
@@ -31,10 +36,30 @@ const SocialAuth = ({ mode }: SocialAuthProps) => {
         // Apple Sign In via web OAuth is available on all platforms
         setIsAppleSignInSupported(true);
       }
+      setIsCheckingAppleSupport(false);
     };
 
     checkAppleSignInSupport();
   }, []);
+
+  // Animate both buttons in together when check is complete
+  useEffect(() => {
+    if (!isCheckingAppleSupport) {
+      // Fade in both buttons simultaneously for professional look
+      Animated.parallel([
+        Animated.timing(googleButtonOpacity, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(appleButtonOpacity, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [isCheckingAppleSupport]);
 
   const handleGoogleAuth = async () => {
     setIsGoogleLoading(true);
@@ -99,40 +124,59 @@ const SocialAuth = ({ mode }: SocialAuthProps) => {
   
   return (
     <View style={styles.container}>
-      <TouchableOpacity 
-        style={[styles.button, styles.googleButton]}
-        onPress={handleGoogleAuth}
-        disabled={isGoogleLoading || isAppleLoading}
-      >
-        {isGoogleLoading ? (
-          <ActivityIndicator color="#4285F4" size="small" />
-        ) : (
-          <>
-            <AntDesign name="google" size={20} color="#4285F4" style={styles.buttonIcon} />
-            <Text style={styles.googleButtonText}>
-              {mode === 'login' ? 'Continue with Google' : 'Sign up with Google'}
-            </Text>
-          </>
-        )}
-      </TouchableOpacity>
-      
-      {isAppleSignInSupported && (
-        <TouchableOpacity 
-          style={[styles.button, styles.appleButton]}
-          onPress={handleAppleSignIn}
-          disabled={isAppleLoading || isGoogleLoading}
-        >
-          {isAppleLoading ? (
-            <ActivityIndicator color="white" size="small" />
-          ) : (
-            <>
-              <AntDesign name="apple1" size={20} color="white" style={styles.buttonIcon} />
-              <Text style={styles.appleButtonText}>
-                {mode === 'login' ? 'Continue with Apple' : 'Sign up with Apple'}
-              </Text>
-            </>
+      {isCheckingAppleSupport ? (
+        // Show placeholders for both buttons while checking - prevents layout shift
+        <>
+          <View style={[styles.button, styles.buttonPlaceholder]}>
+            <ActivityIndicator color={COLORS.lightGray} size="small" />
+          </View>
+          <View style={[styles.button, styles.buttonPlaceholder]}>
+            <ActivityIndicator color={COLORS.lightGray} size="small" />
+          </View>
+        </>
+      ) : (
+        // Fade in both buttons simultaneously for smooth, synchronized appearance
+        <>
+          <Animated.View style={{ opacity: googleButtonOpacity }}>
+            <TouchableOpacity 
+              style={[styles.button, styles.googleButton]}
+              onPress={handleGoogleAuth}
+              disabled={isGoogleLoading || isAppleLoading}
+            >
+              {isGoogleLoading ? (
+                <ActivityIndicator color="#4285F4" size="small" />
+              ) : (
+                <>
+                  <AntDesign name="google" size={20} color="#4285F4" style={styles.buttonIcon} />
+                  <Text style={styles.googleButtonText}>
+                    {mode === 'login' ? 'Continue with Google' : 'Sign up with Google'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </Animated.View>
+          
+          {isAppleSignInSupported && (
+            <Animated.View style={{ opacity: appleButtonOpacity }}>
+              <TouchableOpacity 
+                style={[styles.button, styles.appleButton]}
+                onPress={handleAppleSignIn}
+                disabled={isAppleLoading || isGoogleLoading}
+              >
+                {isAppleLoading ? (
+                  <ActivityIndicator color="white" size="small" />
+                ) : (
+                  <>
+                    <AntDesign name="apple1" size={20} color="white" style={styles.buttonIcon} />
+                    <Text style={styles.appleButtonText}>
+                      {mode === 'login' ? 'Continue with Apple' : 'Sign up with Apple'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </Animated.View>
           )}
-        </TouchableOpacity>
+        </>
       )}
     </View>
   );
@@ -173,6 +217,12 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontWeight: '500',
     fontSize: 16,
+  },
+  buttonPlaceholder: {
+    backgroundColor: COLORS.darkSurface,
+    borderWidth: 1,
+    borderColor: COLORS.darkGray,
+    opacity: 0.5,
   },
 });
 

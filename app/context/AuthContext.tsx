@@ -9,8 +9,7 @@ type AuthContextType = {
   session: Session | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
-  devSignUpAndSignIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<{ user: User | null; session: Session | null } | null>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
 };
@@ -85,30 +84,26 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  // Dev sign up and sign in function (for testing without email verification)
-  const devSignUpAndSignIn = async (email: string, password: string) => {
-    setIsLoading(true);
-    try {
-      const { session } = await authService.devSignUpAndSignIn(email, password);
-      setSession(session);
-      setUser(session?.user ?? null);
-    } catch (error) {
-      console.error('Error in dev sign up and sign in:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // Sign up function
   const signUp = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      await authService.signUp(email, password);
-      // Sign-up might require email verification,
-      // so we don't set user or session here
+      console.log('🔐 [AuthContext] signUp called with email:', email);
+      const data = await authService.signUp(email, password);
+      
+      // If user is auto-confirmed (email confirmation disabled), set the session
+      if (data?.session) {
+        console.log('✅ [AuthContext] User auto-confirmed, setting session');
+        setSession(data.session);
+        setUser(data.session.user);
+      } else if (data?.user && !data?.session) {
+        console.log('📧 [AuthContext] Email confirmation required, not setting session');
+        // Sign-up requires email verification, so we don't set user or session here
+      }
+      
+      return data ? { user: data.user, session: data.session } : null;
     } catch (error) {
-      console.error('Error signing up:', error);
+      console.error('❌ [AuthContext] Error signing up:', error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -147,7 +142,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     isLoading,
     signIn,
     signUp,
-    devSignUpAndSignIn,
     signOut,
     resetPassword,
   };

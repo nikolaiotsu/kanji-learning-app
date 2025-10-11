@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, ActivityIndicator } from 'react-native';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, ActivityIndicator, Dimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons, MaterialIcons, FontAwesome5, AntDesign, FontAwesome6, Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -33,6 +34,18 @@ interface KanjiScannerProps {
 
 export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScannerProps) {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  
+  // Calculate responsive dimensions based on actual device safe areas
+  const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+  const BUTTON_HEIGHT = 65;
+  const BUTTON_BOTTOM_POSITION = 25;
+  const BUTTON_ROW_HEIGHT = BUTTON_HEIGHT + BUTTON_BOTTOM_POSITION + insets.bottom;
+  const BOTTOM_CLEARANCE = 50;
+  const REVIEWER_TOP_OFFSET = 50;
+  const ESTIMATED_TOP_SECTION = insets.top + 55;
+  const REVIEWER_MAX_HEIGHT = SCREEN_HEIGHT - ESTIMATED_TOP_SECTION - REVIEWER_TOP_OFFSET - BUTTON_ROW_HEIGHT - BOTTOM_CLEARANCE;
+  
   const [capturedImage, setCapturedImage] = useState<CapturedImage | null>(null);
   const [imageHistory, setImageHistory] = useState<CapturedImage[]>([]);
   const [forwardHistory, setForwardHistory] = useState<CapturedImage[]>([]);
@@ -1374,6 +1387,12 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
     // Button states will be updated by the useEffect
   };
 
+  // Create dynamic styles based on calculated dimensions
+  const styles = useMemo(() => createStyles(
+    REVIEWER_TOP_OFFSET,
+    REVIEWER_MAX_HEIGHT
+  ), [REVIEWER_TOP_OFFSET, REVIEWER_MAX_HEIGHT]);
+
   return (
     <View
       style={styles.container}
@@ -1717,7 +1736,8 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
   );
 }
 
-const styles = StyleSheet.create({
+// Create styles dynamically based on calculated dimensions
+const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
@@ -1787,15 +1807,15 @@ const styles = StyleSheet.create({
   buttonIcon: {
     marginRight: 8,
   },
-  // Reviewer container style
+  // Reviewer container style - responsive for all screen sizes
   reviewerContainer: {
     position: 'absolute',
-    top: '10%', // Moved closer to top to maximize screen usage
+    top: reviewerTopOffset, // Positioned to clear settings button
     transform: [{ translateY: 0 }],
-    left: 0, // Removed left margin to reach screen edge
-    right: 0, // Removed right margin to reach screen edge
+    left: 0,
+    right: 0,
     zIndex: 900,
-    maxHeight: '70%', // Increased to allow for larger card size
+    maxHeight: reviewerMaxHeight, // Calculated to fit available space
   },
   backdrop: {
     position: 'absolute',

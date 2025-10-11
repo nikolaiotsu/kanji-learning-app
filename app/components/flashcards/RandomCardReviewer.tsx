@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Animated, PanResponder } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Animated, PanResponder, Dimensions } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import FlashcardItem from './FlashcardItem';
 import { useRandomCardReview, LoadingState } from '../../hooks/useRandomCardReview';
@@ -10,9 +11,11 @@ import { Flashcard } from '../../types/Flashcard';
 import { COLORS } from '../../constants/colors';
 import MultiDeckSelector from './MultiDeckSelector';
 import * as Haptics from 'expo-haptics';
+import { useAuth } from '../../context/AuthContext';
 
-// Storage key for selected deck IDs
-const SELECTED_DECK_IDS_STORAGE_KEY = 'selectedDeckIds';
+// Storage key generator for selected deck IDs (user-specific)
+const getSelectedDeckIdsStorageKey = (userId: string) => `selectedDeckIds_${userId}`;
+const LEGACY_SELECTED_DECK_IDS_STORAGE_KEY = 'selectedDeckIds'; // For migration
 
 interface RandomCardReviewerProps {
   // Add onCardSwipe callback prop
@@ -23,6 +26,8 @@ interface RandomCardReviewerProps {
 
 const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, onContentReady }) => {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const {
     currentCard,
     isLoading,
@@ -40,6 +45,35 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     setCurrentCard,
     removeCardFromSession
   } = useRandomCardReview();
+
+  // Internal spacing constants for card layout
+  const HEADER_HEIGHT = 45;
+  const HEADER_TO_CARD_SPACING = 16;
+  const CARD_TO_CONTROLS_SPACING = 12;
+  const CONTROLS_HEIGHT = 25;
+  const CONTAINER_PADDING_TOP = 10;
+  const CONTAINER_PADDING_BOTTOM = 10;
+  
+  // Calculate total spacing overhead
+  const TOTAL_SPACING_OVERHEAD = CONTAINER_PADDING_TOP + HEADER_HEIGHT + HEADER_TO_CARD_SPACING + 
+                                  CARD_TO_CONTROLS_SPACING + CONTROLS_HEIGHT + CONTAINER_PADDING_BOTTOM;
+  
+  // Calculate available space from parent (KanjiScanner provides maxHeight constraint)
+  // Parent calculation: SCREEN_HEIGHT - ESTIMATED_TOP_SECTION - REVIEWER_TOP_OFFSET - BUTTON_ROW_HEIGHT - BOTTOM_CLEARANCE
+  const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+  const ESTIMATED_TOP_SECTION = insets.top + 55;
+  const REVIEWER_TOP_OFFSET = 50;
+  const BUTTON_HEIGHT = 65;
+  const BUTTON_BOTTOM_POSITION = 25;
+  const BUTTON_ROW_HEIGHT = BUTTON_HEIGHT + BUTTON_BOTTOM_POSITION + insets.bottom;
+  const BOTTOM_CLEARANCE = 50;
+  
+  // Calculate the actual available height that parent provides
+  const AVAILABLE_HEIGHT = SCREEN_HEIGHT - ESTIMATED_TOP_SECTION - REVIEWER_TOP_OFFSET - BUTTON_ROW_HEIGHT - BOTTOM_CLEARANCE;
+  
+  // Calculate card height by subtracting spacing overhead
+  const CALCULATED_CARD_HEIGHT = AVAILABLE_HEIGHT - TOTAL_SPACING_OVERHEAD;
+  const CARD_STAGE_HEIGHT = Math.max(200, CALCULATED_CARD_HEIGHT); // Minimum 200px for readability
 
   // Deck selection state (moved from hook to component)
   const [selectedDeckIds, setSelectedDeckIds] = useState<string[]>([]);
@@ -91,26 +125,58 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     </View>
   );
 
-  // Load selected deck IDs from AsyncStorage on initialization
+  // Load selected deck IDs from AsyncStorage on initialization (user-specific)
   useEffect(() => {
     const loadSelectedDeckIds = async () => {
+      if (!user?.id) {
+        console.log('👤 [Component] No user, skipping deck selection load');
+        setDeckIdsLoaded(true);
+        return;
+      }
+
       try {
-        const storedDeckIds = await AsyncStorage.getItem(SELECTED_DECK_IDS_STORAGE_KEY);
+        const userStorageKey = getSelectedDeckIdsStorageKey(user.id);
+        console.log('👤 [Component] Loading deck selection for user:', user.id);
+        
+        // Try to load user-specific deck selection
+        let storedDeckIds = await AsyncStorage.getItem(userStorageKey);
+        
+        // Migration: If no user-specific data, check for legacy global key
+        if (!storedDeckIds) {
+          console.log('👤 [Component] No user-specific deck selection, checking legacy key');
+          const legacyDeckIds = await AsyncStorage.getItem(LEGACY_SELECTED_DECK_IDS_STORAGE_KEY);
+          
+          if (legacyDeckIds) {
+            console.log('👤 [Component] Migrating legacy deck selection to user-specific key');
+            // Migrate to user-specific key
+            await AsyncStorage.setItem(userStorageKey, legacyDeckIds);
+            // Clear the legacy key
+            await AsyncStorage.removeItem(LEGACY_SELECTED_DECK_IDS_STORAGE_KEY);
+            storedDeckIds = legacyDeckIds;
+          }
+        }
+        
         if (storedDeckIds) {
           const deckIds = JSON.parse(storedDeckIds);
+          console.log('👤 [Component] Loaded deck selection:', deckIds.length, 'decks');
           setSelectedDeckIds(deckIds);
+        } else {
+          console.log('👤 [Component] No deck selection found, using all decks');
+          setSelectedDeckIds([]);
         }
       } catch (error) {
         console.error('Error loading selected deck IDs from AsyncStorage:', error);
+        setSelectedDeckIds([]);
       } finally {
         setDeckIdsLoaded(true);
       }
     };
 
     loadSelectedDeckIds();
-  }, []);
+  }, [user?.id]);
 
   // Filter cards based on selected decks with proper loading states and operation tracking
+  // Includes smart validation: auto-clears invalid deck selections that result in 0 cards
   useEffect(() => {
     const filterCards = async () => {
       if (!deckIdsLoaded) return;
@@ -137,7 +203,25 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           // Check if this operation is still current
           if (currentDeckSelectionRef.current === currentOpId) {
             console.log('✅ [Component] Filtered cards ready for operation:', currentOpId, 'cards:', cards.length);
-            setFilteredCards(cards);
+            
+            // SMART VALIDATION: If selected decks result in 0 cards but we have cards in total,
+            // the deck selection is invalid (decks don't exist or are empty for this user)
+            if (cards.length === 0 && allFlashcards.length > 0) {
+              console.warn('⚠️ [Component] Selected decks have 0 cards but user has', allFlashcards.length, 'total cards - clearing invalid deck selection');
+              // Clear the invalid deck selection
+              setSelectedDeckIds([]);
+              // Clear from storage
+              if (user?.id) {
+                const userStorageKey = getSelectedDeckIdsStorageKey(user.id);
+                await AsyncStorage.removeItem(userStorageKey).catch(err => 
+                  console.error('Error clearing invalid deck selection:', err)
+                );
+              }
+              // Use all cards instead
+              setFilteredCards(allFlashcards);
+            } else {
+              setFilteredCards(cards);
+            }
           } else {
             console.log('🚫 [Component] Filtering cancelled - operation changed from', currentOpId, 'to', currentDeckSelectionRef.current);
           }
@@ -157,13 +241,20 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     };
 
     filterCards();
-  }, [selectedDeckIds, allFlashcards, deckIdsLoaded]);
+  }, [selectedDeckIds, allFlashcards, deckIdsLoaded, user?.id]);
 
-  // Update selected deck IDs
+  // Update selected deck IDs (user-specific)
   const updateSelectedDeckIds = async (deckIds: string[]) => {
+    if (!user?.id) {
+      console.warn('Cannot save deck selection: No user logged in');
+      return;
+    }
+
     try {
       setSelectedDeckIds(deckIds);
-      await AsyncStorage.setItem(SELECTED_DECK_IDS_STORAGE_KEY, JSON.stringify(deckIds));
+      const userStorageKey = getSelectedDeckIdsStorageKey(user.id);
+      await AsyncStorage.setItem(userStorageKey, JSON.stringify(deckIds));
+      console.log('👤 [Component] Saved deck selection for user:', user.id, '- Decks:', deckIds.length);
     } catch (error) {
       console.error('Error saving selected deck IDs to AsyncStorage:', error);
     }
@@ -468,7 +559,12 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       try {
         // Update deck selection and handle filtering inline to prevent race conditions
         setSelectedDeckIds(deckIds);
-        await AsyncStorage.setItem(SELECTED_DECK_IDS_STORAGE_KEY, JSON.stringify(deckIds));
+        
+        // Save to user-specific storage key
+        if (user?.id) {
+          const userStorageKey = getSelectedDeckIdsStorageKey(user.id);
+          await AsyncStorage.setItem(userStorageKey, JSON.stringify(deckIds));
+        }
         
         // Immediately filter cards for this operation to prevent race conditions
         let newFilteredCards: Flashcard[];
@@ -500,7 +596,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     }
     
     setShowDeckSelector(false);
-  }, [selectedDeckIds, allFlashcards, setCurrentCard]);
+  }, [selectedDeckIds, allFlashcards, setCurrentCard, user?.id]);
 
   // Memoize the MultiDeckSelector to prevent unnecessary re-renders
   const deckSelector = useMemo(() => (
@@ -511,6 +607,18 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       initialSelectedDeckIds={selectedDeckIds}
     />
   ), [showDeckSelector, selectedDeckIds, handleDeckSelection]);
+
+  // Create dynamic styles based on calculated dimensions
+  const styles = useMemo(() => createStyles(
+    CONTAINER_PADDING_TOP,
+    CONTAINER_PADDING_BOTTOM,
+    HEADER_HEIGHT,
+    HEADER_TO_CARD_SPACING,
+    CARD_STAGE_HEIGHT,
+    CARD_TO_CONTROLS_SPACING,
+    CONTROLS_HEIGHT
+  ), [CONTAINER_PADDING_TOP, CONTAINER_PADDING_BOTTOM, HEADER_HEIGHT, 
+      HEADER_TO_CARD_SPACING, CARD_STAGE_HEIGHT, CARD_TO_CONTROLS_SPACING, CONTROLS_HEIGHT]);
 
   // Industry standard: Only show hook loading for initial data fetch
   if (loadingState === LoadingState.SKELETON_LOADING && isInitializing) {
@@ -654,6 +762,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               key={currentCard.id}
               flashcard={currentCard} 
               disableTouchHandling={false}
+              cardHeight={CARD_STAGE_HEIGHT}
               onImageToggle={(showImage) => {
                 setIsImageExpanded(showImage);
               }} 
@@ -677,16 +786,25 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   );
 };
 
-const styles = StyleSheet.create({
+// Create styles dynamically based on calculated dimensions
+const createStyles = (
+  containerPaddingTop: number,
+  containerPaddingBottom: number,
+  headerHeight: number,
+  headerToCardSpacing: number,
+  cardStageHeight: number,
+  cardToControlsSpacing: number,
+  controlsHeight: number
+) => StyleSheet.create({
   container: {
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    borderRadius: 0, // Removed border radius to reach screen edges
-    paddingTop: 60, // add top padding to accommodate absolute header
-    paddingHorizontal: 0, // horizontal padding unchanged
-    paddingBottom: 15,
+    borderRadius: 0,
+    paddingTop: containerPaddingTop,
+    paddingHorizontal: 0,
+    paddingBottom: containerPaddingBottom,
     width: '100%',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     elevation: 5,
     shadowColor: '#000',
     shadowOffset: {
@@ -695,20 +813,18 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    minHeight: 500, // Increased minimum height for larger cards
-    maxHeight: 700, // Increased maximum height for larger cards
-    flexShrink: 1,
+    // Fill all available space provided by parent's maxHeight constraint
+    flex: 1,
+    flexDirection: 'column',
   },
   header: {
-    position: 'absolute',
-    top: 15, // match container's original top padding
-    left: 0,
-    right: 0,
     width: '100%',
+    height: headerHeight,
     flexDirection: 'row',
     justifyContent: 'flex-start',
     alignItems: 'center',
     paddingHorizontal: 15,
+    marginBottom: headerToCardSpacing, // 16pt spacing between header and card
   },
   deckButton: {
     flexDirection: 'row',
@@ -724,14 +840,17 @@ const styles = StyleSheet.create({
   },
   cardStage: {
     width: '100%',
-    height: 380, // Increased height for larger cards
+    minHeight: cardStageHeight, // Minimum height for readability
+    flex: 1, // Expand to fill available space
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 15, // Adjusted padding for better card display
+    paddingHorizontal: 15,
+    marginBottom: cardToControlsSpacing, // Proper spacing between card and controls
   },
   cardContainer: {
     width: '100%',
+    flex: 1, // Expand to fill available space
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -740,7 +859,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
-    paddingVertical: 5,
+    height: controlsHeight,
+    paddingTop: 0, // Spacing handled by cardStage marginBottom (12pt)
   },
   countText: {
     color: '#b3b3b3',
@@ -748,7 +868,8 @@ const styles = StyleSheet.create({
   },
   loadingCardContainer: {
     width: '100%',
-    height: 380,
+    minHeight: cardStageHeight, // Minimum height for readability
+    flex: 1, // Expand to fill available space
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: COLORS.darkSurface,
@@ -779,7 +900,8 @@ const styles = StyleSheet.create({
   },
   noCardsContainer: {
     width: '100%',
-    height: 380,
+    minHeight: cardStageHeight, // Minimum height for readability
+    flex: 1, // Expand to fill available space
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: COLORS.darkSurface,

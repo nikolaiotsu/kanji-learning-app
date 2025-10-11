@@ -6,52 +6,42 @@ import appleAuth from '@invertase/react-native-apple-authentication';
 // Sign up with email and password
 export const signUp = async (email: string, password: string) => {
   try {
+    console.log('🔐 [authService] signUp called with email:', email);
+    
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-    });
-    
-    if (error) throw error;
-    return data;
-  } catch (error) {
-    console.error('Error signing up:', error);
-    throw error;
-  }
-};
-
-// DEV ONLY: Sign up without email confirmation (remove before production)
-export const devSignUpAndSignIn = async (email: string, password: string) => {
-  try {
-    console.log('Starting dev sign-up and sign-in for:', email);
-    
-    // First try to sign up
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-    
-    if (signUpError) {
-      console.log('Sign-up error:', signUpError.message);
-      
-      // If "User already registered" error, try to sign in directly
-      if (signUpError.message.includes('User already registered')) {
-        console.log('User already exists, trying direct sign-in');
-        return await signIn(email, password);
+      options: {
+        // Redirect URL after email confirmation
+        emailRedirectTo: 'kanjilearningapp://login',
+        // Optional: Add user metadata
+        data: {
+          email: email,
+        }
       }
-      throw signUpError;
+    });
+    
+    console.log('🔐 [authService] signUp response:', {
+      user: !!data?.user,
+      session: !!data?.session,
+      error: !!error
+    });
+    
+    // Check if email confirmation is required
+    if (data?.user && !data?.session) {
+      console.log('📧 [authService] Email confirmation required for:', email);
+    } else if (data?.session) {
+      console.log('✅ [authService] User signed up and automatically logged in');
     }
     
-    console.log('Sign-up successful, userId:', signUpData?.user?.id);
-    console.log('Attempting immediate sign-in');
+    if (error) {
+      console.error('❌ [authService] signUp error:', error.message);
+      throw error;
+    }
     
-    // If sign up successful, attempt to sign in immediately
-    // This is only for development to bypass email verification
-    const signInResult = await signIn(email, password);
-    console.log('Sign-in successful');
-    
-    return signInResult;
+    return data;
   } catch (error) {
-    console.error('Error in dev sign up and sign in:', error);
+    console.error('❌ [authService] Error signing up:', error);
     throw error;
   }
 };

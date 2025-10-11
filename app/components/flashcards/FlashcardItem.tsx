@@ -8,6 +8,10 @@ import { useSettings, AVAILABLE_LANGUAGES } from '../../context/SettingsContext'
 import FuriganaText from '../shared/FuriganaText';
 // Removed text formatting imports - no longer needed for direct content analysis
 
+// Responsive card dimensions - calculate before component definition
+const { width } = Dimensions.get('window');
+const cardWidth = width * 0.9;
+
 interface FlashcardItemProps {
   flashcard: Flashcard;
   onDelete?: (id: string) => void;
@@ -16,6 +20,7 @@ interface FlashcardItemProps {
   onImageToggle?: (showImage: boolean) => void;
   deckName?: string; // Optional deck name to display
   disableTouchHandling?: boolean; // If true, the card won't be flippable via touch
+  cardHeight?: number; // Optional responsive card height (defaults to 300 if not provided)
 }
 
 const FlashcardItem: React.FC<FlashcardItemProps> = ({ 
@@ -25,12 +30,16 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   onEdit,
   onImageToggle,
   deckName,
-  disableTouchHandling = false 
+  disableTouchHandling = false,
+  cardHeight = 300 // Sensible default for saved-flashcards page
 }) => {
   const { t } = useTranslation();
   const { targetLanguage } = useSettings();
   const [isFlipped, setIsFlipped] = useState(false);
   const flipAnim = useRef(new Animated.Value(0)).current;
+  
+  // Create styles with responsive card height
+  const styles = React.useMemo(() => createStyles(cardHeight), [cardHeight]);
   // Track if content is scrollable (overflow)
   const [frontContentScrollable, setFrontContentScrollable] = useState(false);
   const [backContentScrollable, setBackContentScrollable] = useState(false);
@@ -229,6 +238,15 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
       styles.cardContainer,
       showImage && flashcard.imageUrl ? styles.expandedCardContainer : null
     ]}>
+      {/* Backdrop overlay - tap outside card to dismiss */}
+      {showImage && flashcard.imageUrl && (
+        <TouchableOpacity 
+          style={styles.backdropOverlay}
+          activeOpacity={1}
+          onPress={toggleShowImage}
+        />
+      )}
+      
       <View style={[
         styles.cardWrapper,
         showImage && flashcard.imageUrl ? styles.expandedCardWrapper : null
@@ -420,33 +438,30 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   );
 };
 
-const { width } = Dimensions.get('window');
-const cardWidth = width * 0.9;
-
-const styles = StyleSheet.create({
+// Create styles function with responsive card height
+const createStyles = (responsiveCardHeight: number) => StyleSheet.create({
   cardContainer: {
     position: 'relative',
     width: '100%',
-    marginVertical: 10,
-    paddingHorizontal: 0, // Removed padding, deckPage now handles horizontal spacing
+    marginVertical: 0, // Removed vertical margin - spacing controlled by parent
+    paddingHorizontal: 0,
     borderRadius: 16,
-    overflow: 'visible', // Allow overflow for the flip button
+    overflow: 'visible',
   },
   expandedCardContainer: {
-    // Additional styles for when card is expanded with image
     marginVertical: 20,
   },
   cardWrapper: {
     width: '100%',
-    minHeight: 350, // Increased from 280 to make cards larger
+    minHeight: responsiveCardHeight, // Responsive height
     borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: COLORS.darkSurface,
     position: 'relative',
+    zIndex: 2, // Above the backdrop overlay (zIndex: 1)
   },
   expandedCardWrapper: {
-    // This expands the card height when an image is displayed
-    minHeight: 650, // Increased from 550 to accommodate larger base size
+    minHeight: Math.min(responsiveCardHeight * 1.8, 650), // Scale expanded height proportionally
   },
   cardContent: {
     position: 'absolute',
@@ -595,6 +610,16 @@ const styles = StyleSheet.create({
   deckName: {
     fontSize: 16,
     color: COLORS.darkGray,
+  },
+  backdropOverlay: {
+    position: 'absolute',
+    top: -1000, // Extend far beyond the card boundaries
+    left: -1000,
+    right: -1000,
+    bottom: -1000,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    zIndex: 1, // Behind the card (cardWrapper has no explicit zIndex, defaults to auto)
+    borderRadius: 0, // No rounding for backdrop
   },
 });
 

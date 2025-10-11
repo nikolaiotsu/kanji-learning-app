@@ -394,6 +394,16 @@ export default function SavedFlashcardsScreen() {
     router.back();
   };
 
+  // Function to handle going home
+  const handleGoHome = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Clear navigation stack completely, then navigate to home
+    if (router.canDismiss()) {
+      router.dismissAll();
+    }
+    router.replace('/');
+  };
+
   // Function to handle deck selection
   const handleDeckSelect = (deckId: string, index: number) => {
     // Update selected deck state
@@ -644,7 +654,12 @@ export default function SavedFlashcardsScreen() {
             <Ionicons name="albums-outline" size={24} color={COLORS.text} style={styles.titleIcon} />
             <Text style={styles.title}>{t('savedFlashcards.title')}</Text>
           </View>
-          <View style={styles.headerSpacer} />
+          <TouchableOpacity 
+            style={styles.homeButton}
+            onPress={handleGoHome}
+          >
+            <Ionicons name="home-outline" size={24} color={COLORS.text} />
+          </TouchableOpacity>
         </View>
 
 
@@ -1032,8 +1047,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: COLORS.darkSurface,
   },
-  headerSpacer: {
-    width: 40, // Match the approximate width of the back button to center the title
+  homeButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: COLORS.darkSurface,
   },
   deckPage: {
     alignItems: 'center', 

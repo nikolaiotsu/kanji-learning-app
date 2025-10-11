@@ -14,57 +14,7 @@ const SignupScreen = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signUp, devSignUpAndSignIn } = useAuth();
-
-  const handleDevSignup = async () => {
-    let testEmail = email;
-    let testPassword = password;
-    let testConfirmPassword = confirmPassword;
-    
-    // Auto-fill empty fields with test values
-    if (!testEmail) {
-      testEmail = `test${Math.floor(Math.random() * 10000)}@example.com`;
-      setEmail(testEmail);
-      console.log('Auto-filled test email:', testEmail);
-    }
-    
-    if (!testPassword) {
-      testPassword = 'password123';
-      setPassword(testPassword);
-      console.log('Auto-filled test password');
-    }
-    
-    if (!testConfirmPassword) {
-      testConfirmPassword = testPassword;
-      setConfirmPassword(testConfirmPassword);
-      console.log('Auto-filled test confirm password');
-    }
-    
-    // Check if passwords match
-    if (testPassword !== testConfirmPassword) {
-      Alert.alert(t('common.error'), t('auth.signup.passwordsMismatch'));
-      return;
-    }
-    
-    // Check password length
-    if (testPassword.length < 6) {
-      Alert.alert(t('common.error'), t('auth.signup.passwordTooShort'));
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      console.log(`Attempting dev sign-in with: ${testEmail}`);
-      await devSignUpAndSignIn(testEmail, testPassword);
-      // If we get here, sign in was successful
-      router.replace('/');
-    } catch (error: any) {
-      console.error('Dev signup error:', error);
-      Alert.alert('Dev Signup Failed', error.message || 'Failed to create account in dev mode.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { signUp } = useAuth();
 
   const handleSignup = async () => {
     // Validate inputs
@@ -85,18 +35,43 @@ const SignupScreen = () => {
     
     setLoading(true);
     try {
-      await signUp(email, password);
-      Alert.alert(
-        t('auth.signup.accountCreated'),
-        t('auth.signup.accountCreatedMessage'),
-        [
-          { 
-            text: t('common.ok'), 
-            onPress: () => router.replace('/login') 
-          }
-        ]
-      );
+      console.log('🔐 [SignupScreen] Starting signup for:', email);
+      const result = await signUp(email, password);
+      console.log('🔐 [SignupScreen] Signup result:', {
+        user: !!result?.user,
+        session: !!result?.session
+      });
+      
+      // Check if email confirmation is required
+      if (result?.user && !result?.session) {
+        // Email confirmation required
+        console.log('📧 [SignupScreen] Email confirmation required');
+        Alert.alert(
+          'Check Your Email',
+          `We've sent a confirmation email to ${email}. Please check your email (including spam folder) and click the confirmation link to activate your account.`,
+          [
+            { 
+              text: 'OK', 
+              onPress: () => router.replace('/login') 
+            }
+          ]
+        );
+      } else if (result?.session) {
+        // Auto-confirmed (email confirmation disabled in Supabase)
+        console.log('✅ [SignupScreen] User auto-confirmed and logged in');
+        Alert.alert(
+          'Welcome to WordDex!',
+          'Your account has been created successfully. You are now logged in and ready to start learning!',
+          [
+            { 
+              text: t('common.ok')
+            }
+          ]
+        );
+      }
     } catch (error: any) {
+      console.error('❌ [SignupScreen] Signup error:', error);
+      
       // Handle specific signup errors
       if (error.message && error.message.includes('User already registered')) {
         Alert.alert(
@@ -107,8 +82,20 @@ const SignupScreen = () => {
             { text: t('auth.signup.goToLogin'), onPress: () => router.replace('/login') }
           ]
         );
+      } else if (error.message && error.message.includes('already registered')) {
+        Alert.alert(
+          'Account Already Exists', 
+          'This email is already registered. Please sign in instead.',
+          [
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('auth.signup.goToLogin'), onPress: () => router.replace('/login') }
+          ]
+        );
       } else {
-        Alert.alert(t('auth.signup.registrationFailed'), error.message || 'Failed to create account. Please try again.');
+        Alert.alert(
+          t('auth.signup.registrationFailed'), 
+          error.message || 'Failed to create account. Please try again.'
+        );
       }
     } finally {
       setLoading(false);
@@ -196,15 +183,6 @@ const SignupScreen = () => {
             onPress={navigateToLogin}
           >
             <Text style={styles.loginButtonText}>{t('auth.signup.loginExisting')}</Text>
-          </TouchableOpacity>
-
-          {/* DEV MODE button - REMOVE BEFORE PRODUCTION */}
-          <TouchableOpacity 
-            style={[styles.button, styles.devButton]}
-            onPress={handleDevSignup}
-            disabled={loading}
-          >
-            <Text style={styles.devButtonText}>DEV MODE: Auto-fill & Skip Verification</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -299,15 +277,6 @@ const styles = StyleSheet.create({
     color: '#007BFF',
     fontSize: 14,
     marginVertical: 5,
-  },
-  devButton: {
-    backgroundColor: '#ff6b6b',
-    marginTop: 20,
-  },
-  devButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
   },
 });
 
