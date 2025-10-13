@@ -198,7 +198,15 @@
     "atLeastOneCollection": "必须选择至少一个收藏集",
     "noCollectionsFound": "未找到收藏集。在单词卡屏幕中创建收藏集。",
     "loadingCollections": "加载收藏集中...",
-    "failedToLoad": "加载收藏集失败。请重试。"
+    "failedToLoad": "加载收藏集失败。请重试。",
+    "gettingStarted": {
+      "title": "入门指南",
+      "subtitle": "创建您的第一个收藏集：",
+      "addCard": "创建自定义卡片",
+      "viewCards": "查看已保存的卡片",
+      "uploadImage": "从相册上传图片",
+      "takePhoto": "拍照扫描文本"
+    }
   },
   "savedFlashcards": {
     "title": "您的收藏集",

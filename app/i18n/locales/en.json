@@ -204,7 +204,15 @@
     "atLeastOneCollection": "At least one collection must be selected",
     "noCollectionsFound": "No collections found. Create collections in the flashcards screen.",
     "loadingCollections": "Loading collections...",
-    "failedToLoad": "Failed to load collections. Please try again."
+    "failedToLoad": "Failed to load collections. Please try again.",
+    "gettingStarted": {
+      "title": "Getting Started",
+      "subtitle": "Build your first collection:",
+      "addCard": "Make a custom card",
+      "viewCards": "View saved cards",
+      "uploadImage": "Upload image from gallery",
+      "takePhoto": "Take a photo to scan text"
+    }
   },
   "savedFlashcards": {
     "title": "Your Collections",

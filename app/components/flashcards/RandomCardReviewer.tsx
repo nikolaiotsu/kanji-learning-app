@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Animated, PanResponder, Dimensions } from 'react-native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -477,6 +477,14 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         return;
       }
       
+      // If hook is ready but we have no flashcards at all, mark initialization as complete
+      if (loadingState === LoadingState.CONTENT_READY && allFlashcards.length === 0 && filteredCards.length === 0 && isInitializing) {
+        console.log('🔄 [Component] Hook ready with 0 cards, completing initialization');
+        setIsInitializing(false);
+        lastFilteredCardsHashRef.current = '';
+        return;
+      }
+      
       // Prevent multiple initialization calls for the same cards
       const cardsHash = filteredCards.map(card => card.id).sort().join(',');
       if (initializationInProgressRef.current || cardsHash === lastFilteredCardsHashRef.current) {
@@ -526,7 +534,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     };
     
     initializeReviewSession();
-  }, [filteredCards, deckIdsLoaded, startReviewWithCards, loadingState]);
+  }, [filteredCards, deckIdsLoaded, startReviewWithCards, loadingState, allFlashcards.length, isInitializing]);
 
   // Handle deck selection with cancellation-based approach for rapid selections
   const handleDeckSelection = useCallback(async (deckIds: string[]) => {
@@ -662,7 +670,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   }
 
   if (!currentCard && !isInitializing) {
-    // No flashcards at all
+    // No flashcards at all - Show getting started guide
     if (reviewSessionCards.length === 0 && filteredCards.length === 0) {
       return (
         <View style={styles.container}>
@@ -677,8 +685,30 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           </View>
           <View style={styles.cardStage}>
             <View style={styles.noCardsContainer}>
-              <Text style={styles.noCardsText}>{t('review.nothingToReview')}</Text>
-              <Text style={styles.guidanceText}>{t('review.scanText')}</Text>
+              <Text style={styles.gettingStartedTitle}>{t('review.gettingStarted.title')}</Text>
+              <Text style={styles.gettingStartedSubtitle}>{t('review.gettingStarted.subtitle')}</Text>
+              
+              <View style={styles.guideItemsContainer}>
+                <View style={styles.guideItem}>
+                  <Ionicons name="add" size={24} color={COLORS.primary} />
+                  <Text style={styles.guideItemText}>{t('review.gettingStarted.addCard')}</Text>
+                </View>
+                
+                <View style={styles.guideItem}>
+                  <MaterialCommunityIcons name="cards" size={24} color={COLORS.primary} />
+                  <Text style={styles.guideItemText}>{t('review.gettingStarted.viewCards')}</Text>
+                </View>
+                
+                <View style={styles.guideItem}>
+                  <Ionicons name="images" size={24} color={COLORS.primary} />
+                  <Text style={styles.guideItemText}>{t('review.gettingStarted.uploadImage')}</Text>
+                </View>
+                
+                <View style={styles.guideItem}>
+                  <Ionicons name="camera" size={24} color={COLORS.primary} />
+                  <Text style={styles.guideItemText}>{t('review.gettingStarted.takePhoto')}</Text>
+                </View>
+              </View>
             </View>
           </View>
           <View style={styles.controlsContainer}>
@@ -943,6 +973,40 @@ const createStyles = (
   reviewAgainText: {
     color: COLORS.text,
     fontWeight: 'bold',
+  },
+  gettingStartedTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  gettingStartedSubtitle: {
+    fontSize: 16,
+    color: COLORS.lightGray,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  guideItemsContainer: {
+    width: '100%',
+    paddingHorizontal: 10,
+  },
+  guideItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.primary,
+  },
+  guideItemText: {
+    fontSize: 15,
+    color: COLORS.text,
+    marginLeft: 16,
+    flex: 1,
   },
 });
 

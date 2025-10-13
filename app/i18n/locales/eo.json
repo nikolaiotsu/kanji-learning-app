@@ -187,7 +187,15 @@
     "atLeastOneCollection": "Almenaŭ unu kolekto devas esti elektita",
     "noCollectionsFound": "Neniuj kolektoj trovitaj. Kreu kolektojn en la memorkaŕta ekrano.",
     "loadingCollections": "Ŝargado de kolektoj...",
-    "failedToLoad": "Malsukcesis ŝargi kolektojn. Bonvolu reprovi."
+    "failedToLoad": "Malsukcesis ŝargi kolektojn. Bonvolu reprovi.",
+    "gettingStarted": {
+      "title": "Komenci",
+      "subtitle": "Konstruu vian unuan kolekton:",
+      "addCard": "Krei propran karton",
+      "viewCards": "Vidi konservitajn kartojn",
+      "uploadImage": "Alŝuti bildon el galerio",
+      "takePhoto": "Foti por skani tekston"
+    }
   },
   "savedFlashcards": {
     "title": "Viaj Kolektoj",
