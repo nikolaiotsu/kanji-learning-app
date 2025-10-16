@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { logger } from './logger';
 // Storage keys from flashcardStorage.ts
 const FLASHCARDS_STORAGE_KEY = 'kanji_app_flashcards';
 const DECKS_STORAGE_KEY = 'kanji_app_decks';
@@ -18,11 +19,11 @@ export const checkLocalStorage = async (): Promise<{hasDecks: boolean, hasFlashc
     const flashcardsJson = await AsyncStorage.getItem(FLASHCARDS_STORAGE_KEY);
     const hasFlashcards = !!flashcardsJson && JSON.parse(flashcardsJson).length > 0;
     
-    console.log('Local storage check:', { hasDecks, hasFlashcards });
+    logger.log('Local storage check:', { hasDecks, hasFlashcards });
     
     return { hasDecks, hasFlashcards };
   } catch (error) {
-    console.error('Error checking local storage:', error);
+    logger.error('Error checking local storage:', error);
     return { hasDecks: false, hasFlashcards: false };
   }
 }; 

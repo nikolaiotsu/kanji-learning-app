@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import { SubscriptionContextType, SubscriptionState, SubscriptionPlan } from '../../types';
 import { SUBSCRIPTION_PLANS, PRODUCT_IDS } from '../constants/config';
 
+import { logger } from '../utils/logger';
 // Storage key for subscription data
 const SUBSCRIPTION_STORAGE_KEY = 'user_subscription_data';
 
@@ -41,7 +42,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
         }
       }
     } catch (error) {
-      console.error('Error loading subscription data:', error);
+      logger.error('Error loading subscription data:', error);
       await resetToFreeSubscription();
     }
   };
@@ -52,7 +53,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
       setError(null);
       
       // In development mode, simulate a successful purchase for testing
-      console.log('Development/Expo Go mode: Simulating premium purchase');
+      logger.log('Development/Expo Go mode: Simulating premium purchase');
       const newSubscription: SubscriptionState = {
         plan: 'PREMIUM',
         isActive: true,
@@ -66,7 +67,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
       return true;
       
     } catch (error: any) {
-      console.error('Purchase failed:', error);
+      logger.error('Purchase failed:', error);
       setError(`Purchase failed: ${error.message || 'Unknown error'}`);
       return false;
     } finally {
@@ -80,12 +81,12 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
       setError(null);
       
       // Check if we have any stored premium subscription
-      console.log('Development/Expo Go mode: Checking for stored premium subscription');
+      logger.log('Development/Expo Go mode: Checking for stored premium subscription');
       const storedData = await AsyncStorage.getItem(SUBSCRIPTION_STORAGE_KEY);
       if (storedData) {
         const data: SubscriptionState = JSON.parse(storedData);
         if (data.plan === 'PREMIUM' && data.expiryDate && new Date(data.expiryDate) > new Date()) {
-          console.log('Restored premium subscription from storage');
+          logger.log('Restored premium subscription from storage');
           setSubscription({
             ...data,
             expiryDate: new Date(data.expiryDate),
@@ -95,11 +96,11 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
         }
       }
       
-      console.log('No premium subscription found to restore');
+      logger.log('No premium subscription found to restore');
       return false;
       
     } catch (error) {
-      console.error('Failed to restore purchases:', error);
+      logger.error('Failed to restore purchases:', error);
       setError('Failed to restore purchases');
       return false;
     } finally {
@@ -118,7 +119,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     try {
       await AsyncStorage.setItem(SUBSCRIPTION_STORAGE_KEY, JSON.stringify(subscriptionData));
     } catch (error) {
-      console.error('Error saving subscription data:', error);
+      logger.error('Error saving subscription data:', error);
     }
   };
 
@@ -144,7 +145,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     
     setSubscription(testingSubscription);
     await saveSubscriptionData(testingSubscription);
-    console.log('Testing subscription plan set to:', plan);
+    logger.log('Testing subscription plan set to:', plan);
   };
 
   // Helper functions

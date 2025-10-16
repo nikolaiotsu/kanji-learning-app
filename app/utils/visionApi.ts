@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import { EXPO_PUBLIC_GOOGLE_CLOUD_VISION_API_KEY } from '@env';
 
+import { logger } from './logger';
 interface VisionApiResponse {
   text: string;
   boundingBox: {
@@ -27,7 +28,7 @@ export async function detectText(
   const API_KEY = EXPO_PUBLIC_GOOGLE_CLOUD_VISION_API_KEY;
   
   // Debug log - remove in production
-  console.log('API Key available:', !!API_KEY);
+  logger.log('API Key available:', !!API_KEY);
   
   if (!API_KEY) {
     throw new Error('Google Cloud Vision API key not found');
@@ -84,8 +85,8 @@ export async function detectText(
     const data = await result.json();
     
     // Debug logs - remove in production
-    console.log('API Response:', data);
-    console.log('Text Annotations:', data.responses?.[0]?.textAnnotations);
+    logger.log('API Response:', data);
+    logger.log('Text Annotations:', data.responses?.[0]?.textAnnotations);
     
     if (!data.responses?.[0]?.textAnnotations) {
       return [];
@@ -113,7 +114,7 @@ export async function detectText(
         confidence: annotation.confidence,
       }));
   } catch (error) {
-    console.error('Error calling Vision API:', error);
+    logger.error('Error calling Vision API:', error);
     throw error;
   }
 }
@@ -123,7 +124,7 @@ export const detectJapaneseText = detectText;
 
 export async function analyzeImage(imageUri: string, region?: Region) {
   const apiKey = EXPO_PUBLIC_GOOGLE_CLOUD_VISION_API_KEY;
-  console.log('API Key available:', !!apiKey);
+  logger.log('API Key available:', !!apiKey);
 
   const response = await fetch(imageUri);
   const blob = await response.blob();
@@ -174,7 +175,7 @@ export async function analyzeImage(imageUri: string, region?: Region) {
     );
 
     const data = await result.json();
-    console.log('API Response:', data);
+    logger.log('API Response:', data);
 
     if (region) {
       // Filter annotations to only include text within the selected region
@@ -194,7 +195,7 @@ export async function analyzeImage(imageUri: string, region?: Region) {
 
     return data.responses[0];
   } catch (error) {
-    console.error('Error calling Vision API:', error);
+    logger.error('Error calling Vision API:', error);
     throw error;
   }
 }

@@ -17,6 +17,7 @@ import { Deck } from '../../types/Deck';
 import { COLORS } from '../../constants/colors';
 import { supabase } from '../../services/supabaseClient';
 
+import { logger } from '../../utils/logger';
 interface DeckReorderModalProps {
   visible: boolean;
   onClose: () => void;
@@ -80,24 +81,24 @@ export default function DeckReorderModal({
       if (validDecks.length === decks.length) {
         setReorderedDecks(decks);
       } else {
-        console.warn(`[DeckReorderModal] Invalid deck data received, filtering out corrupted entries`);
-        console.warn(`[DeckReorderModal] Original count: ${decks.length}, Valid count: ${validDecks.length}`);
+        logger.warn(`[DeckReorderModal] Invalid deck data received, filtering out corrupted entries`);
+        logger.warn(`[DeckReorderModal] Original count: ${decks.length}, Valid count: ${validDecks.length}`);
         setReorderedDecks(validDecks);
       }
     } else {
-      console.warn(`[DeckReorderModal] Invalid decks prop received:`, decks);
+      logger.warn(`[DeckReorderModal] Invalid decks prop received:`, decks);
       setReorderedDecks([]);
     }
   }, [decks]);
 
   const handleDragEnd = ({ data }: { data: Deck[] }) => {
-    console.log(`[DeckReorderModal] Drag ended, new order:`, data.map(d => d.name));
+    logger.log(`[DeckReorderModal] Drag ended, new order:`, data.map(d => d.name));
     
     // Validate that all decks have required fields to prevent corruption
     const validatedData = data.filter(deck => deck && deck.id && deck.name);
     
     if (validatedData.length !== data.length) {
-      console.warn(`[DeckReorderModal] Data validation failed - some decks missing required fields`);
+      logger.warn(`[DeckReorderModal] Data validation failed - some decks missing required fields`);
       // Reset to original order if data is corrupted
       setReorderedDecks(decks);
       return;
@@ -109,14 +110,14 @@ export default function DeckReorderModal({
   };
 
   const handleSave = async () => {
-    console.log(`[DeckReorderModal] Saving new deck order:`, reorderedDecks.map(d => d.name));
+    logger.log(`[DeckReorderModal] Saving new deck order:`, reorderedDecks.map(d => d.name));
     setIsLoading(true);
     try {
       // Final validation before saving to prevent corrupted data
       const validDecks = reorderedDecks.filter(deck => deck && deck.id && deck.name);
       
       if (validDecks.length !== reorderedDecks.length) {
-        console.error(`[DeckReorderModal] Data validation failed before save - corrupted deck data detected`);
+        logger.error(`[DeckReorderModal] Data validation failed before save - corrupted deck data detected`);
         Alert.alert(t('common.error'), 'Data corruption detected. Please try again.');
         return;
       }
@@ -127,7 +128,7 @@ export default function DeckReorderModal({
         order_index: idx
       }));
 
-      console.log(`[DeckReorderModal] Updating database with:`, updates);
+      logger.log(`[DeckReorderModal] Updating database with:`, updates);
       const { error } = await supabase
         .rpc('update_deck_order', {
           deck_updates: updates
@@ -137,7 +138,7 @@ export default function DeckReorderModal({
         throw error;
       }
 
-      console.log(`[DeckReorderModal] Database update successful, calling onReorderComplete`);
+      logger.log(`[DeckReorderModal] Database update successful, calling onReorderComplete`);
       // Update parent component
       onReorderComplete(validDecks);
       onClose();
@@ -145,7 +146,7 @@ export default function DeckReorderModal({
       // Success feedback
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
-      console.error('Error saving deck order:', error);
+      logger.error('Error saving deck order:', error);
       
       // Provide more specific error message if it's a column missing issue
       let errorMessage = t('deck.reorder.failed');

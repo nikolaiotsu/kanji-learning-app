@@ -20,6 +20,7 @@ import { Deck } from '../../types/Deck';
 import { getDecks, deleteDeck } from '../../services/supabaseStorage';
 import { COLORS } from '../../constants/colors';
 
+import { logger } from '../../utils/logger';
 interface MultiDeckSelectorProps {
   visible: boolean;
   onClose: () => void;
@@ -76,7 +77,7 @@ export default function MultiDeckSelector({
         setSelectedDeckIds(validSelectedIds);
       }
     } catch (error) {
-      console.error('Error loading collections:', error);
+      logger.error('Error loading collections:', error);
       Alert.alert(t('common.error'), t('review.failedToLoad'));
     } finally {
       setIsLoading(false);
@@ -208,7 +209,7 @@ export default function MultiDeckSelector({
                 });
                 
                 // Show success message (no alert needed, visual feedback is sufficient)
-                console.log('Collection deleted successfully:', deckName);
+                logger.log('Collection deleted successfully:', deckName);
               } else {
                 Alert.alert(
                   'Error',
@@ -216,7 +217,7 @@ export default function MultiDeckSelector({
                 );
               }
             } catch (error) {
-              console.error('Error deleting deck:', error);
+              logger.error('Error deleting deck:', error);
               Alert.alert(
                 'Error',
                 t('savedFlashcards.deleteCollectionError')

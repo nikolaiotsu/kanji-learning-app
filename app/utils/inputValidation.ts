@@ -1,3 +1,5 @@
+import { logger } from './logger';
+
 /**
  * Input validation utilities for flashcard app
  * Simple, industry-standard validation for abuse prevention
@@ -48,7 +50,7 @@ export async function validateImageFile(
 
     return { isValid: true };
   } catch (error) {
-    console.error('Error validating image:', error);
+    logger.error('Error validating image:', error);
     return {
       isValid: false,
       error: 'Failed to validate image file.'

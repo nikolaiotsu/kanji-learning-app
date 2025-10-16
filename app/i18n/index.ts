@@ -8,6 +8,7 @@ import zh from './locales/zh.json';
 import hi from './locales/hi.json';
 import eo from './locales/eo.json';
 
+import { logger } from '../utils/logger';
 // Determine the device locale
 const deviceLocale = Localization.locale;
 const detectedLanguage = deviceLocale.startsWith('ja') ? 'ja' : 
@@ -15,7 +16,7 @@ const detectedLanguage = deviceLocale.startsWith('ja') ? 'ja' :
                         deviceLocale.startsWith('hi') ? 'hi' : 
                         deviceLocale.startsWith('eo') ? 'eo' : 'en';
 
-console.log('[i18n] Device locale:', deviceLocale, 'Detected language:', detectedLanguage);
+logger.log('[i18n] Device locale:', deviceLocale, 'Detected language:', detectedLanguage);
 
 // Initialize i18n synchronously
 i18next
@@ -41,7 +42,7 @@ i18next
 
 // Ensure i18n is ready before export
 if (!i18next.isInitialized) {
-  console.warn('[i18n] i18next not initialized properly');
+  logger.warn('[i18n] i18next not initialized properly');
 }
 
 export default i18next; 

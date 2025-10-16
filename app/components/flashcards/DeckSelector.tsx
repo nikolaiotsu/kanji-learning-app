@@ -23,6 +23,7 @@ import { getDecks, createDeck } from '../../services/supabaseStorage';
 import { COLORS } from '../../constants/colors';
 import { supabase } from '../../services/supabaseClient';
 
+import { logger } from '../../utils/logger';
 interface DeckSelectorProps {
   visible: boolean;
   onClose: () => void;
@@ -42,11 +43,11 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
 
   // Add useEffect to track state changes
   useEffect(() => {
-    console.log(`[State] isReordering changed to: ${isReordering}`);
+    logger.log(`[State] isReordering changed to: ${isReordering}`);
   }, [isReordering]);
 
   useEffect(() => {
-    console.log(`[State] autoDragDeckId changed to: ${autoDragDeckId}`);
+    logger.log(`[State] autoDragDeckId changed to: ${autoDragDeckId}`);
   }, [autoDragDeckId]);
 
   // Load decks when the component mounts or becomes visible
@@ -58,14 +59,14 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
 
   // Function to load decks from storage
   const loadDecks = async () => {
-    console.log(`[loadDecks] Loading decks...`);
+    logger.log(`[loadDecks] Loading decks...`);
     setIsLoading(true);
     try {
       const savedDecks = await getDecks();
-      console.log(`[loadDecks] Loaded ${savedDecks.length} decks:`, savedDecks.map(d => `${d.name} (${d.id})`));
+      logger.log(`[loadDecks] Loaded ${savedDecks.length} decks:`, savedDecks.map(d => `${d.name} (${d.id})`));
       setDecks(savedDecks);
     } catch (error) {
-      console.error('Error loading collections:', error);
+      logger.error('Error loading collections:', error);
       Alert.alert('Error', 'Failed to load collections. Please try again.');
     } finally {
       setIsLoading(false);
@@ -94,7 +95,7 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
       
       handleSelectDeck(newDeck.id);
     } catch (error) {
-      console.error('Error creating collection:', error);
+      logger.error('Error creating collection:', error);
       Alert.alert(t('common.error'), t('deck.create.failed'));
     } finally {
       setIsCreatingDeck(false);
@@ -111,11 +112,11 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
 
   const DeckChip: React.FC<DeckChipProps> = ({ item, index, drag, isActive }) => {
     React.useEffect(() => {
-      console.log(`[DeckChip] Effect triggered - isReordering: ${isReordering}, autoDragDeckId: ${autoDragDeckId}, item.id: ${item.id}, item.name: ${item.name}`);
+      logger.log(`[DeckChip] Effect triggered - isReordering: ${isReordering}, autoDragDeckId: ${autoDragDeckId}, item.id: ${item.id}, item.name: ${item.name}`);
       if (isReordering && autoDragDeckId === item.id) {
-        console.log(`[DeckChip] Auto-dragging deck: ${item.name} (${item.id})`);
+        logger.log(`[DeckChip] Auto-dragging deck: ${item.name} (${item.id})`);
         setTimeout(() => {
-          console.log(`[DeckChip] Calling drag() for deck: ${item.name}`);
+          logger.log(`[DeckChip] Calling drag() for deck: ${item.name}`);
           drag();
         }, 0);
         setAutoDragDeckId(null);
@@ -123,19 +124,19 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
     }, [isReordering, autoDragDeckId]);
 
     const handlePress = () => {
-      console.log(`[DeckChip] Press on deck: ${item.name} (${item.id}), isReordering: ${isReordering}`);
+      logger.log(`[DeckChip] Press on deck: ${item.name} (${item.id}), isReordering: ${isReordering}`);
       if (!isReordering) {
         handleSelectDeck(item.id);
       }
     };
 
     const handleLongPress = () => {
-      console.log(`[DeckChip] Long press on deck: ${item.name} (${item.id}), isReordering: ${isReordering}, index: ${index}`);
+      logger.log(`[DeckChip] Long press on deck: ${item.name} (${item.id}), isReordering: ${isReordering}, index: ${index}`);
       if (isReordering) {
-        console.log(`[DeckChip] Calling drag() from long press for deck: ${item.name}`);
+        logger.log(`[DeckChip] Calling drag() from long press for deck: ${item.name}`);
         drag();
       } else {
-        console.log(`[DeckChip] Entering reorder mode for deck: ${item.name}`);
+        logger.log(`[DeckChip] Entering reorder mode for deck: ${item.name}`);
         // Enter reorder mode via long press on a deck
         setIsReordering(true);
         setAutoDragDeckId(item.id);
@@ -151,8 +152,8 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
         ]}
         onPress={handlePress}
         onLongPress={handleLongPress}
-        onPressIn={() => console.log(`[DeckChip] Press IN on deck: ${item.name} (index: ${index})`)}
-        onPressOut={() => console.log(`[DeckChip] Press OUT on deck: ${item.name} (index: ${index})`)}
+        onPressIn={() => logger.log(`[DeckChip] Press IN on deck: ${item.name} (index: ${index})`)}
+        onPressOut={() => logger.log(`[DeckChip] Press OUT on deck: ${item.name} (index: ${index})`)}
         delayLongPress={500}
       >
         <Ionicons
@@ -176,7 +177,7 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
 
   // Render function for DraggableFlatList
   const renderDeckItem = ({ item, index, drag, isActive }: RenderItemParams<Deck>) => {
-    console.log(`[renderDeckItem] Rendering deck: ${item.name} (${item.id}), index: ${index}, isActive: ${isActive}, drag function type: ${typeof drag}`);
+    logger.log(`[renderDeckItem] Rendering deck: ${item.name} (${item.id}), index: ${index}, isActive: ${isActive}, drag function type: ${typeof drag}`);
     return (
       <DeckChip 
         item={item} 
@@ -189,7 +190,7 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
 
   // Handle drag end – update local state then persist to Supabase
   const handleDragEnd = async ({ data }: { data: Deck[] }) => {
-    console.log(`[handleDragEnd] Drag ended, new order:`, data.map(d => `${d.name} (${d.id})`));
+    logger.log(`[handleDragEnd] Drag ended, new order:`, data.map(d => `${d.name} (${d.id})`));
     setDecks(data);
     setAutoDragDeckId(null);
 
@@ -200,7 +201,7 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
         id: deck.id, 
         order_index: idx 
       }));
-      console.log(`[handleDragEnd] Updating Supabase with new order:`, updates);
+      logger.log(`[handleDragEnd] Updating Supabase with new order:`, updates);
       // Batch update via RPC function to match DeckReorderModal approach
       const { error } = await supabase
         .rpc('update_deck_order', {
@@ -208,7 +209,7 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
         });
 
       if (error) {
-        console.error('Error updating deck order:', error.message);
+        logger.error('Error updating deck order:', error.message);
         
         // Provide more specific error message if it's a column missing issue
         let errorMessage = t('deck.reorder.failed');
@@ -219,10 +220,10 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
         
         Alert.alert(t('common.error'), errorMessage);
       } else {
-        console.log(`[handleDragEnd] Successfully updated deck order in Supabase`);
+        logger.log(`[handleDragEnd] Successfully updated deck order in Supabase`);
       }
     } catch (error) {
-      console.error('Error updating deck order:', error);
+      logger.error('Error updating deck order:', error);
       
       // Provide user feedback for catch block errors too
       let errorMessage = t('deck.reorder.failed');
@@ -238,7 +239,7 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
   };
 
   const exitReorderMode = () => {
-    console.log(`[exitReorderMode] Exiting reorder mode`);
+    logger.log(`[exitReorderMode] Exiting reorder mode`);
     setIsReordering(false);
   };
 
@@ -287,7 +288,7 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
                     keyExtractor={(item) => item.id}
                     onDragEnd={handleDragEnd}
                     onDragBegin={(index) => {
-                      console.log(`[DraggableFlatList] Drag began at index: ${index}, deck: ${decks[index]?.name}`);
+                      logger.log(`[DraggableFlatList] Drag began at index: ${index}, deck: ${decks[index]?.name}`);
                     }}
                     activationDistance={20}
                     contentContainerStyle={styles.deckList}

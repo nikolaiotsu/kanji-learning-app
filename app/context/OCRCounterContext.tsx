@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSubscription } from './SubscriptionContext';
 import { logOCRScan } from '../services/apiUsageLogger';
 
+import { logger } from '../utils/logger';
 interface OCRCounterData {
   count: number;
   timestamp: number;
@@ -51,7 +52,7 @@ export const OCRCounterProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           }
         }
       } catch (error) {
-        console.error('Error loading OCR counter from storage:', error);
+        logger.error('Error loading OCR counter from storage:', error);
       }
     };
 
@@ -90,7 +91,7 @@ export const OCRCounterProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         remainingScans: Math.max(0, maxOCRScans - newCount)
       });
     } catch (error) {
-      console.error('Error incrementing OCR counter:', error);
+      logger.error('Error incrementing OCR counter:', error);
       
       // Log failed OCR scan tracking
       await logOCRScan(false, {
@@ -105,7 +106,7 @@ export const OCRCounterProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       await AsyncStorage.removeItem(OCR_COUNTER_STORAGE_KEY);
       setOcrCount(0);
     } catch (error) {
-      console.error('Error resetting OCR counter:', error);
+      logger.error('Error resetting OCR counter:', error);
     }
   };
 

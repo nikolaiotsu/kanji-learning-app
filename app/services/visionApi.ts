@@ -7,6 +7,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import MemoryManager from './memoryManager';
 import { apiLogger, logVisionAPI, APIUsageMetrics } from './apiUsageLogger';
 
+import { logger } from '../utils/logger';
 interface VisionApiResponse {
   text: string;
   boundingBox: {
@@ -90,7 +91,7 @@ export async function captureVisibleRegion(imageRef: any, region: Region): Promi
 
     return uri;
   } catch (error) {
-    console.error('Error capturing image region:', error);
+    logger.error('Error capturing image region:', error);
     throw error;
   }
 }
@@ -102,13 +103,13 @@ export async function cropImageToRegion(imageUri: string, region: Region): Promi
   try {
     // Only proceed with cropping if we have a valid region
     if (!region || region.width <= 0 || region.height <= 0) {
-      console.log('Invalid region for cropping:', region);
+      logger.log('Invalid region for cropping:', region);
       return imageUri;
     }
     
     // Simple cleanup check before cropping
     if (await memoryManager.shouldCleanup()) {
-      console.log('[cropImageToRegion] Performing cleanup before cropping');
+      logger.log('[cropImageToRegion] Performing cleanup before cropping');
       await memoryManager.cleanupPreviousImages(imageUri);
     }
     
@@ -120,14 +121,14 @@ export async function cropImageToRegion(imageUri: string, region: Region): Promi
         [],
         { format: ImageManipulator.SaveFormat.JPEG }
       );
-      console.log('[DEBUG] Source image dimensions:', sourceImage.width, 'x', sourceImage.height);
+      logger.log('[DEBUG] Source image dimensions:', sourceImage.width, 'x', sourceImage.height);
     } catch (error) {
-      console.error('Error getting source image dimensions:', error);
+      logger.error('Error getting source image dimensions:', error);
       return imageUri;
     }
     
     // Log the original crop region request
-    console.log('[DEBUG] Original crop region request:', {
+    logger.log('[DEBUG] Original crop region request:', {
       x: region.x,
       y: region.y,
       width: region.width,
@@ -148,7 +149,7 @@ export async function cropImageToRegion(imageUri: string, region: Region): Promi
     const marginX = Math.round(region.width * horizontalMarginPercentage);
     const marginY = Math.round(region.height * marginPercentage);
     
-    console.log(`[DEBUG] Adding margin to crop region: ${marginX}px horizontal, ${marginY}px vertical${isWideRegion ? ' (wide region detected)' : ''}`);
+    logger.log(`[DEBUG] Adding margin to crop region: ${marginX}px horizontal, ${marginY}px vertical${isWideRegion ? ' (wide region detected)' : ''}`);
     
     // Apply margin to the region (expanding it)
     const expandedRegion = {
@@ -158,15 +159,15 @@ export async function cropImageToRegion(imageUri: string, region: Region): Promi
       height: region.height + (marginY * 2)
     };
     
-    console.log('[DEBUG] Expanded crop region with margins:', expandedRegion);
+    logger.log('[DEBUG] Expanded crop region with margins:', expandedRegion);
     
     // Special handling for very wide regions - ensure they're fully captured
     if (isWideRegion) {
-      console.log('[DEBUG] Wide region handling: ensuring full width capture');
+      logger.log('[DEBUG] Wide region handling: ensuring full width capture');
       // Make sure we don't cut off the right side of the region
       const rightEdge = expandedRegion.x + expandedRegion.width;
       if (rightEdge > sourceImage.width) {
-        console.log('[DEBUG] Right edge adjustment needed:', 
+        logger.log('[DEBUG] Right edge adjustment needed:', 
                    { rightEdge, imageWidth: sourceImage.width, overflow: rightEdge - sourceImage.width });
       }
     }
@@ -190,8 +191,8 @@ export async function cropImageToRegion(imageUri: string, region: Region): Promi
       height
     };
     
-    console.log('[DEBUG] Safe crop region:', safeRegion);
-    console.log('[DEBUG] Crop region as percentage of original image:', {
+    logger.log('[DEBUG] Safe crop region:', safeRegion);
+    logger.log('[DEBUG] Crop region as percentage of original image:', {
       x: (originX / sourceImage.width * 100).toFixed(1) + '%',
       y: (originY / sourceImage.height * 100).toFixed(1) + '%',
       width: (width / sourceImage.width * 100).toFixed(1) + '%',
@@ -200,14 +201,14 @@ export async function cropImageToRegion(imageUri: string, region: Region): Promi
     
     // If the adjusted crop region is too small, return the original image
     if (safeRegion.width < 1 || safeRegion.height < 1) {
-      console.log('[WARNING] Crop region too small after adjustment, returning original image');
+      logger.log('[WARNING] Crop region too small after adjustment, returning original image');
       return imageUri;
     }
     
     // Get standard compression settings
     const standardConfig = memoryManager.getStandardImageConfig();
     
-    console.log('[DEBUG] Using standard compression for crop:', standardConfig.compress);
+    logger.log('[DEBUG] Using standard compression for crop:', standardConfig.compress);
     
     // Use ImageManipulator to crop the image with standard settings
     const result = await ImageManipulator.manipulateAsync(
@@ -224,8 +225,8 @@ export async function cropImageToRegion(imageUri: string, region: Region): Promi
     );
     
     // DEBUG: Log cropped image details
-    console.log('[DEBUG] Cropped image URI:', result.uri);
-    console.log('[DEBUG] Cropped image dimensions:', result.width, 'x', result.height, 
+    logger.log('[DEBUG] Cropped image URI:', result.uri);
+    logger.log('[DEBUG] Cropped image dimensions:', result.width, 'x', result.height, 
                `(${(result.width / sourceImage.width * 100).toFixed(1)}% x ${(result.height / sourceImage.height * 100).toFixed(1)}% of original)`);
     
     // Track the processed image
@@ -233,7 +234,7 @@ export async function cropImageToRegion(imageUri: string, region: Region): Promi
     
     return result.uri;
   } catch (error) {
-    console.error('Error cropping image:', error);
+    logger.error('Error cropping image:', error);
     
     // Attempt recovery by forcing cleanup
     await memoryManager.forceCleanup();
@@ -246,11 +247,11 @@ export async function cropImageToRegion(imageUri: string, region: Region): Promi
 // New function that only crops the image without text detection
 export async function resizeImageToRegion(imageUri: string, region: Region): Promise<string> {
   try {
-    console.log('[resizeImageToRegion] Starting with region:', region);
+    logger.log('[resizeImageToRegion] Starting with region:', region);
     
     // Only proceed with cropping if we have a valid region
     if (!region || region.width <= 0 || region.height <= 0) {
-      console.log('[resizeImageToRegion] Invalid region for cropping:', region);
+      logger.log('[resizeImageToRegion] Invalid region for cropping:', region);
       return imageUri;
     }
     
@@ -262,14 +263,14 @@ export async function resizeImageToRegion(imageUri: string, region: Region): Pro
         [],
         { format: ImageManipulator.SaveFormat.JPEG }
       );
-      console.log('[DEBUG] Source image dimensions:', sourceImage.width, 'x', sourceImage.height);
+      logger.log('[DEBUG] Source image dimensions:', sourceImage.width, 'x', sourceImage.height);
     } catch (error) {
-      console.error('[resizeImageToRegion] Error getting source image dimensions:', error);
+      logger.error('[resizeImageToRegion] Error getting source image dimensions:', error);
       return imageUri;
     }
     
     // Log the original crop region request
-    console.log('[DEBUG] Original crop region request:', {
+    logger.log('[DEBUG] Original crop region request:', {
       x: region.x,
       y: region.y,
       width: region.width,
@@ -284,7 +285,7 @@ export async function resizeImageToRegion(imageUri: string, region: Region): Pro
     if (isOverscaled) {
       // The region appears to be already scaled for the original image dimensions
       // Let's scale it down to match the actual image dimensions
-      console.log('[resizeImageToRegion] Detected over-scaled coordinates, adjusting...');
+      logger.log('[resizeImageToRegion] Detected over-scaled coordinates, adjusting...');
       const widthRatio = sourceImage.width / region.width;
       const heightRatio = sourceImage.height / region.height; 
       
@@ -298,7 +299,7 @@ export async function resizeImageToRegion(imageUri: string, region: Region): Pro
         height: Math.round(region.height * minRatio)
       };
       
-      console.log('[resizeImageToRegion] Adjusted to match image dimensions:', adjustedRegion);
+      logger.log('[resizeImageToRegion] Adjusted to match image dimensions:', adjustedRegion);
     }
     
     // Validate and adjust the crop region to fit within the image boundaries
@@ -320,15 +321,15 @@ export async function resizeImageToRegion(imageUri: string, region: Region): Pro
       height
     };
     
-    console.log('[DEBUG] Safe crop region:', safeRegion);
+    logger.log('[DEBUG] Safe crop region:', safeRegion);
     
     // If the adjusted crop region is too small, return the original image
     if (safeRegion.width < 1 || safeRegion.height < 1) {
-      console.log('[WARNING] Crop region too small after adjustment, returning original image');
+      logger.log('[WARNING] Crop region too small after adjustment, returning original image');
       return imageUri;
     }
     
-    console.log('[resizeImageToRegion] Attempting to manipulate image with crop:', safeRegion);
+    logger.log('[resizeImageToRegion] Attempting to manipulate image with crop:', safeRegion);
     
     // Use ImageManipulator to crop the image with the validated region
     const result = await ImageManipulator.manipulateAsync(
@@ -342,13 +343,13 @@ export async function resizeImageToRegion(imageUri: string, region: Region): Pro
     );
     
     // DEBUG: Log cropped image details
-    console.log('[DEBUG] Cropped image URI:', result.uri);
-    console.log('[DEBUG] Cropped image dimensions:', result.width, 'x', result.height);
-    console.log('[resizeImageToRegion] Successfully cropped image');
+    logger.log('[DEBUG] Cropped image URI:', result.uri);
+    logger.log('[DEBUG] Cropped image dimensions:', result.width, 'x', result.height);
+    logger.log('[resizeImageToRegion] Successfully cropped image');
     
     return result.uri;
   } catch (error) {
-    console.error('[resizeImageToRegion] Error cropping image:', error);
+    logger.error('[resizeImageToRegion] Error cropping image:', error);
     // Fall back to original image if cropping fails
     return imageUri;
   }
@@ -370,7 +371,7 @@ export async function detectJapaneseText(
   const API_KEY = EXPO_PUBLIC_GOOGLE_CLOUD_VISION_API_KEY;
   
   // Debug log - remove in production
-  console.log('API Key available:', !!API_KEY);
+  logger.log('API Key available:', !!API_KEY);
   
   if (!API_KEY) {
     throw new Error('Google Cloud Vision API key not found');
@@ -386,7 +387,7 @@ export async function detectJapaneseText(
   try {
     base64Image = await getBase64ForImage(imageUri);
   } catch (error) {
-    console.error('Error converting image to base64:', error);
+    logger.error('Error converting image to base64:', error);
     throw new Error('Failed to prepare image for OCR');
   }
 
@@ -403,7 +404,7 @@ export async function detectJapaneseText(
   // Combine criteria - complex if either wide or large
   const isComplexRegion = isWideRegion || isLargeRegion;
   
-  console.log(`Region complexity assessment: ${isComplexRegion ? 'Complex' : 'Standard'} region (${region.width}x${region.height}, aspect ratio: ${aspectRatio.toFixed(1)}${isWideRegion ? ', wide region' : ''})`);
+  logger.log(`Region complexity assessment: ${isComplexRegion ? 'Complex' : 'Standard'} region (${region.width}x${region.height}, aspect ratio: ${aspectRatio.toFixed(1)}${isWideRegion ? ', wide region' : ''})`);
 
   // Create request body with parameters tuned for region complexity
   const requestBody = {
@@ -462,11 +463,11 @@ export async function detectJapaneseText(
     ]
   };
 
-  console.log('Setting API request parameters for', isWideRegion ? 'wide region' : (isComplexRegion ? 'complex region' : 'standard region'));
+  logger.log('Setting API request parameters for', isWideRegion ? 'wide region' : (isComplexRegion ? 'complex region' : 'standard region'));
 
   // Set longer timeout for complex regions
   const timeoutDuration = isComplexRegion ? 90000 : 30000; // 90 seconds for complex, 30 for standard
-  console.log('Setting API request timeout to', isComplexRegion ? '90' : '30', 'seconds');
+  logger.log('Setting API request timeout to', isComplexRegion ? '90' : '30', 'seconds');
 
   // Create AbortController for fetch timeout
   const controller = new AbortController();
@@ -502,11 +503,11 @@ export async function detectJapaneseText(
     // For wide regions, preferentially use document text results if available
     let finalText;
     if (isWideRegion && documentTextResults) {
-      console.log('Using document text detection result for wide region');
+      logger.log('Using document text detection result for wide region');
       finalText = documentTextResults;
     } else if (textDetectionResults && documentTextResults) {
       // For regular regions, combine results, preferring the longer one
-      console.log('Using combined OCR result');
+      logger.log('Using combined OCR result');
       finalText = textDetectionResults.length > documentTextResults.length 
         ? textDetectionResults 
         : documentTextResults;
@@ -515,7 +516,7 @@ export async function detectJapaneseText(
       finalText = textDetectionResults || documentTextResults || '';
     }
     
-    console.log('Final extracted text:', finalText);
+    logger.log('Final extracted text:', finalText);
     
     // Analyze the results to extract Japanese text and create responses
     const visionApiResponse: VisionApiResponse[] = [];
@@ -555,23 +556,23 @@ export async function detectJapaneseText(
     });
 
     if (error.name === 'AbortError') {
-      console.error('Vision API request timed out after', isComplexRegion ? '90' : '30', 'seconds');
+      logger.error('Vision API request timed out after', isComplexRegion ? '90' : '30', 'seconds');
       throw new Error('Text recognition timed out. The selected region may be too complex.');
     }
-    console.error('Error calling Vision API:', error);
+    logger.error('Error calling Vision API:', error);
     throw error;
   }
 }
 
 export async function analyzeImage(imageUri: string, region?: Region) {
   const apiKey = EXPO_PUBLIC_GOOGLE_CLOUD_VISION_API_KEY;
-  console.log('API Key available:', !!apiKey);
+  logger.log('API Key available:', !!apiKey);
 
   // If region is specified, crop the image before analysis
   let processedImageUri = imageUri;
   if (region && region.width > 0 && region.height > 0) {
     processedImageUri = await cropImageToRegion(imageUri, region);
-    console.log('Image cropped to region before analysis');
+    logger.log('Image cropped to region before analysis');
   }
 
   const response = await fetch(processedImageUri);
@@ -608,12 +609,12 @@ export async function analyzeImage(imageUri: string, region?: Region) {
     );
 
     const data = await result.json();
-    console.log('API Response:', data);
+    logger.log('API Response:', data);
 
     // Since we've pre-cropped the image, we can return all text annotations
     return data.responses[0];
   } catch (error) {
-    console.error('Error calling Vision API:', error);
+    logger.error('Error calling Vision API:', error);
     throw error;
   }
 }
@@ -634,7 +635,7 @@ export async function getBase64ForImage(imageUri: string): Promise<string | null
       });
     }
   } catch (error) {
-    console.error('Error converting image to base64:', error);
+    logger.error('Error converting image to base64:', error);
     return null;
   }
 }

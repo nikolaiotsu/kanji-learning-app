@@ -6,6 +6,7 @@ import * as FileSystem from 'expo-file-system';
 import { logFlashcardCreation } from './apiUsageLogger';
 import { validateImageFile, validateDeckName } from '../utils/inputValidation';
 
+import { logger } from '../utils/logger';
 // Simple UUID generator that doesn't rely on crypto.getRandomValues()
 const generateUUID = (): string => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -53,20 +54,20 @@ export const getDecks = async (createDefaultIfEmpty: boolean = false): Promise<D
     let { data: decks, error } = await query.order('order_index', { ascending: true, nullsFirst: false });
 
     if (error) {
-      console.warn('order_index column missing or other error – falling back to created_at ordering:', error.message);
+      logger.warn('order_index column missing or other error – falling back to created_at ordering:', error.message);
       ({ data: decks, error } = await supabase
         .from('decks')
         .select('*')
         .order('created_at', { ascending: false }));
       if (error) {
-        console.error('Error fetching decks:', error.message);
+        logger.error('Error fetching decks:', error.message);
         return [];
       }
     }
     
     // Create a default deck if requested and no decks exist
     if (createDefaultIfEmpty && (!decks || decks.length === 0)) {
-      console.log('No decks found, creating default deck');
+      logger.log('No decks found, creating default deck');
       const defaultDeck = await createDeck('Collection 1');
       return [defaultDeck];
     }
@@ -83,7 +84,7 @@ export const getDecks = async (createDefaultIfEmpty: boolean = false): Promise<D
       orderIndex: deck.order_index ?? undefined,
     }));
   } catch (error) {
-    console.error('Error getting decks:', error);
+    logger.error('Error getting decks:', error);
     return [];
   }
 };
@@ -116,7 +117,7 @@ export const createDeck = async (name: string): Promise<Deck> => {
       .single();
     
     if (error) {
-      console.error('Error creating deck:', error.message);
+      logger.error('Error creating deck:', error.message);
       throw error;
     }
     
@@ -128,7 +129,7 @@ export const createDeck = async (name: string): Promise<Deck> => {
       updatedAt: new Date(data.updated_at).getTime(),
     };
   } catch (error) {
-    console.error('Error creating deck:', error);
+    logger.error('Error creating deck:', error);
     throw error;
   }
 };
@@ -142,7 +143,7 @@ export const initializeDecks = async (): Promise<void> => {
     // Simply delegate to getDecks with createDefaultIfEmpty=true
     await getDecks(true);
   } catch (error) {
-    console.error('Error initializing decks:', error);
+    logger.error('Error initializing decks:', error);
   }
 };
 
@@ -153,7 +154,7 @@ export const initializeDecks = async (): Promise<void> => {
  */
 export const uploadImageToStorage = async (imageUri: string): Promise<string | null> => {
   try {
-    console.log('Uploading image to storage:', imageUri);
+    logger.log('Uploading image to storage:', imageUri);
     
     // Validate image before upload (security + cost protection)
     const validation = await validateImageFile(imageUri, async (uri: string) => {
@@ -162,7 +163,7 @@ export const uploadImageToStorage = async (imageUri: string): Promise<string | n
     });
     
     if (!validation.isValid) {
-      console.error('Image validation failed:', validation.error);
+      logger.error('Image validation failed:', validation.error);
       // Throw error with specific message so it can be caught and displayed
       throw new Error(validation.error);
     }
@@ -190,7 +191,7 @@ export const uploadImageToStorage = async (imageUri: string): Promise<string | n
       });
     
     if (error) {
-      console.error('Error uploading image:', error.message);
+      logger.error('Error uploading image:', error.message);
       throw new Error('Failed to upload image to storage.');
     }
     
@@ -200,10 +201,10 @@ export const uploadImageToStorage = async (imageUri: string): Promise<string | n
       .from('flashcards')
       .getPublicUrl(filePath);
     
-    console.log('Image uploaded successfully, URL:', publicUrl);
+    logger.log('Image uploaded successfully, URL:', publicUrl);
     return publicUrl;
   } catch (error) {
-    console.error('Error uploading image:', error);
+    logger.error('Error uploading image:', error);
     // Re-throw to preserve error message for user display
     throw error;
   }
@@ -227,14 +228,14 @@ export const deleteImageFromStorage = async (imageUrl: string): Promise<boolean>
       .remove([filePath]);
     
     if (error) {
-      console.error('Error deleting image:', error.message);
+      logger.error('Error deleting image:', error.message);
       return false;
     }
     
-    console.log('Image deleted successfully');
+    logger.log('Image deleted successfully');
     return true;
   } catch (error) {
-    console.error('Error deleting image:', error);
+    logger.error('Error deleting image:', error);
     return false;
   }
 };
@@ -262,11 +263,11 @@ export const saveFlashcard = async (flashcard: Flashcard, deckId: string): Promi
       .insert(newFlashcard);
     
     if (error) {
-      console.error('Error saving flashcard:', error.message);
+      logger.error('Error saving flashcard:', error.message);
       throw error;
     }
     
-    console.log('Flashcard saved successfully to deck:', deckId);
+    logger.log('Flashcard saved successfully to deck:', deckId);
     
     // Log successful flashcard creation
     await logFlashcardCreation(true, {
@@ -282,7 +283,7 @@ export const saveFlashcard = async (flashcard: Flashcard, deckId: string): Promi
     // to keep the service layer clean
     
   } catch (error) {
-    console.error('Error saving flashcard:', error);
+    logger.error('Error saving flashcard:', error);
     
     // Log failed flashcard creation
     await logFlashcardCreation(false, {
@@ -310,14 +311,14 @@ export const getFlashcards = async (): Promise<Flashcard[]> => {
       .order('created_at', { ascending: false });
     
     if (error) {
-      console.error('Error fetching flashcards:', error.message);
+      logger.error('Error fetching flashcards:', error.message);
       return [];
     }
     
     // Transform from database format to app format
     return transformFlashcards(flashcards);
   } catch (error) {
-    console.error('Error getting flashcards:', error);
+    logger.error('Error getting flashcards:', error);
     return [];
   }
 };
@@ -336,14 +337,14 @@ export const getFlashcardsByDeck = async (deckId: string): Promise<Flashcard[]> 
       .order('created_at', { ascending: false });
     
     if (error) {
-      console.error('Error fetching flashcards by deck:', error.message);
+      logger.error('Error fetching flashcards by deck:', error.message);
       return [];
     }
     
     // Transform from database format to app format
     return transformFlashcards(flashcards);
   } catch (error) {
-    console.error('Error getting flashcards by deck:', error);
+    logger.error('Error getting flashcards by deck:', error);
     return [];
   }
 };
@@ -366,14 +367,14 @@ export const getFlashcardsByDecks = async (deckIds: string[]): Promise<Flashcard
       .order('created_at', { ascending: false });
     
     if (error) {
-      console.error('Error fetching flashcards by decks:', error.message);
+      logger.error('Error fetching flashcards by decks:', error.message);
       return [];
     }
     
     // Transform from database format to app format
     return transformFlashcards(flashcards);
   } catch (error) {
-    console.error('Error getting flashcards by decks:', error);
+    logger.error('Error getting flashcards by decks:', error);
     return [];
   }
 };
@@ -392,14 +393,14 @@ export const getFlashcardById = async (id: string): Promise<Flashcard | null> =>
       .single();
     
     if (error) {
-      console.error('Error fetching flashcard by ID:', error.message);
+      logger.error('Error fetching flashcard by ID:', error.message);
       return null;
     }
     
     // Transform from database format to app format
     return transformFlashcard(data);
   } catch (error) {
-    console.error('Error getting flashcard by ID:', error);
+    logger.error('Error getting flashcard by ID:', error);
     return null;
   }
 };
@@ -417,13 +418,13 @@ export const deleteFlashcard = async (id: string): Promise<boolean> => {
       .eq('id', id);
     
     if (error) {
-      console.error('Error deleting flashcard:', error.message);
+      logger.error('Error deleting flashcard:', error.message);
       return false;
     }
     
     return true;
   } catch (error) {
-    console.error('Error deleting flashcard:', error);
+    logger.error('Error deleting flashcard:', error);
     return false;
   }
 };
@@ -444,7 +445,7 @@ export const deleteDeck = async (deckId: string, deleteFlashcards: boolean = tru
         .eq('deck_id', deckId);
       
       if (flashcardsError) {
-        console.error('Error deleting flashcards in deck:', flashcardsError.message);
+        logger.error('Error deleting flashcards in deck:', flashcardsError.message);
         return false;
       }
     }
@@ -456,13 +457,13 @@ export const deleteDeck = async (deckId: string, deleteFlashcards: boolean = tru
       .eq('id', deckId);
     
     if (deckError) {
-      console.error('Error deleting deck:', deckError.message);
+      logger.error('Error deleting deck:', deckError.message);
       return false;
     }
     
     return true;
   } catch (error) {
-    console.error('Error deleting deck:', error);
+    logger.error('Error deleting deck:', error);
     return false;
   }
 };
@@ -492,7 +493,7 @@ export const updateDeckName = async (deckId: string, newName: string): Promise<D
       .single();
     
     if (error) {
-      console.error('Error updating deck name:', error.message);
+      logger.error('Error updating deck name:', error.message);
       return null;
     }
     
@@ -504,7 +505,7 @@ export const updateDeckName = async (deckId: string, newName: string): Promise<D
       updatedAt: new Date(data.updated_at).getTime(),
     };
   } catch (error) {
-    console.error('Error updating deck name:', error);
+    logger.error('Error updating deck name:', error);
     return null;
   }
 };
@@ -527,7 +528,7 @@ export const updateDeckOrder = async (deckId: string, newOrderIndex: number): Pr
       .single();
     
     if (error) {
-      console.error('Error updating deck order:', error.message);
+      logger.error('Error updating deck order:', error.message);
       return null;
     }
     
@@ -539,7 +540,7 @@ export const updateDeckOrder = async (deckId: string, newOrderIndex: number): Pr
       updatedAt: new Date(data.updated_at).getTime(),
     };
   } catch (error) {
-    console.error('Error updating deck order:', error);
+    logger.error('Error updating deck order:', error);
     return null;
   }
 };
@@ -560,13 +561,13 @@ export const moveFlashcardToDeck = async (flashcardId: string, targetDeckId: str
       .eq('id', flashcardId);
     
     if (error) {
-      console.error('Error moving flashcard to deck:', error.message);
+      logger.error('Error moving flashcard to deck:', error.message);
       return false;
     }
     
     return true;
   } catch (error) {
-    console.error('Error moving flashcard to deck:', error);
+    logger.error('Error moving flashcard to deck:', error);
     return false;
   }
 };
@@ -590,13 +591,13 @@ export const updateFlashcard = async (flashcard: Flashcard): Promise<boolean> =>
       .eq('id', flashcard.id);
     
     if (error) {
-      console.error('Error updating flashcard:', error.message);
+      logger.error('Error updating flashcard:', error.message);
       return false;
     }
     
     return true;
   } catch (error) {
-    console.error('Error updating flashcard:', error);
+    logger.error('Error updating flashcard:', error);
     return false;
   }
 };

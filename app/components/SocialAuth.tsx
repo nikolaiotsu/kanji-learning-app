@@ -6,6 +6,7 @@ import { AntDesign, FontAwesome } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import appleAuth from '@invertase/react-native-apple-authentication';
 
+import { logger } from '../utils/logger';
 interface SocialAuthProps {
   mode: 'login' | 'signup';
 }
@@ -27,9 +28,9 @@ const SocialAuth = ({ mode }: SocialAuthProps) => {
         try {
           const isSupported = await appleAuth.isSupported;
           setIsAppleSignInSupported(isSupported);
-          console.log('🍎 Apple Sign In availability checked:', isSupported);
+          logger.log('🍎 Apple Sign In availability checked:', isSupported);
         } catch (error) {
-          console.warn('🍎 Could not check Apple Sign In support:', error);
+          logger.warn('🍎 Could not check Apple Sign In support:', error);
           setIsAppleSignInSupported(false);
         }
       } else {
@@ -65,17 +66,17 @@ const SocialAuth = ({ mode }: SocialAuthProps) => {
     setIsGoogleLoading(true);
     try {
       if (mode === 'signup') {
-        console.log('Starting Google OAuth sign-up flow');
+        logger.log('Starting Google OAuth sign-up flow');
         await signUpWithGoogle();
-        console.log('Google sign-up flow initiated');
+        logger.log('Google sign-up flow initiated');
       } else {
-        console.log('Starting Google OAuth sign-in flow');
+        logger.log('Starting Google OAuth sign-in flow');
         await signInWithGoogle();
-        console.log('Google sign-in flow initiated');
+        logger.log('Google sign-in flow initiated');
       }
       // The actual auth completion will be handled by the deep linking and AuthContext
     } catch (error: any) {
-      console.error(`Google ${mode} error:`, error);
+      logger.error(`Google ${mode} error:`, error);
       
       // Show appropriate error message
       const action = mode === 'signup' ? 'Sign Up' : 'Sign In';
@@ -92,17 +93,17 @@ const SocialAuth = ({ mode }: SocialAuthProps) => {
   const handleAppleSignIn = async () => {
     setIsAppleLoading(true);
     try {
-      console.log('🍎 Starting Apple Sign In flow from UI...');
+      logger.log('🍎 Starting Apple Sign In flow from UI...');
       await signInWithApple();
-      console.log('🍎 Apple Sign In flow completed');
+      logger.log('🍎 Apple Sign In flow completed');
       // The actual auth completion will be handled by the AuthContext
     } catch (error: any) {
-      console.error('🍎 Apple Sign In UI error:', error);
+      logger.error('🍎 Apple Sign In UI error:', error);
       
       // Handle specific Apple Sign In errors
       if (error.message?.includes('cancelled')) {
         // User cancelled - don't show error alert
-        console.log('🍎 User cancelled Apple Sign In');
+        logger.log('🍎 User cancelled Apple Sign In');
       } else if (error.message?.includes('not available')) {
         Alert.alert(
           'Apple Sign In Unavailable', 

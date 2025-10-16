@@ -8,6 +8,7 @@ import SocialAuth from '../components/SocialAuth';
 import PokedexLayout from '../components/shared/PokedexLayout';
 import { COLORS } from '../constants/colors';
 
+import { logger } from '../utils/logger';
 const SignupScreen = () => {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
@@ -35,30 +36,15 @@ const SignupScreen = () => {
     
     setLoading(true);
     try {
-      console.log('🔐 [SignupScreen] Starting signup for:', email);
+      logger.log('🔐 [SignupScreen] Starting signup for:', email);
       const result = await signUp(email, password);
-      console.log('🔐 [SignupScreen] Signup result:', {
+      logger.log('🔐 [SignupScreen] Signup result:', {
         user: !!result?.user,
         session: !!result?.session
       });
       
-      // Check if email confirmation is required
-      if (result?.user && !result?.session) {
-        // Email confirmation required
-        console.log('📧 [SignupScreen] Email confirmation required');
-        Alert.alert(
-          'Check Your Email',
-          `We've sent a confirmation email to ${email}. Please check your email (including spam folder) and click the confirmation link to activate your account.`,
-          [
-            { 
-              text: 'OK', 
-              onPress: () => router.replace('/login') 
-            }
-          ]
-        );
-      } else if (result?.session) {
-        // Auto-confirmed (email confirmation disabled in Supabase)
-        console.log('✅ [SignupScreen] User auto-confirmed and logged in');
+      if (result?.session) {
+        logger.log('✅ [SignupScreen] User signed up and logged in');
         Alert.alert(
           'Welcome to WordDex!',
           'Your account has been created successfully. You are now logged in and ready to start learning!',
@@ -70,7 +56,7 @@ const SignupScreen = () => {
         );
       }
     } catch (error: any) {
-      console.error('❌ [SignupScreen] Signup error:', error);
+      logger.error('❌ [SignupScreen] Signup error:', error);
       
       // Handle specific signup errors
       if (error.message && error.message.includes('User already registered')) {

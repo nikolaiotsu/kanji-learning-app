@@ -3,6 +3,7 @@ import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { useSegments, useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 
+import { logger } from '../../utils/logger';
 // Protected routes (require authentication)
 const PROTECTED_SEGMENTS = ['flashcards', 'saved-flashcards', '(screens)'];
 
@@ -18,39 +19,39 @@ export const AuthGuard = ({ children }: { children: React.ReactNode }) => {
   const currentSegment = segments[0];
 
   useEffect(() => {
-    console.log('🔐 [AuthGuard] useEffect triggered');
-    console.log('🔐 [AuthGuard] isLoading:', isLoading);
-    console.log('🔐 [AuthGuard] user:', !!user);
-    console.log('🔐 [AuthGuard] currentSegment:', currentSegment);
-    console.log('🔐 [AuthGuard] segments:', segments);
+    logger.log('🔐 [AuthGuard] useEffect triggered');
+    logger.log('🔐 [AuthGuard] isLoading:', isLoading);
+    logger.log('🔐 [AuthGuard] user:', !!user);
+    logger.log('🔐 [AuthGuard] currentSegment:', currentSegment);
+    logger.log('🔐 [AuthGuard] segments:', segments);
     
     if (isLoading) {
-      console.log('🔐 [AuthGuard] Still loading, returning...');
+      logger.log('🔐 [AuthGuard] Still loading, returning...');
       return;
     }
 
     // User is authenticated but tries to access auth routes (login, signup)
     if (user && AUTH_SEGMENTS.includes(currentSegment)) {
-      console.log('🔐 [AuthGuard] User authenticated, redirecting from auth route to /');
+      logger.log('🔐 [AuthGuard] User authenticated, redirecting from auth route to /');
       router.replace('/');
       return;
     }
 
     // User is not authenticated but tries to access protected routes
     if (!user && PROTECTED_SEGMENTS.includes(currentSegment)) {
-      console.log('🔐 [AuthGuard] User not authenticated, redirecting to /login');
+      logger.log('🔐 [AuthGuard] User not authenticated, redirecting to /login');
       router.replace('/login');
       return;
     }
 
     // If no segment is specified and user is not authenticated
     if (!user && !currentSegment) {
-      console.log('🔐 [AuthGuard] No segment and no user, redirecting to /login');
+      logger.log('🔐 [AuthGuard] No segment and no user, redirecting to /login');
       router.replace('/login');
       return;
     }
     
-    console.log('🔐 [AuthGuard] No navigation needed');
+    logger.log('🔐 [AuthGuard] No navigation needed');
   }, [user, isLoading, currentSegment]);
 
   // Show loading screen while checking authentication

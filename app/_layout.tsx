@@ -15,6 +15,7 @@ import { useEffect, useState } from 'react';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { useTranslation } from 'react-i18next';
 
+import { logger } from './utils/logger';
 export default function RootLayout() {
   const [isI18nReady, setIsI18nReady] = useState(false);
   const { i18n } = useTranslation();
@@ -31,7 +32,7 @@ export default function RootLayout() {
       try {
         await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
       } catch (error) {
-        console.warn('Failed to lock orientation:', error);
+        logger.warn('Failed to lock orientation:', error);
       }
     };
     
@@ -42,10 +43,10 @@ export default function RootLayout() {
   useEffect(() => {
     const checkI18nReady = () => {
       if (i18n.isInitialized) {
-        console.log('[RootLayout] i18n is ready, language:', i18n.language);
+        logger.log('[RootLayout] i18n is ready, language:', i18n.language);
         setIsI18nReady(true);
       } else {
-        console.log('[RootLayout] i18n not ready, waiting...');
+        logger.log('[RootLayout] i18n not ready, waiting...');
         // Retry after a short delay
         setTimeout(checkI18nReady, 100);
       }

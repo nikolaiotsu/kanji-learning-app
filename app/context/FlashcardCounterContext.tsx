@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSubscription } from './SubscriptionContext';
 
+import { logger } from '../utils/logger';
 interface FlashcardCounterData {
   count: number;
   timestamp: number;
@@ -50,7 +51,7 @@ export const FlashcardCounterProvider: React.FC<{ children: React.ReactNode }> =
           }
         }
       } catch (error) {
-        console.error('Error loading flashcard counter from storage:', error);
+        logger.error('Error loading flashcard counter from storage:', error);
       }
     };
 
@@ -82,7 +83,7 @@ export const FlashcardCounterProvider: React.FC<{ children: React.ReactNode }> =
       await AsyncStorage.setItem(FLASHCARD_COUNTER_STORAGE_KEY, JSON.stringify(counterData));
       setFlashcardCount(newCount);
     } catch (error) {
-      console.error('Error incrementing flashcard counter:', error);
+      logger.error('Error incrementing flashcard counter:', error);
     }
   };
 
@@ -92,7 +93,7 @@ export const FlashcardCounterProvider: React.FC<{ children: React.ReactNode }> =
       await AsyncStorage.removeItem(FLASHCARD_COUNTER_STORAGE_KEY);
       setFlashcardCount(0);
     } catch (error) {
-      console.error('Error resetting flashcard counter:', error);
+      logger.error('Error resetting flashcard counter:', error);
     }
   };
 

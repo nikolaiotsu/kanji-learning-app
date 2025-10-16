@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/colors';
 
+import { logger } from '../utils/logger';
 interface CameraButtonProps {
   onPhotoCapture: (imageInfo: {
     uri: string;
@@ -42,7 +43,7 @@ export default function CameraButton({ onPhotoCapture }: CameraButtonProps) {
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to take photo');
-      console.error(error);
+      logger.error(error);
     }
   };
 

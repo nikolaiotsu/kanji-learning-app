@@ -19,6 +19,7 @@ import { COLORS } from '../../constants/colors';
 import { Ionicons, FontAwesome6 } from '@expo/vector-icons';
 import { processImage } from '../../services/ProcessImage';
 
+import { logger } from '../../utils/logger';
 // Define the type for the forwarded ref handle
 export interface ImageHighlighterRef {
   getView: () => View | null;
@@ -159,7 +160,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   // Effect to track image changes and reset processing state
   useEffect(() => {
     if (prevImageUriRef.current !== imageUri) {
-      // console.log('[ImageHighlighter] imageUri changed:', imageUri); // Removed
+      // logger.log('[ImageHighlighter] imageUri changed:', imageUri); // Removed
       // Clear processing state when image changes
       setIsProcessing(false);
       prevImageUriRef.current = imageUri;
@@ -218,7 +219,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   // useEffect for logging rotation state changes
   useEffect(() => {
     if (rotateMode) {
-      // console.log(`[DEBUG ImageHighlighter] rotation state CHANGED to: ${rotation.toFixed(2)}`); // Removed
+      // logger.log(`[DEBUG ImageHighlighter] rotation state CHANGED to: ${rotation.toFixed(2)}`); // Removed
     }
   }, [rotation, rotateMode]);
 
@@ -257,12 +258,12 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   // Use a useEffect to handle remeasuring when containerScreenOffset is missing
   useEffect(() => {
     if (!containerScreenOffset && panResponderViewRef.current && measuredLayout) {
-      // console.log('[ImageHighlighter] containerScreenOffset is null, attempting to remeasure...'); // Removed
+      // logger.log('[ImageHighlighter] containerScreenOffset is null, attempting to remeasure...'); // Removed
       // Small delay to ensure the component is fully rendered
       const timeoutId = setTimeout(() => {
         if (panResponderViewRef.current) {
           panResponderViewRef.current.measure((fx, fy, w, h, px, py) => {
-            // console.log(`[ImageHighlighter] Delayed remeasure: screenX:${px}, screenY:${py}, width:${w}, height:${h}`); // Removed
+            // logger.log(`[ImageHighlighter] Delayed remeasure: screenX:${px}, screenY:${py}, width:${w}, height:${h}`); // Removed
             setContainerScreenOffset({ x: px, y: py });
           });
         }
@@ -321,10 +322,10 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         }
         // Initialize rotation session
         setInitialRotation(rotation); // Capture the rotation state *before* this session starts
-        // console.log('[ImageHighlighter] Entered rotate mode. Initial session rotation:', rotation); // Removed
+        // logger.log('[ImageHighlighter] Entered rotate mode. Initial session rotation:', rotation); // Removed
       } else { // ---- Exiting Rotate Mode (if toggled off directly by this call) ----
         // This implies a cancellation if not preceded by a confirm/ API call.
-        // console.log('[ImageHighlighter] Exited rotate mode via toggle. Reverting to initial session rotation:', initialRotation); // Removed
+        // logger.log('[ImageHighlighter] Exited rotate mode via toggle. Reverting to initial session rotation:', initialRotation); // Removed
         setRotation(initialRotation); // initialRotation holds the value from when mode was entered
       }
     },
@@ -332,7 +333,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       if (!cropMode || !onRegionSelected || cropBox.width === 0 || cropBox.height === 0) return;
       
       try {
-        // console.log('[ImageHighlighter] applyCrop called - Starting crop operation'); // Removed
+        // logger.log('[ImageHighlighter] applyCrop called - Starting crop operation'); // Removed
         setIsProcessing(true);
         
         // Normalize the crop box coordinates (ensure positive width/height)
@@ -342,7 +343,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         const normalizedWidth = Math.abs(width);
         const normalizedHeight = Math.abs(height);
         
-        console.log('[ImageHighlighter] Normalized crop box (wrapper coordinates):', {
+        logger.log('[ImageHighlighter] Normalized crop box (wrapper coordinates):', {
           x: normalizedX, y: normalizedY, width: normalizedWidth, height: normalizedHeight
         });
         
@@ -352,7 +353,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         const imageContainerEndX = imageContainerX + normalizedWidth;
         const imageContainerEndY = imageContainerY + normalizedHeight;
         
-        console.log('[ImageHighlighter] Image container coordinates:', {
+        logger.log('[ImageHighlighter] Image container coordinates:', {
           startX: imageContainerX, startY: imageContainerY,
           endX: imageContainerEndX, endY: imageContainerEndY,
           containerWidth: scaledContainerWidth, containerHeight: scaledContainerHeight
@@ -368,13 +369,13 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         const clampedWidth = clampedEndX - clampedStartX;
         const clampedHeight = clampedEndY - clampedStartY;
         
-        console.log('[ImageHighlighter] Clamped to image bounds:', {
+        logger.log('[ImageHighlighter] Clamped to image bounds:', {
           x: clampedStartX, y: clampedStartY, width: clampedWidth, height: clampedHeight
         });
         
         // Ensure we have a valid crop region after clamping
         if (clampedWidth <= 0 || clampedHeight <= 0) {
-          console.warn('[ImageHighlighter] Crop region is completely outside image bounds, ignoring');
+          logger.warn('[ImageHighlighter] Crop region is completely outside image bounds, ignoring');
           return;
         }
         
@@ -386,7 +387,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           height: Math.round((clampedHeight / scaledContainerHeight) * imageHeight),
           rotation: rotation // Include current rotation
         };
-        console.log('[ImageHighlighter] Original image coordinates:', originalRegion);
+        logger.log('[ImageHighlighter] Original image coordinates:', originalRegion);
         
         // Final safety check to ensure coordinates are within image bounds
         const safeRegion = {
@@ -397,18 +398,18 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           rotation: originalRegion.rotation
         };
         
-        console.log('[ImageHighlighter] Final safe region:', safeRegion);
+        logger.log('[ImageHighlighter] Final safe region:', safeRegion);
         
         // Validate that the final region is within bounds
         if (safeRegion.x + safeRegion.width > imageWidth || safeRegion.y + safeRegion.height > imageHeight) {
-          console.error('[ImageHighlighter] Final region still exceeds image bounds, this should not happen');
+          logger.error('[ImageHighlighter] Final region still exceeds image bounds, this should not happen');
           return;
         }
         
         // Use the existing onRegionSelected callback to process the crop
-        console.log('[ImageHighlighter] Calling onRegionSelected with safeRegion');
+        logger.log('[ImageHighlighter] Calling onRegionSelected with safeRegion');
         onRegionSelected(safeRegion);
-        console.log('[ImageHighlighter] onRegionSelected callback completed');
+        logger.log('[ImageHighlighter] onRegionSelected callback completed');
         
         // Exit crop mode after applying
         setCropMode(false);
@@ -429,7 +430,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       setDetectedRegions([]);
     },
     clearCropBox: () => {
-      console.log('[ImageHighlighter] clearCropBox called');
+      logger.log('[ImageHighlighter] clearCropBox called');
       setCropBox({ x: 0, y: 0, width: 0, height: 0 });
       setIsCropDrawing(false);
       setActiveCropHandle(null);
@@ -439,24 +440,24 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
     undoRotationChange: () => {
       const EPSILON = 0.01;
       if (Math.abs(rotation - initialRotation) > EPSILON) {
-        console.log('[ImageHighlighter] Undo rotation from:', rotation, 'to (initial):', initialRotation);
+        logger.log('[ImageHighlighter] Undo rotation from:', rotation, 'to (initial):', initialRotation);
         setRotation(initialRotation);
         return true;
       }
-      console.log('[ImageHighlighter] Cannot undo rotation (already at initial session rotation).');
+      logger.log('[ImageHighlighter] Cannot undo rotation (already at initial session rotation).');
       return false;
     },
     redoRotationChange: () => {
-      console.log('[ImageHighlighter] Redo not supported in this model.');
+      logger.log('[ImageHighlighter] Redo not supported in this model.');
       return false; // Redo is not supported in the simplified model
     },
     confirmCurrentRotation: async () => {
       if (!imageUri) {
-        console.warn('[ImageHighlighter] Confirm rotation called without imageUri.');
+        logger.warn('[ImageHighlighter] Confirm rotation called without imageUri.');
         return null;
       }
       
-      console.log('[ImageHighlighter] Starting rotation confirmation with image dimensions:', imageWidth, 'x', imageHeight);
+      logger.log('[ImageHighlighter] Starting rotation confirmation with image dimensions:', imageWidth, 'x', imageHeight);
       
       // Set processing state first thing to prevent UI flicker
       setIsProcessing(true);
@@ -466,7 +467,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       const hasEffectiveRotation = Math.abs(rotation - initialRotation) > 0.1;
 
       if (!hasEffectiveRotation) {
-        console.log('[ImageHighlighter] No significant rotation change to confirm.');
+        logger.log('[ImageHighlighter] No significant rotation change to confirm.');
         setRotation(0); 
         setInitialRotation(0);
         setRotateMode(false);  // Explicitly exit rotate mode
@@ -475,7 +476,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         return { uri: imageUri, width: imageWidth, height: imageHeight };
       }
 
-      console.log('[ImageHighlighter] Confirming rotation:', rotation);
+      logger.log('[ImageHighlighter] Confirming rotation:', rotation);
       
       try {
         // Perform the rotation directly using ImageManipulator for simplicity
@@ -489,7 +490,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           }
         );
         
-        console.log('[ImageHighlighter] Rotation applied. New dimensions:', result.width, 'x', result.height, 
+        logger.log('[ImageHighlighter] Rotation applied. New dimensions:', result.width, 'x', result.height, 
           '(original was', imageWidth, 'x', imageHeight, ')');
         
         // After confirmation, reset rotation state for future operations
@@ -504,7 +505,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           height: result.height
         };
       } catch (error) {
-        console.error('[ImageHighlighter] Failed to apply rotation:', error);
+        logger.error('[ImageHighlighter] Failed to apply rotation:', error);
         setRotation(initialRotation);
         return null;
       } finally {
@@ -512,7 +513,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       }
     },
     cancelRotationChanges: () => {
-      console.log('[ImageHighlighter] Cancelling rotation changes. Reverting from', rotation, 'to', initialRotation);
+      logger.log('[ImageHighlighter] Cancelling rotation changes. Reverting from', rotation, 'to', initialRotation);
       setRotation(initialRotation); // Revert to the rotation stored when mode was entered
       // setRotationSessionHistory([]); // REMOVED
       // setCurrentRotationSessionIndex(-1); // REMOVED
@@ -550,7 +551,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
     onStartShouldSetPanResponder: (evt) => {
       if (!containerScreenOffset || !measuredLayout) return false; // Not ready yet
       // Interaction is starting
-      // console.log('[ImageHighlighter] onStartShouldSetPanResponder evaluating'); // Removed
+      // logger.log('[ImageHighlighter] onStartShouldSetPanResponder evaluating'); // Removed
       // Check if the touch is within the defined active area for highlighting
       const { pageX, pageY } = evt.nativeEvent;
       const x = pageX - containerScreenOffset.x;
@@ -565,7 +566,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       const shouldSet = isWithinHorizontalBounds && isWithinVerticalBounds;
 
       /* // Removed
-      console.log('[ImageHighlighter] onStartShouldSetPanResponder:', {
+      logger.log('[ImageHighlighter] onStartShouldSetPanResponder:', {
         pageX, pageY,
         containerScreenOffsetX: containerScreenOffset.x,
         containerScreenOffsetY: containerScreenOffset.y,
@@ -607,7 +608,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       const currentY = pageY - containerScreenOffset.y;
       
       /* // Removed
-      console.log('[ImageHighlighter] GRANT - Calculated Coords (pageX - containerOffset.x):', {
+      logger.log('[ImageHighlighter] GRANT - Calculated Coords (pageX - containerOffset.x):', {
         pageX, pageY,
         containerScreenOffsetX: containerScreenOffset.x,
         containerScreenOffsetY: containerScreenOffset.y,
@@ -630,7 +631,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
                                   touchRelativeToImageY >= 0 && 
                                   touchRelativeToImageY <= scaledContainerHeight;
       /* // Removed
-      console.log('[ImageHighlighter] GRANT - Touch Analysis:', {
+      logger.log('[ImageHighlighter] GRANT - Touch Analysis:', {
         touchRelativeToImageX,
         touchRelativeToImageY,
         isWithinImageBounds,
@@ -652,7 +653,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       }
       else if (cropMode) {
         if (activeCropHandle === null && !isCropDrawing && (cropBox.width === 0 && cropBox.height === 0)) {
-          // console.log('[ImageHighlighter] Starting to draw new crop box with locationX/Y'); // Removed
+          // logger.log('[ImageHighlighter] Starting to draw new crop box with locationX/Y'); // Removed
           const clampedX = Math.max(-EDGE_TOLERANCE, Math.min((measuredLayout?.width || 0) + EDGE_TOLERANCE, currentX));
           const clampedY = Math.max(-EDGE_TOLERANCE, Math.min((measuredLayout?.height || 0) + EDGE_TOLERANCE, currentY));
           
@@ -679,9 +680,9 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         }
       } 
       else if (highlightModeActive) {
-        // console.log('[ImageHighlighter] Highlight mode starting with locationX/Y:', { currentX, currentY }); // Removed
+        // logger.log('[ImageHighlighter] Highlight mode starting with locationX/Y:', { currentX, currentY }); // Removed
         /* // Removed
-        console.log('[ImageHighlighter] Highlight mode - Touch vs Image bounds:', {
+        logger.log('[ImageHighlighter] Highlight mode - Touch vs Image bounds:', {
           touchX: currentX,
           touchY: currentY,
           imageLeft: displayImageOffsetX,
@@ -709,7 +710,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         const clampedY = Math.max(containerMinY, Math.min(containerMaxY, preciseY));
         
         /* // Removed
-        console.log('[ImageHighlighter] Coordinate clamping (to container):', {
+        logger.log('[ImageHighlighter] Coordinate clamping (to container):', {
           pageX, pageY,
           containerScreenOffsetX: containerScreenOffset.x,
           containerScreenOffsetY: containerScreenOffset.y,
@@ -844,7 +845,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         const clampedY = Math.max(containerMinY, Math.min(containerMaxY, preciseY));
         
         /* // Removed
-        console.log('[ImageHighlighter] MOVE - Updating highlight box (clamped to container):', {
+        logger.log('[ImageHighlighter] MOVE - Updating highlight box (clamped to container):', {
           currentX, currentY,
           preciseX, preciseY,
           clampedX, clampedY,
@@ -900,7 +901,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           const normalizedWidth = Math.abs(width);
           const normalizedHeight = Math.abs(height);
           setCropBox({ x: normalizedX, y: normalizedY, width: normalizedWidth, height: normalizedHeight });
-          // console.log('[ImageHighlighter] Finalized new crop box:', {x: normalizedX, y: normalizedY, width: normalizedWidth, height: normalizedHeight }); // Removed
+          // logger.log('[ImageHighlighter] Finalized new crop box:', {x: normalizedX, y: normalizedY, width: normalizedWidth, height: normalizedHeight }); // Removed
         }
       }
       
@@ -928,7 +929,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         setHighlightBox(finalHighlightBox); 
         
         /* // Removed
-        console.log('[ImageHighlighter] RELEASE - Final highlight box (clamped to container):', {
+        logger.log('[ImageHighlighter] RELEASE - Final highlight box (clamped to container):', {
           finalCurrentX, finalCurrentY,
           finalPreciseX, finalPreciseY,
           finalClampedX, finalClampedY,
@@ -944,7 +945,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           const maxY = Math.max(finalHighlightBox.startY, finalHighlightBox.endY);
           
           /* // Removed debug log
-          console.log('[ImageHighlighter] RELEASE - Highlight Box (clamped to container):', {
+          logger.log('[ImageHighlighter] RELEASE - Highlight Box (clamped to container):', {
             minX,
             minY,
             maxX,
@@ -972,7 +973,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
             rotation: rotation, // Include current rotation
           };
 
-          // console.log('[ImageHighlighter] Final OCR region (image container relative, adjusted for image bounds):', regionForParent); // Removed debug log
+          // logger.log('[ImageHighlighter] Final OCR region (image container relative, adjusted for image bounds):', regionForParent); // Removed debug log
           onRegionSelected(regionForParent);
         }
       }
@@ -996,9 +997,9 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
     const render_width = system_maxX - system_minX;
     const render_height = system_maxY - system_minY;
 
-    // console.log('[ImageHighlighter] Rendering highlight box. System minX:', system_minX, 'Rendered left:', render_left); // Removed debug log
+    // logger.log('[ImageHighlighter] Rendering highlight box. System minX:', system_minX, 'Rendered left:', render_left); // Removed debug log
     /* // Removed debug log
-    console.log('[ImageHighlighter] Render details:', {
+    logger.log('[ImageHighlighter] Render details:', {
       highlightBox,
       system_minX, system_maxX, system_minY, system_maxY,
       render_left, render_top, render_width, render_height,
@@ -1113,7 +1114,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   // Reset when image changes
   React.useEffect(() => {
     if (prevImageUriRef.current !== imageUri) {
-      // console.log('[ImageHighlighter] imageUri changed:', imageUri); // Removed
+      // logger.log('[ImageHighlighter] imageUri changed:', imageUri); // Removed
       // Clear processing state when image changes
       setIsProcessing(false);
       setCropMode(false);
@@ -1129,7 +1130,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   // Log when component renders with new props (for debugging specific layout/offset issues)
   React.useEffect(() => {
     /* // Removed debug log for general prop changes, was for specific debugging
-    console.log('[ImageHighlighter] Component rendered with props:', {
+    logger.log('[ImageHighlighter] Component rendered with props:', {
       imageUri,
       imageWidth,
       imageHeight,
@@ -1142,16 +1143,16 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
 
   const onLayout = (event: import('react-native').LayoutChangeEvent) => {
     const { width, height, x, y } = event.nativeEvent.layout;
-    // console.log(`[ImageHighlighter] onLayout (for main styles.container): width: ${width}, height: ${height}, screenX (relative): ${x}, screenY (relative): ${y}`); // Removed debug log
+    // logger.log(`[ImageHighlighter] onLayout (for main styles.container): width: ${width}, height: ${height}, screenX (relative): ${x}, screenY (relative): ${y}`); // Removed debug log
     setMeasuredLayout({ width, height });
 
     // Measure the absolute screen position of the PanResponder view
     // This is crucial and should happen after the main container layout is established.
     if (panResponderViewRef.current) {
       panResponderViewRef.current.measure((fx, fy, w, h, px, py) => {
-        // console.log(`[ImageHighlighter] Measured panResponderViewRef: screenX:${px}, screenY:${py}, width:${w}, height:${h}`); // Removed debug log
+        // logger.log(`[ImageHighlighter] Measured panResponderViewRef: screenX:${px}, screenY:${py}, width:${w}, height:${h}`); // Removed debug log
         /* // Removed debug log
-        console.log(`[ImageHighlighter] Layout comparison - onLayout vs measure:`, {
+        logger.log(`[ImageHighlighter] Layout comparison - onLayout vs measure:`, {
           onLayoutWidth: width, measureWidth: w,
           onLayoutHeight: height, measureHeight: h,
           onLayoutX: x, onLayoutY: y,
@@ -1166,12 +1167,12 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   // Effect to remeasure if containerScreenOffset is somehow still null after initial layout
   React.useEffect(() => {
     if (!containerScreenOffset && panResponderViewRef.current && measuredLayout) {
-      // console.log('[ImageHighlighter] containerScreenOffset is null, attempting to remeasure...'); // This log can be kept for critical path debugging if needed, but commented out for now.
+      // logger.log('[ImageHighlighter] containerScreenOffset is null, attempting to remeasure...'); // This log can be kept for critical path debugging if needed, but commented out for now.
       // Small delay to ensure the component is fully rendered
       const timeoutId = setTimeout(() => {
         if (panResponderViewRef.current) {
           panResponderViewRef.current.measure((fx, fy, w, h, px, py) => {
-            // console.log(`[ImageHighlighter] Delayed remeasure: screenX:${px}, screenY:${py}, width:${w}, height:${h}`); // Also keep for critical path, commented for now.
+            // logger.log(`[ImageHighlighter] Delayed remeasure: screenX:${px}, screenY:${py}, width:${w}, height:${h}`); // Also keep for critical path, commented for now.
             setContainerScreenOffset({ x: px, y: py });
           });
         }
@@ -1199,7 +1200,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   if (!containerScreenOffset && panResponderViewRef.current) {
     // Trigger a remeasure to get the screen offset
     panResponderViewRef.current.measure((fx, fy, w, h, px, py) => {
-      console.log(`[ImageHighlighter] Remeasuring panResponderViewRef: screenX:${px}, screenY:${py}, width:${w}, height:${h}`);
+      logger.log(`[ImageHighlighter] Remeasuring panResponderViewRef: screenX:${px}, screenY:${py}, width:${w}, height:${h}`);
       setContainerScreenOffset({ x: px, y: py });
     });
   }

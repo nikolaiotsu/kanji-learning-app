@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import { COLORS } from './constants/colors';
 import PokedexLayout from './components/shared/PokedexLayout';
 
+import { logger } from './utils/logger';
 export default function SettingsScreen() {
   const { t } = useTranslation();
   const { user, signOut } = useAuth();
@@ -36,7 +37,7 @@ export default function SettingsScreen() {
       await signOut();
       router.replace('/');
     } catch (error) {
-      console.error('Error signing out:', error);
+      logger.error('Error signing out:', error);
       Alert.alert(t('common.error'), t('settings.signOutError'));
     }
   };
@@ -46,7 +47,7 @@ export default function SettingsScreen() {
     try {
       await swapLanguages();
     } catch (error) {
-      console.error('Error swapping languages:', error);
+      logger.error('Error swapping languages:', error);
       const errorMessage = error instanceof Error ? error.message : t('settings.swapLanguagesError');
       Alert.alert(t('settings.cannotSwapLanguages'), errorMessage, [{ text: t('common.ok') }]);
     }
@@ -68,7 +69,7 @@ export default function SettingsScreen() {
       await setTargetLanguage(langCode);
       setShowLanguageSelector(false);
     } catch (error) {
-      console.error('Error setting language:', error);
+      logger.error('Error setting language:', error);
       const errorMessage = error instanceof Error ? error.message : t('settings.setLanguageError');
       Alert.alert(t('settings.invalidLanguageSelection'), errorMessage);
     }
@@ -80,7 +81,7 @@ export default function SettingsScreen() {
       await setForcedDetectionLanguage(langCode);
       setShowDetectionSelector(false);
     } catch (error) {
-      console.log('Error setting detection language:', error);
+      logger.log('Error setting detection language:', error);
       const errorMessage = error instanceof Error ? error.message : t('settings.setDetectionLanguageError');
       Alert.alert(t('settings.invalidLanguageSelection'), errorMessage);
     }

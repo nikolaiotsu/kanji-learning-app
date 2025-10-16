@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { logger } from '../utils/logger';
 // Available target languages
 export const AVAILABLE_LANGUAGES = {
   en: 'English',
@@ -88,7 +89,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           }
         }
       } catch (error) {
-        console.error('Error loading settings from storage:', error);
+        logger.error('Error loading settings from storage:', error);
       }
     };
 
@@ -108,7 +109,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       settings.targetLanguage = lang;
       await AsyncStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
     } catch (error) {
-      console.log('Error saving settings to storage:', error);
+      logger.log('Error saving settings to storage:', error);
       throw error; // Re-throw to allow UI to handle the error
     }
   };
@@ -126,7 +127,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       settings.forcedDetectionLanguage = lang;
       await AsyncStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
     } catch (error) {
-      console.log('Error saving settings to storage:', error);
+      logger.log('Error saving settings to storage:', error);
       throw error; // Re-throw to allow UI to handle the error
     }
   };
@@ -162,7 +163,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       settings.forcedDetectionLanguage = tempTarget;
       await AsyncStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
     } catch (error) {
-      console.error('Error swapping languages:', error);
+      logger.error('Error swapping languages:', error);
       throw error; // Re-throw to allow UI to handle the error
     }
   };
@@ -173,7 +174,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const storedSettings = await AsyncStorage.getItem(SETTINGS_STORAGE_KEY);
       return storedSettings ? JSON.parse(storedSettings) : {};
     } catch (error) {
-      console.error('Error getting settings from storage:', error);
+      logger.error('Error getting settings from storage:', error);
       return {};
     }
   };

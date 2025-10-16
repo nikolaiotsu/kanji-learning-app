@@ -27,6 +27,7 @@ import { useSubscription } from '../../context/SubscriptionContext';
 import MemoryManager from '../../services/memoryManager';
 import * as FileSystem from 'expo-file-system';
 
+import { logger } from '../../utils/logger';
 interface KanjiScannerProps {
   onCardSwipe?: () => void;
   onContentReady?: (isReady: boolean) => void;
@@ -101,7 +102,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
 
   // Callback for ImageHighlighter to update rotation UI state
   const handleRotationStateChange = React.useCallback((newState: ImageHighlighterRotationState) => {
-    console.log('[KanjiScanner] Rotation state update from IH:', newState);
+    logger.log('[KanjiScanner] Rotation state update from IH:', newState);
     setCurrentRotationUIState(newState);
   }, []); // Empty dependency array as setCurrentRotationUIState is stable
 
@@ -110,7 +111,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
     if (isImageProcessing || localProcessing) {
       // Set a 60-second timeout to automatically reset stuck processing states
       processingTimeoutRef.current = setTimeout(() => {
-        console.warn('[KanjiScanner] Processing timeout reached - auto-resetting stuck states');
+        logger.warn('[KanjiScanner] Processing timeout reached - auto-resetting stuck states');
         setIsImageProcessing(false);
         setLocalProcessing(false);
         setIsNavigating(false);
@@ -152,11 +153,11 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
       // Use a delay to avoid interrupting legitimate loading animations
       const resetTimer = setTimeout(() => {
         if (isImageProcessing) {
-          console.log('[KanjiScanner] Resetting stuck image processing state after delay');
+          logger.log('[KanjiScanner] Resetting stuck image processing state after delay');
           setIsImageProcessing(false);
         }
         if (localProcessing) {
-          console.log('[KanjiScanner] Resetting stuck local processing state after delay');
+          logger.log('[KanjiScanner] Resetting stuck local processing state after delay');
           setLocalProcessing(false);
         }
       }, 1000); // Only reset if states are still active after 1 second
@@ -168,11 +169,11 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
         
         clearTimeout(resetTimer);
         if (isImageProcessing || localProcessing) {
-          console.log('[KanjiScanner] Preventing navigation during image processing');
+          logger.log('[KanjiScanner] Preventing navigation during image processing');
           // Prevent navigation by returning to this screen if processing is active
           if (isImageProcessing || localProcessing) {
             // This is a safety measure - the buttons should already be disabled
-            console.log('[KanjiScanner] Processing active, preventing navigation');
+            logger.log('[KanjiScanner] Processing active, preventing navigation');
             // We don't force navigation back here as it would create a loop,
             // but the disabled buttons should prevent this situation
           }
@@ -202,7 +203,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
         ]
       );
     } catch (error) {
-      console.error('Error logging out:', error);
+      logger.error('Error logging out:', error);
       Alert.alert('Error', 'Failed to log out. Please try again.');
     }
   };
@@ -220,7 +221,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
     if (imageInfo) {
       setCapturedImage(imageInfo);
       setOriginalImage(imageInfo); // Also store as original image
-      console.log('[KanjiScanner] New image captured, storing as original:', imageInfo.uri);
+      logger.log('[KanjiScanner] New image captured, storing as original:', imageInfo.uri);
       setImageHistory([]);
       setForwardHistory([]);
       
@@ -297,7 +298,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
     
     try {
       // Gentle cleanup before new image selection
-      console.log('[KanjiScanner pickImage] Starting image selection with gentle cleanup');
+      logger.log('[KanjiScanner pickImage] Starting image selection with gentle cleanup');
       // Only cleanup if needed, avoiding aggressive cleanup that can cause memory pressure
       await memoryManager.gentleCleanup();
       
@@ -310,7 +311,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
       if (!result.canceled) {
         const asset = result.assets[0];
         
-        console.log('[KanjiScanner pickImage] Selected image:', asset.uri, 
+        logger.log('[KanjiScanner pickImage] Selected image:', asset.uri, 
           `${asset.width}x${asset.height}`);
 
         // Show loading indicator for any processing
@@ -347,7 +348,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
         // Retry logic with increasingly conservative settings
         while (retryCount <= maxRetries) {
           try {
-            console.log(`[KanjiScanner pickImage] Processing attempt ${retryCount + 1}/${maxRetries + 1}`);
+            logger.log(`[KanjiScanner pickImage] Processing attempt ${retryCount + 1}/${maxRetries + 1}`);
             
             // Use more aggressive compression for retries
             const compressionLevel = retryCount === 0 ? standardConfig.compress : 0.6;
@@ -367,7 +368,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
               try {
                 const imageInfo = await ProcessImage.getImageInfo(processedImage.uri);
                 if (imageInfo.width === processedImage.width && imageInfo.height === processedImage.height) {
-                  console.log('[KanjiScanner pickImage] Processed image validated:', 
+                  logger.log('[KanjiScanner pickImage] Processed image validated:', 
                     `${processedImage.width}x${processedImage.height}`, 'URI:', processedImage.uri);
                   break; // Success
                 } else {
@@ -381,7 +382,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
             }
             
           } catch (processingError) {
-            console.error(`[KanjiScanner pickImage] Processing attempt ${retryCount + 1} failed:`, processingError);
+            logger.error(`[KanjiScanner pickImage] Processing attempt ${retryCount + 1} failed:`, processingError);
             
             if (retryCount < maxRetries) {
               // For retries, use even smaller dimensions
@@ -401,7 +402,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
               // Additional cleanup between retries
               await memoryManager.forceCleanup();
               
-              console.log(`[KanjiScanner pickImage] Retrying with smaller dimensions: ${Math.round((asset.width || 1) * retryScale)}x${Math.round((asset.height || 1) * retryScale)}`);
+              logger.log(`[KanjiScanner pickImage] Retrying with smaller dimensions: ${Math.round((asset.width || 1) * retryScale)}x${Math.round((asset.height || 1) * retryScale)}`);
               retryCount++;
             } else {
               throw processingError; // Re-throw if all retries failed
@@ -411,7 +412,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
 
         if (!processedImage) {
           // Final fallback: use original image with a warning if all processing attempts fail
-          console.warn('[KanjiScanner pickImage] All processing attempts failed, using original image');
+          logger.warn('[KanjiScanner pickImage] All processing attempts failed, using original image');
           
           // Check if original image is too large for safe use
           const isOriginalTooLarge = (asset.width || 0) > 2500 || (asset.height || 0) > 2500;
@@ -426,7 +427,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
             height: asset.height || 0
           };
           
-          console.log('[KanjiScanner pickImage] Using original image as fallback:', 
+          logger.log('[KanjiScanner pickImage] Using original image as fallback:', 
             `${processedImage.width}x${processedImage.height}`, 'URI:', processedImage.uri);
         }
 
@@ -454,13 +455,13 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
           if (await memoryManager.shouldCleanup()) {
             await memoryManager.cleanupPreviousImages(processedImage.uri);
           }
-          console.log('[KanjiScanner] Memory cleanup completed after image processing (excluding current image)');
+          logger.log('[KanjiScanner] Memory cleanup completed after image processing (excluding current image)');
         } catch (cleanupError) {
-          console.warn('[KanjiScanner] Memory cleanup failed after image processing:', cleanupError);
+          logger.warn('[KanjiScanner] Memory cleanup failed after image processing:', cleanupError);
         }
       }
     } catch (error) {
-      console.error('[KanjiScanner] Error picking image:', error);
+      logger.error('[KanjiScanner] Error picking image:', error);
       setIsImageProcessing(false);
       
       // Attempt recovery by forcing cleanup
@@ -482,22 +483,22 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
     if (!capturedImage || !imageHighlighterRef.current) return;
     
     try {
-      console.log('[KanjiScanner] Received region for selection/crop:', region);
-      console.log('[KanjiScanner] Current modes:', { 
+      logger.log('[KanjiScanner] Received region for selection/crop:', region);
+      logger.log('[KanjiScanner] Current modes:', { 
         highlightModeActive, 
         cropModeActive, 
         rotateModeActive 
       });
 
       if (highlightModeActive) {
-        console.log('[KanjiScanner] Highlight region selected (screen/IH coords):', region);
+        logger.log('[KanjiScanner] Highlight region selected (screen/IH coords):', region);
         setHighlightRegion(region); 
         setHasHighlightSelection(true);
         return; 
       }
 
       if (cropModeActive) { 
-        console.log('[KanjiScanner] Crop operation initiated via onRegionSelected. Region from IH:', region);
+        logger.log('[KanjiScanner] Crop operation initiated via onRegionSelected. Region from IH:', region);
         setLocalProcessing(true);
         
         if (capturedImage) {
@@ -507,10 +508,10 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
           
           // If this is the first crop, save the original image
           if (!originalImage) {
-            console.log('[KanjiScanner] Setting original image before first crop');
+            logger.log('[KanjiScanner] Setting original image before first crop');
             setOriginalImage(capturedImage);
           } else {
-            console.log('[KanjiScanner] Original image already saved:', originalImage.uri);
+            logger.log('[KanjiScanner] Original image already saved:', originalImage.uri);
           }
         }
 
@@ -527,8 +528,8 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
           // Get dimensions of the newly processed (cropped, possibly rotated) image
           const imageInfo = await ProcessImage.getImageInfo(processedUri);
           
-          console.log('[KanjiScanner] Crop applied. New image:', processedUri, 'New Dims:', imageInfo);
-          console.log('[KanjiScanner] Original image remains:', originalImage?.uri);
+          logger.log('[KanjiScanner] Crop applied. New image:', processedUri, 'New Dims:', imageInfo);
+          logger.log('[KanjiScanner] Original image remains:', originalImage?.uri);
           
           setCapturedImage({
             uri: processedUri,
@@ -536,7 +537,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
             height: imageInfo.height
           });
         } else {
-          console.warn('[KanjiScanner] ProcessImage.processImage did not return a URI for crop operation.');
+          logger.warn('[KanjiScanner] ProcessImage.processImage did not return a URI for crop operation.');
           // Potentially revert to previous image from history if capturedImage was pushed too early
           // or show an error. For now, localProcessing will be set to false.
         }
@@ -545,12 +546,12 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
         return; 
       }
       
-      console.warn('[KanjiScanner] handleRegionSelected called unexpectedly. Active modes:', 
+      logger.warn('[KanjiScanner] handleRegionSelected called unexpectedly. Active modes:', 
         { highlightModeActive, cropModeActive, rotateModeActive });
       setLocalProcessing(false);
 
     } catch (error) {
-      console.error('[KanjiScanner] Error in handleRegionSelected:', error);
+      logger.error('[KanjiScanner] Error in handleRegionSelected:', error);
       Alert.alert("Processing Error", "Could not process the selected region.");
       setLocalProcessing(false);
     }
@@ -581,8 +582,8 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
       return;
     }
     
-    console.log('[KanjiScanner PHR] Received originalRegionForProcessing:', originalRegionFromConfirm);
-    console.log('[KanjiScanner PHR] Full image URI for cropping:', capturedImage.uri);
+    logger.log('[KanjiScanner PHR] Received originalRegionForProcessing:', originalRegionFromConfirm);
+    logger.log('[KanjiScanner PHR] Full image URI for cropping:', capturedImage.uri);
 
     setLocalProcessing(true); // Restore local processing state
     try {
@@ -590,10 +591,10 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
       
       // Crop the exact highlighted region for OCR only
       const exactCropUri = await cropImageToRegion(uri, originalRegionFromConfirm);
-      // console.log('[KanjiScanner PHR] Exact cropped URI (for diagnostic display):', exactCropUri); // No longer needed
+      // logger.log('[KanjiScanner PHR] Exact cropped URI (for diagnostic display):', exactCropUri); // No longer needed
 
       // --- Restore OCR and navigation --- 
-      console.log('[KanjiScanner PHR] Calling detectJapaneseText with exactCropUri and full region for OCR.');
+      logger.log('[KanjiScanner PHR] Calling detectJapaneseText with exactCropUri and full region for OCR.');
 
       const textRegions = await detectJapaneseText(
         exactCropUri,
@@ -601,7 +602,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
         false
       );
       
-      console.log('OCR result:', textRegions.length > 0 ? `${textRegions.length} texts found` : 'No text found');
+      logger.log('OCR result:', textRegions.length > 0 ? `${textRegions.length} texts found` : 'No text found');
       
       // Increment OCR counter for successful scan attempts (whether text is found or not)
       await incrementOCRCount();
@@ -609,7 +610,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
       if (textRegions && textRegions.length > 0) {
         // Join all detected text items with newlines
         const detectedText = textRegions.map(item => item.text).join('\n');
-        console.log('Extracted text:', detectedText);
+        logger.log('Extracted text:', detectedText);
         
         // Set navigation state to prevent UI flash
         setIsNavigating(true);
@@ -617,13 +618,13 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
         // Store the current image state before navigating
         // This ensures we have the original image stored for history navigation
         if (!originalImage) {
-          console.log('[KanjiScanner PHR] Storing current image as original before navigating');
+          logger.log('[KanjiScanner PHR] Storing current image as original before navigating');
           setOriginalImage(capturedImage);
           // Also mark it in the memory manager
           const memoryManager = MemoryManager.getInstance();
           memoryManager.markAsOriginalImage(capturedImage.uri);
         } else {
-          console.log('[KanjiScanner PHR] Original image already stored:', originalImage.uri);
+          logger.log('[KanjiScanner PHR] Original image already stored:', originalImage.uri);
         }
         
         // Clear the highlight box
@@ -650,7 +651,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
         );
       }
     } catch (error: any) {
-      console.error('Error processing highlight region:', error);
+      logger.error('Error processing highlight region:', error);
       
       // Check if it's a timeout error from our OCR service
       if (error.message && error.message.includes('timed out')) {
@@ -683,10 +684,10 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
   const confirmHighlightSelection = async () => {
     if (!highlightRegion || !imageHighlighterRef.current || !capturedImage) return;
     
-    console.log('[KanjiScanner CnfHS] Current capturedImage URI:', capturedImage.uri);
-    console.log('[KanjiScanner CnfHS] Received highlightRegion from state:', highlightRegion);
+    logger.log('[KanjiScanner CnfHS] Current capturedImage URI:', capturedImage.uri);
+    logger.log('[KanjiScanner CnfHS] Received highlightRegion from state:', highlightRegion);
     const transformData = imageHighlighterRef.current.getTransformData();
-    console.log('[KanjiScanner CnfHS] TransformData from ImageHighlighter:', transformData);
+    logger.log('[KanjiScanner CnfHS] TransformData from ImageHighlighter:', transformData);
 
     // Use the new properties from transformData
     const {
@@ -699,12 +700,12 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
     // Log the selection dimensions as percentages of the display
     const widthPercentage = (highlightRegion.width / displayImageViewWidth) * 100;
     const heightPercentage = (highlightRegion.height / displayImageViewHeight) * 100;
-    console.log(`[KanjiScanner CnfHS] Selection dimensions: ${highlightRegion.width}x${highlightRegion.height} (${widthPercentage.toFixed(1)}% x ${heightPercentage.toFixed(1)}% of view)`);
+    logger.log(`[KanjiScanner CnfHS] Selection dimensions: ${highlightRegion.width}x${highlightRegion.height} (${widthPercentage.toFixed(1)}% x ${heightPercentage.toFixed(1)}% of view)`);
     
     // Detect wide selections that might need special handling
     const isWideSelection = widthPercentage > 60; // If selection takes up more than 60% of the view width
     if (isWideSelection) {
-      console.log('[KanjiScanner CnfHS] Wide selection detected, ensuring proper processing');
+      logger.log('[KanjiScanner CnfHS] Wide selection detected, ensuring proper processing');
     }
     
     // The highlightRegion state has its x,y already adjusted by ImageHighlighter
@@ -730,8 +731,8 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
     // Calculate the scaling ratio using displayImageView dimensions
     const widthRatio = originalImageWidth / displayImageViewWidth;
     const heightRatio = originalImageHeight / displayImageViewHeight;
-    console.log('[KanjiScanner CnfHS] Clamped Region:', clampedHighlightRegion);
-    console.log('[KanjiScanner CnfHS] Scaling Ratios:', { widthRatio, heightRatio });
+    logger.log('[KanjiScanner CnfHS] Clamped Region:', clampedHighlightRegion);
+    logger.log('[KanjiScanner CnfHS] Scaling Ratios:', { widthRatio, heightRatio });
     
     // For wide selections, add a small horizontal margin to ensure capturing all text
     // This helps with the bias toward left side text detection
@@ -739,7 +740,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
     if (isWideSelection) {
       // Add a margin proportional to the width of the selection
       horizontalMargin = Math.round(clampedHighlightRegion.width * 0.03); // 3% of width
-      console.log('[KanjiScanner CnfHS] Adding horizontal margin for wide selection:', horizontalMargin);
+      logger.log('[KanjiScanner CnfHS] Adding horizontal margin for wide selection:', horizontalMargin);
     }
     
     // Convert the selected region to original image coordinates
@@ -756,8 +757,8 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
     originalRegion.width = Math.min(originalRegion.width, originalImageWidth - originalRegion.x);
     originalRegion.height = Math.min(originalRegion.height, originalImageHeight - originalRegion.y);
     
-    console.log('[KanjiScanner CnfHS] Calculated originalRegion (to be sent to processHighlightRegion):', originalRegion);
-    console.log('[KanjiScanner CnfHS] Region as percentage of original image:', {
+    logger.log('[KanjiScanner CnfHS] Calculated originalRegion (to be sent to processHighlightRegion):', originalRegion);
+    logger.log('[KanjiScanner CnfHS] Region as percentage of original image:', {
       x: (originalRegion.x / originalImageWidth * 100).toFixed(1) + '%',
       y: (originalRegion.y / originalImageHeight * 100).toFixed(1) + '%',
       width: (originalRegion.width / originalImageWidth * 100).toFixed(1) + '%',
@@ -766,7 +767,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
     
     // Final safety check for very large regions that might strain OCR
     if (originalRegion.width * originalRegion.height > 4000000) { // 4 megapixels
-      console.log('[KanjiScanner CnfHS] Warning: Very large region selected, OCR processing may take longer');
+      logger.log('[KanjiScanner CnfHS] Warning: Very large region selected, OCR processing may take longer');
     }
     
     await processHighlightRegion(originalRegion);
@@ -790,7 +791,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
     }
     
     // Then activate highlight mode
-    console.log('[KanjiScanner] Activating highlight mode');
+    logger.log('[KanjiScanner] Activating highlight mode');
     setHighlightModeActive(true);
     setHasHighlightSelection(false);
     setHighlightRegion(null);
@@ -810,36 +811,36 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
       setHasHighlightSelection(false);
       setHighlightRegion(null);
       imageHighlighterRef.current?.clearHighlightBox?.();
-      console.log('[KanjiScanner] Highlight mode cancelled');
+      logger.log('[KanjiScanner] Highlight mode cancelled');
     } else if (cropModeActive) {
       setCropModeActive(false);
       imageHighlighterRef.current?.toggleCropMode(); // Syncs IH internal mode & clears box
       imageHighlighterRef.current?.clearCropBox?.(); 
-      console.log('[KanjiScanner] Crop mode cancelled');
+      logger.log('[KanjiScanner] Crop mode cancelled');
     } else if (rotateModeActive) {
       imageHighlighterRef.current?.cancelRotationChanges(); // 1. IH reverts visual rotation & clears its session
       imageHighlighterRef.current?.toggleRotateMode();    // 2. IH formally exits rotate mode
       setRotateModeActive(false);                           // 3. KS updates its state (triggers effect cleanup)
-      console.log('[KanjiScanner] Rotate mode cancelled');
+      logger.log('[KanjiScanner] Rotate mode cancelled');
     }
   };
 
   const confirmCrop = () => {
     if (cropModeActive && hasCropSelection && imageHighlighterRef.current) {
-      console.log('[KanjiScanner] Confirming crop...');
+      logger.log('[KanjiScanner] Confirming crop...');
       imageHighlighterRef.current.applyCrop();
       // ImageHighlighter's applyCrop calls onRegionSelected, which is handleRegionSelected here.
       // handleRegionSelected already sets cropModeActive to false after processing.
       // It also sets localProcessing to true/false.
       // We might not need to do much else here as handleRegionSelected should take over.
     } else {
-      console.warn('[KanjiScanner] confirmCrop called in invalid state');
+      logger.warn('[KanjiScanner] confirmCrop called in invalid state');
     }
   };
 
   const discardCropSelection = async () => {
     if (cropModeActive && imageHighlighterRef.current) {
-      console.log('[KanjiScanner] Discarding crop selection...');
+      logger.log('[KanjiScanner] Discarding crop selection...');
       imageHighlighterRef.current.clearCropBox();
       setHasCropSelection(false); // Manually update as the mode is still active
       
@@ -849,18 +850,18 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
         if (await memoryManager.shouldCleanup() && capturedImage && capturedImage.uri) {
           await memoryManager.cleanupPreviousImages(capturedImage.uri);
         }
-        console.log('[KanjiScanner] Memory cleanup completed after discarding crop selection');
+        logger.log('[KanjiScanner] Memory cleanup completed after discarding crop selection');
       } catch (cleanupError) {
-        console.warn('[KanjiScanner] Memory cleanup failed after discarding crop selection:', cleanupError);
+        logger.warn('[KanjiScanner] Memory cleanup failed after discarding crop selection:', cleanupError);
       }
     } else {
-      console.warn('[KanjiScanner] discardCropSelection called in invalid state');
+      logger.warn('[KanjiScanner] discardCropSelection called in invalid state');
     }
   };
 
   const discardHighlightSelection = async () => {
     if (highlightModeActive && imageHighlighterRef.current) {
-      console.log('[KanjiScanner] Discarding highlight selection...');
+      logger.log('[KanjiScanner] Discarding highlight selection...');
       imageHighlighterRef.current.clearHighlightBox();
       setHasHighlightSelection(false); // Manually update as the mode is still active
       
@@ -870,12 +871,12 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
         if (await memoryManager.shouldCleanup() && capturedImage && capturedImage.uri) {
           await memoryManager.cleanupPreviousImages(capturedImage.uri);
         }
-        console.log('[KanjiScanner] Memory cleanup completed after discarding highlight selection');
+        logger.log('[KanjiScanner] Memory cleanup completed after discarding highlight selection');
       } catch (cleanupError) {
-        console.warn('[KanjiScanner] Memory cleanup failed after discarding highlight selection:', cleanupError);
+        logger.warn('[KanjiScanner] Memory cleanup failed after discarding highlight selection:', cleanupError);
       }
     } else {
-      console.warn('[KanjiScanner] discardHighlightSelection called in invalid state');
+      logger.warn('[KanjiScanner] discardHighlightSelection called in invalid state');
     }
   };
 
@@ -894,13 +895,13 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
 
   // Add an effect to monitor highlightModeActive changes
   React.useEffect(() => {
-    console.log('[KanjiScanner] highlightModeActive state changed:', highlightModeActive);
+    logger.log('[KanjiScanner] highlightModeActive state changed:', highlightModeActive);
   }, [highlightModeActive]);
 
   // Add an effect to monitor capturedImage changes
   React.useEffect(() => {
     if (capturedImage) {
-      console.log('[KanjiScanner] capturedImage state updated:', {
+      logger.log('[KanjiScanner] capturedImage state updated:', {
         uri: capturedImage.uri,
         width: capturedImage.width,
         height: capturedImage.height
@@ -914,9 +915,9 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
     try {
       const memoryManager = MemoryManager.getInstance();
       await memoryManager.gentleCleanup();
-      console.log('[KanjiScanner] Memory cleanup completed after cancel');
+      logger.log('[KanjiScanner] Memory cleanup completed after cancel');
     } catch (cleanupError) {
-      console.warn('[KanjiScanner] Memory cleanup failed after cancel:', cleanupError);
+      logger.warn('[KanjiScanner] Memory cleanup failed after cancel:', cleanupError);
     }
     
     // Clear all state after cleanup to ensure we don't reference deleted images
@@ -931,7 +932,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
   // Restore the handleBackToPreviousImage function which was accidentally removed
   const handleBackToPreviousImage = async () => {
     if (imageHistory.length > 0 && capturedImage) {
-      console.log('[KanjiScanner] Going back to previous image. History length:', imageHistory.length);
+      logger.log('[KanjiScanner] Going back to previous image. History length:', imageHistory.length);
       
       // Clear any highlight box or selections
       imageHighlighterRef.current?.clearHighlightBox?.();
@@ -946,7 +947,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
       try {
         const fileInfo = await FileSystem.getInfoAsync(previousImage.uri);
         if (!fileInfo.exists) {
-          console.log('[KanjiScanner] Previous image no longer exists:', previousImage.uri);
+          logger.log('[KanjiScanner] Previous image no longer exists:', previousImage.uri);
           
           // Remove the non-existent image from history
           const updatedImageHistory = imageHistory.slice(0, -1).filter(img => img.uri !== previousImage.uri);
@@ -954,7 +955,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
           
           // Try again with the next image in history if available
           if (updatedImageHistory.length > 0) {
-            console.log('[KanjiScanner] Trying next image in history');
+            logger.log('[KanjiScanner] Trying next image in history');
             return handleBackToPreviousImage();
           }
           
@@ -962,7 +963,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
           if (originalImage && originalImage.uri !== capturedImage.uri) {
             const originalFileInfo = await FileSystem.getInfoAsync(originalImage.uri);
             if (originalFileInfo.exists) {
-              console.log('[KanjiScanner] No more history but original image exists, using it:', originalImage.uri);
+              logger.log('[KanjiScanner] No more history but original image exists, using it:', originalImage.uri);
               
               // Save current image to forward history
               setForwardHistory([...forwardHistory, capturedImage]);
@@ -980,7 +981,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
           if (originalUri && originalUri !== capturedImage.uri) {
             const originalExists = await memoryManager.originalImageExists();
             if (originalExists) {
-              console.log('[KanjiScanner] Retrieved original image from MemoryManager:', originalUri);
+              logger.log('[KanjiScanner] Retrieved original image from MemoryManager:', originalUri);
               
               // Get dimensions of the original image
               try {
@@ -1006,12 +1007,12 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
                 
                 return;
               } catch (error) {
-                console.warn('[KanjiScanner] Error getting original image dimensions:', error);
+                logger.warn('[KanjiScanner] Error getting original image dimensions:', error);
               }
             }
           }
           
-          console.log('[KanjiScanner] No more valid images in history');
+          logger.log('[KanjiScanner] No more valid images in history');
           return;
         }
         
@@ -1026,7 +1027,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
         // The original image is preserved in the originalImage state variable
         // so we can always identify it in the history navigation
         if (originalImage && previousImage.uri === originalImage.uri) {
-          console.log('[KanjiScanner] Restored original image from history');
+          logger.log('[KanjiScanner] Restored original image from history');
         }
         
         // Remove it from history
@@ -1041,7 +1042,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
               uri => typeof uri === 'string'
             ) as string[];
             
-            console.log('[KanjiScanner] Preserving URIs during cleanup:', preservedUris);
+            logger.log('[KanjiScanner] Preserving URIs during cleanup:', preservedUris);
             
             // Clean up images except for the preserved ones
             if (preservedUris.length > 0) {
@@ -1050,12 +1051,12 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
               await memoryManager.cleanupPreviousImages();
             }
           }
-          console.log('[KanjiScanner] Memory cleanup completed after navigating to previous image');
+          logger.log('[KanjiScanner] Memory cleanup completed after navigating to previous image');
         } catch (cleanupError) {
-          console.warn('[KanjiScanner] Memory cleanup failed after navigating to previous image:', cleanupError);
+          logger.warn('[KanjiScanner] Memory cleanup failed after navigating to previous image:', cleanupError);
         }
       } catch (error) {
-        console.warn('[KanjiScanner] Error checking if previous image exists:', error);
+        logger.warn('[KanjiScanner] Error checking if previous image exists:', error);
         
         // Remove the potentially problematic image from history
         const updatedImageHistory = imageHistory.slice(0, -1);
@@ -1063,7 +1064,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
         
         // Try again with the next image in history if available
         if (updatedImageHistory.length > 0) {
-          console.log('[KanjiScanner] Trying next image in history after error');
+          logger.log('[KanjiScanner] Trying next image in history after error');
           return handleBackToPreviousImage();
         }
       }
@@ -1073,7 +1074,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
   // Restore the handleForwardToNextImage function which was accidentally removed
   const handleForwardToNextImage = async () => {
     if (forwardHistory.length > 0 && capturedImage) {
-      console.log('[KanjiScanner] Going forward to next image. Forward history length:', forwardHistory.length);
+      logger.log('[KanjiScanner] Going forward to next image. Forward history length:', forwardHistory.length);
       
       // Clear any highlight box or selections
       imageHighlighterRef.current?.clearHighlightBox?.();
@@ -1088,7 +1089,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
       try {
         const fileInfo = await FileSystem.getInfoAsync(nextImage.uri);
         if (!fileInfo.exists) {
-          console.log('[KanjiScanner] Next image no longer exists:', nextImage.uri);
+          logger.log('[KanjiScanner] Next image no longer exists:', nextImage.uri);
           
           // Remove the non-existent image from forward history
           const updatedForwardHistory = forwardHistory.slice(0, -1).filter(img => img.uri !== nextImage.uri);
@@ -1096,7 +1097,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
           
           // Try again with the next image in forward history if available
           if (updatedForwardHistory.length > 0) {
-            console.log('[KanjiScanner] Trying next image in forward history');
+            logger.log('[KanjiScanner] Trying next image in forward history');
             return handleForwardToNextImage();
           }
           
@@ -1107,7 +1108,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
           if (originalUri && originalUri !== capturedImage.uri) {
             const originalExists = await memoryManager.originalImageExists();
             if (originalExists) {
-              console.log('[KanjiScanner] Retrieved original image from MemoryManager for forward navigation:', originalUri);
+              logger.log('[KanjiScanner] Retrieved original image from MemoryManager for forward navigation:', originalUri);
               
               // Get dimensions of the original image
               try {
@@ -1133,12 +1134,12 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
                 
                 return;
               } catch (error) {
-                console.warn('[KanjiScanner] Error getting original image dimensions for forward navigation:', error);
+                logger.warn('[KanjiScanner] Error getting original image dimensions for forward navigation:', error);
               }
             }
           }
           
-          console.log('[KanjiScanner] No more valid images in forward history');
+          logger.log('[KanjiScanner] No more valid images in forward history');
           return;
         }
         
@@ -1151,7 +1152,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
         
         // If we're going forward to the original image, log this for debugging
         if (originalImage && nextImage.uri === originalImage.uri) {
-          console.log('[KanjiScanner] Restored original image from forward history');
+          logger.log('[KanjiScanner] Restored original image from forward history');
         }
         
         // Remove it from forward history
@@ -1173,11 +1174,11 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
             if (originalImage && originalImage.uri) {
               if (!preservedUris.includes(originalImage.uri)) {
                 preservedUris.push(originalImage.uri);
-                console.log('[KanjiScanner] Adding original image to preserved URIs during forward navigation:', originalImage.uri);
+                logger.log('[KanjiScanner] Adding original image to preserved URIs during forward navigation:', originalImage.uri);
               }
             }
             
-            console.log('[KanjiScanner] Preserving URIs during forward navigation cleanup:', preservedUris);
+            logger.log('[KanjiScanner] Preserving URIs during forward navigation cleanup:', preservedUris);
             
             // Clean up images except for the preserved ones
             if (preservedUris.length > 0) {
@@ -1186,12 +1187,12 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
               await memoryManager.cleanupPreviousImages();
             }
           }
-          console.log('[KanjiScanner] Memory cleanup completed after navigating to next image');
+          logger.log('[KanjiScanner] Memory cleanup completed after navigating to next image');
         } catch (cleanupError) {
-          console.warn('[KanjiScanner] Memory cleanup failed after navigating to next image:', cleanupError);
+          logger.warn('[KanjiScanner] Memory cleanup failed after navigating to next image:', cleanupError);
         }
       } catch (error) {
-        console.warn('[KanjiScanner] Error checking if next image exists:', error);
+        logger.warn('[KanjiScanner] Error checking if next image exists:', error);
         
         // Remove the potentially problematic image from forward history
         const updatedForwardHistory = forwardHistory.slice(0, -1);
@@ -1199,7 +1200,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
         
         // Try again with the next image in forward history if available
         if (updatedForwardHistory.length > 0) {
-          console.log('[KanjiScanner] Trying next image in forward history after error');
+          logger.log('[KanjiScanner] Trying next image in forward history after error');
           return handleForwardToNextImage();
         }
       }
@@ -1232,14 +1233,14 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
       if (capturedImage) {
         // Clear any lingering highlight boxes or selections only if returning from another screen
         if (isReturningFromAnotherScreen) {
-          console.log('[KanjiScanner] Returning from another screen, clearing highlight box');
+          logger.log('[KanjiScanner] Returning from another screen, clearing highlight box');
           imageHighlighterRef.current?.clearHighlightBox?.();
           setHighlightRegion(null);
           setHasHighlightSelection(false);
           
           // Only deactivate highlight mode if we're returning from another screen
           if (highlightModeActive) {
-            console.log('[KanjiScanner] Returning from another screen: Clearing highlight mode');
+            logger.log('[KanjiScanner] Returning from another screen: Clearing highlight mode');
             setHighlightModeActive(false);
           }
           
@@ -1247,25 +1248,25 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
           if (returningFromFlashcards && capturedImage.uri) {
             FileSystem.getInfoAsync(capturedImage.uri).then(fileInfo => {
               if (!fileInfo.exists) {
-                console.log('[KanjiScanner] Current image no longer exists after flashcard save:', capturedImage.uri);
+                logger.log('[KanjiScanner] Current image no longer exists after flashcard save:', capturedImage.uri);
                 
                 // Remove the deleted image from forward history if it's there
                 setForwardHistory(prev => prev.filter(img => img.uri !== capturedImage.uri));
                 
                 // If we have original image, use that
                 if (originalImage) {
-                  console.log('[KanjiScanner] Restoring original image after flashcard save');
+                  logger.log('[KanjiScanner] Restoring original image after flashcard save');
                   setCapturedImage(originalImage);
                 } else if (imageHistory.length > 0) {
                   // Otherwise use the last image in history
-                  console.log('[KanjiScanner] Using last image in history after flashcard save');
+                  logger.log('[KanjiScanner] Using last image in history after flashcard save');
                   const lastImage = imageHistory[imageHistory.length - 1];
                   setCapturedImage(lastImage);
                   setImageHistory(prev => prev.slice(0, -1));
                 }
               }
             }).catch(err => {
-              console.warn('[KanjiScanner] Error checking if image exists:', err);
+              logger.warn('[KanjiScanner] Error checking if image exists:', err);
             });
           }
         }
@@ -1275,14 +1276,14 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
       // that the user was working with, not immediately restore the original image.
       // The original image is still accessible via the back button.
       if (returningFromFlashcards) {
-        console.log('[KanjiScanner] Returning from flashcards, keeping current cropped image');
+        logger.log('[KanjiScanner] Returning from flashcards, keeping current cropped image');
         
         // Just reset the returning flag without changing the image
         setReturningFromFlashcards(false);
         
         // Make sure the original image is still stored for later access
         if (!originalImage && capturedImage) {
-          console.log('[KanjiScanner] No original image stored, setting current as original');
+          logger.log('[KanjiScanner] No original image stored, setting current as original');
           setOriginalImage(capturedImage);
         }
       }
@@ -1326,7 +1327,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
   // New Rotation Handlers
   const handleConfirmRotation = async () => {
     if (!imageHighlighterRef.current || !capturedImage) return;
-    console.log('[KanjiScanner] Confirming rotation...', 'Current image dimensions:', capturedImage.width, 'x', capturedImage.height);
+    logger.log('[KanjiScanner] Confirming rotation...', 'Current image dimensions:', capturedImage.width, 'x', capturedImage.height);
     
     // Set loading state before starting the rotation process
     setLocalProcessing(true);
@@ -1343,7 +1344,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
           Math.abs(Math.abs(result.width - capturedImage.width) - Math.abs(result.height - capturedImage.height)) < 10;
         
         // Simple direct replacement - preserve exact dimensions from result
-        console.log('[KanjiScanner] Setting new image with UNMODIFIED dimensions:', result.width, 'x', result.height);
+        logger.log('[KanjiScanner] Setting new image with UNMODIFIED dimensions:', result.width, 'x', result.height);
         
         setCapturedImage({
           uri: result.uri,
@@ -1351,12 +1352,12 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
           height: result.height 
         });
         
-        console.log('[KanjiScanner] Rotation confirmed with dimensions:', 
+        logger.log('[KanjiScanner] Rotation confirmed with dimensions:', 
           result.width, 'x', result.height, 
           isOrientationChange ? '(orientation changed)' : '(orientation preserved)');
       }
     } catch (error) {
-      console.error('[KanjiScanner] Error confirming rotation:', error);
+      logger.error('[KanjiScanner] Error confirming rotation:', error);
       Alert.alert('Rotation Error', 'Could not apply rotation.');
     } finally {
       // Always clean up state regardless of success or failure
@@ -1370,9 +1371,9 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
         if (await memoryManager.shouldCleanup()) {
           await memoryManager.cleanupPreviousImages(capturedImage?.uri);
         }
-        console.log('[KanjiScanner] Memory cleanup completed after rotation');
+        logger.log('[KanjiScanner] Memory cleanup completed after rotation');
       } catch (cleanupError) {
-        console.warn('[KanjiScanner] Memory cleanup failed after rotation:', cleanupError);
+        logger.warn('[KanjiScanner] Memory cleanup failed after rotation:', cleanupError);
       }
     }
   };
@@ -1398,7 +1399,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
       style={styles.container}
       onLayout={(event) => {
         // const { x, y, width, height } = event.nativeEvent.layout;
-        // console.log(`[KanjiScannerRootView] onLayout: x:${x}, y:${y}, width:${width}, height:${height}`);
+        // logger.log(`[KanjiScannerRootView] onLayout: x:${x}, y:${y}, width:${width}, height:${height}`);
       }}
     >
       {!capturedImage ? (

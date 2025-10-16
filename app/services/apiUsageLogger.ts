@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import Constants from 'expo-constants';
 
+import { logger } from '../utils/logger';
 // Types for logging
 export interface APIUsageLogEntry {
   operationType: 'claude_api' | 'vision_api' | 'flashcard_create' | 'ocr_scan';
@@ -58,7 +59,7 @@ class APIUsageLogger {
    */
   public async logAPIUsage(entry: APIUsageLogEntry, metrics?: APIUsageMetrics): Promise<void> {
     if (!this.isEnabled) {
-      console.log('[APILogger] Logging disabled, skipping log entry');
+      logger.log('[APILogger] Logging disabled, skipping log entry');
       return;
     }
 
@@ -90,7 +91,7 @@ class APIUsageLogger {
 
       // Console log for development
       if (__DEV__) {
-        console.log(`[APILogger] ${entry.operationType}: ${entry.success ? 'SUCCESS' : 'FAILED'}`, {
+        logger.log(`[APILogger] ${entry.operationType}: ${entry.success ? 'SUCCESS' : 'FAILED'}`, {
           endpoint: logEntry.endpoint,
           processingTime: `${processingTimeMs}ms`,
           requestSize: logEntry.request_size,
@@ -99,7 +100,7 @@ class APIUsageLogger {
       }
 
     } catch (error) {
-      console.error('[APILogger] Failed to log API usage:', error);
+      logger.error('[APILogger] Failed to log API usage:', error);
       // Don't throw - logging should never break the app
     }
   }
@@ -154,7 +155,7 @@ class APIUsageLogger {
         .single();
 
       if (error && error.code !== 'PGRST116') {
-        console.error('[APILogger] Error fetching daily usage:', error);
+        logger.error('[APILogger] Error fetching daily usage:', error);
         return null;
       }
 
@@ -167,7 +168,7 @@ class APIUsageLogger {
         total_vision_requests: 0
       };
     } catch (error) {
-      console.error('[APILogger] Error getting daily usage:', error);
+      logger.error('[APILogger] Error getting daily usage:', error);
       return null;
     }
   }
@@ -184,13 +185,13 @@ class APIUsageLogger {
         .limit(limit);
 
       if (error) {
-        console.error('[APILogger] Error fetching logs:', error);
+        logger.error('[APILogger] Error fetching logs:', error);
         return [];
       }
 
       return data || [];
     } catch (error) {
-      console.error('[APILogger] Error getting recent logs:', error);
+      logger.error('[APILogger] Error getting recent logs:', error);
       return [];
     }
   }
@@ -222,7 +223,7 @@ class APIUsageLogger {
         ocrScansRemaining: Math.max(0, FREE_LIMITS.ocr - (usage?.ocr_scans_performed || 0))
       };
     } catch (error) {
-      console.error('[APILogger] Error checking rate limits:', error);
+      logger.error('[APILogger] Error checking rate limits:', error);
       return {
         claudeCallsRemaining: 0,
         visionCallsRemaining: 0,
@@ -240,10 +241,10 @@ class APIUsageLogger {
         .insert(logEntry);
 
       if (error) {
-        console.error('[APILogger] Database insert error:', error);
+        logger.error('[APILogger] Database insert error:', error);
       }
     } catch (error) {
-      console.error('[APILogger] Failed to insert log entry:', error);
+      logger.error('[APILogger] Failed to insert log entry:', error);
     }
   }
 
@@ -256,10 +257,10 @@ class APIUsageLogger {
         });
 
       if (error) {
-        console.error('[APILogger] Daily usage update error:', error);
+        logger.error('[APILogger] Daily usage update error:', error);
       }
     } catch (error) {
-      console.error('[APILogger] Failed to update daily usage:', error);
+      logger.error('[APILogger] Failed to update daily usage:', error);
     }
   }
 
@@ -282,7 +283,7 @@ class APIUsageLogger {
    */
   public setEnabled(enabled: boolean): void {
     this.isEnabled = enabled;
-    console.log(`[APILogger] Logging ${enabled ? 'enabled' : 'disabled'}`);
+    logger.log(`[APILogger] Logging ${enabled ? 'enabled' : 'disabled'}`);
   }
 }
 

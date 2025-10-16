@@ -13,6 +13,7 @@ import MultiDeckSelector from './MultiDeckSelector';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../context/AuthContext';
 
+import { logger } from '../../utils/logger';
 // Storage key generator for selected deck IDs (user-specific)
 const getSelectedDeckIdsStorageKey = (userId: string) => `selectedDeckIds_${userId}`;
 const LEGACY_SELECTED_DECK_IDS_STORAGE_KEY = 'selectedDeckIds'; // For migration
@@ -129,25 +130,25 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   useEffect(() => {
     const loadSelectedDeckIds = async () => {
       if (!user?.id) {
-        console.log('👤 [Component] No user, skipping deck selection load');
+        logger.log('👤 [Component] No user, skipping deck selection load');
         setDeckIdsLoaded(true);
         return;
       }
 
       try {
         const userStorageKey = getSelectedDeckIdsStorageKey(user.id);
-        console.log('👤 [Component] Loading deck selection for user:', user.id);
+        logger.log('👤 [Component] Loading deck selection for user:', user.id);
         
         // Try to load user-specific deck selection
         let storedDeckIds = await AsyncStorage.getItem(userStorageKey);
         
         // Migration: If no user-specific data, check for legacy global key
         if (!storedDeckIds) {
-          console.log('👤 [Component] No user-specific deck selection, checking legacy key');
+          logger.log('👤 [Component] No user-specific deck selection, checking legacy key');
           const legacyDeckIds = await AsyncStorage.getItem(LEGACY_SELECTED_DECK_IDS_STORAGE_KEY);
           
           if (legacyDeckIds) {
-            console.log('👤 [Component] Migrating legacy deck selection to user-specific key');
+            logger.log('👤 [Component] Migrating legacy deck selection to user-specific key');
             // Migrate to user-specific key
             await AsyncStorage.setItem(userStorageKey, legacyDeckIds);
             // Clear the legacy key
@@ -158,14 +159,14 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         
         if (storedDeckIds) {
           const deckIds = JSON.parse(storedDeckIds);
-          console.log('👤 [Component] Loaded deck selection:', deckIds.length, 'decks');
+          logger.log('👤 [Component] Loaded deck selection:', deckIds.length, 'decks');
           setSelectedDeckIds(deckIds);
         } else {
-          console.log('👤 [Component] No deck selection found, using all decks');
+          logger.log('👤 [Component] No deck selection found, using all decks');
           setSelectedDeckIds([]);
         }
       } catch (error) {
-        console.error('Error loading selected deck IDs from AsyncStorage:', error);
+        logger.error('Error loading selected deck IDs from AsyncStorage:', error);
         setSelectedDeckIds([]);
       } finally {
         setDeckIdsLoaded(true);
@@ -193,7 +194,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       
       // Get the current operation ID to ensure we're processing the latest request
       const currentOpId = currentDeckSelectionRef.current;
-      console.log('🔍 [Component] Filtering cards for operation:', currentOpId, 'selectedDecks:', selectedDeckIds.length);
+      logger.log('🔍 [Component] Filtering cards for operation:', currentOpId, 'selectedDecks:', selectedDeckIds.length);
       
       if (selectedDeckIds.length > 0) {
         // Fetch cards for selected decks
@@ -202,19 +203,19 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           
           // Check if this operation is still current
           if (currentDeckSelectionRef.current === currentOpId) {
-            console.log('✅ [Component] Filtered cards ready for operation:', currentOpId, 'cards:', cards.length);
+            logger.log('✅ [Component] Filtered cards ready for operation:', currentOpId, 'cards:', cards.length);
             
             // SMART VALIDATION: If selected decks result in 0 cards but we have cards in total,
             // the deck selection is invalid (decks don't exist or are empty for this user)
             if (cards.length === 0 && allFlashcards.length > 0) {
-              console.warn('⚠️ [Component] Selected decks have 0 cards but user has', allFlashcards.length, 'total cards - clearing invalid deck selection');
+              logger.warn('⚠️ [Component] Selected decks have 0 cards but user has', allFlashcards.length, 'total cards - clearing invalid deck selection');
               // Clear the invalid deck selection
               setSelectedDeckIds([]);
               // Clear from storage
               if (user?.id) {
                 const userStorageKey = getSelectedDeckIdsStorageKey(user.id);
                 await AsyncStorage.removeItem(userStorageKey).catch(err => 
-                  console.error('Error clearing invalid deck selection:', err)
+                  logger.error('Error clearing invalid deck selection:', err)
                 );
               }
               // Use all cards instead
@@ -223,10 +224,10 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               setFilteredCards(cards);
             }
           } else {
-            console.log('🚫 [Component] Filtering cancelled - operation changed from', currentOpId, 'to', currentDeckSelectionRef.current);
+            logger.log('🚫 [Component] Filtering cancelled - operation changed from', currentOpId, 'to', currentDeckSelectionRef.current);
           }
         } catch (error) {
-          console.error('Error fetching cards for selected decks:', error);
+          logger.error('Error fetching cards for selected decks:', error);
           if (currentDeckSelectionRef.current === currentOpId) {
             setFilteredCards(allFlashcards);
           }
@@ -234,7 +235,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       } else {
         // Use all cards if no specific decks selected
         if (currentDeckSelectionRef.current === currentOpId) {
-          console.log('✅ [Component] Using all cards for operation:', currentOpId, 'cards:', allFlashcards.length);
+          logger.log('✅ [Component] Using all cards for operation:', currentOpId, 'cards:', allFlashcards.length);
           setFilteredCards(allFlashcards);
         }
       }
@@ -246,7 +247,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   // Update selected deck IDs (user-specific)
   const updateSelectedDeckIds = async (deckIds: string[]) => {
     if (!user?.id) {
-      console.warn('Cannot save deck selection: No user logged in');
+      logger.warn('Cannot save deck selection: No user logged in');
       return;
     }
 
@@ -254,9 +255,9 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       setSelectedDeckIds(deckIds);
       const userStorageKey = getSelectedDeckIdsStorageKey(user.id);
       await AsyncStorage.setItem(userStorageKey, JSON.stringify(deckIds));
-      console.log('👤 [Component] Saved deck selection for user:', user.id, '- Decks:', deckIds.length);
+      logger.log('👤 [Component] Saved deck selection for user:', user.id, '- Decks:', deckIds.length);
     } catch (error) {
-      console.error('Error saving selected deck IDs to AsyncStorage:', error);
+      logger.error('Error saving selected deck IDs to AsyncStorage:', error);
     }
   };
 
@@ -280,7 +281,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         !isProcessing && 
         !isInitializing) {
       
-      console.log('✅ [Component] Starting smooth card transition for:', currentCard.id);
+      logger.log('✅ [Component] Starting smooth card transition for:', currentCard.id);
       
       // Reset position and rotation
       slideAnim.setValue(0);
@@ -296,7 +297,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         useNativeDriver: true,
       }).start(() => {
         setIsCardTransitioning(false);
-        console.log('✅ [Component] Card transition complete');
+        logger.log('✅ [Component] Card transition complete');
       });
       
       setLastCardId(currentCard.id);
@@ -468,18 +469,18 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     const initializeReviewSession = async () => {
       // Wait for hook to reach a stable state, but allow CONTENT_READY to proceed immediately
       if (loadingState === LoadingState.SKELETON_LOADING && allFlashcards.length === 0) {
-        console.log('🔄 [Component] Waiting for hook to load initial data...');
+        logger.log('🔄 [Component] Waiting for hook to load initial data...');
         return;
       }
       
       if (loadingState === LoadingState.ERROR) {
-        console.log('🔄 [Component] Waiting for error state to resolve...');
+        logger.log('🔄 [Component] Waiting for error state to resolve...');
         return;
       }
       
       // If hook is ready but we have no flashcards at all, mark initialization as complete
       if (loadingState === LoadingState.CONTENT_READY && allFlashcards.length === 0 && filteredCards.length === 0 && isInitializing) {
-        console.log('🔄 [Component] Hook ready with 0 cards, completing initialization');
+        logger.log('🔄 [Component] Hook ready with 0 cards, completing initialization');
         setIsInitializing(false);
         lastFilteredCardsHashRef.current = '';
         return;
@@ -488,12 +489,12 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       // Prevent multiple initialization calls for the same cards
       const cardsHash = filteredCards.map(card => card.id).sort().join(',');
       if (initializationInProgressRef.current || cardsHash === lastFilteredCardsHashRef.current) {
-        console.log('🔄 [Component] Skipping duplicate initialization - inProgress:', initializationInProgressRef.current, 'sameCards:', cardsHash === lastFilteredCardsHashRef.current, 'Op:', currentDeckSelectionRef.current);
+        logger.log('🔄 [Component] Skipping duplicate initialization - inProgress:', initializationInProgressRef.current, 'sameCards:', cardsHash === lastFilteredCardsHashRef.current, 'Op:', currentDeckSelectionRef.current);
         return;
       }
       
       if (filteredCards.length > 0) {
-        console.log('🔄 [Component] Starting review session with', filteredCards.length, 'cards for operation:', currentDeckSelectionRef.current);
+        logger.log('🔄 [Component] Starting review session with', filteredCards.length, 'cards for operation:', currentDeckSelectionRef.current);
         
         // Mark initialization as in progress
         initializationInProgressRef.current = true;
@@ -509,7 +510,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         setTimeout(() => {
           // Check if this initialization was cancelled by a new deck selection
           if (deckSelectionCancelledRef.current || currentDeckSelectionRef.current !== initOpId) {
-            console.log('🚫 [Component] Initialization cancelled - operation changed from', initOpId, 'to', currentDeckSelectionRef.current);
+            logger.log('🚫 [Component] Initialization cancelled - operation changed from', initOpId, 'to', currentDeckSelectionRef.current);
             initializationInProgressRef.current = false;
             return;
           }
@@ -523,11 +524,11 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           }).start();
           
           initializationInProgressRef.current = false;
-          console.log('🔄 [Component] Smooth initialization complete (Op:', initOpId, ')');
+          logger.log('🔄 [Component] Smooth initialization complete (Op:', initOpId, ')');
         }, 10);
       } else {
         // Handle case where no cards are available
-        console.log('🔄 [Component] No cards available after filtering');
+        logger.log('🔄 [Component] No cards available after filtering');
         setIsInitializing(false);
         lastFilteredCardsHashRef.current = '';
       }
@@ -547,7 +548,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       const operationId = ++currentDeckSelectionRef.current;
       deckSelectionCancelledRef.current = false;
       
-      console.log('🎯 [Component] Deck selection changed, starting transition (Op:', operationId, ')');
+      logger.log('🎯 [Component] Deck selection changed, starting transition (Op:', operationId, ')');
       
       // Reset initialization state to allow fresh loading
       initializationInProgressRef.current = false;
@@ -579,9 +580,9 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         if (deckIds.length > 0) {
           try {
             newFilteredCards = await getFlashcardsByDecks(deckIds);
-            console.log('✅ [Component] Inline filtered cards for operation:', operationId, 'cards:', newFilteredCards.length);
+            logger.log('✅ [Component] Inline filtered cards for operation:', operationId, 'cards:', newFilteredCards.length);
           } catch (error) {
-            console.error('Error fetching cards for selected decks:', error);
+            logger.error('Error fetching cards for selected decks:', error);
             newFilteredCards = allFlashcards;
           }
         } else {
@@ -590,16 +591,16 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         
         // Check if this operation was cancelled while we were updating
         if (currentDeckSelectionRef.current !== operationId) {
-          console.log('🚫 [Component] Deck selection cancelled (Op:', operationId, ', Current:', currentDeckSelectionRef.current, ')');
+          logger.log('🚫 [Component] Deck selection cancelled (Op:', operationId, ', Current:', currentDeckSelectionRef.current, ')');
           return;
         }
         
         // Set filtered cards and trigger initialization
         setFilteredCards(newFilteredCards);
         
-        console.log('🎯 [Component] Deck selection update complete (Op:', operationId, ')');
+        logger.log('🎯 [Component] Deck selection update complete (Op:', operationId, ')');
       } catch (error) {
-        console.error('🚫 [Component] Deck selection error (Op:', operationId, '):', error);
+        logger.error('🚫 [Component] Deck selection error (Op:', operationId, '):', error);
       }
     }
     

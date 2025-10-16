@@ -25,13 +25,7 @@
       "loginButton": "Log In",
       "forgotPassword": "Forgot Password?",
       "loginFailed": "Login Failed",
-      "emailNotVerified": "Email Not Verified",
-      "emailNotVerifiedMessage": "Please check your inbox and click the verification link to activate your account. Need a new link?",
-      "resendLink": "Resend Link",
-      "verificationSent": "Verification Email Sent",
-      "verificationSentMessage": "We've sent a new verification link to your email address. Please check your inbox.",
-      "missingCredentials": "Please enter both email and password",
-      "resendFailed": "Failed to resend verification email."
+      "missingCredentials": "Please enter both email and password"
     },
     "signup": {
       "title": "Create Your Account",

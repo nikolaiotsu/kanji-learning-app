@@ -24,13 +24,7 @@
       "loginButton": "ログイン",
       "forgotPassword": "パスワードを忘れましたか？",
       "loginFailed": "ログインに失敗しました",
-      "emailNotVerified": "メールアドレスが未認証です",
-      "emailNotVerifiedMessage": "受信トレイを確認し、認証リンクをクリックしてアカウントを有効化してください。新しいリンクが必要ですか？",
-      "resendLink": "リンクを再送信",
-      "verificationSent": "認証メールを送信しました",
-      "verificationSentMessage": "新しい認証リンクをメールアドレスに送信しました。受信トレイをご確認ください。",
-      "missingCredentials": "メールアドレスとパスワードの両方を入力してください",
-      "resendFailed": "認証メールの再送信に失敗しました。"
+      "missingCredentials": "メールアドレスとパスワードの両方を入力してください"
     },
     "signup": {
       "title": "アカウントを作成",

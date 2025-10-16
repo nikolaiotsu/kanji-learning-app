@@ -3,6 +3,7 @@ import axios, { AxiosError } from 'axios';
 import { Alert } from 'react-native';
 import { apiLogger, logClaudeAPI, APIUsageMetrics } from './apiUsageLogger';
 import { validateTextLength } from '../utils/inputValidation';
+import { logger } from '../utils/logger';
 import { 
   containsJapanese, 
   containsChinese, 
@@ -75,7 +76,7 @@ function cleanJsonString(jsonString: string): string {
     cleaned = cleaned.substring(firstBrace, lastBrace + 1);
   }
   
-  console.log('🧹 Starting cleanup for:', cleaned.substring(0, 100) + '...');
+  logger.log('🧹 Starting cleanup for:', cleaned.substring(0, 100) + '...');
   
   // EMERGENCY APPROACH: Extract values directly and rebuild JSON from scratch
   // This bypasses all JSON parsing issues by manually extracting the actual content
@@ -140,8 +141,8 @@ function cleanJsonString(jsonString: string): string {
     let translationValue = cleaned.substring(translationQuoteStart, translationQuoteEnd);
     
     // Log the extracted values length for debugging
-    console.log(`Extracted furigana length: ${furiganaValue.length}`);
-    console.log(`Extracted translation length: ${translationValue.length}`);
+    logger.log(`Extracted furigana length: ${furiganaValue.length}`);
+    logger.log(`Extracted translation length: ${translationValue.length}`);
     
     // Clean up the extracted values - remove ALL problematic characters
     furiganaValue = furiganaValue
@@ -168,11 +169,11 @@ function cleanJsonString(jsonString: string): string {
       translatedText: translationValue
     });
     
-    console.log('✅ Successfully rebuilt JSON:', cleanJson.substring(0, 150) + '...');
+    logger.log('✅ Successfully rebuilt JSON:', cleanJson.substring(0, 150) + '...');
     return cleanJson;
     
   } catch (extractionError) {
-    console.warn('❌ Direct extraction failed, trying fallback...', extractionError);
+    logger.warn('❌ Direct extraction failed, trying fallback...', extractionError);
     
     // Final fallback: comprehensive Unicode replacement and basic cleanup
     cleaned = cleaned
@@ -186,7 +187,7 @@ function cleanJsonString(jsonString: string): string {
       .replace(/,+/g, ',')           // Fix multiple commas
       .trim();
     
-    console.log('🔧 Fallback cleanup result:', cleaned);
+    logger.log('🔧 Fallback cleanup result:', cleaned);
     return cleaned;
   }
 }
@@ -200,7 +201,7 @@ function cleanJsonString(jsonString: string): string {
 function detectPrimaryLanguage(text: string, forcedLanguage: string = 'auto'): string {
   // If a specific language is forced, return that instead of detecting
   if (forcedLanguage !== 'auto') {
-    console.log(`[detectPrimaryLanguage] Using forced language: ${forcedLanguage}`);
+    logger.log(`[detectPrimaryLanguage] Using forced language: ${forcedLanguage}`);
     switch (forcedLanguage) {
       case 'en': return "English";
       case 'zh': return "Chinese";
@@ -325,17 +326,17 @@ function detectPrimaryLanguage(text: string, forcedLanguage: string = 'auto'): s
     const totalNonSpaceChars = text.replace(/\s+/g, '').length;
     const latinRatio = totalNonSpaceChars > 0 ? latinChars / totalNonSpaceChars : 0;
     
-    console.log(`[detectPrimaryLanguage] No special chars found. Latin chars: ${latinChars}, Total: ${totalNonSpaceChars}, Ratio: ${latinRatio}`);
+    logger.log(`[detectPrimaryLanguage] No special chars found. Latin chars: ${latinChars}, Total: ${totalNonSpaceChars}, Ratio: ${latinRatio}`);
     
     if (latinChars > 0 && latinRatio >= 0.5) {
-      console.log(`[detectPrimaryLanguage] Defaulting to English for Latin-based text: "${text.substring(0, 50)}..."`);
+      logger.log(`[detectPrimaryLanguage] Defaulting to English for Latin-based text: "${text.substring(0, 50)}..."`);
       return "English"; // Default to English for Latin-based text
     }
-    console.log(`[detectPrimaryLanguage] Returning unknown for text: "${text.substring(0, 50)}..."`);
+    logger.log(`[detectPrimaryLanguage] Returning unknown for text: "${text.substring(0, 50)}..."`);
     return "unknown";
   }
   
-  console.log(`[detectPrimaryLanguage] Highest count language: ${counts[0].lang} (${counts[0].count} chars)`);
+  logger.log(`[detectPrimaryLanguage] Highest count language: ${counts[0].lang} (${counts[0].count} chars)`);
   return counts[0].lang;
 }
 
@@ -348,13 +349,13 @@ function detectPrimaryLanguage(text: string, forcedLanguage: string = 'auto'): s
 export function validateTextMatchesLanguage(text: string, forcedLanguage: string = 'auto'): boolean {
   // If auto-detect is enabled, always return true (no validation needed)
   if (forcedLanguage === 'auto') {
-    console.log('[validateTextMatchesLanguage] Auto-detect enabled, returning true');
+    logger.log('[validateTextMatchesLanguage] Auto-detect enabled, returning true');
     return true;
   }
 
   // If text is too short, don't validate (prevent false rejections for very short inputs)
   if (text.trim().length < 2) {
-    console.log('[validateTextMatchesLanguage] Text too short, returning true');
+    logger.log('[validateTextMatchesLanguage] Text too short, returning true');
     return true;
   }
 
@@ -381,8 +382,8 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
     default: expectedLanguage = forcedLanguage;
   }
   
-  console.log(`[validateTextMatchesLanguage] Validating language: Expected ${expectedLanguage}, Detected ${detectedLang}`);
-  console.log(`[validateTextMatchesLanguage] Text sample: "${text.substring(0, 50)}..."`);
+  logger.log(`[validateTextMatchesLanguage] Validating language: Expected ${expectedLanguage}, Detected ${detectedLang}`);
+  logger.log(`[validateTextMatchesLanguage] Text sample: "${text.substring(0, 50)}..."`);
   
   // Special handling for similar languages or scripts that might be confused
   
@@ -390,41 +391,41 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
   // These can sometimes be confused due to shared characters
   const cjkLanguages = ['Chinese', 'Japanese', 'Korean'];
   if (cjkLanguages.includes(expectedLanguage) && cjkLanguages.includes(detectedLang)) {
-    console.log('[validateTextMatchesLanguage] Handling CJK language validation');
-    console.log(`[validateTextMatchesLanguage] Expected: ${expectedLanguage}, Detected: ${detectedLang}`);
+    logger.log('[validateTextMatchesLanguage] Handling CJK language validation');
+    logger.log(`[validateTextMatchesLanguage] Expected: ${expectedLanguage}, Detected: ${detectedLang}`);
     
     // For Japanese forced mode, require some Japanese-specific characters or CJK characters
     if (expectedLanguage === 'Japanese') {
       const hasJapaneseSpecific = /[\u3040-\u30ff]/.test(text); // hiragana/katakana
       const hasCJKChars = /[\u4e00-\u9fff]/.test(text); // kanji/CJK
-      console.log(`[validateTextMatchesLanguage] Japanese force mode: hasJapaneseSpecific=${hasJapaneseSpecific}, hasCJKChars=${hasCJKChars}`);
+      logger.log(`[validateTextMatchesLanguage] Japanese force mode: hasJapaneseSpecific=${hasJapaneseSpecific}, hasCJKChars=${hasCJKChars}`);
       
       if (!hasJapaneseSpecific && !hasCJKChars) {
-        console.log('[validateTextMatchesLanguage] Japanese forced but no Japanese characters or CJK characters found');
+        logger.log('[validateTextMatchesLanguage] Japanese forced but no Japanese characters or CJK characters found');
         return false;
       }
       // In force mode, allow mixed content - let Claude API handle extraction and translation
-      console.log('[validateTextMatchesLanguage] Japanese force mode validation passed - allowing mixed content');
+      logger.log('[validateTextMatchesLanguage] Japanese force mode validation passed - allowing mixed content');
       return true;
     }
     
     // Add additional debugging for Japanese validation
     if (expectedLanguage === 'Japanese') {
-      console.log(`[validateTextMatchesLanguage] Japanese validation: containsJapanese=${containsJapanese(text)}`);
-      console.log(`[validateTextMatchesLanguage] Japanese validation: containsChinese=${containsChinese(text)}`);
-      console.log(`[validateTextMatchesLanguage] Text sample: "${text.substring(0, 50)}..."`);
+      logger.log(`[validateTextMatchesLanguage] Japanese validation: containsJapanese=${containsJapanese(text)}`);
+      logger.log(`[validateTextMatchesLanguage] Japanese validation: containsChinese=${containsChinese(text)}`);
+      logger.log(`[validateTextMatchesLanguage] Text sample: "${text.substring(0, 50)}..."`);
     }
     // For Korean forced mode, require Hangul presence
     if (expectedLanguage === 'Korean') {
       const hasKorean = containsKoreanText(text);
-      console.log(`[validateTextMatchesLanguage] Korean force mode: hasKorean=${hasKorean}`);
+      logger.log(`[validateTextMatchesLanguage] Korean force mode: hasKorean=${hasKorean}`);
       
       if (!hasKorean) {
-        console.log('[validateTextMatchesLanguage] Korean forced but no Korean characters found');
+        logger.log('[validateTextMatchesLanguage] Korean forced but no Korean characters found');
         return false;
       }
       // In force mode, allow mixed content - let Claude API handle extraction and translation
-      console.log('[validateTextMatchesLanguage] Korean force mode validation passed - allowing mixed content');
+      logger.log('[validateTextMatchesLanguage] Korean force mode validation passed - allowing mixed content');
       return true;
     }
     // For Chinese forced mode, only require that some Chinese characters are present
@@ -432,15 +433,15 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
     if (expectedLanguage === 'Chinese') {
       // Check if text contains any CJK characters that could be Chinese
       const hasCJKChars = /[\u4e00-\u9fff]/.test(text);
-      console.log(`[validateTextMatchesLanguage] Chinese force mode: hasCJKChars=${hasCJKChars}`);
-      console.log(`[validateTextMatchesLanguage] Text sample for Chinese validation: "${text.substring(0, 50)}..."`);
+      logger.log(`[validateTextMatchesLanguage] Chinese force mode: hasCJKChars=${hasCJKChars}`);
+      logger.log(`[validateTextMatchesLanguage] Text sample for Chinese validation: "${text.substring(0, 50)}..."`);
       
       if (!hasCJKChars) {
-        console.log('[validateTextMatchesLanguage] Chinese forced but no CJK characters found - cannot process as Chinese');
+        logger.log('[validateTextMatchesLanguage] Chinese forced but no CJK characters found - cannot process as Chinese');
         return false;
       }
       // In force mode, allow mixed content - let Claude API handle extraction and translation
-      console.log('[validateTextMatchesLanguage] Chinese force mode validation passed - found CJK characters, allowing mixed content');
+      logger.log('[validateTextMatchesLanguage] Chinese force mode validation passed - found CJK characters, allowing mixed content');
       return true;
     }
   }
@@ -449,15 +450,15 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
   // In force mode, validate that the text is actually in the expected language
   const latinLanguages = ['English', 'Italian', 'Spanish', 'French', 'Portuguese', 'German', 'Tagalog', 'Esperanto'];
   if (latinLanguages.includes(expectedLanguage)) {
-    console.log('[validateTextMatchesLanguage] Handling Latin language force mode validation');
-    console.log(`[validateTextMatchesLanguage] Expected: ${expectedLanguage}, Detected: ${detectedLang}`);
+    logger.log('[validateTextMatchesLanguage] Handling Latin language force mode validation');
+    logger.log(`[validateTextMatchesLanguage] Expected: ${expectedLanguage}, Detected: ${detectedLang}`);
     
     // Check if text contains basic Latin characters (most European languages use these)
     const hasLatinChars = /[a-zA-ZÀ-ÿĀ-žñÑ]/.test(text);
-    console.log(`[validateTextMatchesLanguage] Latin force mode: hasLatinChars=${hasLatinChars}`);
+    logger.log(`[validateTextMatchesLanguage] Latin force mode: hasLatinChars=${hasLatinChars}`);
     
     if (!hasLatinChars) {
-      console.log('[validateTextMatchesLanguage] Latin language forced but no Latin characters found');
+      logger.log('[validateTextMatchesLanguage] Latin language forced but no Latin characters found');
       return false;
     }
     
@@ -465,88 +466,88 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
     let hasSpecificPatterns = false;
     
     if (expectedLanguage === 'Italian' && containsItalianText(text)) {
-      console.log('[validateTextMatchesLanguage] Italian patterns found');
+      logger.log('[validateTextMatchesLanguage] Italian patterns found');
       hasSpecificPatterns = true;
     } else if (expectedLanguage === 'French' && containsFrenchText(text)) {
-      console.log('[validateTextMatchesLanguage] French patterns found');
+      logger.log('[validateTextMatchesLanguage] French patterns found');
       hasSpecificPatterns = true;
     } else if (expectedLanguage === 'Spanish' && containsSpanishText(text)) {
-      console.log('[validateTextMatchesLanguage] Spanish patterns found');
+      logger.log('[validateTextMatchesLanguage] Spanish patterns found');
       hasSpecificPatterns = true;
     } else if (expectedLanguage === 'Portuguese' && containsPortugueseText(text)) {
-      console.log('[validateTextMatchesLanguage] Portuguese patterns found');
+      logger.log('[validateTextMatchesLanguage] Portuguese patterns found');
       hasSpecificPatterns = true;
     } else if (expectedLanguage === 'German' && containsGermanText(text)) {
-      console.log('[validateTextMatchesLanguage] German patterns found');
+      logger.log('[validateTextMatchesLanguage] German patterns found');
       hasSpecificPatterns = true;
     } else if (expectedLanguage === 'Tagalog' && containsTagalogText(text)) {
-      console.log('[validateTextMatchesLanguage] Tagalog patterns found');
+      logger.log('[validateTextMatchesLanguage] Tagalog patterns found');
       hasSpecificPatterns = true;
     } else if (expectedLanguage === 'English' && containsEnglishText(text)) {
-      console.log('[validateTextMatchesLanguage] English patterns found');
+      logger.log('[validateTextMatchesLanguage] English patterns found');
       hasSpecificPatterns = true;
     } else if (expectedLanguage === 'Esperanto' && containsEsperantoText(text)) {
-      console.log('[validateTextMatchesLanguage] Esperanto patterns found');
+      logger.log('[validateTextMatchesLanguage] Esperanto patterns found');
       hasSpecificPatterns = true;
     }
     
     // In force mode, validate the detected language matches OR specific patterns are found
     if (hasSpecificPatterns) {
-      console.log('[validateTextMatchesLanguage] Force mode: specific language patterns found, validation passed');
+      logger.log('[validateTextMatchesLanguage] Force mode: specific language patterns found, validation passed');
       return true;
     }
     
     // If no specific patterns found, check if detected language matches expected language
     if (detectedLang === expectedLanguage) {
-      console.log('[validateTextMatchesLanguage] Force mode: detected language matches expected language, validation passed');
+      logger.log('[validateTextMatchesLanguage] Force mode: detected language matches expected language, validation passed');
       return true;
     }
     
     // Otherwise, validation fails - the text doesn't match the forced language
-    console.log(`[validateTextMatchesLanguage] Force mode validation failed: Expected ${expectedLanguage} but detected ${detectedLang}, and no specific patterns found`);
+    logger.log(`[validateTextMatchesLanguage] Force mode validation failed: Expected ${expectedLanguage} but detected ${detectedLang}, and no specific patterns found`);
     return false;
   }
   
   // Case 3: Other languages (Russian, Arabic, etc.) - handle force mode permissively
   if (expectedLanguage === 'Russian') {
     const hasRussian = containsRussianText(text);
-    console.log(`[validateTextMatchesLanguage] Russian force mode: hasRussian=${hasRussian}`);
+    logger.log(`[validateTextMatchesLanguage] Russian force mode: hasRussian=${hasRussian}`);
     
     if (!hasRussian) {
-      console.log('[validateTextMatchesLanguage] Russian forced but no Cyrillic characters found');
+      logger.log('[validateTextMatchesLanguage] Russian forced but no Cyrillic characters found');
       return false;
     }
-    console.log('[validateTextMatchesLanguage] Russian force mode validation passed');
+    logger.log('[validateTextMatchesLanguage] Russian force mode validation passed');
     return true;
   }
   
   if (expectedLanguage === 'Arabic') {
     const hasArabic = containsArabicText(text);
-    console.log(`[validateTextMatchesLanguage] Arabic force mode: hasArabic=${hasArabic}`);
+    logger.log(`[validateTextMatchesLanguage] Arabic force mode: hasArabic=${hasArabic}`);
     
     if (!hasArabic) {
-      console.log('[validateTextMatchesLanguage] Arabic forced but no Arabic characters found');
+      logger.log('[validateTextMatchesLanguage] Arabic forced but no Arabic characters found');
       return false;
     }
-    console.log('[validateTextMatchesLanguage] Arabic force mode validation passed');
+    logger.log('[validateTextMatchesLanguage] Arabic force mode validation passed');
     return true;
   }
   
   if (expectedLanguage === 'Hindi') {
     const hasHindi = containsHindiText(text);
-    console.log(`[validateTextMatchesLanguage] Hindi force mode: hasHindi=${hasHindi}`);
+    logger.log(`[validateTextMatchesLanguage] Hindi force mode: hasHindi=${hasHindi}`);
     
     if (!hasHindi) {
-      console.log('[validateTextMatchesLanguage] Hindi forced but no Devanagari characters found');
+      logger.log('[validateTextMatchesLanguage] Hindi forced but no Devanagari characters found');
       return false;
     }
-    console.log('[validateTextMatchesLanguage] Hindi force mode validation passed');
+    logger.log('[validateTextMatchesLanguage] Hindi force mode validation passed');
     return true;
   }
   
   // Standard comparison for any remaining languages (fallback)
   const result = detectedLang === expectedLanguage;
-  console.log(`[validateTextMatchesLanguage] Standard comparison: ${detectedLang} === ${expectedLanguage} = ${result}`);
+  logger.log(`[validateTextMatchesLanguage] Standard comparison: ${detectedLang} === ${expectedLanguage} = ${result}`);
   return result;
 }
 
@@ -563,7 +564,7 @@ async function validateLanguageWithClaude(
   forcedLanguage: string,
   apiKey: string
 ): Promise<{ isValid: boolean; detectedLanguage: string; confidence: string }> {
-  console.log(`[Claude Language Validation] Starting AI-based language detection for forced language: ${forcedLanguage}`);
+  logger.log(`[Claude Language Validation] Starting AI-based language detection for forced language: ${forcedLanguage}`);
   
   // Map language code to full name for the prompt
   const expectedLanguageName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || forcedLanguage;
@@ -626,7 +627,7 @@ Be precise and return ONLY the JSON with no additional explanation.`;
         if (jsonMatch) {
           const result = JSON.parse(jsonMatch[0]);
           
-          console.log(`[Claude Language Validation] Detected: ${result.detectedLanguage}, Confidence: ${result.confidence}, Matches: ${result.matches}`);
+          logger.log(`[Claude Language Validation] Detected: ${result.detectedLanguage}, Confidence: ${result.confidence}, Matches: ${result.matches}`);
           
           return {
             isValid: result.matches === true,
@@ -638,14 +639,14 @@ Be precise and return ONLY the JSON with no additional explanation.`;
     }
     
     // Fallback if parsing fails
-    console.warn('[Claude Language Validation] Could not parse Claude response, falling back to pattern matching');
+    logger.warn('[Claude Language Validation] Could not parse Claude response, falling back to pattern matching');
     return {
       isValid: true, // Fall back to allowing the request
       detectedLanguage: 'Unknown',
       confidence: 'low'
     };
   } catch (error) {
-    console.error('[Claude Language Validation] Error during validation:', error);
+    logger.error('[Claude Language Validation] Error during validation:', error);
     // If validation fails, fall back to allowing the request rather than blocking it
     return {
       isValid: true,
@@ -680,7 +681,7 @@ export async function processWithClaude(
   const textValidation = validateTextLength(text);
   if (!textValidation.isValid) {
     const errorMessage = textValidation.error || 'Text validation failed';
-    console.error('[Claude API] Text validation failed:', errorMessage);
+    logger.error('[Claude API] Text validation failed:', errorMessage);
     throw new Error(errorMessage);
   }
 
@@ -688,16 +689,16 @@ export async function processWithClaude(
   const apiKey = Constants.expoConfig?.extra?.EXPO_PUBLIC_CLAUDE_API_KEY;
   const apiKeyLength = apiKey ? String(apiKey).length : 0;
   
-  console.log(`[Claude API] Key loaded. Length: ${apiKeyLength}.`);
+  logger.log(`[Claude API] Key loaded. Length: ${apiKeyLength}.`);
 
   if (!apiKey || typeof apiKey !== 'string' || apiKeyLength < 20) {
     const errorMessage = `Claude API key is not configured or is invalid. Length: ${apiKeyLength}. Please ensure EXPO_PUBLIC_CLAUDE_API_KEY is set correctly in your environment variables.`;
-    console.error(errorMessage);
+    logger.error(errorMessage);
     throw new Error(errorMessage);
   }
 
   // Checkpoint 1: Initial validation complete, starting language detection
-  console.log('🎯 [Claude API] Checkpoint 1: Initial validation complete, starting language detection');
+  logger.log('🎯 [Claude API] Checkpoint 1: Initial validation complete, starting language detection');
   onProgress?.(1);
 
   // HYBRID LANGUAGE VALIDATION STRATEGY (for forced language modes)
@@ -713,7 +714,7 @@ export async function processWithClaude(
     
     if (useAIValidation) {
       // AI-POWERED VALIDATION for Latin languages (similar scripts, pattern matching unreliable)
-      console.log(`[Claude API] Performing AI-based language validation for Latin language: ${forcedLanguage}`);
+      logger.log(`[Claude API] Performing AI-based language validation for Latin language: ${forcedLanguage}`);
       
       try {
         const aiValidation = await validateLanguageWithClaude(text, forcedLanguage, apiKey);
@@ -722,13 +723,13 @@ export async function processWithClaude(
           const expectedLanguageName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || forcedLanguage;
           const errorMessage = `Language mismatch: Expected ${expectedLanguageName} but detected ${aiValidation.detectedLanguage} (confidence: ${aiValidation.confidence})`;
           
-          console.log(`[Claude API] ${errorMessage}`);
-          console.log(`[Claude API] Text sample: "${text.substring(0, 100)}..."`);
+          logger.log(`[Claude API] ${errorMessage}`);
+          logger.log(`[Claude API] Text sample: "${text.substring(0, 100)}..."`);
           
           throw new Error(errorMessage);
         }
         
-        console.log(`[Claude API] AI language validation passed: ${aiValidation.detectedLanguage} matches expected ${forcedLanguage}`);
+        logger.log(`[Claude API] AI language validation passed: ${aiValidation.detectedLanguage} matches expected ${forcedLanguage}`);
       } catch (error) {
         // If the error is already a language mismatch, re-throw it
         if (error instanceof Error && error.message.includes('Language mismatch')) {
@@ -736,41 +737,41 @@ export async function processWithClaude(
         }
         
         // For other errors during AI validation, log but continue (fallback behavior)
-        console.warn('[Claude API] AI language validation encountered an error, falling back to pattern matching');
+        logger.warn('[Claude API] AI language validation encountered an error, falling back to pattern matching');
         
         // Fallback to pattern-based validation
         const validationResult = validateTextMatchesLanguage(text, forcedLanguage);
         if (!validationResult) {
           const expectedLanguageName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || forcedLanguage;
           const errorMessage = `Language mismatch: Could not detect ${expectedLanguageName} in the provided text`;
-          console.log(`[Claude API] ${errorMessage}`);
+          logger.log(`[Claude API] ${errorMessage}`);
           throw new Error(errorMessage);
         }
       }
     } else if (usePatternValidation) {
       // PATTERN-BASED VALIDATION for non-Latin languages (unique scripts, pattern matching works perfectly)
-      console.log(`[Claude API] Performing pattern-based language validation for non-Latin language: ${forcedLanguage}`);
+      logger.log(`[Claude API] Performing pattern-based language validation for non-Latin language: ${forcedLanguage}`);
       
       const validationResult = validateTextMatchesLanguage(text, forcedLanguage);
       if (!validationResult) {
         const expectedLanguageName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || forcedLanguage;
         const errorMessage = `Language mismatch: Could not detect ${expectedLanguageName} in the provided text`;
         
-        console.log(`[Claude API] ${errorMessage}`);
-        console.log(`[Claude API] Text sample: "${text.substring(0, 100)}..."`);
+        logger.log(`[Claude API] ${errorMessage}`);
+        logger.log(`[Claude API] Text sample: "${text.substring(0, 100)}..."`);
         
         throw new Error(errorMessage);
       }
       
-      console.log(`[Claude API] Pattern-based language validation passed for ${forcedLanguage}`);
+      logger.log(`[Claude API] Pattern-based language validation passed for ${forcedLanguage}`);
     } else {
       // Unknown language code - use pattern matching as fallback
-      console.log(`[Claude API] Using pattern-based validation for unknown language code: ${forcedLanguage}`);
+      logger.log(`[Claude API] Using pattern-based validation for unknown language code: ${forcedLanguage}`);
       const validationResult = validateTextMatchesLanguage(text, forcedLanguage);
       if (!validationResult) {
         const expectedLanguageName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || forcedLanguage;
         const errorMessage = `Language mismatch: Could not detect ${expectedLanguageName} in the provided text`;
-        console.log(`[Claude API] ${errorMessage}`);
+        logger.log(`[Claude API] ${errorMessage}`);
         throw new Error(errorMessage);
       }
     }
@@ -789,18 +790,18 @@ export async function processWithClaude(
 
   // Detect primary language, respecting any forced language setting
   const primaryLanguage = detectPrimaryLanguage(text, forcedLanguage);
-  console.log(`Translating to: ${targetLangName}`);
+  logger.log(`Translating to: ${targetLangName}`);
   if (forcedLanguage !== 'auto') {
-    console.log(`Using forced language detection: ${forcedLanguage} (${primaryLanguage})`);
+    logger.log(`Using forced language detection: ${forcedLanguage} (${primaryLanguage})`);
   }
   
   // Add explicit debugging for Japanese forced detection
   if (forcedLanguage === 'ja') {
-    console.log(`[DEBUG] Japanese forced detection active. Using Japanese prompt.`);
+    logger.log(`[DEBUG] Japanese forced detection active. Using Japanese prompt.`);
   }
 
   // Checkpoint 1.5: AI language validation complete, proceeding to translation
-  console.log('🎯 [Claude API] Checkpoint 1.5: AI language validation complete, proceeding to translation');
+  logger.log('🎯 [Claude API] Checkpoint 1.5: AI language validation complete, proceeding to translation');
   // Note: We don't call onProgress here to keep the existing 4-checkpoint system intact
 
   while (retryCount < MAX_RETRIES) {
@@ -810,10 +811,10 @@ export async function processWithClaude(
                     process.env.EXPO_PUBLIC_CLAUDE_API_KEY;
       
       if (!apiKey) {
-        console.error('Claude API key not found. Checked:');
-        console.error('- process.env.EXPO_PUBLIC_CLAUDE_API_KEY:', !!process.env.EXPO_PUBLIC_CLAUDE_API_KEY);
-        console.error('- Constants.expoConfig.extra:', Constants.expoConfig?.extra);
-        console.error('- Constants.manifest:', Constants.manifest);
+        logger.error('Claude API key not found. Checked:');
+        logger.error('- process.env.EXPO_PUBLIC_CLAUDE_API_KEY:', !!process.env.EXPO_PUBLIC_CLAUDE_API_KEY);
+        logger.error('- Constants.expoConfig.extra:', Constants.expoConfig?.extra);
+        logger.error('- Constants.manifest:', Constants.manifest);
         throw new Error('Claude API key is not configured. Please add EXPO_PUBLIC_CLAUDE_API_KEY to your environment variables.');
       }
 
@@ -835,7 +836,7 @@ If the target language is Arabic, the translation must use Arabic script.
       
       // Check if we're translating TO Japanese from a non-Japanese source
       if (targetLanguage === 'ja' && forcedLanguage !== 'ja' && primaryLanguage !== 'Japanese') {
-        console.log(`[DEBUG] TRANSLATING TO JAPANESE: Using natural Japanese translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
+        logger.log(`[DEBUG] TRANSLATING TO JAPANESE: Using natural Japanese translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
         // Natural Japanese translation prompt - for translating TO Japanese
         userMessage = `
 ${promptTopSection}
@@ -864,7 +865,7 @@ Format your response as valid JSON with these exact keys:
       }
       // Check if we're translating TO Chinese from a non-Chinese source
       else if (targetLanguage === 'zh' && forcedLanguage !== 'zh' && primaryLanguage !== 'Chinese') {
-        console.log(`[DEBUG] TRANSLATING TO CHINESE: Using natural Chinese translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
+        logger.log(`[DEBUG] TRANSLATING TO CHINESE: Using natural Chinese translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
         // Natural Chinese translation prompt - for translating TO Chinese
         userMessage = `
 ${promptTopSection}
@@ -893,7 +894,7 @@ Format your response as valid JSON with these exact keys:
       }
       // FAILSAFE: If Japanese is forced, always use Japanese prompt regardless of detected language
       else if (forcedLanguage === 'ja') {
-        console.log(`[DEBUG] FORCED JAPANESE: Using Japanese prompt (furigana) regardless of primaryLanguage: ${primaryLanguage}`);
+        logger.log(`[DEBUG] FORCED JAPANESE: Using Japanese prompt (furigana) regardless of primaryLanguage: ${primaryLanguage}`);
         // Japanese prompt - Enhanced for contextual compound word readings
         userMessage = `
 ${promptTopSection}
@@ -1001,7 +1002,7 @@ Format your response as valid JSON with these exact keys:
   "translatedText": "Complete and accurate translation in ${targetLangName} without any truncation or abbreviation"
 }`;
       } else if (primaryLanguage === "Chinese" || forcedLanguage === 'zh') {
-        console.log(`[DEBUG] Using Chinese prompt (pinyin) for primaryLanguage: ${primaryLanguage}, forcedLanguage: ${forcedLanguage}`);
+        logger.log(`[DEBUG] Using Chinese prompt (pinyin) for primaryLanguage: ${primaryLanguage}, forcedLanguage: ${forcedLanguage}`);
         // Enhanced Chinese-specific prompt with comprehensive pinyin rules
         userMessage = `
 ${promptTopSection}
@@ -1137,7 +1138,7 @@ FINAL CHECK BEFORE RESPONDING:
       }
       // Check if we're translating TO Korean from a non-Korean source
       else if (targetLanguage === 'ko' && forcedLanguage !== 'ko' && primaryLanguage !== 'Korean') {
-        console.log(`[DEBUG] TRANSLATING TO KOREAN: Using natural Korean translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
+        logger.log(`[DEBUG] TRANSLATING TO KOREAN: Using natural Korean translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
         // Natural Korean translation prompt - for translating TO Korean
         userMessage = `
 ${promptTopSection}
@@ -1222,7 +1223,7 @@ Format your response as valid JSON with these exact keys:
       }
       // Check if we're translating TO Russian from a non-Russian source
       else if (targetLanguage === 'ru' && forcedLanguage !== 'ru' && primaryLanguage !== 'Russian') {
-        console.log(`[DEBUG] TRANSLATING TO RUSSIAN: Using natural Russian translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
+        logger.log(`[DEBUG] TRANSLATING TO RUSSIAN: Using natural Russian translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
         // Natural Russian translation prompt - for translating TO Russian
         userMessage = `
 ${promptTopSection}
@@ -1327,7 +1328,7 @@ Format your response as valid JSON with these exact keys:
       }
       // Check if we're translating TO Arabic from a non-Arabic source
       else if (targetLanguage === 'ar' && forcedLanguage !== 'ar' && primaryLanguage !== 'Arabic') {
-        console.log(`[DEBUG] TRANSLATING TO ARABIC: Using natural Arabic translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
+        logger.log(`[DEBUG] TRANSLATING TO ARABIC: Using natural Arabic translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
         // Natural Arabic translation prompt - for translating TO Arabic
         userMessage = `
 ${promptTopSection}
@@ -1560,7 +1561,7 @@ Format your response as valid JSON with these exact keys:
       }
       // Check if we're translating TO Hindi from a non-Hindi source
       else if (targetLanguage === 'hi' && forcedLanguage !== 'hi' && primaryLanguage !== 'Hindi') {
-        console.log(`[DEBUG] TRANSLATING TO HINDI: Using natural Hindi translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
+        logger.log(`[DEBUG] TRANSLATING TO HINDI: Using natural Hindi translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
         // Natural Hindi translation prompt - for translating TO Hindi
         userMessage = `
 ${promptTopSection}
@@ -1895,7 +1896,7 @@ Format your response as valid JSON with these exact keys:
 }
 `;
       } else if (primaryLanguage === "Japanese" && forcedLanguage !== 'ja') {
-        console.log(`[DEBUG] Using Japanese prompt (furigana) for primaryLanguage: ${primaryLanguage}`);
+        logger.log(`[DEBUG] Using Japanese prompt (furigana) for primaryLanguage: ${primaryLanguage}`);
         // Japanese prompt - Enhanced for contextual compound word readings (only when not using forced detection)
         userMessage = `
 ${promptTopSection}
@@ -1980,7 +1981,7 @@ Format your response as valid JSON with these exact keys:
   "translatedText": "Complete and accurate translation in ${targetLangName} without any truncation or abbreviation"
 }`;
       } else {
-        console.log(`[DEBUG] Using default prompt for primaryLanguage: ${primaryLanguage}`);
+        logger.log(`[DEBUG] Using default prompt for primaryLanguage: ${primaryLanguage}`);
         // Default prompt for other languages
         userMessage = `
 ${promptTopSection}
@@ -1997,8 +1998,8 @@ Format your response as valid JSON with these exact keys:
 `;
       }
 
-      console.log(`Processing text (${text.substring(0, 40)}${text.length > 40 ? '...' : ''})`);
-      console.log('Claude API Key found:', !!apiKey, 'Length:', apiKey?.length);
+      logger.log(`Processing text (${text.substring(0, 40)}${text.length > 40 ? '...' : ''})`);
+      logger.log('Claude API Key found:', !!apiKey, 'Length:', apiKey?.length);
       
       // Process the prompt to ensure all string interpolation is handled
       const processedPrompt = userMessage
@@ -2006,7 +2007,7 @@ Format your response as valid JSON with these exact keys:
         .replace(/\${promptTopSection}/g, promptTopSection);
       
       // Make API request to Claude using latest API format
-      console.log('🎯 [Claude API] Starting API request to Claude...');
+      logger.log('🎯 [Claude API] Starting API request to Claude...');
       
       const response = await axios.post(
         'https://api.anthropic.com/v1/messages',
@@ -2031,10 +2032,10 @@ Format your response as valid JSON with these exact keys:
       );
 
       // Checkpoint 2: API request completed, response received (purple light)
-      console.log('🎯 [Claude API] Checkpoint 2: API response received, triggering purple light');
+      logger.log('🎯 [Claude API] Checkpoint 2: API response received, triggering purple light');
       onProgress?.(2);
 
-      console.log("Claude API response received");
+      logger.log("Claude API response received");
       
 
       
@@ -2053,17 +2054,17 @@ Format your response as valid JSON with these exact keys:
             jsonString = cleanJsonString(jsonString);
             
             // Add more detailed logging for debugging
-            console.log("Raw response text length:", textContent.text.length);
-            console.log("Extracted JSON string length:", jsonString.length);
-            console.log("First 100 chars of JSON:", jsonString.substring(0, 100));
-            console.log("Last 100 chars of JSON:", jsonString.substring(Math.max(0, jsonString.length - 100)));
+            logger.log("Raw response text length:", textContent.text.length);
+            logger.log("Extracted JSON string length:", jsonString.length);
+            logger.log("First 100 chars of JSON:", jsonString.substring(0, 100));
+            logger.log("Last 100 chars of JSON:", jsonString.substring(Math.max(0, jsonString.length - 100)));
             
             let parsedContent;
             
             try {
               parsedContent = JSON.parse(jsonString);
             } catch (parseError) {
-              console.log('🚨 Initial JSON parse failed, trying emergency fallback...');
+              logger.log('🚨 Initial JSON parse failed, trying emergency fallback...');
               
               // Emergency fallback: manually extract values using regex
               try {
@@ -2085,18 +2086,18 @@ Format your response as valid JSON with these exact keys:
                     .replace(/[""‚„]/g, '"')
                     .replace(/[''‛‹›]/g, "'");
                   
-                  console.log("Extracted furigana length:", furiganaValue.length);
-                  console.log("Extracted translation length:", translationValue.length);
+                  logger.log("Extracted furigana length:", furiganaValue.length);
+                  logger.log("Extracted translation length:", translationValue.length);
                   
                   parsedContent = {
                     furiganaText: furiganaValue,
                     translatedText: translationValue
                   };
                   
-                  console.log('✅ Emergency fallback parsing successful');
+                  logger.log('✅ Emergency fallback parsing successful');
                 } else {
                   // Try even more aggressive extraction
-                  console.log("Regex extraction failed, trying direct string search...");
+                  logger.log("Regex extraction failed, trying direct string search...");
                   
                   const furiganaTextKey = '"furiganaText":';
                   const translatedTextKey = '"translatedText":';
@@ -2171,21 +2172,21 @@ Format your response as valid JSON with these exact keys:
                     const furiganaValue = firstKey === furiganaTextKey ? firstValue : secondValue;
                     const translationValue = firstKey === translatedTextKey ? firstValue : secondValue;
                     
-                    console.log("Direct extraction furigana length:", furiganaValue.length);
-                    console.log("Direct extraction translation length:", translationValue.length);
+                    logger.log("Direct extraction furigana length:", furiganaValue.length);
+                    logger.log("Direct extraction translation length:", translationValue.length);
                     
                     parsedContent = {
                       furiganaText: furiganaValue,
                       translatedText: translationValue
                     };
                     
-                    console.log('✅ Direct string extraction successful');
+                    logger.log('✅ Direct string extraction successful');
                   } else {
                     throw new Error('Could not extract values with direct string search');
                   }
                 }
               } catch (fallbackError) {
-                console.error('❌ Emergency fallback also failed:', fallbackError);
+                logger.error('❌ Emergency fallback also failed:', fallbackError);
                 throw parseError; // Re-throw original error
               }
             }
@@ -2193,11 +2194,11 @@ Format your response as valid JSON with these exact keys:
             // Check if the translation appears to be in the target language or if it's likely still in English
             const translatedText = parsedContent.translatedText || "";
             const translatedPreview = translatedText.substring(0, 60) + (translatedText.length > 60 ? "..." : "");
-            console.log(`Translation complete: "${translatedPreview}"`);
+            logger.log(`Translation complete: "${translatedPreview}"`);
             
             // Always verify translation completeness regardless of length
             if (retryCount < MAX_RETRIES - 1) {
-              console.log("Verifying translation completeness...");
+              logger.log("Verifying translation completeness...");
               
               // Increment retry counter
               retryCount++;
@@ -2263,8 +2264,8 @@ Format your response as valid JSON with these exact keys:
                     verificationJsonString = cleanJsonString(verificationJsonString);
                     
                     // Add detailed logging for verification attempt
-                    console.log("Verification raw response text length:", verificationTextContent.text.length);
-                    console.log("Verification extracted JSON string length:", verificationJsonString.length);
+                    logger.log("Verification raw response text length:", verificationTextContent.text.length);
+                    logger.log("Verification extracted JSON string length:", verificationJsonString.length);
                     
                     const verificationParsedContent = JSON.parse(verificationJsonString);
                     const isComplete = verificationParsedContent.isComplete === true;
@@ -2272,23 +2273,23 @@ Format your response as valid JSON with these exact keys:
                     const verifiedTranslatedText = verificationParsedContent.translatedText || "";
                     
                     if (!isComplete && verifiedTranslatedText.length > translatedText.length) {
-                      console.log(`Translation was incomplete. Analysis: ${analysis}`);
-                      console.log("Using improved translation from verification");
-                      console.log(`New translation: "${verifiedTranslatedText.substring(0, 60)}${verifiedTranslatedText.length > 60 ? '...' : ''}"`);
+                      logger.log(`Translation was incomplete. Analysis: ${analysis}`);
+                      logger.log("Using improved translation from verification");
+                      logger.log(`New translation: "${verifiedTranslatedText.substring(0, 60)}${verifiedTranslatedText.length > 60 ? '...' : ''}"`);
                       
                       return {
                         furiganaText: parsedContent.furiganaText || "",
                         translatedText: verifiedTranslatedText
                       };
                     } else {
-                      console.log(`Translation verification result: ${isComplete ? 'Complete' : 'Incomplete'}`);
+                      logger.log(`Translation verification result: ${isComplete ? 'Complete' : 'Incomplete'}`);
                       if (!isComplete) {
-                        console.log(`Analysis: ${analysis}`);
-                        console.log("Verification did not provide a better translation - using original");
+                        logger.log(`Analysis: ${analysis}`);
+                        logger.log("Verification did not provide a better translation - using original");
                       }
                     }
                   } catch (verificationParseError) {
-                    console.error("Error parsing verification response:", verificationParseError);
+                    logger.error("Error parsing verification response:", verificationParseError);
                     // Continue with original result
                   }
                 }
@@ -2300,10 +2301,10 @@ Format your response as valid JSON with these exact keys:
             
             // Universal verification for readings (furigana, pinyin, etc.)
             if (furiganaText && retryCount < MAX_RETRIES - 1) {
-              console.log("Verifying reading completeness...");
+              logger.log("Verifying reading completeness...");
               
               // Checkpoint 3: Preparing your word entries (verification phase)
-              console.log('🎯 [Claude API] Checkpoint 3: Preparing your word entries (verification phase)');
+              logger.log('🎯 [Claude API] Checkpoint 3: Preparing your word entries (verification phase)');
               onProgress?.(3);
               
               // Increment retry counter
@@ -2422,8 +2423,8 @@ Format your response as valid JSON with these exact keys:
                     readingVerificationJsonString = cleanJsonString(readingVerificationJsonString);
                     
                     // Add detailed logging for reading verification attempt
-                    console.log("Reading verification raw response text length:", readingVerificationTextContent.text.length);
-                    console.log("Reading verification extracted JSON string length:", readingVerificationJsonString.length);
+                    logger.log("Reading verification raw response text length:", readingVerificationTextContent.text.length);
+                    logger.log("Reading verification extracted JSON string length:", readingVerificationJsonString.length);
                     
                     const readingVerificationParsedContent = JSON.parse(readingVerificationJsonString);
                     const isReadingComplete = readingVerificationParsedContent.isComplete === true;
@@ -2431,18 +2432,18 @@ Format your response as valid JSON with these exact keys:
                     const verifiedFuriganaText = readingVerificationParsedContent.furiganaText || "";
                     
                     if (!isReadingComplete && verifiedFuriganaText.length > furiganaText.length) {
-                      console.log(`${readingType} were incomplete. Analysis: ${readingAnalysis}`);
-                      console.log(`Using improved ${readingType} from verification`);
+                      logger.log(`${readingType} were incomplete. Analysis: ${readingAnalysis}`);
+                      logger.log(`Using improved ${readingType} from verification`);
                       furiganaText = verifiedFuriganaText;
                     } else {
-                      console.log(`${readingType} verification result: ${isReadingComplete ? 'Complete' : 'Incomplete'}`);
+                      logger.log(`${readingType} verification result: ${isReadingComplete ? 'Complete' : 'Incomplete'}`);
                       if (!isReadingComplete) {
-                        console.log(`Analysis: ${readingAnalysis}`);
-                        console.log(`Verification did not provide better ${readingType} - using original`);
+                        logger.log(`Analysis: ${readingAnalysis}`);
+                        logger.log(`Verification did not provide better ${readingType} - using original`);
                       }
                     }
                   } catch (readingVerificationParseError) {
-                    console.error("Error parsing reading verification response:", readingVerificationParseError);
+                    logger.error("Error parsing reading verification response:", readingVerificationParseError);
                     // Continue with original result
                   }
                 }
@@ -2451,14 +2452,14 @@ Format your response as valid JSON with these exact keys:
             
             if ((primaryLanguage === "Japanese" || forcedLanguage === 'ja') && furiganaText) {
               const validation = validateJapaneseFurigana(text, furiganaText);
-              console.log(`Furigana validation: ${validation.details}`);
+              logger.log(`Furigana validation: ${validation.details}`);
               
               if (!validation.isValid) {
-                console.warn(`Incomplete furigana coverage: ${validation.details}`);
+                logger.warn(`Incomplete furigana coverage: ${validation.details}`);
                 
                 // If this is the first attempt and we have significant missing furigana, retry with more aggressive prompt
                 if (retryCount === 0 && (validation.missingKanjiCount > 0 || validation.details.includes("incorrect readings"))) {
-                  console.log("Retrying with more aggressive furigana prompt...");
+                  logger.log("Retrying with more aggressive furigana prompt...");
                   retryCount++;
                   
                   // Create a more aggressive prompt for retry
@@ -2553,29 +2554,29 @@ Format as JSON:
                         retryJsonString = cleanJsonString(retryJsonString);
                         
                         // Add detailed logging for retry attempt
-                        console.log("Retry raw response text:", retryTextContent.text);
-                        console.log("Retry extracted JSON string:", retryJsonString);
-                        console.log("Retry first 100 chars of JSON:", retryJsonString.substring(0, 100));
-                        console.log("Retry last 100 chars of JSON:", retryJsonString.substring(Math.max(0, retryJsonString.length - 100)));
+                        logger.log("Retry raw response text:", retryTextContent.text);
+                        logger.log("Retry extracted JSON string:", retryJsonString);
+                        logger.log("Retry first 100 chars of JSON:", retryJsonString.substring(0, 100));
+                        logger.log("Retry last 100 chars of JSON:", retryJsonString.substring(Math.max(0, retryJsonString.length - 100)));
                         
                         const retryParsedContent = JSON.parse(retryJsonString);
                         
                         const retryFuriganaText = retryParsedContent.furiganaText || "";
                         const retryValidation = validateJapaneseFurigana(text, retryFuriganaText);
                         
-                        console.log(`Retry furigana validation: ${retryValidation.details}`);
+                        logger.log(`Retry furigana validation: ${retryValidation.details}`);
                         
                         if (retryValidation.isValid || 
                             retryValidation.missingKanjiCount < validation.missingKanjiCount || 
                             (!retryValidation.details.includes("incorrect readings") && validation.details.includes("incorrect readings"))) {
                           // Use retry result if it's better
                           furiganaText = retryFuriganaText;
-                          console.log("Retry successful - using improved furigana result");
+                          logger.log("Retry successful - using improved furigana result");
                         } else {
-                          console.log("Retry did not improve furigana coverage - using original result");
+                          logger.log("Retry did not improve furigana coverage - using original result");
                         }
                       } catch (retryParseError) {
-                        console.error("Error parsing retry response:", retryParseError);
+                        logger.error("Error parsing retry response:", retryParseError);
                         // Continue with original result
                       }
                     }
@@ -2587,14 +2588,14 @@ Format as JSON:
             // Chinese pinyin validation and smart retry logic
             if ((primaryLanguage === "Chinese" || forcedLanguage === 'zh') && furiganaText) {
               const validation = validatePinyinAccuracy(text, furiganaText);
-              console.log(`Pinyin validation: ${validation.details}`);
+              logger.log(`Pinyin validation: ${validation.details}`);
               
               if (!validation.isValid && validation.accuracy < 85) {
-                console.warn(`Pinyin quality issues detected: ${validation.details}`);
+                logger.warn(`Pinyin quality issues detected: ${validation.details}`);
                 
                 // If this is the first attempt and we have significant issues, retry with enhanced correction prompt
                 if (retryCount === 0 && validation.issues.length > 0) {
-                  console.log("Retrying with enhanced pinyin correction prompt...");
+                  logger.log("Retrying with enhanced pinyin correction prompt...");
                   retryCount++;
                   
                   // Create specific correction prompt based on validation issues
@@ -2685,40 +2686,40 @@ Format as JSON:
                         const retryPinyinText = retryParsedContent.furiganaText || "";
                         const retryValidation = validatePinyinAccuracy(text, retryPinyinText);
                         
-                        console.log(`Retry pinyin validation: ${retryValidation.details}`);
-                        console.log(`Retry accuracy: ${retryValidation.accuracy}%`);
+                        logger.log(`Retry pinyin validation: ${retryValidation.details}`);
+                        logger.log(`Retry accuracy: ${retryValidation.accuracy}%`);
                         
                         // Use retry result if it's significantly better
                         if (retryValidation.accuracy > validation.accuracy + 10 || 
                             (retryValidation.isValid && !validation.isValid)) {
                           furiganaText = retryPinyinText;
-                          console.log(`Retry successful - improved accuracy from ${validation.accuracy}% to ${retryValidation.accuracy}%`);
+                          logger.log(`Retry successful - improved accuracy from ${validation.accuracy}% to ${retryValidation.accuracy}%`);
                         } else {
-                          console.log(`Retry did not significantly improve pinyin quality - using original result`);
+                          logger.log(`Retry did not significantly improve pinyin quality - using original result`);
                         }
                       } catch (retryParseError) {
-                        console.error("Error parsing pinyin retry response:", retryParseError);
+                        logger.error("Error parsing pinyin retry response:", retryParseError);
                         // Continue with original result
                       }
                     }
                   }
                 }
               } else if (validation.isValid) {
-                console.log(`Pinyin validation passed with ${validation.accuracy}% accuracy`);
+                logger.log(`Pinyin validation passed with ${validation.accuracy}% accuracy`);
               }
             }
 
             // Korean romanization validation and smart retry logic
             if ((primaryLanguage === "Korean" || forcedLanguage === 'ko') && furiganaText) {
               const validation = validateKoreanRomanization(text, furiganaText);
-              console.log(`Korean romanization validation: ${validation.details}`);
+              logger.log(`Korean romanization validation: ${validation.details}`);
               
               if (!validation.isValid && validation.accuracy < 90) {
-                console.warn(`Korean romanization quality issues detected: ${validation.details}`);
+                logger.warn(`Korean romanization quality issues detected: ${validation.details}`);
                 
                 // If this is the first attempt and we have significant issues, retry with enhanced correction prompt
                 if (retryCount === 0 && validation.issues.length > 0) {
-                  console.log("Retrying with enhanced Korean romanization correction prompt...");
+                  logger.log("Retrying with enhanced Korean romanization correction prompt...");
                   retryCount++;
                   
                   // Create specific correction prompt based on validation issues
@@ -2761,7 +2762,7 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
 `;
 
                   try {
-                    console.log('Making Korean romanization correction request to Claude...');
+                    logger.log('Making Korean romanization correction request to Claude...');
                     const retryResponse = await axios.post(
                       'https://api.anthropic.com/v1/messages',
                       {
@@ -2786,7 +2787,7 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
                     if (retryResponse.data && retryResponse.data.content && retryResponse.data.content[0] && retryResponse.data.content[0].text) {
                       try {
                         const retryResponseText = retryResponse.data.content[0].text;
-                        console.log("Retry response received:", retryResponseText.substring(0, 200) + "...");
+                        logger.log("Retry response received:", retryResponseText.substring(0, 200) + "...");
                         
                         const retryCleanedJson = cleanJsonString(retryResponseText);
                         const retryParsedResponse = JSON.parse(retryCleanedJson);
@@ -2794,33 +2795,33 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
                         
                         // Validate the retry result
                         const retryValidation = validateKoreanRomanization(text, retryRomanizedText);
-                        console.log(`Korean retry validation: ${retryValidation.details}`);
+                        logger.log(`Korean retry validation: ${retryValidation.details}`);
                         
                         // Use retry result if it's significantly better
                         if (retryValidation.accuracy > validation.accuracy + 5 || 
                             (retryValidation.isValid && !validation.isValid)) {
                           furiganaText = retryRomanizedText;
-                          console.log(`Korean retry successful - improved accuracy from ${validation.accuracy}% to ${retryValidation.accuracy}%`);
+                          logger.log(`Korean retry successful - improved accuracy from ${validation.accuracy}% to ${retryValidation.accuracy}%`);
                         } else {
-                          console.log(`Korean retry did not significantly improve romanization quality - using original result`);
+                          logger.log(`Korean retry did not significantly improve romanization quality - using original result`);
                         }
                       } catch (retryParseError) {
-                        console.error("Error parsing Korean romanization retry response:", retryParseError);
+                        logger.error("Error parsing Korean romanization retry response:", retryParseError);
                         // Continue with original result
                       }
                     }
                   } catch (retryError) {
-                    console.error("Error during Korean romanization retry:", retryError);
+                    logger.error("Error during Korean romanization retry:", retryError);
                     // Continue with original result
                   }
                 }
               } else if (validation.isValid) {
-                console.log(`Korean romanization validation passed with ${validation.accuracy}% accuracy`);
+                logger.log(`Korean romanization validation passed with ${validation.accuracy}% accuracy`);
               }
             }
             
             // Checkpoint 4: Processing complete successfully, polishing complete
-            console.log('🎯 [Claude API] Checkpoint 4: Processing complete successfully, polishing complete');
+            logger.log('🎯 [Claude API] Checkpoint 4: Processing complete successfully, polishing complete');
             onProgress?.(4);
             
             const result = {
@@ -2840,20 +2841,20 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
 
             return result;
           } catch (parseError) {
-            console.error("Error parsing JSON from Claude response:", parseError);
-            console.log("Raw content received:", textContent.text);
+            logger.error("Error parsing JSON from Claude response:", parseError);
+            logger.log("Raw content received:", textContent.text);
             
             // Try alternative JSON extraction methods
             try {
-              console.log("Attempting alternative JSON extraction methods...");
+              logger.log("Attempting alternative JSON extraction methods...");
               
               // Method 1: Look for JSON blocks with ```json markers
               const jsonBlockMatch = textContent.text.match(/```json\s*(\{[\s\S]*?\})\s*```/);
               if (jsonBlockMatch) {
-                console.log("Found JSON block with markers, trying to parse...");
+                logger.log("Found JSON block with markers, trying to parse...");
                 const blockJsonString = cleanJsonString(jsonBlockMatch[1]);
                 const blockParsedContent = JSON.parse(blockJsonString);
-                console.log("Successfully parsed JSON from block markers");
+                logger.log("Successfully parsed JSON from block markers");
                 const result = {
                   furiganaText: blockParsedContent.furiganaText || "",
                   translatedText: blockParsedContent.translatedText || ""
@@ -2875,10 +2876,10 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
               // Method 2: Try to extract JSON with more flexible regex
               const flexibleJsonMatch = textContent.text.match(/\{[^{}]*"furiganaText"[^{}]*"translatedText"[^{}]*\}/);
               if (flexibleJsonMatch) {
-                console.log("Found JSON with flexible regex, trying to parse...");
+                logger.log("Found JSON with flexible regex, trying to parse...");
                 const flexibleJsonString = cleanJsonString(flexibleJsonMatch[0]);
                 const flexibleParsedContent = JSON.parse(flexibleJsonString);
-                console.log("Successfully parsed JSON with flexible regex");
+                logger.log("Successfully parsed JSON with flexible regex");
                 const result = {
                   furiganaText: flexibleParsedContent.furiganaText || "",
                   translatedText: flexibleParsedContent.translatedText || ""
@@ -2902,7 +2903,7 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
               const translatedMatch = textContent.text.match(/"translatedText":\s*"([^"]*(?:\\.[^"]*)*)"/);
               
               if (furiganaMatch && translatedMatch) {
-                console.log("Extracted values manually with regex");
+                logger.log("Extracted values manually with regex");
                 const result = {
                   furiganaText: furiganaMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\'),
                   translatedText: translatedMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\')
@@ -2922,17 +2923,17 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
               }
               
             } catch (alternativeError) {
-              console.error("Alternative JSON extraction also failed:", alternativeError);
+              logger.error("Alternative JSON extraction also failed:", alternativeError);
             }
             
             throw new Error("Failed to parse Claude API response");
           }
         } else {
-          console.error("No text content found in response:", JSON.stringify(response.data));
+          logger.error("No text content found in response:", JSON.stringify(response.data));
           throw new Error("No text content in Claude API response");
         }
       } else {
-        console.error("Unexpected response structure:", JSON.stringify(response.data));
+        logger.error("Unexpected response structure:", JSON.stringify(response.data));
         throw new Error("Unexpected response structure from Claude API");
       }
     } catch (error: unknown) {
@@ -2947,7 +2948,7 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
         // Calculate backoff delay with exponential increase
         const backoffDelay = INITIAL_BACKOFF_DELAY * Math.pow(2, retryCount);
         
-        console.log(`Claude API overloaded. Retrying in ${backoffDelay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+        logger.log(`Claude API overloaded. Retrying in ${backoffDelay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`);
         
         // Wait before retrying
         await sleep(backoffDelay);
@@ -2956,21 +2957,21 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
         retryCount++;
       } else {
         // Max retries reached or non-retryable error, log and exit loop
-        console.error('Error processing text with Claude:', error);
+        logger.error('Error processing text with Claude:', error);
         
         // Log more details about the error
         if (error instanceof AxiosError && error.response) {
           // The request was made and the server responded with a status code
-          console.error('Error data:', JSON.stringify(error.response.data));
-          console.error('Error status:', error.response.status);
-          console.error('Error headers:', JSON.stringify(error.response.headers));
+          logger.error('Error data:', JSON.stringify(error.response.data));
+          logger.error('Error status:', error.response.status);
+          logger.error('Error headers:', JSON.stringify(error.response.headers));
         } else if (error instanceof AxiosError && error.request) {
           // The request was made but no response was received
-          console.error('No response received:', error.request);
+          logger.error('No response received:', error.request);
         } else {
           // Something happened in setting up the request
           const errorMessage = error instanceof Error ? error.message : String(error);
-          console.error('Error message:', errorMessage);
+          logger.error('Error message:', errorMessage);
         }
         
         break;
@@ -2980,7 +2981,7 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
   
   // If we've exhausted all retries or encountered a non-retryable error
   if (retryCount >= MAX_RETRIES) {
-    console.error(`Claude API still unavailable after ${MAX_RETRIES} retry attempts`);
+    logger.error(`Claude API still unavailable after ${MAX_RETRIES} retry attempts`);
   }
   
   // Log failed API call
@@ -3181,7 +3182,7 @@ function validateJapaneseFurigana(originalText: string, furiganaText: string): {
       const match = compoundPattern.exec(furiganaText);
       
       if (match && match[1] !== expectedReading) {
-        console.log(`Incorrect reading for ${compound}: got ${match[1]}, expected ${expectedReading}`);
+        logger.log(`Incorrect reading for ${compound}: got ${match[1]}, expected ${expectedReading}`);
         incorrectReadings++;
       }
     }

@@ -24,13 +24,7 @@
       "loginButton": "登录",
       "forgotPassword": "忘记密码？",
       "loginFailed": "登录失败",
-      "emailNotVerified": "邮箱未验证",
-      "emailNotVerifiedMessage": "请检查您的收件箱并点击验证链接来激活您的账户。需要新的链接吗？",
-      "resendLink": "重新发送链接",
-      "verificationSent": "验证邮件已发送",
-      "verificationSentMessage": "我们已向您的邮箱地址发送了新的验证链接。请检查您的收件箱。",
-      "missingCredentials": "请输入邮箱和密码",
-      "resendFailed": "重新发送验证邮件失败。"
+      "missingCredentials": "请输入邮箱和密码"
     },
     "signup": {
       "title": "创建您的账户",

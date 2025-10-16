@@ -24,13 +24,7 @@
       "loginButton": "लॉग इन करें",
       "forgotPassword": "पासवर्ड भूल गए?",
       "loginFailed": "लॉगिन असफल",
-      "emailNotVerified": "ईमेल सत्यापित नहीं",
-      "emailNotVerifiedMessage": "कृपया अपना इनबॉक्स देखें और अपना खाता सक्रिय करने के लिए सत्यापन लिंक पर क्लिक करें। नया लिंक चाहिए?",
-      "resendLink": "लिंक पुनः भेजें",
-      "verificationSent": "सत्यापन ईमेल भेजा गया",
-      "verificationSentMessage": "हमने आपके ईमेल पते पर एक नया सत्यापन लिंक भेजा है। कृपया अपना इनबॉक्स देखें।",
-      "missingCredentials": "कृपया ईमेल और पासवर्ड दोनों दर्ज करें",
-      "resendFailed": "सत्यापन ईमेल पुनः भेजने में असफल।"
+      "missingCredentials": "कृपया ईमेल और पासवर्ड दोनों दर्ज करें"
     },
     "signup": {
       "title": "अपना खाता बनाएं",

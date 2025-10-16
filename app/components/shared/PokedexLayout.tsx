@@ -13,6 +13,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { COLORS } from '../../constants/colors';
 import TexturedBackground from './TexturedBackground';
 
+import { logger } from '../../utils/logger';
 interface PokedexLayoutProps {
   children: ReactNode;
   style?: ViewStyle;
@@ -174,17 +175,17 @@ export default memo(function PokedexLayout({
 
   // Progressive loading animation effect
   useEffect(() => {
-    console.log('🔥 [PokedexLayout] Progressive loading effect triggered:', { isProcessing, loadingProgress });
+    logger.log('🔥 [PokedexLayout] Progressive loading effect triggered:', { isProcessing, loadingProgress });
     
     if (isProcessing) {
-      console.log('🟠 [PokedexLayout] Starting main light animation (toValue: 1)');
+      logger.log('🟠 [PokedexLayout] Starting main light animation (toValue: 1)');
       // Turn on main light when processing starts
       Animated.timing(mainLightAnim, {
         toValue: 1,
         duration: 200,
         useNativeDriver: false,
       }).start(() => {
-        console.log('🟠 [PokedexLayout] Main light animation completed');
+        logger.log('🟠 [PokedexLayout] Main light animation completed');
       });
 
       // Turn on lights progressively based on loadingProgress
@@ -192,7 +193,7 @@ export default memo(function PokedexLayout({
       const currentLightIndex = loadingProgress - 1; // Convert 1-based checkpoint to 0-based index
       
       if (currentLightIndex >= 0 && currentLightIndex < smallLightsAnim.length) {
-        console.log(`💡 [PokedexLayout] Checkpoint ${loadingProgress}: Animating light ${currentLightIndex}`);
+        logger.log(`💡 [PokedexLayout] Checkpoint ${loadingProgress}: Animating light ${currentLightIndex}`);
         
         // Animate only the current light for this checkpoint
         Animated.timing(smallLightsAnim[currentLightIndex], {
@@ -200,13 +201,13 @@ export default memo(function PokedexLayout({
           duration: 200,
           useNativeDriver: false,
         }).start(() => {
-          console.log(`💡 [PokedexLayout] Light ${currentLightIndex} animation completed`);
+          logger.log(`💡 [PokedexLayout] Light ${currentLightIndex} animation completed`);
         });
         
         // Ensure all previous lights are also on (without re-animating)
         for (let i = 0; i < currentLightIndex; i++) {
           smallLightsAnim[i].setValue(1);
-          console.log(`🔛 [PokedexLayout] Light ${i} set to on (previous checkpoint)`);
+          logger.log(`🔛 [PokedexLayout] Light ${i} set to on (previous checkpoint)`);
         }
         
         // Ensure all future lights are off (but don't turn off lights from higher completed checkpoints)
@@ -215,14 +216,14 @@ export default memo(function PokedexLayout({
           const currentValue = (smallLightsAnim[i] as any)._value || 0;
           if (currentValue === 0) {
             smallLightsAnim[i].setValue(0);
-            console.log(`⚫ [PokedexLayout] Light ${i} set to off (future checkpoint)`);
+            logger.log(`⚫ [PokedexLayout] Light ${i} set to off (future checkpoint)`);
           } else {
-            console.log(`✅ [PokedexLayout] Light ${i} staying on (from higher checkpoint)`);
+            logger.log(`✅ [PokedexLayout] Light ${i} staying on (from higher checkpoint)`);
           }
         }
       }
     } else {
-      console.log('⚪ [PokedexLayout] Fading out all lights');
+      logger.log('⚪ [PokedexLayout] Fading out all lights');
       // Processing complete - fade out all lights
       Animated.parallel([
         Animated.timing(mainLightAnim, {
@@ -238,7 +239,7 @@ export default memo(function PokedexLayout({
           })
         ),
       ]).start(() => {
-        console.log('⚪ [PokedexLayout] All lights faded out');
+        logger.log('⚪ [PokedexLayout] All lights faded out');
       });
     }
   }, [isProcessing, loadingProgress, mainLightAnim, smallLightsAnim]);
@@ -261,7 +262,7 @@ export default memo(function PokedexLayout({
   };
   
   // DEBUG: Log the current animation values
-  console.log('🎨 [PokedexLayout] Animation values:', {
+  logger.log('🎨 [PokedexLayout] Animation values:', {
     variant,
     isProcessing,
     loadingProgress,

@@ -1,5 +1,6 @@
 import * as FileSystem from 'expo-file-system';
 
+import { logger } from '../utils/logger';
 interface ImageProcessingConfig {
   maxDimension: number;
   compress: number;
@@ -20,7 +21,7 @@ class MemoryManager {
   private constructor() {
     // Use consistent settings across all build types
     this.isPreviewBuild = !__DEV__;
-    console.log(`[MemoryManager] Environment: ${this.isPreviewBuild ? 'Preview/Production' : 'Development'} (using consistent settings)`);
+    logger.log(`[MemoryManager] Environment: ${this.isPreviewBuild ? 'Preview/Production' : 'Development'} (using consistent settings)`);
   }
 
   public static getInstance(): MemoryManager {
@@ -39,7 +40,7 @@ class MemoryManager {
       
       // Respect cleanup cooldown to prevent excessive cleanup
       if (now - this.lastCleanupTime < this.cleanupCooldownMs) {
-        console.log('[MemoryManager] Cleanup skipped - cooldown period active');
+        logger.log('[MemoryManager] Cleanup skipped - cooldown period active');
         return false;
       }
 
@@ -48,18 +49,18 @@ class MemoryManager {
       const historyThreshold = 8;    // Increased from 3 to 8
       
       if (this.processedImageCount > processedThreshold) {
-        console.log('[MemoryManager] Cleanup recommended after processing', this.processedImageCount, 'images');
+        logger.log('[MemoryManager] Cleanup recommended after processing', this.processedImageCount, 'images');
         return true;
       }
       
       if (this.imageUriHistory.length > historyThreshold) {
-        console.log('[MemoryManager] Cleanup recommended due to', this.imageUriHistory.length, 'temporary files');
+        logger.log('[MemoryManager] Cleanup recommended due to', this.imageUriHistory.length, 'temporary files');
         return true;
       }
       
       return false;
     } catch (error) {
-      console.error('[MemoryManager] Error checking cleanup need:', error);
+      logger.error('[MemoryManager] Error checking cleanup need:', error);
       return true;
     }
   }
@@ -90,7 +91,7 @@ class MemoryManager {
       this.trackProcessedImage(uri);
     }
     
-    console.log(`[MemoryManager] Marked as original image: ${uri}`);
+    logger.log(`[MemoryManager] Marked as original image: ${uri}`);
   }
 
   /**
@@ -110,7 +111,7 @@ class MemoryManager {
       const fileInfo = await FileSystem.getInfoAsync(this.originalImageUri);
       return fileInfo.exists;
     } catch (error) {
-      console.warn(`[MemoryManager] Error checking if original image exists:`, error);
+      logger.warn(`[MemoryManager] Error checking if original image exists:`, error);
       return false;
     }
   }
@@ -127,17 +128,17 @@ class MemoryManager {
       let preserveUris = [...excludeUris];
       if (this.originalImageUri && !preserveUris.includes(this.originalImageUri)) {
         preserveUris.push(this.originalImageUri);
-        console.log(`[MemoryManager] Adding original image to preserved URIs: ${this.originalImageUri}`);
+        logger.log(`[MemoryManager] Adding original image to preserved URIs: ${this.originalImageUri}`);
       }
       
-      console.log(`[MemoryManager] Cleaning up ${this.imageUriHistory.length} previous image URIs${preserveUris.length ? ` (excluding ${preserveUris.length} URIs)` : ''}`);
+      logger.log(`[MemoryManager] Cleaning up ${this.imageUriHistory.length} previous image URIs${preserveUris.length ? ` (excluding ${preserveUris.length} URIs)` : ''}`);
       
       // Clean up temporary files, but exclude the specified images
       for (const uri of this.imageUriHistory) {
         try {
           // Skip deletion if this URI is in the excluded list
           if (preserveUris.includes(uri)) {
-            console.log(`[MemoryManager] Skipping deletion of preserved image: ${uri}`);
+            logger.log(`[MemoryManager] Skipping deletion of preserved image: ${uri}`);
             continue;
           }
           
@@ -145,11 +146,11 @@ class MemoryManager {
             const fileInfo = await FileSystem.getInfoAsync(uri);
             if (fileInfo.exists) {
               await FileSystem.deleteAsync(uri, { idempotent: true });
-              console.log(`[MemoryManager] Deleted temporary file: ${uri}`);
+              logger.log(`[MemoryManager] Deleted temporary file: ${uri}`);
             }
           }
         } catch (error) {
-          console.warn(`[MemoryManager] Failed to delete ${uri}:`, error);
+          logger.warn(`[MemoryManager] Failed to delete ${uri}:`, error);
         }
       }
       
@@ -162,13 +163,13 @@ class MemoryManager {
       // Reset tracking but keep the excluded images and original image
       const imagesToKeep = preserveUris;
       this.imageUriHistory = this.imageUriHistory.filter(uri => imagesToKeep.includes(uri));
-      console.log(`[MemoryManager] Keeping ${this.imageUriHistory.length} images in history`);
+      logger.log(`[MemoryManager] Keeping ${this.imageUriHistory.length} images in history`);
       
       this.processedImageCount = 0;
       
-      console.log('[MemoryManager] Cleanup completed');
+      logger.log('[MemoryManager] Cleanup completed');
     } catch (error) {
-      console.error('[MemoryManager] Cleanup failed:', error);
+      logger.error('[MemoryManager] Cleanup failed:', error);
     }
   }
 
@@ -184,7 +185,7 @@ class MemoryManager {
       this.imageUriHistory.shift();
     }
     
-    console.log(`[MemoryManager] Tracking image: ${uri}, total processed: ${this.processedImageCount}`);
+    logger.log(`[MemoryManager] Tracking image: ${uri}, total processed: ${this.processedImageCount}`);
   }
 
   /**
@@ -207,16 +208,16 @@ class MemoryManager {
               try {
                 await FileSystem.deleteAsync(filePath, { idempotent: true });
               } catch (error) {
-                console.warn(`[MemoryManager] Failed to delete cache file ${file}:`, error);
+                logger.warn(`[MemoryManager] Failed to delete cache file ${file}:`, error);
               }
             }
           }
         }
       }
       
-      console.log('[MemoryManager] Cache directories cleared');
+      logger.log('[MemoryManager] Cache directories cleared');
     } catch (error) {
-      console.error('[MemoryManager] Failed to clear cache directories:', error);
+      logger.error('[MemoryManager] Failed to clear cache directories:', error);
     }
   }
 
@@ -231,19 +232,19 @@ class MemoryManager {
        for (let i = 0; i < attempts; i++) {
          if (global.gc) {
            global.gc();
-           console.log(`[MemoryManager] Forced garbage collection (attempt ${i + 1}/${attempts})`);
+           logger.log(`[MemoryManager] Forced garbage collection (attempt ${i + 1}/${attempts})`);
            
            // Small delay between attempts
            if (i < attempts - 1) {
              await new Promise(resolve => setTimeout(resolve, 100));
            }
          } else {
-           console.log('[MemoryManager] global.gc not available');
+           logger.log('[MemoryManager] global.gc not available');
            break;
          }
        }
      } catch (error) {
-       console.error('[MemoryManager] Garbage collection failed:', error);
+       logger.error('[MemoryManager] Garbage collection failed:', error);
      }
    }
 
@@ -252,7 +253,7 @@ class MemoryManager {
    */
   public async gentleCleanup(excludeCurrentImage?: string): Promise<void> {
     if (await this.shouldCleanup()) {
-      console.log('[MemoryManager] Performing gentle cleanup');
+      logger.log('[MemoryManager] Performing gentle cleanup');
       if (excludeCurrentImage && typeof excludeCurrentImage === 'string') {
         await this.cleanupPreviousImages(excludeCurrentImage);
       } else {
@@ -267,7 +268,7 @@ class MemoryManager {
    * Safe to use before image operations
    */
   public async minimalCleanup(excludeCurrentImage?: string): Promise<void> {
-    console.log('[MemoryManager] Performing minimal cleanup (tracked images only)');
+    logger.log('[MemoryManager] Performing minimal cleanup (tracked images only)');
     
     const now = Date.now();
     this.lastCleanupTime = now;
@@ -281,14 +282,14 @@ class MemoryManager {
     // Always preserve the original image
     if (this.originalImageUri && !preserveUris.includes(this.originalImageUri)) {
       preserveUris.push(this.originalImageUri);
-      console.log(`[MemoryManager] Adding original image to preserved URIs during minimal cleanup: ${this.originalImageUri}`);
+      logger.log(`[MemoryManager] Adding original image to preserved URIs during minimal cleanup: ${this.originalImageUri}`);
     }
     
     // Only clean up tracked image files, not cache directories
     for (const uri of this.imageUriHistory) {
       try {
         if (preserveUris.includes(uri)) {
-          console.log(`[MemoryManager] Skipping deletion of preserved image: ${uri}`);
+          logger.log(`[MemoryManager] Skipping deletion of preserved image: ${uri}`);
           continue;
         }
         
@@ -296,11 +297,11 @@ class MemoryManager {
           const fileInfo = await FileSystem.getInfoAsync(uri);
           if (fileInfo.exists) {
             await FileSystem.deleteAsync(uri, { idempotent: true });
-            console.log(`[MemoryManager] Deleted temporary file: ${uri}`);
+            logger.log(`[MemoryManager] Deleted temporary file: ${uri}`);
           }
         }
       } catch (error) {
-        console.warn(`[MemoryManager] Failed to delete ${uri}:`, error);
+        logger.warn(`[MemoryManager] Failed to delete ${uri}:`, error);
       }
     }
     
@@ -308,7 +309,7 @@ class MemoryManager {
     this.imageUriHistory = this.imageUriHistory.filter(uri => preserveUris.includes(uri));
     this.processedImageCount = 0;
     
-    console.log('[MemoryManager] Minimal cleanup completed');
+    logger.log('[MemoryManager] Minimal cleanup completed');
   }
 
   /**
@@ -319,7 +320,7 @@ class MemoryManager {
     let preserveUris = [...excludeUris];
     if (this.originalImageUri && !preserveUris.includes(this.originalImageUri)) {
       preserveUris.push(this.originalImageUri);
-      console.log(`[MemoryManager] Adding original image to preserved URIs during force cleanup: ${this.originalImageUri}`);
+      logger.log(`[MemoryManager] Adding original image to preserved URIs during force cleanup: ${this.originalImageUri}`);
     }
     
     if (preserveUris.length > 0) {
@@ -335,7 +336,7 @@ class MemoryManager {
    * Very aggressive cleanup for memory pressure situations
    */
   public async emergencyCleanup(): Promise<void> {
-    console.log('[MemoryManager] Emergency cleanup initiated');
+    logger.log('[MemoryManager] Emergency cleanup initiated');
     
     // Preserve the original image if it exists
     let originalImageToKeep = null;
@@ -344,10 +345,10 @@ class MemoryManager {
         const fileInfo = await FileSystem.getInfoAsync(this.originalImageUri);
         if (fileInfo.exists) {
           originalImageToKeep = this.originalImageUri;
-          console.log(`[MemoryManager] Preserving original image during emergency cleanup: ${this.originalImageUri}`);
+          logger.log(`[MemoryManager] Preserving original image during emergency cleanup: ${this.originalImageUri}`);
         }
       } catch (error) {
-        console.warn(`[MemoryManager] Error checking original image during emergency cleanup:`, error);
+        logger.warn(`[MemoryManager] Error checking original image during emergency cleanup:`, error);
       }
     }
     
@@ -369,7 +370,7 @@ class MemoryManager {
     await new Promise(resolve => setTimeout(resolve, 200));
     await this.performGarbageCollection();
     
-    console.log('[MemoryManager] Emergency cleanup completed');
+    logger.log('[MemoryManager] Emergency cleanup completed');
   }
 
   /**
@@ -380,7 +381,7 @@ class MemoryManager {
     this.processedImageCount = 0;
     this.lastCleanupTime = 0;
     this.originalImageUri = null; // Reset original image reference
-    console.log('[MemoryManager] Reset completed');
+    logger.log('[MemoryManager] Reset completed');
   }
 
   /**

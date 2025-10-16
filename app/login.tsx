@@ -6,6 +6,7 @@ import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { COLORS } from './constants/colors';
 import { useAuth } from './context/AuthContext';
 
+import { logger } from './utils/logger';
 const Login = () => {
   const params = useLocalSearchParams();
   const { user } = useAuth();
@@ -17,12 +18,12 @@ const Login = () => {
       // Check if we have OAuth parameters in the URL
       const hasOAuthParams = params.access_token || params.refresh_token || params.code || params.provider;
       
-      console.log('🔗 Login screen params:', JSON.stringify(params));
-      console.log('🔗 Has OAuth params:', hasOAuthParams);
+      logger.log('🔗 Login screen params:', JSON.stringify(params));
+      logger.log('🔗 Has OAuth params:', hasOAuthParams);
       
       if (hasOAuthParams) {
         setIsProcessingOAuth(true);
-        console.log('🔗 OAuth callback detected with params:', JSON.stringify(params));
+        logger.log('🔗 OAuth callback detected with params:', JSON.stringify(params));
         
         try {
           // If we have access_token directly, set the session
@@ -33,13 +34,13 @@ const Login = () => {
             });
             
             if (error) {
-              console.error('🔗 Error setting session from params:', error.message);
+              logger.error('🔗 Error setting session from params:', error.message);
             } else if (data.session) {
-              console.log('🔗 Session established from params:', data.session.user?.email);
+              logger.log('🔗 Session established from params:', data.session.user?.email);
             }
           }
         } catch (error) {
-          console.error('🔗 Error handling OAuth callback:', error);
+          logger.error('🔗 Error handling OAuth callback:', error);
         } finally {
           setIsProcessingOAuth(false);
         }
@@ -51,10 +52,10 @@ const Login = () => {
   
   // Log user state changes, let AuthGuard handle navigation
   useEffect(() => {
-    console.log('🔐 [login.tsx] User state changed, user exists:', !!user);
+    logger.log('🔐 [login.tsx] User state changed, user exists:', !!user);
     if (user) {
-      console.log('✅ [login.tsx] User authenticated, AuthGuard will handle navigation');
-      console.log('🔐 [login.tsx] User email:', user.email);
+      logger.log('✅ [login.tsx] User authenticated, AuthGuard will handle navigation');
+      logger.log('🔐 [login.tsx] User email:', user.email);
     }
   }, [user]);
   

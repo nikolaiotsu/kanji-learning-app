@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 
+import { logger } from '../../utils/logger';
 interface ImageOverlayProps {
   imageUri: string;
   visible: boolean;
@@ -27,19 +28,19 @@ const ImageOverlay: React.FC<ImageOverlayProps> = ({
   const [imageError, setImageError] = useState(false);
 
   // Debug: Log props
-  console.log('🔍 [DEBUG] ImageOverlay render - visible:', visible, 'imageUri exists:', !!imageUri);
+  logger.log('🔍 [DEBUG] ImageOverlay render - visible:', visible, 'imageUri exists:', !!imageUri);
 
   // Reset loading state when modal visibility changes
   useEffect(() => {
-    console.log('🔍 [DEBUG] ImageOverlay visibility changed to:', visible);
+    logger.log('🔍 [DEBUG] ImageOverlay visibility changed to:', visible);
     if (visible) {
       setIsImageLoaded(false);
       setImageError(false);
       // Prefetch the image
       if (imageUri) {
-        console.log('🔍 [DEBUG] ImageOverlay prefetching image...');
+        logger.log('🔍 [DEBUG] ImageOverlay prefetching image...');
         Image.prefetch(imageUri).catch(() => {
-          console.log('🔍 [DEBUG] ImageOverlay prefetch failed');
+          logger.log('🔍 [DEBUG] ImageOverlay prefetch failed');
           setImageError(true);
         });
       }
@@ -56,11 +57,11 @@ const ImageOverlay: React.FC<ImageOverlayProps> = ({
   };
 
   if (!imageUri || !visible) {
-    console.log('🔍 [DEBUG] ImageOverlay not rendering - imageUri:', !!imageUri, 'visible:', visible);
+    logger.log('🔍 [DEBUG] ImageOverlay not rendering - imageUri:', !!imageUri, 'visible:', visible);
     return null;
   }
 
-  console.log('🔍 [DEBUG] ImageOverlay rendering with absolute positioning');
+  logger.log('🔍 [DEBUG] ImageOverlay rendering with absolute positioning');
 
   return (
     <View style={[styles.overlay, { 

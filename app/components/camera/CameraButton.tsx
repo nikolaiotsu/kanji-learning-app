@@ -8,6 +8,7 @@ import PokedexButton from '../shared/PokedexButton';
 import MemoryManager from '../../services/memoryManager';
 import * as Haptics from 'expo-haptics';
 
+import { logger } from '../../utils/logger';
 interface CameraButtonProps {
   onPhotoCapture: (imageInfo: {
     uri: string;
@@ -48,7 +49,7 @@ export default function CameraButton({ onPhotoCapture, style, onProcessingStateC
     
     try {
       // Clear iOS ImagePicker/Camera cache before capture
-      console.log('[CameraButton] Clearing iOS cache before photo capture');
+      logger.log('[CameraButton] Clearing iOS cache before photo capture');
       
       // Force garbage collection
       const globalAny = global as any;
@@ -72,7 +73,7 @@ export default function CameraButton({ onPhotoCapture, style, onProcessingStateC
         // Show loading indicator for image processing
         onProcessingStateChange?.(true);
 
-        console.log('[CameraButton] Processing captured image:', asset.uri, 
+        logger.log('[CameraButton] Processing captured image:', asset.uri, 
           `${asset.width}x${asset.height}`);
 
         // Get standard processing configuration
@@ -85,7 +86,7 @@ export default function CameraButton({ onPhotoCapture, style, onProcessingStateC
         // Retry logic for camera processing
         while (retryCount <= maxRetries) {
           try {
-            console.log(`[CameraButton] Processing attempt ${retryCount + 1}/${maxRetries + 1}`);
+            logger.log(`[CameraButton] Processing attempt ${retryCount + 1}/${maxRetries + 1}`);
             
             // Use more aggressive compression for retries
             const compressionLevel = retryCount === 0 ? standardConfig.compress : 0.6;
@@ -109,7 +110,7 @@ export default function CameraButton({ onPhotoCapture, style, onProcessingStateC
                    { format: ImageManipulator.SaveFormat.JPEG, compress: 0.1 }
                  );
                  if (imageInfo.width === normalised.width && imageInfo.height === normalised.height) {
-                   console.log('[CameraButton] Processed captured image validated:', 
+                   logger.log('[CameraButton] Processed captured image validated:', 
                      `${normalised.width}x${normalised.height}`, 'URI:', normalised.uri);
                    break; // Success
                  } else {
@@ -123,7 +124,7 @@ export default function CameraButton({ onPhotoCapture, style, onProcessingStateC
              }
             
           } catch (processingError) {
-            console.error(`[CameraButton] Processing attempt ${retryCount + 1} failed:`, processingError);
+            logger.error(`[CameraButton] Processing attempt ${retryCount + 1} failed:`, processingError);
             
             if (retryCount < maxRetries) {
               // Additional cleanup between retries
@@ -137,7 +138,7 @@ export default function CameraButton({ onPhotoCapture, style, onProcessingStateC
 
                  if (!normalised) {
            // Final fallback: use original camera image with a warning
-           console.warn('[CameraButton] Camera image processing failed, using original image');
+           logger.warn('[CameraButton] Camera image processing failed, using original image');
            
            // Use original camera image as fallback
            normalised = {
@@ -146,7 +147,7 @@ export default function CameraButton({ onPhotoCapture, style, onProcessingStateC
              height: asset.height || 0
            };
            
-           console.log('[CameraButton] Using original camera image as fallback:', 
+           logger.log('[CameraButton] Using original camera image as fallback:', 
              `${normalised.width}x${normalised.height}`, 'URI:', normalised.uri);
          }
 
@@ -170,7 +171,7 @@ export default function CameraButton({ onPhotoCapture, style, onProcessingStateC
       let errorMessage = 'Failed to take photo. Please try again.';
       
       Alert.alert('Error', errorMessage);
-      console.error(error);
+      logger.error(error);
     }
   };
 

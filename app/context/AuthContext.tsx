@@ -3,6 +3,7 @@ import { Session, User } from '@supabase/supabase-js';
 import * as authService from '../services/authService';
 import { supabase } from '../services/supabaseClient';
 
+import { logger } from '../utils/logger';
 // Define the shape of our Auth context
 type AuthContextType = {
   user: User | null;
@@ -36,7 +37,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setSession(session);
         setUser(session?.user ?? null);
       } catch (error) {
-        console.error('Error getting initial session:', error);
+        logger.error('Error getting initial session:', error);
       } finally {
         setIsLoading(false);
       }
@@ -47,14 +48,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // Subscribe to auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('🔐 [AuthContext] Auth state change event:', event);
-        console.log('🔐 [AuthContext] Session exists:', !!session);
-        console.log('🔐 [AuthContext] User email:', session?.user?.email || 'No user');
-        console.log('🔐 [AuthContext] Setting session and user state...');
+        logger.log('🔐 [AuthContext] Auth state change event:', event);
+        logger.log('🔐 [AuthContext] Session exists:', !!session);
+        logger.log('🔐 [AuthContext] User email:', session?.user?.email || 'No user');
+        logger.log('🔐 [AuthContext] Setting session and user state...');
         setSession(session);
         setUser(session?.user ?? null);
         setIsLoading(false);
-        console.log('✅ [AuthContext] Auth state updated');
+        logger.log('✅ [AuthContext] Auth state updated');
       }
     );
 
@@ -66,18 +67,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // Sign in function
   const signIn = async (email: string, password: string) => {
-    console.log('🔐 [AuthContext] signIn called with email:', email);
+    logger.log('🔐 [AuthContext] signIn called with email:', email);
     setIsLoading(true);
     try {
-      console.log('🔐 [AuthContext] Calling authService.signIn...');
+      logger.log('🔐 [AuthContext] Calling authService.signIn...');
       const { session } = await authService.signIn(email, password);
-      console.log('🔐 [AuthContext] authService.signIn returned session:', !!session);
-      console.log('🔐 [AuthContext] Session user email:', session?.user?.email);
+      logger.log('🔐 [AuthContext] authService.signIn returned session:', !!session);
+      logger.log('🔐 [AuthContext] Session user email:', session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
-      console.log('✅ [AuthContext] Session and user state updated');
+      logger.log('✅ [AuthContext] Session and user state updated');
     } catch (error) {
-      console.error('❌ [AuthContext] Error signing in:', error);
+      logger.error('❌ [AuthContext] Error signing in:', error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -88,22 +89,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const signUp = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      console.log('🔐 [AuthContext] signUp called with email:', email);
+      logger.log('🔐 [AuthContext] signUp called with email:', email);
       const data = await authService.signUp(email, password);
       
-      // If user is auto-confirmed (email confirmation disabled), set the session
       if (data?.session) {
-        console.log('✅ [AuthContext] User auto-confirmed, setting session');
+        logger.log('✅ [AuthContext] User signed up, setting session');
         setSession(data.session);
         setUser(data.session.user);
-      } else if (data?.user && !data?.session) {
-        console.log('📧 [AuthContext] Email confirmation required, not setting session');
-        // Sign-up requires email verification, so we don't set user or session here
       }
       
       return data ? { user: data.user, session: data.session } : null;
     } catch (error) {
-      console.error('❌ [AuthContext] Error signing up:', error);
+      logger.error('❌ [AuthContext] Error signing up:', error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -118,7 +115,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setSession(null);
       setUser(null);
     } catch (error) {
-      console.error('Error signing out:', error);
+      logger.error('Error signing out:', error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -130,7 +127,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       await authService.resetPassword(email);
     } catch (error) {
-      console.error('Error resetting password:', error);
+      logger.error('Error resetting password:', error);
       throw error;
     }
   };

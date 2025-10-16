@@ -5,6 +5,7 @@ import KanjiScanner from './components/camera/KanjiScanner';
 import { COLORS } from './constants/colors';
 import PokedexLayout from './components/shared/PokedexLayout';
 
+import { logger } from './utils/logger';
 // 1. Import the logo image
 const worddexLogo = require('../assets/images/worddexlogo.png'); // Adjusted path
 
@@ -52,7 +53,7 @@ export default function App() {
         style={styles.container}
         onLayout={(event) => {
           // const { x, y, width, height } = event.nativeEvent.layout;
-          // console.log(`[AppIndexRootView] onLayout: x:${x}, y:${y}, width:${width}, height:${height}`);
+          // logger.log(`[AppIndexRootView] onLayout: x:${x}, y:${y}, width:${width}, height:${height}`);
         }}
       >
         <KanjiScanner onCardSwipe={handleCardSwipe} onContentReady={handleContentReady} />

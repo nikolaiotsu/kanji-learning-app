@@ -29,9 +29,6 @@
     },
     "testflight": {
       "distribution": "store",
-      "ios": {
-        "buildType": "release"
-      },
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://osbxxmfblgmytndszfxz.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYnh4bWZibGdteXRuZHN6Znh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDIyODUxMjgsImV4cCI6MjA1Nzg2MTEyOH0.ZJZBfgA9XunV1e7qH0jFH3_N7BsJgQTbOGXkFwQb5G0",

@@ -39,6 +39,7 @@ import { PRODUCT_IDS } from './constants/config';
 import MemoryManager from './services/memoryManager';
 import * as Haptics from 'expo-haptics';
 
+import { logger } from './utils/logger';
 export default function LanguageFlashcardsScreen() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -99,11 +100,11 @@ export default function LanguageFlashcardsScreen() {
   
   // Debug: Log state changes
   useEffect(() => {
-    console.log('🔍 [DEBUG] showEditModal changed to:', showEditModal);
+    logger.log('🔍 [DEBUG] showEditModal changed to:', showEditModal);
   }, [showEditModal]);
   
   useEffect(() => {
-    console.log('🔍 [DEBUG] showEditTranslationModal changed to:', showEditTranslationModal);
+    logger.log('🔍 [DEBUG] showEditTranslationModal changed to:', showEditTranslationModal);
   }, [showEditTranslationModal]);
   
 
@@ -123,13 +124,13 @@ export default function LanguageFlashcardsScreen() {
 
   // Function to process text with Claude API
   const processTextWithClaude = async (text: string) => {
-    console.log('🌟 [Flashcards] Starting text processing with Claude API');
+    logger.log('🌟 [Flashcards] Starting text processing with Claude API');
     setIsLoading(true);
     setError('');
     setTextProcessed(false);
     setProcessingProgress(0);
     setProcessingFailed(false);
-    console.log('🔄 [Flashcards] State set - isLoading: true, processingProgress: 0, processingFailed: false');
+    logger.log('🔄 [Flashcards] State set - isLoading: true, processingProgress: 0, processingFailed: false');
     
           try {
         // Check if the text contains Japanese, Chinese, Korean, Russian, Arabic, Hindi, Esperanto characters
@@ -180,7 +181,7 @@ export default function LanguageFlashcardsScreen() {
           case 'de': language = 'German'; break;
           default: language = 'unknown';
         }
-        console.log(`Using forced language detection: ${language}`);
+        logger.log(`Using forced language detection: ${language}`);
         
         // Language validation now handled by hybrid AI/pattern validation in processWithClaude
         // No need for pre-validation here - let the hybrid system handle it
@@ -216,9 +217,9 @@ export default function LanguageFlashcardsScreen() {
       
       // Progress callback to update loading lights
       const progressCallback = (checkpoint: number) => {
-        console.log('🚀 [Flashcards] Progress callback triggered:', checkpoint);
+        logger.log('🚀 [Flashcards] Progress callback triggered:', checkpoint);
         setProcessingProgress(checkpoint);
-        console.log('📊 [Flashcards] Processing progress set to:', checkpoint);
+        logger.log('📊 [Flashcards] Processing progress set to:', checkpoint);
       };
       
       const result = await processWithClaude(text, targetLanguage, forcedDetectionLanguage, progressCallback);
@@ -246,9 +247,9 @@ export default function LanguageFlashcardsScreen() {
         setTextProcessed(true);
         
         // Add a delay to show the 4th (green) light prominently before fade-out
-        console.log('✅ [Flashcards] Processing successful - showing final light for adequate time');
+        logger.log('✅ [Flashcards] Processing successful - showing final light for adequate time');
         setTimeout(() => {
-          console.log('✅ [Flashcards] Delay complete - setting isLoading to false');
+          logger.log('✅ [Flashcards] Delay complete - setting isLoading to false');
           setIsLoading(false);
           setIsManualOperation(false); // Reset manual operation flag when process completes
         }, 1500); // 1500ms delay to give green light proper visibility time
@@ -259,19 +260,19 @@ export default function LanguageFlashcardsScreen() {
         setProcessingFailed(true);
         
         // For errors, complete immediately
-        console.log('❌ [Flashcards] Processing failed - setting isLoading to false immediately');
+        logger.log('❌ [Flashcards] Processing failed - setting isLoading to false immediately');
         setIsLoading(false);
         setIsManualOperation(false);
       }
     } catch (err) {
-      console.log('Error processing with Claude:', err);
+      logger.log('Error processing with Claude:', err);
       // Show specific error message if available (e.g., text too long, language mismatch)
       const errorMessage = err instanceof Error ? err.message : 'Failed to process text with Claude API. Please try again later.';
       setError(errorMessage);
       setProcessingFailed(true);
       
       // For errors, complete immediately
-      console.log('❌ [Flashcards] Processing error - setting isLoading to false immediately');
+      logger.log('❌ [Flashcards] Processing error - setting isLoading to false immediately');
       setIsLoading(false);
       setIsManualOperation(false);
     }
@@ -378,11 +379,11 @@ export default function LanguageFlashcardsScreen() {
           
           // Preserve both the current image and the original image if they're different
           // This ensures we can navigate back to the original uncropped image
-          console.log('[FlashcardSave] Keeping local image file for navigation:', imageUri);
+          logger.log('[FlashcardSave] Keeping local image file for navigation:', imageUri);
         }
-        console.log('[FlashcardSave] Flashcard save completed');
+        logger.log('[FlashcardSave] Flashcard save completed');
       } catch (error) {
-        console.warn('[FlashcardSave] Error during flashcard save cleanup:', error);
+        logger.warn('[FlashcardSave] Error during flashcard save cleanup:', error);
       }
       
       setIsSaved(true);
@@ -407,7 +408,7 @@ export default function LanguageFlashcardsScreen() {
         ]
       );
     } catch (err) {
-      console.error('Error saving flashcard:', err);
+      logger.error('Error saving flashcard:', err);
       // Show specific error message if available
       const errorMessage = err instanceof Error ? err.message : t('flashcard.save.saveFailed');
       Alert.alert(t('flashcard.save.saveError'), errorMessage);
@@ -468,7 +469,7 @@ export default function LanguageFlashcardsScreen() {
 
   // Function to handle editing input and retranslating
   const handleEditInputAndRetranslate = () => {
-    console.log('🔍 [DEBUG] Edit Input & Retranslate button pressed!');
+    logger.log('🔍 [DEBUG] Edit Input & Retranslate button pressed!');
     
     // Set manual operation flag to prevent main useEffect interference
     setIsManualOperation(true);
@@ -530,7 +531,7 @@ export default function LanguageFlashcardsScreen() {
 
   // Function to handle editing translation
   const handleEditTranslation = () => {
-    console.log('🔍 [DEBUG] Edit Translation button pressed!');
+    logger.log('🔍 [DEBUG] Edit Translation button pressed!');
     
     // Set manual operation flag to prevent main useEffect interference
     setIsManualOperation(true);

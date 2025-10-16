@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { detectJapaneseText } from '../services/visionApi';
 import { Region, VisionApiResponse } from '../../types';
 
+import { logger } from '../utils/logger';
 export function useKanjiRecognition() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [detectedRegions, setDetectedRegions] = useState<VisionApiResponse[]>([]);
@@ -30,7 +31,7 @@ export function useKanjiRecognition() {
       const japaneseText = detectedText.map(item => item.text).join('\n');
       return japaneseText;
     } catch (err) {
-      console.error('Error detecting text:', err);
+      logger.error('Error detecting text:', err);
       setDetectedRegions([]);
       setError('Failed to recognize text. Please try again.');
       return '';

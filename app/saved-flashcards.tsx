@@ -26,6 +26,7 @@ import { COLORS } from './constants/colors';
 import { useRouter } from 'expo-router';
 import PokedexLayout from './components/shared/PokedexLayout';
 
+import { logger } from './utils/logger';
 const POKEDEX_LAYOUT_HORIZONTAL_REDUCTION = 20; // Updated: (padding 10) * 2
 
 export default function SavedFlashcardsScreen() {
@@ -153,7 +154,7 @@ export default function SavedFlashcardsScreen() {
         setSelectedDeckId(savedDecks[0].id);
       }
     } catch (error) {
-      console.error('Error loading collections:', error);
+      logger.error('Error loading collections:', error);
       Alert.alert(t('common.error'), t('savedFlashcards.loadCollectionsError'));
     } finally {
       setIsLoadingDecks(false);
@@ -169,7 +170,7 @@ export default function SavedFlashcardsScreen() {
       savedFlashcards.sort((a, b) => b.createdAt - a.createdAt);
       setFlashcards(savedFlashcards);
     } catch (error) {
-      console.error('Error loading flashcards:', error);
+      logger.error('Error loading flashcards:', error);
       Alert.alert(t('common.error'), t('savedFlashcards.loadFlashcardsError'));
     } finally {
       setIsLoadingFlashcards(false);
@@ -185,7 +186,7 @@ export default function SavedFlashcardsScreen() {
       deckFlashcards.sort((a, b) => b.createdAt - a.createdAt);
       setFlashcards(deckFlashcards);
     } catch (error) {
-      console.error('Error loading flashcards for collection:', error);
+      logger.error('Error loading flashcards for collection:', error);
       Alert.alert(t('common.error'), t('savedFlashcards.loadFlashcardsForCollectionError'));
     } finally {
       setIsLoadingFlashcards(false);
@@ -210,7 +211,7 @@ export default function SavedFlashcardsScreen() {
                 setFlashcards(cards => cards.filter(card => card.id !== id));
               }
             } catch (error) {
-              console.error('Error deleting flashcard:', error);
+              logger.error('Error deleting flashcard:', error);
                               Alert.alert(t('common.error'), t('savedFlashcards.deleteFlashcardError'));
             }
           },
@@ -250,7 +251,7 @@ export default function SavedFlashcardsScreen() {
                 }
               }
             } catch (error) {
-              console.error('Error deleting collection:', error);
+              logger.error('Error deleting collection:', error);
               Alert.alert(t('common.error'), t('savedFlashcards.deleteCollectionError'));
             }
           },
@@ -285,7 +286,7 @@ export default function SavedFlashcardsScreen() {
         ));
       }
     } catch (error) {
-      console.error('Error renaming collection:', error);
+      logger.error('Error renaming collection:', error);
       Alert.alert(t('common.error'), t('savedFlashcards.renameCollectionError'));
     } finally {
       setEditingDeckId(null);
@@ -342,7 +343,7 @@ export default function SavedFlashcardsScreen() {
         Alert.alert(t('common.error'), t('savedFlashcards.moveFlashcardError'));
       }
     } catch (error) {
-      console.error('Error moving flashcard:', error);
+      logger.error('Error moving flashcard:', error);
       Alert.alert(t('common.error'), t('savedFlashcards.moveFlashcardError'));
     } finally {
       closeModal();
@@ -373,7 +374,7 @@ export default function SavedFlashcardsScreen() {
         Alert.alert(t('common.error'), t('savedFlashcards.moveFlashcardError'));
       }
     } catch (error) {
-      console.error('Error creating deck and moving flashcard:', error);
+      logger.error('Error creating deck and moving flashcard:', error);
       Alert.alert(t('common.error'), t('savedFlashcards.createDeckError'));
     } finally {
       closeModal();
@@ -480,7 +481,7 @@ export default function SavedFlashcardsScreen() {
         Alert.alert(t('common.error'), t('savedFlashcards.updateFlashcardError'));
       }
     } catch (error) {
-      console.error('Error updating flashcard:', error);
+      logger.error('Error updating flashcard:', error);
       Alert.alert(t('common.error'), t('savedFlashcards.unexpectedError'));
     }
   };
@@ -512,7 +513,7 @@ export default function SavedFlashcardsScreen() {
 
   // Handle reorder completion from modal
   const handleReorderComplete = (newDecks: Deck[]) => {
-    console.log(`[handleReorderComplete] Updating deck order, current selectedDeckId: ${selectedDeckId}`);
+    logger.log(`[handleReorderComplete] Updating deck order, current selectedDeckId: ${selectedDeckId}`);
     
     setDecks(newDecks);
     
@@ -521,7 +522,7 @@ export default function SavedFlashcardsScreen() {
     
     if (newIndex >= 0) {
       // Current deck still exists, update index and ensure it stays selected
-      console.log(`[handleReorderComplete] Current deck found at new index: ${newIndex}`);
+      logger.log(`[handleReorderComplete] Current deck found at new index: ${newIndex}`);
       setSelectedDeckIndex(newIndex);
       
       // Force reload flashcards for the selected deck to ensure they appear
@@ -556,12 +557,12 @@ export default function SavedFlashcardsScreen() {
       }
     } else if (newDecks.length > 0) {
       // Current deck no longer exists, select the first deck
-      console.log(`[handleReorderComplete] Current deck not found, selecting first deck: ${newDecks[0].name}`);
+      logger.log(`[handleReorderComplete] Current deck not found, selecting first deck: ${newDecks[0].name}`);
       setSelectedDeckId(newDecks[0].id);
       setSelectedDeckIndex(0);
     } else {
       // No decks available
-      console.log(`[handleReorderComplete] No decks available after reorder`);
+      logger.log(`[handleReorderComplete] No decks available after reorder`);
       setSelectedDeckId(null);
       setSelectedDeckIndex(0);
       setFlashcards([]);

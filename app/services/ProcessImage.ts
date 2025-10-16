@@ -1,6 +1,7 @@
 import * as ImageManipulator from 'expo-image-manipulator';
 import MemoryManager from './memoryManager';
 
+import { logger } from '../utils/logger';
 // Define the Region interface to match visionApi.ts
 interface Region {
   x: number;
@@ -27,7 +28,7 @@ export async function getImageInfo(imageUri: string): Promise<{ width: number; h
       height: info.height
     };
   } catch (error) {
-    console.error('Error getting image info:', error);
+    logger.error('Error getting image info:', error);
     throw error;
   }
 }
@@ -35,11 +36,11 @@ export async function getImageInfo(imageUri: string): Promise<{ width: number; h
 // Rotate an image by a specified angle
 export async function rotateImage(imageUri: string, angle: number): Promise<string> {
   try {
-    console.log('[ProcessImage] Rotating image by angle:', angle);
+    logger.log('[ProcessImage] Rotating image by angle:', angle);
     
     // PERFORMANCE OPTIMIZATION: Skip getting original info if not needed for debugging
     // const originalInfo = await getImageInfo(imageUri);
-    // console.log('[ProcessImage] Original image dimensions:', originalInfo.width, 'x', originalInfo.height);
+    // logger.log('[ProcessImage] Original image dimensions:', originalInfo.width, 'x', originalInfo.height);
     
     // Use ImageManipulator to rotate the image with balanced quality settings
     const result = await ImageManipulator.manipulateAsync(
@@ -53,10 +54,10 @@ export async function rotateImage(imageUri: string, angle: number): Promise<stri
       }
     );
     
-    console.log('[ProcessImage] Rotated image dimensions:', result.width, 'x', result.height);
+    logger.log('[ProcessImage] Rotated image dimensions:', result.width, 'x', result.height);
     return result.uri;
   } catch (error) {
-    console.error('Error rotating image:', error);
+    logger.error('Error rotating image:', error);
     throw error;
   }
 }
@@ -64,7 +65,7 @@ export async function rotateImage(imageUri: string, angle: number): Promise<stri
 // Crop an image to a specified region
 export async function cropImage(imageUri: string, region: Region): Promise<string> {
   try {
-    console.log('[ProcessImage] Cropping image to region:', region);
+    logger.log('[ProcessImage] Cropping image to region:', region);
     
     // First, get the dimensions of the source image to validate crop boundaries
     const sourceImage = await ImageManipulator.manipulateAsync(
@@ -101,10 +102,10 @@ export async function cropImage(imageUri: string, region: Region): Promise<strin
       { format: ImageManipulator.SaveFormat.JPEG, compress: 0.95 }
     );
     
-    console.log('[ProcessImage] Cropped image dimensions:', result.width, 'x', result.height);
+    logger.log('[ProcessImage] Cropped image dimensions:', result.width, 'x', result.height);
     return result.uri;
   } catch (error) {
-    console.error('Error cropping image:', error);
+    logger.error('Error cropping image:', error);
     throw error;
   }
 }
@@ -117,11 +118,11 @@ export async function processImage(
   const memoryManager = MemoryManager.getInstance();
   
   try {
-    console.log('[ProcessImage] Processing image with operations:', operations);
+    logger.log('[ProcessImage] Processing image with operations:', operations);
     
     // Simple cleanup check before processing
     if (await memoryManager.shouldCleanup()) {
-      console.log('[ProcessImage] Performing cleanup before processing');
+      logger.log('[ProcessImage] Performing cleanup before processing');
       await memoryManager.cleanupPreviousImages(imageUri);
     }
     
@@ -132,14 +133,14 @@ export async function processImage(
     const originalInfo = await getImageInfo(imageUri);
     const standardConfig = memoryManager.getStandardImageConfig();
     
-    console.log('[ProcessImage] Original image dimensions:', originalInfo.width, 'x', originalInfo.height);
+    logger.log('[ProcessImage] Original image dimensions:', originalInfo.width, 'x', originalInfo.height);
     
     // Check if this is a rotation-only operation
     const isRotationOnly = !operations.crop && operations.rotate !== undefined;
     
     if (isRotationOnly) {
       // For rotation-only operations, ensure the entire image is preserved without resizing
-      console.log('[ProcessImage] Performing rotation-only operation');
+      logger.log('[ProcessImage] Performing rotation-only operation');
       
               // Rotate the image with standard quality settings
         const rotatedResult = await ImageManipulator.manipulateAsync(
@@ -151,7 +152,7 @@ export async function processImage(
           }
         );
       
-      console.log('[ProcessImage] Rotated image dimensions:', rotatedResult.width, 'x', rotatedResult.height);
+      logger.log('[ProcessImage] Rotated image dimensions:', rotatedResult.width, 'x', rotatedResult.height);
       
       // Track the processed image
       memoryManager.trackProcessedImage(rotatedResult.uri);
@@ -194,7 +195,7 @@ export async function processImage(
         }
       );
       
-      console.log('[ProcessImage] Processed image dimensions:', result.width, 'x', result.height);
+      logger.log('[ProcessImage] Processed image dimensions:', result.width, 'x', result.height);
       
       // Track the processed image
       memoryManager.trackProcessedImage(result.uri);
@@ -202,13 +203,13 @@ export async function processImage(
       return result.uri;
     }
   } catch (error) {
-    console.error('Error processing image:', error);
+    logger.error('Error processing image:', error);
     // Attempt recovery with emergency cleanup for memory pressure situations
     try {
       await memoryManager.emergencyCleanup();
-      console.log('[ProcessImage] Emergency cleanup completed, retrying operation');
+      logger.log('[ProcessImage] Emergency cleanup completed, retrying operation');
     } catch (cleanupError) {
-      console.error('[ProcessImage] Emergency cleanup failed:', cleanupError);
+      logger.error('[ProcessImage] Emergency cleanup failed:', cleanupError);
     }
     throw error;
   }

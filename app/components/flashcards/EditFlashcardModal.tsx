@@ -24,6 +24,7 @@ import { processWithClaude } from '../../services/claudeApi';
 import { useSettings, AVAILABLE_LANGUAGES } from '../../context/SettingsContext';
 import { COLORS } from '../../constants/colors';
 
+import { logger } from '../../utils/logger';
 const { height: screenHeight } = Dimensions.get('window');
 
 interface EditFlashcardModalProps {
@@ -192,7 +193,7 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
           setError(t('flashcard.edit.retranslateFailed'));
         }
       } catch (err) {
-        console.error('Error processing with Claude:', err);
+        logger.error('Error processing with Claude:', err);
         setError(t('flashcard.edit.retranslateFailed'));
       } finally {
       setIsRetranslating(false);

@@ -5,10 +5,10 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { router } from 'expo-router';
 import SocialAuth from '../components/SocialAuth';
-import { supabase } from '../services/supabaseClient';
 import { COLORS } from '../constants/colors';
 import PokedexLayout from '../components/shared/PokedexLayout';
 
+import { logger } from '../utils/logger';
 // Import the logo image
 const worddexLogo = require('../../assets/images/worddexlogo.png');
 
@@ -20,61 +20,29 @@ const LoginScreen = () => {
   const { signIn } = useAuth();
 
   const handleLogin = async () => {
-    console.log('🔐 [LoginScreen] Starting email login process...');
-    console.log('🔐 [LoginScreen] Email:', email);
-    console.log('🔐 [LoginScreen] Password length:', password.length);
+    logger.log('🔐 [LoginScreen] Starting email login process...');
+    logger.log('🔐 [LoginScreen] Email:', email);
+    logger.log('🔐 [LoginScreen] Password length:', password.length);
     
     if (!email || !password) {
-      console.log('❌ [LoginScreen] Missing credentials');
+      logger.log('❌ [LoginScreen] Missing credentials');
       Alert.alert(t('common.error'), t('auth.login.missingCredentials'));
       return;
     }
     
     setLoading(true);
     try {
-      console.log('🔐 [LoginScreen] Calling signIn function...');
+      logger.log('🔐 [LoginScreen] Calling signIn function...');
       await signIn(email, password);
-      console.log('✅ [LoginScreen] signIn completed successfully');
-      console.log('🔐 [LoginScreen] Authentication successful, letting AuthGuard handle navigation...');
+      logger.log('✅ [LoginScreen] signIn completed successfully');
+      logger.log('🔐 [LoginScreen] Authentication successful, letting AuthGuard handle navigation...');
     } catch (error: any) {
-      console.error('❌ [LoginScreen] Login error:', error);
-      console.error('❌ [LoginScreen] Error message:', error.message);
-      console.error('❌ [LoginScreen] Error details:', JSON.stringify(error));
-      if (error.message && error.message.includes('Email not confirmed')) {
-        Alert.alert(
-          t('auth.login.emailNotVerified'),
-          t('auth.login.emailNotVerifiedMessage'),
-          [
-            { text: t('common.cancel'), style: 'cancel' },
-            { 
-              text: t('auth.login.resendLink'), 
-              onPress: () => resendVerificationEmail(email)
-            }
-          ]
-        );
-      } else {
-        Alert.alert(t('auth.login.loginFailed'), error.message || 'Failed to login. Please try again.');
-      }
+      logger.error('❌ [LoginScreen] Login error:', error);
+      logger.error('❌ [LoginScreen] Error message:', error.message);
+      logger.error('❌ [LoginScreen] Error details:', JSON.stringify(error));
+      Alert.alert(t('auth.login.loginFailed'), error.message || 'Failed to login. Please try again.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const resendVerificationEmail = async (email: string) => {
-    try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: email,
-      });
-      
-      if (error) throw error;
-      
-      Alert.alert(
-        t('auth.login.verificationSent'),
-        t('auth.login.verificationSentMessage')
-      );
-    } catch (error: any) {
-      Alert.alert(t('common.error'), error.message || t('auth.login.resendFailed'));
     }
   };
 
@@ -89,7 +57,6 @@ const LoginScreen = () => {
   return (
     <PokedexLayout 
       logoSource={worddexLogo}
-      logoLoaded={true}
       logoStyle={{ 
         width: 80,
         height: 65,

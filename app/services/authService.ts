@@ -2,46 +2,37 @@ import { supabase } from './supabaseClient';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 import appleAuth from '@invertase/react-native-apple-authentication';
+import { logger } from '../utils/logger';
 
 // Sign up with email and password
 export const signUp = async (email: string, password: string) => {
   try {
-    console.log('🔐 [authService] signUp called with email:', email);
+    logger.log('🔐 [authService] signUp called with email:', email);
     
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        // Redirect URL after email confirmation
-        emailRedirectTo: 'kanjilearningapp://login',
-        // Optional: Add user metadata
         data: {
           email: email,
         }
       }
     });
     
-    console.log('🔐 [authService] signUp response:', {
+    logger.log('🔐 [authService] signUp response:', {
       user: !!data?.user,
       session: !!data?.session,
       error: !!error
     });
     
-    // Check if email confirmation is required
-    if (data?.user && !data?.session) {
-      console.log('📧 [authService] Email confirmation required for:', email);
-    } else if (data?.session) {
-      console.log('✅ [authService] User signed up and automatically logged in');
-    }
-    
     if (error) {
-      console.error('❌ [authService] signUp error:', error.message);
+      logger.error('❌ [authService] signUp error:', error.message);
       throw error;
     }
     
     return data;
   } catch (error) {
-    console.error('❌ [authService] Error signing up:', error);
+    logger.error('❌ [authService] Error signing up:', error);
     throw error;
   }
 };
@@ -49,27 +40,27 @@ export const signUp = async (email: string, password: string) => {
 // Sign in with email and password
 export const signIn = async (email: string, password: string) => {
   try {
-    console.log('🔐 [authService] signIn called with email:', email);
-    console.log('🔐 [authService] Calling supabase.auth.signInWithPassword...');
+    logger.log('🔐 [authService] signIn called with email:', email);
+    logger.log('🔐 [authService] Calling supabase.auth.signInWithPassword...');
     
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
     
-    console.log('🔐 [authService] Supabase response - error:', !!error);
-    console.log('🔐 [authService] Supabase response - session:', !!data?.session);
-    console.log('🔐 [authService] Supabase response - user:', !!data?.user);
+    logger.log('🔐 [authService] Supabase response - error:', !!error);
+    logger.log('🔐 [authService] Supabase response - session:', !!data?.session);
+    logger.log('🔐 [authService] Supabase response - user:', !!data?.user);
     
     if (error) {
-      console.error('❌ [authService] Supabase auth error:', error.message);
+      logger.error('❌ [authService] Supabase auth error:', error.message);
       throw error;
     }
     
-    console.log('✅ [authService] Sign in successful, returning data');
+    logger.log('✅ [authService] Sign in successful, returning data');
     return data;
   } catch (error) {
-    console.error('❌ [authService] Error signing in:', error);
+    logger.error('❌ [authService] Error signing in:', error);
     throw error;
   }
 };
@@ -77,8 +68,8 @@ export const signIn = async (email: string, password: string) => {
 // Sign up with Google OAuth (checks if user already exists)
 export const signUpWithGoogle = async () => {
   try {
-    console.log('🔍 Starting Google OAuth sign-up flow...');
-    console.log('Platform:', Platform.OS);
+    logger.log('🔍 Starting Google OAuth sign-up flow...');
+    logger.log('Platform:', Platform.OS);
     
     // Make sure we close any existing web browser sessions
     WebBrowser.maybeCompleteAuthSession();
@@ -97,16 +88,16 @@ export const signUpWithGoogle = async () => {
     });
     
     if (error) {
-      console.error('❌ Supabase OAuth error:', error);
+      logger.error('❌ Supabase OAuth error:', error);
       throw error;
     }
     
-    console.log('✅ OAuth URL generated:', data?.url ? 'Yes' : 'No');
-    console.log('OAuth URL preview:', data?.url ? `${data.url.substring(0, 50)}...` : 'None');
+    logger.log('✅ OAuth URL generated:', data?.url ? 'Yes' : 'No');
+    logger.log('OAuth URL preview:', data?.url ? `${data.url.substring(0, 50)}...` : 'None');
     
     // On native platforms, we need to open the authorization URL in a web browser
     if (data?.url && (Platform.OS === 'ios' || Platform.OS === 'android')) {
-      console.log('🌐 Opening OAuth URL in browser...');
+      logger.log('🌐 Opening OAuth URL in browser...');
       
       // Open the URL in an in-app browser and wait for the callback
       const result = await WebBrowser.openAuthSessionAsync(
@@ -117,8 +108,8 @@ export const signUpWithGoogle = async () => {
         }
       );
       
-      console.log('🔄 Browser session result:', result.type);
-      console.log('🔄 Browser session URL:', result.type === 'success' ? result.url : 'No URL');
+      logger.log('🔄 Browser session result:', result.type);
+      logger.log('🔄 Browser session URL:', result.type === 'success' ? result.url : 'No URL');
       
       if (result.type === 'cancel') {
         throw new Error('OAuth flow was cancelled by user');
@@ -130,7 +121,7 @@ export const signUpWithGoogle = async () => {
       
       // If we got a successful result with a URL, process it
       if (result.type === 'success' && result.url) {
-        console.log('🔗 Processing OAuth callback URL:', result.url);
+        logger.log('🔗 Processing OAuth callback URL:', result.url);
         
         // Parse the callback URL
         const callbackUrl = new URL(result.url);
@@ -139,13 +130,13 @@ export const signUpWithGoogle = async () => {
         const code = callbackUrl.searchParams.get('code');
         
         if (code) {
-          console.log('🔗 Processing authorization code from PKCE flow');
+          logger.log('🔗 Processing authorization code from PKCE flow');
           
           // Exchange the authorization code for a session
           const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
           
           if (sessionError) {
-            console.error('🔗 Error exchanging code for session:', sessionError.message);
+            logger.error('🔗 Error exchanging code for session:', sessionError.message);
             throw sessionError;
           } else if (sessionData.session) {
             // Check if this is a new user or existing user
@@ -154,7 +145,7 @@ export const signUpWithGoogle = async () => {
             
             if (!isNewUser) {
               // User already exists - this should be a sign-in instead
-              console.log('🔗 Existing user detected during sign-up:', user.email);
+              logger.log('🔗 Existing user detected during sign-up:', user.email);
               
               // Sign out the user since they should use sign-in instead
               await supabase.auth.signOut();
@@ -162,7 +153,7 @@ export const signUpWithGoogle = async () => {
               throw new Error('Account already exists. Please use "Continue with Google" to sign in instead.');
             }
             
-            console.log('🔗 New user account created via Google:', user.email);
+            logger.log('🔗 New user account created via Google:', user.email);
             return sessionData;
           }
         } else {
@@ -170,14 +161,14 @@ export const signUpWithGoogle = async () => {
           const fragment = callbackUrl.hash.substring(1); // Remove the # character
           
           if (fragment) {
-            console.log('🔗 Processing OAuth fragment (implicit flow):', fragment);
+            logger.log('🔗 Processing OAuth fragment (implicit flow):', fragment);
             
             const params = new URLSearchParams(fragment);
             const accessToken = params.get('access_token');
             const refreshToken = params.get('refresh_token');
             
             if (accessToken) {
-              console.log('🔗 Setting session from OAuth tokens');
+              logger.log('🔗 Setting session from OAuth tokens');
               
               // Set the session using the tokens
               const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
@@ -186,7 +177,7 @@ export const signUpWithGoogle = async () => {
               });
               
               if (sessionError) {
-                console.error('🔗 Error setting OAuth session:', sessionError.message);
+                logger.error('🔗 Error setting OAuth session:', sessionError.message);
                 throw sessionError;
               } else if (sessionData.session) {
                 // Check if this is a new user or existing user
@@ -195,7 +186,7 @@ export const signUpWithGoogle = async () => {
                 
                 if (!isNewUser) {
                   // User already exists - this should be a sign-in instead
-                  console.log('🔗 Existing user detected during sign-up:', user.email);
+                  logger.log('🔗 Existing user detected during sign-up:', user.email);
                   
                   // Sign out the user since they should use sign-in instead
                   await supabase.auth.signOut();
@@ -203,13 +194,13 @@ export const signUpWithGoogle = async () => {
                   throw new Error('Account already exists. Please use "Continue with Google" to sign in instead.');
                 }
                 
-                console.log('🔗 New user account created via Google:', user.email);
+                logger.log('🔗 New user account created via Google:', user.email);
                 return sessionData;
               }
             }
           }
           
-          console.error('🔗 No authorization code or access token found in OAuth callback');
+          logger.error('🔗 No authorization code or access token found in OAuth callback');
           throw new Error('OAuth callback did not contain valid authentication data');
         }
       }
@@ -217,7 +208,7 @@ export const signUpWithGoogle = async () => {
     
     return data;
   } catch (error: any) {
-    console.error('❌ Error signing up with Google:', error);
+    logger.error('❌ Error signing up with Google:', error);
     
     // Provide more specific error messages
     if (error.message?.includes('Account already exists')) {
@@ -237,8 +228,8 @@ export const signUpWithGoogle = async () => {
 // Sign in with Google OAuth
 export const signInWithGoogle = async () => {
   try {
-    console.log('🔍 Starting Google OAuth flow...');
-    console.log('Platform:', Platform.OS);
+    logger.log('🔍 Starting Google OAuth flow...');
+    logger.log('Platform:', Platform.OS);
     
     // Make sure we close any existing web browser sessions
     WebBrowser.maybeCompleteAuthSession();
@@ -257,16 +248,16 @@ export const signInWithGoogle = async () => {
     });
     
     if (error) {
-      console.error('❌ Supabase OAuth error:', error);
+      logger.error('❌ Supabase OAuth error:', error);
       throw error;
     }
     
-    console.log('✅ OAuth URL generated:', data?.url ? 'Yes' : 'No');
-    console.log('OAuth URL preview:', data?.url ? `${data.url.substring(0, 50)}...` : 'None');
+    logger.log('✅ OAuth URL generated:', data?.url ? 'Yes' : 'No');
+    logger.log('OAuth URL preview:', data?.url ? `${data.url.substring(0, 50)}...` : 'None');
     
     // On native platforms, we need to open the authorization URL in a web browser
     if (data?.url && (Platform.OS === 'ios' || Platform.OS === 'android')) {
-      console.log('🌐 Opening OAuth URL in browser...');
+      logger.log('🌐 Opening OAuth URL in browser...');
       
       // Open the URL in an in-app browser and wait for the callback
       const result = await WebBrowser.openAuthSessionAsync(
@@ -277,8 +268,8 @@ export const signInWithGoogle = async () => {
         }
       );
       
-      console.log('🔄 Browser session result:', result.type);
-      console.log('🔄 Browser session URL:', result.type === 'success' ? result.url : 'No URL');
+      logger.log('🔄 Browser session result:', result.type);
+      logger.log('🔄 Browser session URL:', result.type === 'success' ? result.url : 'No URL');
       
       if (result.type === 'cancel') {
         throw new Error('OAuth flow was cancelled by user');
@@ -290,7 +281,7 @@ export const signInWithGoogle = async () => {
       
       // If we got a successful result with a URL, process it
       if (result.type === 'success' && result.url) {
-        console.log('🔗 Processing OAuth callback URL:', result.url);
+        logger.log('🔗 Processing OAuth callback URL:', result.url);
         
         // Parse the callback URL
         const callbackUrl = new URL(result.url);
@@ -299,7 +290,7 @@ export const signInWithGoogle = async () => {
         const code = callbackUrl.searchParams.get('code');
         
         if (code) {
-          console.log('🔗 Processing authorization code from PKCE flow');
+          logger.log('🔗 Processing authorization code from PKCE flow');
           
           // Exchange the authorization code for a session
           // Supabase will handle this automatically when we call getSession
@@ -307,10 +298,10 @@ export const signInWithGoogle = async () => {
           const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
           
           if (sessionError) {
-            console.error('🔗 Error exchanging code for session:', sessionError.message);
+            logger.error('🔗 Error exchanging code for session:', sessionError.message);
             throw sessionError;
           } else if (sessionData.session) {
-            console.log('🔗 OAuth session established via PKCE:', sessionData.session.user?.email);
+            logger.log('🔗 OAuth session established via PKCE:', sessionData.session.user?.email);
             return sessionData;
           }
         } else {
@@ -318,14 +309,14 @@ export const signInWithGoogle = async () => {
           const fragment = callbackUrl.hash.substring(1); // Remove the # character
           
           if (fragment) {
-            console.log('🔗 Processing OAuth fragment (implicit flow):', fragment);
+            logger.log('🔗 Processing OAuth fragment (implicit flow):', fragment);
             
             const params = new URLSearchParams(fragment);
             const accessToken = params.get('access_token');
             const refreshToken = params.get('refresh_token');
             
             if (accessToken) {
-              console.log('🔗 Setting session from OAuth tokens');
+              logger.log('🔗 Setting session from OAuth tokens');
               
               // Set the session using the tokens
               const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
@@ -334,16 +325,16 @@ export const signInWithGoogle = async () => {
               });
               
               if (sessionError) {
-                console.error('🔗 Error setting OAuth session:', sessionError.message);
+                logger.error('🔗 Error setting OAuth session:', sessionError.message);
                 throw sessionError;
               } else if (sessionData.session) {
-                console.log('🔗 OAuth session established via tokens:', sessionData.session.user?.email);
+                logger.log('🔗 OAuth session established via tokens:', sessionData.session.user?.email);
                 return sessionData;
               }
             }
           }
           
-          console.error('🔗 No authorization code or access token found in OAuth callback');
+          logger.error('🔗 No authorization code or access token found in OAuth callback');
           throw new Error('OAuth callback did not contain valid authentication data');
         }
       }
@@ -351,7 +342,7 @@ export const signInWithGoogle = async () => {
     
     return data;
   } catch (error: any) {
-    console.error('❌ Error signing in with Google:', error);
+    logger.error('❌ Error signing in with Google:', error);
     
     // Provide more specific error messages
     if (error.message?.includes('Invalid login credentials')) {
@@ -369,30 +360,30 @@ export const signInWithGoogle = async () => {
 // Sign in with Apple (Native iOS + Web fallback)
 export const signInWithApple = async () => {
   try {
-    console.log('🍎 Starting Apple Sign In flow...');
-    console.log('🍎 Platform:', Platform.OS);
+    logger.log('🍎 Starting Apple Sign In flow...');
+    logger.log('🍎 Platform:', Platform.OS);
     
     // Check if Apple Sign In is available (iOS 13+)
     if (Platform.OS === 'ios') {
-      console.log('🍎 Checking Apple Sign In availability...');
+      logger.log('🍎 Checking Apple Sign In availability...');
       
       // Check if Sign In with Apple is supported on this device
       const isSupported = await appleAuth.isSupported;
-      console.log('🍎 Apple Sign In supported:', isSupported);
+      logger.log('🍎 Apple Sign In supported:', isSupported);
       
       if (isSupported) {
         return await signInWithAppleNative();
       } else {
-        console.log('🍎 Native Apple Sign In not supported, falling back to web OAuth');
+        logger.log('🍎 Native Apple Sign In not supported, falling back to web OAuth');
         return await signInWithAppleWeb();
       }
     } else {
       // For Android and Web, use web-based OAuth
-      console.log('🍎 Using web-based Apple OAuth for non-iOS platform');
+      logger.log('🍎 Using web-based Apple OAuth for non-iOS platform');
       return await signInWithAppleWeb();
     }
   } catch (error: any) {
-    console.error('❌ Error in Apple Sign In:', error);
+    logger.error('❌ Error in Apple Sign In:', error);
     
     // Provide more specific error messages
     if (error.code === '1001') {
@@ -410,7 +401,7 @@ export const signInWithApple = async () => {
 // Native Apple Sign In for iOS
 const signInWithAppleNative = async () => {
   try {
-    console.log('🍎 Starting native Apple Sign In...');
+    logger.log('🍎 Starting native Apple Sign In...');
     
     // Generate a cryptographically secure nonce (best practice for security)
     const generateNonce = (): string => {
@@ -423,7 +414,7 @@ const signInWithAppleNative = async () => {
     };
     
     const nonce = generateNonce();
-    console.log('🍎 Generated nonce for security');
+    logger.log('🍎 Generated nonce for security');
     
     // Perform the sign in request with nonce
     const appleAuthRequestResponse = await appleAuth.performRequest({
@@ -432,10 +423,10 @@ const signInWithAppleNative = async () => {
       nonce: nonce, // Pass nonce to Apple
     });
     
-    console.log('🍎 Apple Auth Response received');
-    console.log('🍎 User ID:', appleAuthRequestResponse.user ? 'Present' : 'None');
-    console.log('🍎 Email:', appleAuthRequestResponse.email ? 'Present' : 'None');
-    console.log('🍎 Identity Token:', appleAuthRequestResponse.identityToken ? 'Present' : 'None');
+    logger.log('🍎 Apple Auth Response received');
+    logger.log('🍎 User ID:', appleAuthRequestResponse.user ? 'Present' : 'None');
+    logger.log('🍎 Email:', appleAuthRequestResponse.email ? 'Present' : 'None');
+    logger.log('🍎 Identity Token:', appleAuthRequestResponse.identityToken ? 'Present' : 'None');
     
     // Check if we got the required data
     if (!appleAuthRequestResponse.identityToken) {
@@ -444,7 +435,7 @@ const signInWithAppleNative = async () => {
     
     // Get the credential state for the user
     const credentialState = await appleAuth.getCredentialStateForUser(appleAuthRequestResponse.user);
-    console.log('🍎 Credential State:', credentialState);
+    logger.log('🍎 Credential State:', credentialState);
     
     if (credentialState !== appleAuth.State.AUTHORIZED) {
       throw new Error('Apple credentials are not authorized');
@@ -457,7 +448,7 @@ const signInWithAppleNative = async () => {
       id_token: appleAuthRequestResponse.identityToken,
     };
     
-    console.log('🍎 Signing in to Supabase with Apple credentials...');
+    logger.log('🍎 Signing in to Supabase with Apple credentials...');
     
     // Sign in to Supabase using the Apple identity token
     // This is the correct method for native Apple Sign In
@@ -468,12 +459,12 @@ const signInWithAppleNative = async () => {
     });
     
     if (error) {
-      console.error('🍎 Supabase Apple Sign In error:', error.message);
+      logger.error('🍎 Supabase Apple Sign In error:', error.message);
       throw error;
     }
     
     if (data.session) {
-      console.log('✅ Apple Sign In successful:', data.session.user?.email);
+      logger.log('✅ Apple Sign In successful:', data.session.user?.email);
       
       // Update user metadata if we have name information
       if (appleAuthRequestResponse.fullName) {
@@ -481,13 +472,13 @@ const signInWithAppleNative = async () => {
         const fullName = [givenName, familyName].filter(Boolean).join(' ');
         
         if (fullName) {
-          console.log('🍎 Updating user profile with name:', fullName);
+          logger.log('🍎 Updating user profile with name:', fullName);
           try {
             await supabase.auth.updateUser({
               data: { full_name: fullName }
             });
           } catch (updateError) {
-            console.warn('🍎 Could not update user profile:', updateError);
+            logger.warn('🍎 Could not update user profile:', updateError);
             // Don't throw here, as the sign in was successful
           }
         }
@@ -496,7 +487,7 @@ const signInWithAppleNative = async () => {
     
     return data;
   } catch (error: any) {
-    console.error('❌ Native Apple Sign In error:', error);
+    logger.error('❌ Native Apple Sign In error:', error);
     throw error;
   }
 };
@@ -504,7 +495,7 @@ const signInWithAppleNative = async () => {
 // Web-based Apple OAuth fallback
 const signInWithAppleWeb = async () => {
   try {
-    console.log('🍎 Starting web-based Apple OAuth...');
+    logger.log('🍎 Starting web-based Apple OAuth...');
     
     // Make sure we close any existing web browser sessions
     WebBrowser.maybeCompleteAuthSession();
@@ -519,15 +510,15 @@ const signInWithAppleWeb = async () => {
     });
     
     if (error) {
-      console.error('🍎 Supabase Apple OAuth error:', error);
+      logger.error('🍎 Supabase Apple OAuth error:', error);
       throw error;
     }
     
-    console.log('🍎 OAuth URL generated:', data?.url ? 'Yes' : 'No');
+    logger.log('🍎 OAuth URL generated:', data?.url ? 'Yes' : 'No');
     
     // On native platforms, open the authorization URL in a web browser
     if (data?.url && (Platform.OS === 'ios' || Platform.OS === 'android')) {
-      console.log('🌐 Opening Apple OAuth URL in browser...');
+      logger.log('🌐 Opening Apple OAuth URL in browser...');
       
       const result = await WebBrowser.openAuthSessionAsync(
         data.url, 
@@ -537,7 +528,7 @@ const signInWithAppleWeb = async () => {
         }
       );
       
-      console.log('🔄 Browser session result:', result.type);
+      logger.log('🔄 Browser session result:', result.type);
       
       if (result.type === 'cancel') {
         throw new Error('Apple Sign In was cancelled by user');
@@ -549,21 +540,21 @@ const signInWithAppleWeb = async () => {
       
       // Process the callback URL if successful
       if (result.type === 'success' && result.url) {
-        console.log('🔗 Processing Apple OAuth callback URL...');
+        logger.log('🔗 Processing Apple OAuth callback URL...');
         
         const callbackUrl = new URL(result.url);
         const code = callbackUrl.searchParams.get('code');
         
         if (code) {
-          console.log('🔗 Processing authorization code from Apple PKCE flow');
+          logger.log('🔗 Processing authorization code from Apple PKCE flow');
           
           const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
           
           if (sessionError) {
-            console.error('🔗 Error exchanging Apple code for session:', sessionError.message);
+            logger.error('🔗 Error exchanging Apple code for session:', sessionError.message);
             throw sessionError;
           } else if (sessionData.session) {
-            console.log('✅ Apple OAuth session established:', sessionData.session.user?.email);
+            logger.log('✅ Apple OAuth session established:', sessionData.session.user?.email);
             return sessionData;
           }
         }
@@ -572,7 +563,7 @@ const signInWithAppleWeb = async () => {
     
     return data;
   } catch (error: any) {
-    console.error('❌ Web Apple OAuth error:', error);
+    logger.error('❌ Web Apple OAuth error:', error);
     throw error;
   }
 };
@@ -584,7 +575,7 @@ export const getOAuthSession = async () => {
     if (error) throw error;
     return data.session;
   } catch (error) {
-    console.error('Error getting OAuth session:', error);
+    logger.error('Error getting OAuth session:', error);
     return null;
   }
 };
@@ -595,7 +586,7 @@ export const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   } catch (error) {
-    console.error('Error signing out:', error);
+    logger.error('Error signing out:', error);
     throw error;
   }
 };
@@ -607,7 +598,7 @@ export const getSession = async () => {
     if (error) throw error;
     return data.session;
   } catch (error) {
-    console.error('Error getting session:', error);
+    logger.error('Error getting session:', error);
     return null;
   }
 };
@@ -622,7 +613,7 @@ export const resetPassword = async (email: string) => {
     if (error) throw error;
     return true;
   } catch (error) {
-    console.error('Error resetting password:', error);
+    logger.error('Error resetting password:', error);
     throw error;
   }
 };
@@ -637,7 +628,7 @@ export const updateProfile = async (profile: { username?: string, avatar_url?: s
     if (error) throw error;
     return data.user;
   } catch (error) {
-    console.error('Error updating profile:', error);
+    logger.error('Error updating profile:', error);
     throw error;
   }
 };

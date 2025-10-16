@@ -6,6 +6,7 @@ import { Ionicons, MaterialIcons, FontAwesome6 } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { useSettings, AVAILABLE_LANGUAGES } from '../../context/SettingsContext';
 import FuriganaText from '../shared/FuriganaText';
+import { logger } from '../../utils/logger';
 // Removed text formatting imports - no longer needed for direct content analysis
 
 // Responsive card dimensions - calculate before component definition
@@ -222,9 +223,9 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
         try {
           // TypeScript now knows imageUrl is not undefined due to the if check above
           await Image.prefetch(flashcard.imageUrl!);
-          console.log('🖼️ [FlashcardItem] Image preloaded successfully:', flashcard.id);
+          logger.log('🖼️ [FlashcardItem] Image preloaded successfully:', flashcard.id);
         } catch (error) {
-          console.warn('🖼️ [FlashcardItem] Image preload failed for:', flashcard.id, error);
+          logger.warn('🖼️ [FlashcardItem] Image preload failed for:', flashcard.id, error);
           // Image will still attempt to load normally in the component
         }
       };
