@@ -374,6 +374,49 @@ class MemoryManager {
   }
 
   /**
+   * Untrack and delete specific images (used for branching history cleanup)
+   * Preserves the original image even if it's in the list
+   */
+  public async untrackAndDeleteImages(uris: string[]): Promise<void> {
+    if (!uris || uris.length === 0) {
+      logger.log('[MemoryManager] No images to untrack and delete');
+      return;
+    }
+    
+    logger.log(`[MemoryManager] Untracking and deleting ${uris.length} images`);
+    
+    for (const uri of uris) {
+      try {
+        // Never delete the original image
+        if (this.originalImageUri && uri === this.originalImageUri) {
+          logger.log(`[MemoryManager] Skipping deletion of original image: ${uri}`);
+          continue;
+        }
+        
+        // Remove from tracking history
+        const index = this.imageUriHistory.indexOf(uri);
+        if (index > -1) {
+          this.imageUriHistory.splice(index, 1);
+          logger.log(`[MemoryManager] Untracked image: ${uri}`);
+        }
+        
+        // Delete the file if it exists
+        if (uri.startsWith('file://')) {
+          const fileInfo = await FileSystem.getInfoAsync(uri);
+          if (fileInfo.exists) {
+            await FileSystem.deleteAsync(uri, { idempotent: true });
+            logger.log(`[MemoryManager] Deleted discarded image file: ${uri}`);
+          }
+        }
+      } catch (error) {
+        logger.warn(`[MemoryManager] Failed to untrack/delete ${uri}:`, error);
+      }
+    }
+    
+    logger.log('[MemoryManager] Untrack and delete completed');
+  }
+
+  /**
    * Resets all tracking and state
    */
   public reset(): void {

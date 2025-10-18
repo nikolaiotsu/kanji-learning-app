@@ -258,6 +258,79 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
     );
   };
 
+  // Helper function to clean up discarded branch images (for history branching)
+  const cleanupDiscardedBranch = async (imagesToDiscard: CapturedImage[]) => {
+    if (!imagesToDiscard || imagesToDiscard.length === 0) {
+      return;
+    }
+    
+    try {
+      logger.log(`[KanjiScanner] Cleaning up ${imagesToDiscard.length} discarded branch images`);
+      
+      // Extract URIs from CapturedImage objects
+      const urisToDelete = imagesToDiscard.map(img => img.uri);
+      
+      // Use MemoryManager to untrack and delete the files
+      const memoryManager = MemoryManager.getInstance();
+      await memoryManager.untrackAndDeleteImages(urisToDelete);
+      
+      logger.log('[KanjiScanner] Discarded branch cleanup completed');
+    } catch (error) {
+      logger.error('[KanjiScanner] Error cleaning up discarded branch:', error);
+      // Don't throw - this is cleanup, shouldn't block the main operation
+    }
+  };
+
+  // Helper function to validate that the current image still exists
+  const validateCurrentImage = async (): Promise<boolean> => {
+    if (!capturedImage) {
+      return false;
+    }
+    
+    try {
+      const fileInfo = await FileSystem.getInfoAsync(capturedImage.uri);
+      if (!fileInfo.exists) {
+        logger.warn('[KanjiScanner] Current image no longer exists:', capturedImage.uri);
+        
+        // Try to restore from original image
+        if (originalImage && originalImage.uri !== capturedImage.uri) {
+          const originalFileInfo = await FileSystem.getInfoAsync(originalImage.uri);
+          if (originalFileInfo.exists) {
+            logger.log('[KanjiScanner] Restoring from original image');
+            setCapturedImage(originalImage);
+            return true;
+          }
+        }
+        
+        // Try to restore from last valid image in history
+        if (imageHistory.length > 0) {
+          const lastImage = imageHistory[imageHistory.length - 1];
+          const lastImageFileInfo = await FileSystem.getInfoAsync(lastImage.uri);
+          if (lastImageFileInfo.exists) {
+            logger.log('[KanjiScanner] Restoring from last image in history');
+            setCapturedImage(lastImage);
+            setImageHistory(prev => prev.slice(0, -1));
+            return true;
+          }
+        }
+        
+        // Could not restore - image is missing
+        Alert.alert(
+          'Image Missing',
+          'The current image is no longer available. Please select a new image.',
+          [{ text: 'OK' }]
+        );
+        
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      logger.error('[KanjiScanner] Error validating current image:', error);
+      return false;
+    }
+  };
+
   const handleTextInput = () => {
     if (!canCreateFlashcard) {
       showUpgradeAlert();
@@ -482,6 +555,13 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
   }) => {
     if (!capturedImage || !imageHighlighterRef.current) return;
     
+    // Validate that the current image still exists before processing
+    const isValid = await validateCurrentImage();
+    if (!isValid) {
+      logger.error('[KanjiScanner] Current image validation failed, aborting region selection');
+      return;
+    }
+    
     try {
       logger.log('[KanjiScanner] Received region for selection/crop:', region);
       logger.log('[KanjiScanner] Current modes:', { 
@@ -502,6 +582,15 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
         setLocalProcessing(true);
         
         if (capturedImage) {
+          // If there's forward history, we're branching - clean up the discarded branch
+          if (forwardHistory.length > 0) {
+            logger.log('[KanjiScanner] Branching detected - cleaning up', forwardHistory.length, 'discarded images');
+            // Clean up the forward history images asynchronously (don't await to avoid blocking)
+            cleanupDiscardedBranch(forwardHistory).catch(err => {
+              logger.error('[KanjiScanner] Failed to cleanup discarded branch:', err);
+            });
+          }
+          
           // Store current image in history
           setImageHistory(prev => [...prev, capturedImage]);
           setForwardHistory([]);
@@ -880,7 +969,16 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
     }
   };
 
-  const toggleCropMode = () => {
+  const toggleCropMode = async () => {
+    // Validate image before entering crop mode
+    if (!cropModeActive) {
+      const isValid = await validateCurrentImage();
+      if (!isValid) {
+        logger.error('[KanjiScanner] Cannot enter crop mode - image validation failed');
+        return;
+      }
+    }
+    
     const newCropMode = !cropModeActive;
     setCropModeActive(newCropMode);
     
@@ -934,11 +1032,13 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
     if (imageHistory.length > 0 && capturedImage) {
       logger.log('[KanjiScanner] Going back to previous image. History length:', imageHistory.length);
       
-      // Clear any highlight box or selections
+      // Clear any highlight box, crop box, or selections in ImageHighlighter
       imageHighlighterRef.current?.clearHighlightBox?.();
+      imageHighlighterRef.current?.clearCropBox?.();
       setHighlightRegion(null);
       setHasHighlightSelection(false);
       setHighlightModeActive(false);
+      setHasCropSelection(false);
       
       // Get the last image from history
       const previousImage = imageHistory[imageHistory.length - 1];
@@ -1076,11 +1176,13 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
     if (forwardHistory.length > 0 && capturedImage) {
       logger.log('[KanjiScanner] Going forward to next image. Forward history length:', forwardHistory.length);
       
-      // Clear any highlight box or selections
+      // Clear any highlight box, crop box, or selections in ImageHighlighter
       imageHighlighterRef.current?.clearHighlightBox?.();
+      imageHighlighterRef.current?.clearCropBox?.();
       setHighlightRegion(null);
       setHasHighlightSelection(false);
       setHighlightModeActive(false);
+      setHasCropSelection(false);
       
       // Get the last image from forward history
       const nextImage = forwardHistory[forwardHistory.length - 1];
@@ -1295,7 +1397,16 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
   );
 
   // Toggle rotate mode
-  const toggleRotateMode = () => {
+  const toggleRotateMode = async () => {
+    // Validate image before entering rotate mode
+    if (!rotateModeActive) {
+      const isValid = await validateCurrentImage();
+      if (!isValid) {
+        logger.error('[KanjiScanner] Cannot enter rotate mode - image validation failed');
+        return;
+      }
+    }
+    
     // If already in rotate mode, calling this will turn it off.
     // If in another mode, it will switch to rotate mode.
     const newRotateMode = !rotateModeActive;
