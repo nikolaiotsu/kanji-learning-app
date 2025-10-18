@@ -3,6 +3,7 @@ import { getFlashcards } from '../services/supabaseStorage';
 import { Flashcard } from '../types/Flashcard';
 import { useAuth } from '../context/AuthContext';
 import { AppState } from 'react-native';
+import { useNetworkState, isNetworkError } from '../services/networkManager';
 
 import { logger } from '../utils/logger';
 // Enhanced loading states for better UX
@@ -34,8 +35,10 @@ export const useRandomCardReview = () => {
   // Add refs to track current state values (keeping minimal refs from old implementation)
   const currentCardRef = useRef<Flashcard | null>(null);
   const reviewSessionCardsRef = useRef<Flashcard[]>([]);
+  const allFlashcardsRef = useRef<Flashcard[]>([]);
   
   const { user } = useAuth();
+  const { isConnected } = useNetworkState();
 
   // Helper function to check if two arrays of flashcards are equal by serializing and comparing
   const areFlashcardsEqual = (cards1: Flashcard[], cards2: Flashcard[]): boolean => {
@@ -57,8 +60,25 @@ export const useRandomCardReview = () => {
         setLoadingState(LoadingState.SKELETON_LOADING);
       }
       
+      // OFFLINE OPTIMIZATION: If offline and we have existing cards, skip fetch entirely
+      if (!isConnected && allFlashcardsRef.current.length > 0 && !forceUpdate) {
+        logger.log('📶 [Hook] Offline with existing cards, skipping fetch');
+        setIsLoading(false);
+        setLoadingState(LoadingState.CONTENT_READY);
+        return;
+      }
+      
       // Fetch without setting old loading state first to avoid UI flashing
       const cards = await getFlashcards();
+      
+      // OFFLINE PROTECTION: If we're offline and got 0 cards, but we already have cards,
+      // don't clear them. Keep showing what we have.
+      if (cards.length === 0 && !isConnected && allFlashcardsRef.current.length > 0) {
+        logger.log('📶 [Hook] Offline with empty fetch result, preserving existing', allFlashcardsRef.current.length, 'cards');
+        setIsLoading(false);
+        setLoadingState(LoadingState.CONTENT_READY);
+        return;
+      }
       
       // Create a hash of the fetched cards to detect changes
       const cardsHash = JSON.stringify([...cards].sort((a, b) => a.id.localeCompare(b.id)));
@@ -146,11 +166,22 @@ export const useRandomCardReview = () => {
       }
     } catch (err) {
       logger.error('Error fetching flashcards:', err);
+      
+      // CRITICAL: If this is a network error and we have existing cards, preserve them
+      if (isNetworkError(err) && allFlashcardsRef.current.length > 0) {
+        logger.log('📶 [Hook] Network error but we have', allFlashcardsRef.current.length, 'existing cards - preserving state');
+        setIsLoading(false);
+        setLoadingState(LoadingState.CONTENT_READY);
+        // Don't set error state - user should see existing cards without error message
+        return;
+      }
+      
+      // Only set error if we don't have any cached data
       setError('Failed to load flashcards. Please try again.');
       setIsLoading(false);
       setLoadingState(LoadingState.ERROR);
     }
-  }, [isInReviewMode, currentCard, reviewSessionCards]);
+  }, [isInReviewMode, currentCard, reviewSessionCards, isConnected]);
 
   // Initial load and when user changes
   useEffect(() => {
@@ -178,17 +209,19 @@ export const useRandomCardReview = () => {
     
     // Refresh every 30 seconds instead of 5 seconds to reduce database calls
     const interval = setInterval(() => {
-      // Only automatically refresh if not in review mode
-      if (!isInReviewMode) {
-        logger.log('⏰ [Hook] Polling - fetching all flashcards (not in review mode)');
+      // Only automatically refresh if not in review mode AND online
+      if (!isInReviewMode && isConnected) {
+        logger.log('⏰ [Hook] Polling - fetching all flashcards (not in review mode, online)');
         fetchAllFlashcards();
+      } else if (!isConnected) {
+        logger.log('⏰ [Hook] Polling - skipping fetch (offline)');
       } else {
         logger.log('⏰ [Hook] Polling - skipping fetch (in review mode)');
       }
     }, 30000);
     
     return () => clearInterval(interval);
-  }, [user, fetchAllFlashcards, isInReviewMode]);
+  }, [user, fetchAllFlashcards, isInReviewMode, isConnected]);
 
   // Update refs when state changes
   useEffect(() => {
@@ -200,6 +233,10 @@ export const useRandomCardReview = () => {
     logger.log('📋 [Hook] Updating reviewSessionCardsRef, length:', reviewSessionCards.length);
     reviewSessionCardsRef.current = reviewSessionCards;
   }, [reviewSessionCards]);
+
+  useEffect(() => {
+    allFlashcardsRef.current = allFlashcards;
+  }, [allFlashcards]);
 
   // Select a random card from the given array or from the session cards
   const selectRandomCard = (cards?: Flashcard[], excludeCurrent: boolean = false) => {

@@ -2,6 +2,8 @@ import React, { createContext, useState, useContext, useEffect, ReactNode } from
 import { Session, User } from '@supabase/supabase-js';
 import * as authService from '../services/authService';
 import { supabase } from '../services/supabaseClient';
+import { syncAllUserData } from '../services/syncManager';
+import { storeUserIdOffline, clearUserIdOffline } from '../services/offlineAuth';
 
 import { logger } from '../utils/logger';
 // Define the shape of our Auth context
@@ -36,8 +38,25 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const { data: { session } } = await supabase.auth.getSession();
         setSession(session);
         setUser(session?.user ?? null);
+        
+        // Store user ID offline for cache access when offline
+        if (session?.user) {
+          await storeUserIdOffline(session.user.id);
+          logger.log('🔄 [AuthContext] User already authenticated on app start, syncing cache...');
+          syncAllUserData().catch(err => {
+            // Silent error - don't log network errors during sync
+            const errorStr = err instanceof Error ? err.message : String(err);
+            if (!errorStr.toLowerCase().includes('network')) {
+              logger.error('❌ [AuthContext] Failed to sync user data on app start:', err);
+            }
+          });
+        }
       } catch (error) {
-        logger.error('Error getting initial session:', error);
+        // Silent error for network issues - auth state can be restored from local storage
+        const errorStr = error instanceof Error ? error.message : String(error);
+        if (!errorStr.toLowerCase().includes('network')) {
+          logger.error('Error getting initial session:', error);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -47,7 +66,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     // Subscribe to auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         logger.log('🔐 [AuthContext] Auth state change event:', event);
         logger.log('🔐 [AuthContext] Session exists:', !!session);
         logger.log('🔐 [AuthContext] User email:', session?.user?.email || 'No user');
@@ -56,6 +75,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setUser(session?.user ?? null);
         setIsLoading(false);
         logger.log('✅ [AuthContext] Auth state updated');
+        
+        // Store or clear user ID for offline access
+        if (session?.user) {
+          await storeUserIdOffline(session.user.id);
+        } else if (event === 'SIGNED_OUT') {
+          await clearUserIdOffline();
+        }
+        
+        // Trigger cache sync when user signs in via auth state change
+        if (event === 'SIGNED_IN' && session?.user) {
+          logger.log('🔄 [AuthContext] User signed in via auth state change, syncing cache...');
+          syncAllUserData().catch(err => {
+            logger.error('❌ [AuthContext] Failed to sync user data after auth state change:', err);
+          });
+        }
       }
     );
 
@@ -77,6 +111,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setSession(session);
       setUser(session?.user ?? null);
       logger.log('✅ [AuthContext] Session and user state updated');
+      
+      // Trigger proactive cache sync after successful login
+      logger.log('🔄 [AuthContext] Triggering proactive cache sync...');
+      syncAllUserData().catch(err => {
+        logger.error('❌ [AuthContext] Failed to sync user data after login:', err);
+        // Don't throw - login was successful, sync is just a bonus
+      });
     } catch (error) {
       logger.error('❌ [AuthContext] Error signing in:', error);
       throw error;
@@ -96,6 +137,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         logger.log('✅ [AuthContext] User signed up, setting session');
         setSession(data.session);
         setUser(data.session.user);
+        
+        // Trigger proactive cache sync after successful signup
+        logger.log('🔄 [AuthContext] Triggering proactive cache sync...');
+        syncAllUserData().catch(err => {
+          logger.error('❌ [AuthContext] Failed to sync user data after signup:', err);
+          // Don't throw - signup was successful, sync is just a bonus
+        });
       }
       
       return data ? { user: data.user, session: data.session } : null;
@@ -112,6 +160,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setIsLoading(true);
     try {
       await authService.signOut();
+      await clearUserIdOffline(); // Clear offline user ID
       setSession(null);
       setUser(null);
     } catch (error) {

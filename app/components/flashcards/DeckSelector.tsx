@@ -22,6 +22,7 @@ import { Deck } from '../../types/Deck';
 import { getDecks, createDeck } from '../../services/supabaseStorage';
 import { COLORS } from '../../constants/colors';
 import { supabase } from '../../services/supabaseClient';
+import { useNetworkState } from '../../services/networkManager';
 
 import { logger } from '../../utils/logger';
 interface DeckSelectorProps {
@@ -32,6 +33,7 @@ interface DeckSelectorProps {
 
 export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSelectorProps) {
   const { t } = useTranslation();
+  const { isConnected } = useNetworkState();
   const [decks, setDecks] = useState<Deck[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreatingDeck, setIsCreatingDeck] = useState(false);
@@ -81,6 +83,15 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
 
   // Function to handle creating a new deck
   const handleCreateDeck = async () => {
+    if (!isConnected) {
+      Alert.alert(
+        t('offline.title') || 'Offline',
+        t('offline.createDeckDisabled') || 'Creating decks requires an internet connection.',
+        [{ text: t('common.ok') || 'OK' }]
+      );
+      return;
+    }
+    
     if (!newDeckName.trim()) {
       Alert.alert(t('common.error'), t('deck.create.error'));
       return;
@@ -350,11 +361,27 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
                   </View>
                 ) : (
                   <TouchableOpacity
-                    style={styles.addDeckButton}
-                    onPress={() => setShowNewDeckInput(true)}
+                    style={[styles.addDeckButton, !isConnected && styles.disabledButton]}
+                    onPress={() => {
+                      if (!isConnected) {
+                        Alert.alert(
+                          t('offline.title') || 'Offline',
+                          t('offline.createDeckDisabled') || 'Creating decks requires an internet connection.',
+                          [{ text: t('common.ok') || 'OK' }]
+                        );
+                        return;
+                      }
+                      setShowNewDeckInput(true);
+                    }}
                   >
-                    <Ionicons name="add-circle-outline" size={20} color="#ffffff" />
-                    <Text style={styles.addDeckButtonText}>{t('deck.create.new')}</Text>
+                    <Ionicons 
+                      name="add-circle-outline" 
+                      size={20} 
+                      color={isConnected ? "#ffffff" : COLORS.darkGray} 
+                    />
+                    <Text style={[styles.addDeckButtonText, !isConnected && { color: COLORS.darkGray }]}>
+                      {t('deck.create.new')}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </>

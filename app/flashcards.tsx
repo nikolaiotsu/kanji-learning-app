@@ -38,6 +38,7 @@ import { useSubscription } from './context/SubscriptionContext';
 import { PRODUCT_IDS } from './constants/config';
 import MemoryManager from './services/memoryManager';
 import * as Haptics from 'expo-haptics';
+import { useNetworkState } from './services/networkManager';
 
 import { logger } from './utils/logger';
 export default function LanguageFlashcardsScreen() {
@@ -46,6 +47,7 @@ export default function LanguageFlashcardsScreen() {
   const { targetLanguage, forcedDetectionLanguage } = useSettings();
   const { incrementFlashcardCount, canCreateFlashcard, remainingFlashcards } = useFlashcardCounter();
   const { purchaseSubscription } = useSubscription();
+  const { isConnected } = useNetworkState();
   const params = useLocalSearchParams();
   const textParam = params.text;
   const imageUriParam = params.imageUri;
@@ -291,7 +293,16 @@ export default function LanguageFlashcardsScreen() {
 
   // Function to show deck selector
   const handleShowDeckSelector = () => {
-    // Check flashcard limit first
+    // Check network connectivity first
+    if (!isConnected) {
+      Alert.alert(
+        t('common.error'),
+        t('offline.createCardError')
+      );
+      return;
+    }
+    
+    // Check flashcard limit
     if (!canCreateFlashcard) {
       Alert.alert(
         t('subscription.limit.title'),

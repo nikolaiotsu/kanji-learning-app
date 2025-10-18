@@ -242,5 +242,13 @@
     "placeholder": "输入要翻译的文本",
     "cancel": "取消",
     "translate": "翻译"
+  },
+  "offline": {
+    "banner": "离线 - 使用缓存卡片",
+    "createCardError": "创建卡片需要互联网连接",
+    "deckNotCached": "此卡组未缓存 - 请联网查看",
+    "syncInProgress": "正在同步卡片...",
+    "noCacheTitle": "没有缓存数据",
+    "noCacheMessage": "您处于离线状态，尚未在线时加载过闪卡。请连接到互联网以首次加载您的闪卡。"
   }
 } 

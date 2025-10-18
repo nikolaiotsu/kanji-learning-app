@@ -237,5 +237,13 @@
     "placeholder": "Enmeti tekston por traduki",
     "cancel": "Nuligi",
     "translate": "Traduki"
+  },
+  "offline": {
+    "banner": "Malkonektita - Uzante kaŝmemorajn kartojn",
+    "createCardError": "Krei kartojn bezonas interretan konekton",
+    "deckNotCached": "Ĉi tiu deko ne estas kaŝmemorita - konektiĝu por vidi",
+    "syncInProgress": "Sinkronigante kartojn...",
+    "noCacheTitle": "Neniu Kaŝmemorita Dateno Disponebla",
+    "noCacheMessage": "Vi estas malkonektita kaj ankoraŭ ne ŝargis viajn lernokarton dum konektita. Bonvolu konektiĝi al interreto por unuafoje ŝargi viajn lernokarton."
   }
 } 

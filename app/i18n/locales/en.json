@@ -248,5 +248,18 @@
     "placeholder": "Enter text to translate",
     "cancel": "Cancel",
     "translate": "Translate"
+  },
+  "offline": {
+    "title": "Offline Mode",
+    "banner": "Offline - Using cached cards",
+    "createCardError": "Creating cards requires internet connection",
+    "deckNotCached": "This deck isn't cached - go online to view",
+    "syncInProgress": "Syncing cards...",
+    "noCacheTitle": "No Cached Data Available",
+    "noCacheMessage": "You're offline and haven't loaded your flashcards while online yet. Please connect to the internet to load your flashcards for the first time.",
+    "deckManagementDisabled": "Deck management (rename, delete, reorder) requires an internet connection. You can still view your cached flashcards offline.",
+    "editDisabled": "Editing and deleting flashcards requires an internet connection.",
+    "moveDisabled": "Moving flashcards requires an internet connection.",
+    "createDeckDisabled": "Creating decks requires an internet connection."
   }
 } 

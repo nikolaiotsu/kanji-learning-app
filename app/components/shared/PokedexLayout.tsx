@@ -23,6 +23,7 @@ interface PokedexLayoutProps {
   logoSource?: ImageSourcePropType;
   logoStyle?: ImageStyle;
   logoVisible?: boolean; // Control when logo should be visible/animated
+  logoAnimationKey?: number; // Increment to restart logo animation
   triggerLightAnimation?: boolean;
   textureVariant?: 'gradient' | 'subtle' | 'modern' | 'radial' | 'default';
   // Progressive loading props
@@ -40,6 +41,7 @@ export default memo(function PokedexLayout({
   logoSource,
   logoStyle,
   logoVisible = true,
+  logoAnimationKey = 0,
   triggerLightAnimation = false,
   textureVariant = 'default',
   loadingProgress = 0,
@@ -156,6 +158,7 @@ export default memo(function PokedexLayout({
   }, [triggerLightAnimation, mainLightAnim, smallLightsAnim]);
 
   // Logo elegant fade-in animation - synchronized with content visibility
+  // Restarts whenever logoAnimationKey changes (e.g., when returning from navigation)
   useEffect(() => {
     if (logoSource && logoVisible) {
       // Start invisible
@@ -171,7 +174,7 @@ export default memo(function PokedexLayout({
       // Hide logo when no source provided or not visible
       logoOpacityAnim.setValue(0);
     }
-  }, [logoSource, logoVisible, logoOpacityAnim]);
+  }, [logoSource, logoVisible, logoAnimationKey, logoOpacityAnim]);
 
   // Progressive loading animation effect
   useEffect(() => {

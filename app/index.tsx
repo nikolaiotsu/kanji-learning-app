@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import KanjiScanner from './components/camera/KanjiScanner';
 import { COLORS } from './constants/colors';
 import PokedexLayout from './components/shared/PokedexLayout';
+import { useFocusEffect } from 'expo-router';
 
 import { logger } from './utils/logger';
 // 1. Import the logo image
@@ -12,7 +13,8 @@ const worddexLogo = require('../assets/images/worddexlogo.png'); // Adjusted pat
 export default function App() {
   const [triggerLightAnimation, setTriggerLightAnimation] = useState(false);
   const [logoVisible, setLogoVisible] = useState(false);
-  // Remove logoLoaded state - local assets don't need preloading
+  // Counter to restart logo animation when returning from navigation
+  const [logoAnimationKey, setLogoAnimationKey] = useState(0);
 
   // Callback to trigger the light animation
   const handleCardSwipe = useCallback(() => {
@@ -22,6 +24,7 @@ export default function App() {
 
   // Callback to control logo visibility based on content readiness
   const handleContentReady = useCallback((isReady: boolean) => {
+    logger.log('🖼️ [AppIndex] handleContentReady called with isReady:', isReady);
     setLogoVisible(isReady);
   }, []);
 
@@ -36,11 +39,32 @@ export default function App() {
     }
   }, [triggerLightAnimation]);
 
+  // Increment logo animation key when returning from navigation
+  // This restarts just the logo animation without remounting everything
+  useFocusEffect(
+    useCallback(() => {
+      logger.log('🏠 [AppIndex] Home screen focused, logoVisible:', logoVisible);
+      
+      // On return from navigation, increment key to restart logo animation
+      // Only do this if logo should be visible (not on initial mount)
+      if (logoVisible) {
+        logger.log('🏠 [AppIndex] Restarting logo animation');
+        setLogoAnimationKey(prev => prev + 1);
+      }
+      
+      return () => {
+        logger.log('🏠 [AppIndex] Home screen unfocused');
+      };
+    }, [logoVisible])
+  );
+
   return (
     // 2. Pass it to the logoSource prop and add logoStyle - synchronized with content readiness
+    // logoAnimationKey increments to restart logo animation when returning from navigation
     <PokedexLayout 
       logoSource={worddexLogo}
       logoVisible={logoVisible}
+      logoAnimationKey={logoAnimationKey}
       logoStyle={{ 
         width: 80, // Increased width from 100
         height: 65, // Increased height from 30

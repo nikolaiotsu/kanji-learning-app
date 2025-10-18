@@ -25,11 +25,16 @@ import { supabase } from './services/supabaseClient';
 import { COLORS } from './constants/colors';
 import { useRouter } from 'expo-router';
 import PokedexLayout from './components/shared/PokedexLayout';
+import { useNetworkState, isOnline } from './services/networkManager';
+import OfflineBanner from './components/shared/OfflineBanner';
+import { registerSyncCallback, unregisterSyncCallback } from './services/syncManager';
 
 import { logger } from './utils/logger';
 const POKEDEX_LAYOUT_HORIZONTAL_REDUCTION = 20; // Updated: (padding 10) * 2
 
 export default function SavedFlashcardsScreen() {
+  logger.log('🎬 [SavedFlashcards] ========== COMPONENT RENDER START ==========');
+  
   const { t } = useTranslation();
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [decks, setDecks] = useState<Deck[]>([]);
@@ -48,6 +53,9 @@ export default function SavedFlashcardsScreen() {
   const [triggerLightAnimation, setTriggerLightAnimation] = useState(false);
   const { user } = useAuth();
   const router = useRouter();
+  const { isConnected } = useNetworkState();
+  
+  logger.log('🎬 [SavedFlashcards] State initialized - user:', !!user, 'isConnected:', isConnected);
 
   // Reorder modal state
   const [showReorderModal, setShowReorderModal] = useState(false);
@@ -71,60 +79,161 @@ export default function SavedFlashcardsScreen() {
     }
   }, [triggerLightAnimation]);
 
+  // Track deck state changes
+  useEffect(() => {
+    logger.log(`📋 [SavedFlashcards] Decks state changed: ${decks.length} decks, isLoadingDecks: ${isLoadingDecks}`);
+    if (decks.length > 0) {
+      logger.log(`📋 [SavedFlashcards] Deck list: ${decks.map(d => d.name).join(', ')}`);
+    }
+  }, [decks, isLoadingDecks]);
+  
   // Load decks and flashcards on mount
   useEffect(() => {
     if (user) {
+      logger.log('🚀 [SavedFlashcards] Component mounted with user:', user.id.substring(0, 8));
+      
+      // Log cache status for debugging
+      import('./services/offlineStorage').then(({ getCacheStatus }) => {
+        getCacheStatus(user.id).then(status => {
+          logger.log('📊 [SavedFlashcards] Cache status on mount:', status);
+        });
+      });
+      
       // Just load decks directly, don't initialize 
       loadDecks();
     }
   }, [user]);
-
-  // Set up real-time subscription to deck changes
+  
+  // Reload cache if state is empty on navigation back
+  // This fixes the issue where navigation home clears state
   useEffect(() => {
-    if (!user) return;
+    const reloadCacheIfNeeded = async () => {
+      if (user && decks.length === 0 && !isLoadingDecks) {
+        logger.log('📦 [SavedFlashcards] State empty on mount, checking cache...');
+        const online = await isOnline();
+        
+        // Always try to reload from cache if state is empty, regardless of online status
+        // The getDecks function will handle the cache-first logic
+        const { getCachedDecks } = await import('./services/offlineStorage');
+        const cachedDecks = await getCachedDecks(user.id);
+        
+        if (cachedDecks.length > 0) {
+          logger.log('📦 [SavedFlashcards] Found cached decks, restoring state:', cachedDecks.length, 'decks');
+          setDecks(cachedDecks);
+          
+          // Select first deck if none selected
+          if (!selectedDeckId) {
+            setSelectedDeckId(cachedDecks[0].id);
+            setSelectedDeckIndex(0);
+          }
+        } else {
+          logger.log('⚠️ [SavedFlashcards] No cached decks found. Online:', online);
+          if (!online) {
+            logger.log('📶 [SavedFlashcards] User is offline with no cache - need to go online first');
+          }
+        }
+      }
+    };
+    
+    reloadCacheIfNeeded();
+  }, [user, decks.length, isLoadingDecks]);
 
-    // Subscribe to changes in the decks table
-    const decksSubscription = supabase
-      .channel('decks-changes')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'decks' 
-      }, () => {
-        // Reload decks when changes occur
-        loadDecks();
-      })
-      .subscribe();
+  // Set up real-time subscription to deck changes (ONLY when online)
+  useEffect(() => {
+    if (!user || !isConnected) {
+      logger.log('📶 [SavedFlashcards] Skipping deck subscription - offline or no user');
+      return;
+    }
+
+    logger.log('🔄 [SavedFlashcards] Setting up real-time deck subscription');
+    
+    let decksSubscription: any = null;
+    
+    try {
+      // Subscribe to changes in the decks table
+      decksSubscription = supabase
+        .channel('decks-changes')
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'decks' 
+        }, () => {
+          // Reload decks when changes occur
+          loadDecks();
+        })
+        .subscribe((status, err) => {
+          // Subscription callback - silently handle all errors
+          if (status === 'SUBSCRIBED') {
+            logger.log('🔄 [SavedFlashcards] Deck subscription active');
+          }
+          // Silently ignore all other statuses and errors
+        });
+    } catch (error) {
+      // Silent - expected when offline
+    }
 
     // Cleanup subscription on unmount
     return () => {
-      supabase.removeChannel(decksSubscription);
+      if (decksSubscription) {
+        try {
+          logger.log('🔄 [SavedFlashcards] Cleaning up deck subscription');
+          supabase.removeChannel(decksSubscription);
+        } catch (error) {
+          logger.error('Error cleaning up deck subscription:', error);
+          // Silently fail - we're unmounting anyway
+        }
+      }
     };
-  }, [user]);
+  }, [user, isConnected]);
 
-  // Set up real-time subscription to flashcard changes
+  // Set up real-time subscription to flashcard changes (ONLY when online)
   useEffect(() => {
-    if (!user || !selectedDeckId) return;
+    if (!user || !selectedDeckId || !isConnected) {
+      logger.log('📶 [SavedFlashcards] Skipping flashcard subscription - offline, no user, or no deck');
+      return;
+    }
 
-    // Subscribe to changes in the flashcards table for the selected deck
-    const flashcardsSubscription = supabase
-      .channel('flashcards-changes')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'flashcards',
-        filter: `deck_id=eq.${selectedDeckId}`
-      }, () => {
-        // Reload flashcards when changes occur
-        loadFlashcardsByDeck(selectedDeckId);
-      })
-      .subscribe();
+    logger.log('🔄 [SavedFlashcards] Setting up real-time flashcard subscription for deck:', selectedDeckId);
+    
+    let flashcardsSubscription: any = null;
+    
+    try {
+      // Subscribe to changes in the flashcards table for the selected deck
+      flashcardsSubscription = supabase
+        .channel('flashcards-changes')
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'flashcards',
+          filter: `deck_id=eq.${selectedDeckId}`
+        }, () => {
+          // Reload flashcards when changes occur
+          loadFlashcardsByDeck(selectedDeckId);
+        })
+        .subscribe((status, err) => {
+          // Subscription callback - silently handle all errors
+          if (status === 'SUBSCRIBED') {
+            logger.log('🔄 [SavedFlashcards] Flashcard subscription active');
+          }
+          // Silently ignore all other statuses and errors
+        });
+    } catch (error) {
+      // Silent - expected when offline
+    }
 
     // Cleanup subscription on unmount
     return () => {
-      supabase.removeChannel(flashcardsSubscription);
+      if (flashcardsSubscription) {
+        try {
+          logger.log('🔄 [SavedFlashcards] Cleaning up flashcard subscription');
+          supabase.removeChannel(flashcardsSubscription);
+        } catch (error) {
+          logger.error('Error cleaning up flashcard subscription:', error);
+          // Silently fail - we're unmounting anyway
+        }
+      }
     };
-  }, [user, selectedDeckId]);
+  }, [user, selectedDeckId, isConnected]);
 
   // Load flashcards when selected deck changes
   useEffect(() => {
@@ -143,21 +252,41 @@ export default function SavedFlashcardsScreen() {
 
   // Function to load decks from storage
   const loadDecks = async () => {
+    logger.log('📚 [SavedFlashcards] ========== loadDecks START ==========');
+    logger.log('📚 [SavedFlashcards] Current network status:', isConnected ? 'ONLINE' : 'OFFLINE');
+    logger.log('📚 [SavedFlashcards] Current decks.length:', decks.length);
+    logger.log('📚 [SavedFlashcards] Setting isLoadingDecks = true');
     setIsLoadingDecks(true);
+    
     try {
+      logger.log('📚 [SavedFlashcards] Calling getDecks(true)...');
       // Pass true to create a default deck if no decks exist
       const savedDecks = await getDecks(true);
+      logger.log('📚 [SavedFlashcards] getDecks returned:', savedDecks.length, 'decks');
+      
+      if (savedDecks.length > 0) {
+        logger.log('📚 [SavedFlashcards] Deck names:', savedDecks.map(d => d.name).join(', '));
+      }
+      
+      logger.log('📚 [SavedFlashcards] Calling setDecks with', savedDecks.length, 'decks');
       setDecks(savedDecks);
       
       // If there are decks, select the first one by default
       if (savedDecks.length > 0 && !selectedDeckId) {
+        logger.log('📚 [SavedFlashcards] Auto-selecting first deck:', savedDecks[0].name);
         setSelectedDeckId(savedDecks[0].id);
+      } else if (savedDecks.length === 0) {
+        logger.log('⚠️ [SavedFlashcards] No decks returned - user may need to sync online first');
+      } else {
+        logger.log('📚 [SavedFlashcards] Already have selectedDeckId:', selectedDeckId);
       }
     } catch (error) {
-      logger.error('Error loading collections:', error);
+      logger.error('❌ [SavedFlashcards] Error loading collections:', error);
       Alert.alert(t('common.error'), t('savedFlashcards.loadCollectionsError'));
     } finally {
+      logger.log('📚 [SavedFlashcards] Setting isLoadingDecks = false');
       setIsLoadingDecks(false);
+      logger.log('📚 [SavedFlashcards] ========== loadDecks END ==========');
     }
   };
 
@@ -296,6 +425,16 @@ export default function SavedFlashcardsScreen() {
 
   // Function to handle long press on deck item
   const handleDeckLongPress = (deckId: string) => {
+    // Disable deck management when offline
+    if (!isConnected) {
+      Alert.alert(
+        t('offline.title') || 'Offline',
+        t('offline.deckManagementDisabled') || 'Deck management requires an internet connection. You can still view your cached flashcards offline.',
+        [{ text: t('common.ok') || 'OK' }]
+      );
+      return;
+    }
+    
     Alert.alert(
       'Collection Options',
       'What would you like to do with this collection?',
@@ -570,15 +709,32 @@ export default function SavedFlashcardsScreen() {
     }
   };
 
-  // Render empty state
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <Text style={styles.emptyTitle}>{t('savedFlashcards.noFlashcardsTitle')}</Text>
-      <Text style={styles.emptyText}>
-        {t('savedFlashcards.noFlashcardsText')}
-      </Text>
-    </View>
-  );
+  // Render empty state with offline-aware messaging
+  const renderEmptyState = () => {
+    // Check if we're offline with no cache
+    const isOfflineNoCache = !isConnected && decks.length === 0;
+    
+    return (
+      <View style={styles.emptyContainer}>
+        {isOfflineNoCache ? (
+          <>
+            <Ionicons name="cloud-offline-outline" size={64} color={COLORS.darkGray} style={{ marginBottom: 16 }} />
+            <Text style={styles.emptyTitle}>{t('offline.noCacheTitle')}</Text>
+            <Text style={styles.emptyText}>
+              {t('offline.noCacheMessage')}
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text style={styles.emptyTitle}>{t('savedFlashcards.noFlashcardsTitle')}</Text>
+            <Text style={styles.emptyText}>
+              {t('savedFlashcards.noFlashcardsText')}
+            </Text>
+          </>
+        )}
+      </View>
+    );
+  };
 
   // Render flashcard item
   const renderFlashcard = ({ item }: { item: Flashcard }) => {
@@ -588,6 +744,8 @@ export default function SavedFlashcardsScreen() {
         onDelete={handleDeleteFlashcard}
         onSend={handleSendFlashcard}
         onEdit={handleEditFlashcard}
+        showRefreshButton={true}
+        isOnline={isConnected}
       />
     );
   };
@@ -637,6 +795,29 @@ export default function SavedFlashcardsScreen() {
     }
   }, [selectedDeckId]);
 
+  // Register sync callback for when network comes back online
+  useEffect(() => {
+    const syncCallback = async () => {
+      logger.log('🔄 [SavedFlashcards] Sync triggered, refreshing data');
+      
+      // Re-fetch decks and flashcards
+      try {
+        await loadDecks();
+        if (selectedDeckId) {
+          await loadFlashcardsByDeck(selectedDeckId);
+        }
+      } catch (error) {
+        logger.error('Error syncing saved flashcards:', error);
+      }
+    };
+    
+    registerSyncCallback(syncCallback);
+    
+    return () => {
+      unregisterSyncCallback(syncCallback);
+    };
+  }, [selectedDeckId]);
+
   return (
     <PokedexLayout 
       variant="flashcards"
@@ -655,6 +836,10 @@ export default function SavedFlashcardsScreen() {
             <Ionicons name="albums-outline" size={24} color={COLORS.text} style={styles.titleIcon} />
             <Text style={styles.title}>{t('savedFlashcards.title')}</Text>
           </View>
+          
+          {/* Offline Indicator - compact square next to home button */}
+          <OfflineBanner visible={!isConnected} />
+          
           <TouchableOpacity 
             style={styles.homeButton}
             onPress={handleGoHome}

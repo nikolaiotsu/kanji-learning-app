@@ -12,6 +12,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useOCRCounter } from '../../context/OCRCounterContext';
 import { useFlashcardCounter } from '../../context/FlashcardCounterContext';
 import { useSettings, DETECTABLE_LANGUAGES } from '../../context/SettingsContext';
+import { useNetworkState } from '../../services/networkManager';
 import { COLORS } from '../../constants/colors';
 import { PRODUCT_IDS } from '../../constants/config';
 import { CapturedImage, TextAnnotation } from '../../../types';
@@ -34,6 +35,8 @@ interface KanjiScannerProps {
 }
 
 export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScannerProps) {
+  logger.log('🎬 [KanjiScanner] Component render, onContentReady callback:', !!onContentReady);
+  
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   
@@ -86,12 +89,13 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
   const [currentRotationUIState, setCurrentRotationUIState] = useState<ImageHighlighterRotationState | null>(null);
   
   const router = useRouter();
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const { recognizeKanji, isProcessing, error } = useKanjiRecognition();
   const { incrementOCRCount, canPerformOCR, remainingScans } = useOCRCounter();
   const { canCreateFlashcard, remainingFlashcards } = useFlashcardCounter();
   const { purchaseSubscription } = useSubscription();
   const { forcedDetectionLanguage } = useSettings();
+  const { isConnected } = useNetworkState();
   
   // Add ref to access the ImageHighlighter component
   const imageHighlighterRef = useRef<ImageHighlighterRef>(null);
@@ -342,6 +346,18 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
   const handleCancelTextInput = () => {
     setInputText('');
     setShowTextInputModal(false);
+  };
+  
+  const handleNavigateToSavedFlashcards = () => {
+    logger.log('🔗 [KanjiScanner] Navigating to saved-flashcards screen...');
+    logger.log('🔗 [KanjiScanner] Current network status:', isConnected ? 'ONLINE' : 'OFFLINE');
+    logger.log('🔗 [KanjiScanner] User authenticated:', !!user);
+    try {
+      router.push('/saved-flashcards');
+      logger.log('✅ [KanjiScanner] Navigation push called successfully');
+    } catch (error) {
+      logger.error('❌ [KanjiScanner] Navigation error:', error);
+    }
   };
 
   const handleSubmitTextInput = () => {
@@ -1562,16 +1578,16 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
           {/* Button Row - moved below the reviewer */}
           <View style={styles.buttonRow}>
             <PokedexButton
-              onPress={canCreateFlashcard ? handleTextInput : showUpgradeAlert}
-              icon={canCreateFlashcard ? "add" : "lock-closed"}
+              onPress={canCreateFlashcard && isConnected ? handleTextInput : showUpgradeAlert}
+              icon={(canCreateFlashcard && isConnected) ? "add" : "lock-closed"}
               size="medium"
               shape="square"
               style={styles.rowButton}
-              disabled={localProcessing || isImageProcessing} // Disable during processing
-              darkDisabled={!canCreateFlashcard || localProcessing || isImageProcessing} // Show dark disabled appearance when limit reached or processing
+              disabled={!isConnected || localProcessing || isImageProcessing} // Disable when offline or during processing
+              darkDisabled={!canCreateFlashcard || !isConnected || localProcessing || isImageProcessing} // Show dark disabled appearance when offline, limit reached or processing
             />
             <PokedexButton
-              onPress={() => router.push('/saved-flashcards')}
+              onPress={handleNavigateToSavedFlashcards}
               materialCommunityIcon="cards"
               size="medium"
               shape="square"
@@ -1579,15 +1595,15 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
               disabled={localProcessing || isImageProcessing} // Disable during processing
             />
             <PokedexButton
-              onPress={canCreateFlashcard ? pickImage : showUpgradeAlert}
-              icon={(!canCreateFlashcard || isImageProcessing || localProcessing) ? "lock-closed" : "images"}
+              onPress={canCreateFlashcard && isConnected ? pickImage : showUpgradeAlert}
+              icon={(!canCreateFlashcard || !isConnected || isImageProcessing || localProcessing) ? "lock-closed" : "images"}
               size="medium"
               shape="square"
               style={styles.rowButton}
-              disabled={localProcessing || isImageProcessing} // Disable during processing
-              darkDisabled={!canCreateFlashcard || localProcessing || isImageProcessing} // Show dark disabled appearance when limit reached or processing
+              disabled={!isConnected || localProcessing || isImageProcessing} // Disable when offline or during processing
+              darkDisabled={!canCreateFlashcard || !isConnected || localProcessing || isImageProcessing} // Show dark disabled appearance when offline, limit reached or processing
             />
-            {isImageProcessing || localProcessing ? (
+            {isImageProcessing || localProcessing || !isConnected ? (
               <PokedexButton
                 onPress={() => {}} // No action when disabled
                 icon="lock-closed"
@@ -1595,15 +1611,16 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
                 shape="square"
                 style={styles.rowButton}
                 disabled={true}
+                darkDisabled={true}
               />
             ) : (
               <CameraButton 
                 onPhotoCapture={handlePhotoCapture} 
                 style={styles.rowButton}
                 onProcessingStateChange={setIsImageProcessing}
-                disabled={!canCreateFlashcard || localProcessing || isImageProcessing}
+                disabled={!canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
                 onDisabledPress={showUpgradeAlert}
-                darkDisabled={!canCreateFlashcard || localProcessing || isImageProcessing}
+                darkDisabled={!canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
               />
             )}
           </View>

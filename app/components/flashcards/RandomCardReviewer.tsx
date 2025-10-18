@@ -12,6 +12,10 @@ import { COLORS } from '../../constants/colors';
 import MultiDeckSelector from './MultiDeckSelector';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../context/AuthContext';
+import { useNetworkState } from '../../services/networkManager';
+import OfflineBanner from '../shared/OfflineBanner';
+import { registerSyncCallback, unregisterSyncCallback } from '../../services/syncManager';
+import { useFocusEffect } from 'expo-router';
 
 import { logger } from '../../utils/logger';
 // Storage key generator for selected deck IDs (user-specific)
@@ -29,6 +33,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { isConnected } = useNetworkState();
   const {
     currentCard,
     isLoading,
@@ -205,6 +210,14 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           if (currentDeckSelectionRef.current === currentOpId) {
             logger.log('✅ [Component] Filtered cards ready for operation:', currentOpId, 'cards:', cards.length);
             
+            // OFFLINE PROTECTION: If we got 0 cards and we're offline,
+            // preserve existing filteredCards to avoid clearing the display
+            if (cards.length === 0 && !isConnected && filteredCards.length > 0) {
+              logger.log('📶 [Offline] Preserving existing cards, cache returned empty');
+              // Don't update filteredCards, keep showing what we have
+              return;
+            }
+            
             // SMART VALIDATION: If selected decks result in 0 cards but we have cards in total,
             // the deck selection is invalid (decks don't exist or are empty for this user)
             if (cards.length === 0 && allFlashcards.length > 0) {
@@ -229,6 +242,11 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         } catch (error) {
           logger.error('Error fetching cards for selected decks:', error);
           if (currentDeckSelectionRef.current === currentOpId) {
+            // OFFLINE PROTECTION: Don't clear cards on error if offline and we have existing cards
+            if (!isConnected && filteredCards.length > 0) {
+              logger.log('📶 [Offline] Preserving existing cards after fetch error');
+              return;
+            }
             setFilteredCards(allFlashcards);
           }
         }
@@ -242,7 +260,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     };
 
     filterCards();
-  }, [selectedDeckIds, allFlashcards, deckIdsLoaded, user?.id]);
+  }, [selectedDeckIds, allFlashcards, deckIdsLoaded, user?.id, isConnected]);
 
   // Update selected deck IDs (user-specific)
   const updateSelectedDeckIds = async (deckIds: string[]) => {
@@ -273,6 +291,29 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       setCurrentCard(null);
     }
   }, [reviewSessionCards.length, currentCard, setCurrentCard, remainingCount]);
+
+  // Register sync callback for when network comes back online
+  useEffect(() => {
+    const syncCallback = async () => {
+      logger.log('🔄 [RandomCardReviewer] Sync triggered, refreshing cards');
+      
+      // Re-fetch cards for selected decks
+      if (selectedDeckIds.length > 0) {
+        try {
+          const cards = await getFlashcardsByDecks(selectedDeckIds);
+          setFilteredCards(cards);
+        } catch (error) {
+          logger.error('Error syncing cards:', error);
+        }
+      }
+    };
+    
+    registerSyncCallback(syncCallback);
+    
+    return () => {
+      unregisterSyncCallback(syncCallback);
+    };
+  }, [selectedDeckIds]);
 
   // Simplified card transition handling
   useEffect(() => {
@@ -336,15 +377,50 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
 
   // Notify parent when content is ready for display
   useEffect(() => {
-    const isContentReady = !isInitializing && 
-                          !isCardTransitioning && 
-                          loadingState === LoadingState.CONTENT_READY &&
-                          !isLoading;
+    // Content is ready if we're not initializing, not transitioning, and have finished loading
+    // OR if we're offline with cached cards (don't require CONTENT_READY state when offline with data)
+    const isContentReady = (!isInitializing && 
+                            !isCardTransitioning && 
+                            loadingState === LoadingState.CONTENT_READY &&
+                            !isLoading) ||
+                           (!isConnected && filteredCards.length > 0 && !isInitializing && !isCardTransitioning);
     
     if (onContentReady) {
       onContentReady(isContentReady);
     }
-  }, [isInitializing, isCardTransitioning, loadingState, isLoading, onContentReady]);
+  }, [isInitializing, isCardTransitioning, loadingState, isLoading, onContentReady, isConnected, filteredCards.length]);
+
+  // Ensure onContentReady is called when the screen comes into focus
+  // This fixes the issue where the logo doesn't reappear after navigating back from saved-flashcards
+  useFocusEffect(
+    useCallback(() => {
+      logger.log('🎯 [RandomCardReviewer] Screen focused, checking if content is ready');
+      
+      // Same logic as the useEffect above, but triggered when screen comes into focus
+      const isContentReady = (!isInitializing && 
+                              !isCardTransitioning && 
+                              loadingState === LoadingState.CONTENT_READY &&
+                              !isLoading) ||
+                             (!isConnected && filteredCards.length > 0 && !isInitializing && !isCardTransitioning);
+      
+      logger.log('🎯 [RandomCardReviewer] Content ready status on focus:', isContentReady, {
+        isInitializing,
+        isCardTransitioning,
+        loadingState,
+        isLoading,
+        isConnected,
+        filteredCardsLength: filteredCards.length
+      });
+      
+      if (onContentReady) {
+        onContentReady(isContentReady);
+      }
+      
+      return () => {
+        // Cleanup if needed
+      };
+    }, [isInitializing, isCardTransitioning, loadingState, isLoading, onContentReady, isConnected, filteredCards.length])
+  );
 
   // Configure PanResponder
   const panResponder = useRef(
@@ -766,6 +842,9 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           <Ionicons name="albums-outline" size={20} color={COLORS.primary} />
           <Text style={styles.deckButtonText}>{t('review.collections')}</Text>
         </TouchableOpacity>
+        
+        {/* Offline Indicator - compact square next to Collections button */}
+        <OfflineBanner visible={!isConnected} />
       </View>
       
       <View style={styles.cardStage}>
@@ -796,7 +875,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               cardHeight={CARD_STAGE_HEIGHT}
               onImageToggle={(showImage) => {
                 setIsImageExpanded(showImage);
-              }} 
+              }}
             />
           </Animated.View>
         ) : isInitializing ? (

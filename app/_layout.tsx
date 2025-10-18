@@ -8,14 +8,42 @@ import { SubscriptionProvider } from './context/SubscriptionContext';
 import { OCRCounterProvider } from './context/OCRCounterContext';
 import { FlashcardCounterProvider } from './context/FlashcardCounterContext';
 import AuthGuard from './components/auth/AuthGuard';
-import { StyleSheet, View, Text, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, ActivityIndicator, LogBox } from 'react-native';
 import { COLORS } from './constants/colors';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { useTranslation } from 'react-i18next';
+import { initializeSyncManager } from './services/syncManager';
 
 import { logger } from './utils/logger';
+
+// Suppress network error warnings in the console when offline
+// These are expected and handled gracefully in our code
+LogBox.ignoreLogs([
+  'Network request failed',
+  'Failed to fetch',
+  'NetworkError',
+  'Could not connect to the server',
+]);
+
+// Suppress console.error for network errors
+const originalConsoleError = console.error;
+console.error = (...args) => {
+  const errorString = args.join(' ').toLowerCase();
+  // Suppress network-related errors that we handle gracefully
+  if (
+    errorString.includes('network request failed') ||
+    errorString.includes('failed to fetch') ||
+    errorString.includes('networkerror')
+  ) {
+    // Silently ignore - these are expected when offline
+    return;
+  }
+  // Log all other errors normally
+  originalConsoleError(...args);
+};
+
 export default function RootLayout() {
   const [isI18nReady, setIsI18nReady] = useState(false);
   const { i18n } = useTranslation();
@@ -54,6 +82,15 @@ export default function RootLayout() {
     
     checkI18nReady();
   }, [i18n]);
+
+  // Initialize sync manager for offline support
+  useEffect(() => {
+    const unsubscribe = initializeSyncManager();
+    
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   // Show loading screen while i18n is initializing
   if (!isI18nReady) {

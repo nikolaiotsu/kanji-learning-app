@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, Dimensions, Animated, ScrollView, LayoutChangeEvent, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, Dimensions, Animated, ScrollView, LayoutChangeEvent, Image, ActivityIndicator } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Flashcard } from '../../types/Flashcard';
 import { Ionicons, MaterialIcons, FontAwesome6 } from '@expo/vector-icons';
@@ -7,6 +7,9 @@ import { COLORS } from '../../constants/colors';
 import { useSettings, AVAILABLE_LANGUAGES } from '../../context/SettingsContext';
 import FuriganaText from '../shared/FuriganaText';
 import { logger } from '../../utils/logger';
+import * as Haptics from 'expo-haptics';
+import { getCachedImageUri } from '../../services/imageCache';
+import { useAuth } from '../../context/AuthContext';
 // Removed text formatting imports - no longer needed for direct content analysis
 
 // Responsive card dimensions - calculate before component definition
@@ -22,6 +25,8 @@ interface FlashcardItemProps {
   deckName?: string; // Optional deck name to display
   disableTouchHandling?: boolean; // If true, the card won't be flippable via touch
   cardHeight?: number; // Optional responsive card height (defaults to 300 if not provided)
+  showRefreshButton?: boolean; // Show refresh button next to image toggle in saved flashcards mode
+  isOnline?: boolean; // Whether the app is online (disables write operations when offline)
 }
 
 const FlashcardItem: React.FC<FlashcardItemProps> = ({ 
@@ -32,10 +37,13 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   onImageToggle,
   deckName,
   disableTouchHandling = false,
-  cardHeight = 300 // Sensible default for saved-flashcards page
+  cardHeight = 300, // Sensible default for saved-flashcards page
+  showRefreshButton = false,
+  isOnline = true // Default to true for backward compatibility
 }) => {
   const { t } = useTranslation();
   const { targetLanguage } = useSettings();
+  const { user } = useAuth();
   const [isFlipped, setIsFlipped] = useState(false);
   const flipAnim = useRef(new Animated.Value(0)).current;
   
@@ -56,6 +64,33 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   const [expandedCardHeight, setExpandedCardHeight] = useState(0);
   // Track if image is loaded to prevent unnecessary reloads
   const [isImageLoaded, setIsImageLoaded] = useState(false);
+  
+  // Image loading state management
+  type ImageLoadingState = 'idle' | 'loading' | 'success' | 'error';
+  const [imageLoadingState, setImageLoadingState] = useState<ImageLoadingState>('idle');
+  const [imageRetryCount, setImageRetryCount] = useState(0);
+  const [imageUrlWithCacheBust, setImageUrlWithCacheBust] = useState(flashcard.imageUrl);
+  const [imageUriToUse, setImageUriToUse] = useState<string | undefined>(flashcard.imageUrl);
+  const MAX_RETRY_COUNT = 5;
+  
+  // Load cached image URI on mount or when image URL changes
+  useEffect(() => {
+    const loadImageUri = async () => {
+      if (flashcard.imageUrl && user) {
+        try {
+          const cachedUri = await getCachedImageUri(user.id, flashcard.imageUrl);
+          setImageUriToUse(cachedUri);
+        } catch (error) {
+          logger.error('Error loading cached image URI:', error);
+          setImageUriToUse(flashcard.imageUrl);
+        }
+      } else {
+        setImageUriToUse(flashcard.imageUrl);
+      }
+    };
+    
+    loadImageUri();
+  }, [flashcard.imageUrl, user?.id]);
   
   // Get translated language name for display (use the language stored with the flashcard)
   const translatedLanguageName = AVAILABLE_LANGUAGES[flashcard.targetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'English';
@@ -127,18 +162,48 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   };
 
   const handleDelete = () => {
+    if (!isOnline) {
+      // Show offline alert
+      const { Alert } = require('react-native');
+      Alert.alert(
+        t('offline.title') || 'Offline',
+        t('offline.editDisabled') || 'Editing and deleting flashcards requires an internet connection.',
+        [{ text: t('common.ok') || 'OK' }]
+      );
+      return;
+    }
     if (onDelete) {
       onDelete(flashcard.id);
     }
   };
 
   const handleSend = () => {
+    if (!isOnline) {
+      // Show offline alert
+      const { Alert } = require('react-native');
+      Alert.alert(
+        t('offline.title') || 'Offline',
+        t('offline.moveDisabled') || 'Moving flashcards requires an internet connection.',
+        [{ text: t('common.ok') || 'OK' }]
+      );
+      return;
+    }
     if (onSend) {
       onSend(flashcard.id);
     }
   };
   
   const handleEdit = () => {
+    if (!isOnline) {
+      // Show offline alert
+      const { Alert } = require('react-native');
+      Alert.alert(
+        t('offline.title') || 'Offline',
+        t('offline.editDisabled') || 'Editing and deleting flashcards requires an internet connection.',
+        [{ text: t('common.ok') || 'OK' }]
+      );
+      return;
+    }
     if (onEdit) {
       onEdit(flashcard.id);
     }
@@ -157,6 +222,55 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   // Handle image load success
   const handleImageLoad = () => {
     setIsImageLoaded(true);
+    setImageLoadingState('success');
+    logger.log('🖼️ [FlashcardItem] Image loaded successfully:', flashcard.id);
+  };
+
+  // Handle image load start
+  const handleImageLoadStart = () => {
+    // Only set to loading if not already successfully loaded
+    // This prevents the loading overlay from showing when toggling visibility
+    if (imageLoadingState !== 'success') {
+      setImageLoadingState('loading');
+    }
+  };
+  
+  // Safety mechanism: Reset from stuck loading state after timeout
+  useEffect(() => {
+    if (imageLoadingState === 'loading') {
+      // If still loading after 10 seconds, reset to idle to allow retry
+      const timeout = setTimeout(() => {
+        logger.warn('Image loading timeout - resetting state');
+        setImageLoadingState('idle');
+      }, 10000);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [imageLoadingState]);
+
+  // Handle image load error
+  const handleImageLoadError = () => {
+    logger.error('Image failed to load:', flashcard.imageUrl);
+    setImageLoadingState('error');
+  };
+
+  // Handle image retry (tap-to-retry or refresh button)
+  const handleImageRetry = () => {
+    if (imageRetryCount >= MAX_RETRY_COUNT) {
+      logger.warn('Max retry count reached for image:', flashcard.imageUrl);
+      return;
+    }
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setImageRetryCount(prev => prev + 1);
+    setImageLoadingState('loading');
+    
+    // Cache bust by appending timestamp
+    if (flashcard.imageUrl) {
+      const separator = flashcard.imageUrl.includes('?') ? '&' : '?';
+      const cacheBustedUrl = `${flashcard.imageUrl}${separator}refresh=${Date.now()}`;
+      setImageUrlWithCacheBust(cacheBustedUrl);
+    }
   };
 
   // Check if content is scrollable by comparing content height to container height
@@ -234,6 +348,28 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
     }
   }, [flashcard.imageUrl, flashcard.id]);
 
+  // Track the previous flashcard ID to detect real changes
+  const prevFlashcardIdRef = useRef<string>();
+  
+  // Reset image state when flashcard changes (but preserve successful loads)
+  useEffect(() => {
+    // Reset to the original URL (removes any cache-busting params from retries)
+    setImageUrlWithCacheBust(flashcard.imageUrl);
+    setImageRetryCount(0);
+    
+    // If this is a truly new flashcard (different ID), reset everything
+    if (prevFlashcardIdRef.current !== flashcard.id) {
+      logger.log('🔄 [FlashcardItem] New flashcard detected, resetting image state');
+      setImageLoadingState('idle');
+      setIsImageLoaded(false);
+      prevFlashcardIdRef.current = flashcard.id;
+    } else if (imageLoadingState === 'error' || imageLoadingState === 'loading') {
+      // Same flashcard but stuck in error/loading state - reset to idle
+      logger.log('🔄 [FlashcardItem] Resetting stuck image state');
+      setImageLoadingState('idle');
+    }
+  }, [flashcard.id, flashcard.imageUrl]);
+
   return (
     <View style={[
       styles.cardContainer,
@@ -290,16 +426,44 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
               
               {/* Always render the image but conditionally show it */}
               {flashcard.imageUrl && (
-                <View style={[
-                  styles.imageContainer,
-                  !showImage && styles.hiddenImage
-                ]}>
-                  <Image 
-                    source={{ uri: flashcard.imageUrl }} 
-                    style={styles.image}
-                    resizeMode="contain"
-                    onLoad={handleImageLoad}
-                  />
+                <View 
+                  style={[
+                    styles.imageContainer,
+                    !showImage && styles.hiddenImage
+                  ]}
+                >
+                  {imageLoadingState === 'error' ? (
+                    // Error placeholder with tap-to-retry (icon only)
+                    <TouchableOpacity 
+                      style={styles.imageErrorContainer}
+                      onPress={handleImageRetry}
+                      disabled={imageRetryCount >= MAX_RETRY_COUNT}
+                    >
+                      <Ionicons 
+                        name="cloud-offline-outline" 
+                        size={64} 
+                        color={imageRetryCount >= MAX_RETRY_COUNT ? COLORS.darkGray : COLORS.royalBlue} 
+                      />
+                    </TouchableOpacity>
+                  ) : (
+                    <>
+                      <Image 
+                        source={{ uri: imageUriToUse || flashcard.imageUrl }} 
+                        style={styles.image}
+                        resizeMode="contain"
+                        onLoadStart={handleImageLoadStart}
+                        onLoad={handleImageLoad}
+                        onError={handleImageLoadError}
+                      />
+                      
+                      {/* Loading overlay - only show if image hasn't been loaded before */}
+                      {imageLoadingState === 'loading' && !isImageLoaded && (
+                        <View style={styles.imageLoadingOverlay}>
+                          <ActivityIndicator size="large" color={COLORS.primary} />
+                        </View>
+                      )}
+                    </>
+                  )}
                 </View>
               )}
             </ScrollView>
@@ -373,16 +537,44 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
               
               {/* Always render the image on back side too but conditionally show it */}
               {flashcard.imageUrl && (
-                <View style={[
-                  styles.imageContainer,
-                  !showImage && styles.hiddenImage
-                ]}>
-                  <Image 
-                    source={{ uri: flashcard.imageUrl }} 
-                    style={styles.image}
-                    resizeMode="contain"
-                    onLoad={handleImageLoad}
-                  />
+                <View 
+                  style={[
+                    styles.imageContainer,
+                    !showImage && styles.hiddenImage
+                  ]}
+                >
+                  {imageLoadingState === 'error' ? (
+                    // Error placeholder with tap-to-retry (icon only)
+                    <TouchableOpacity 
+                      style={styles.imageErrorContainer}
+                      onPress={handleImageRetry}
+                      disabled={imageRetryCount >= MAX_RETRY_COUNT}
+                    >
+                      <Ionicons 
+                        name="cloud-offline-outline" 
+                        size={64} 
+                        color={imageRetryCount >= MAX_RETRY_COUNT ? COLORS.darkGray : COLORS.royalBlue} 
+                      />
+                    </TouchableOpacity>
+                  ) : (
+                    <>
+                      <Image 
+                        source={{ uri: imageUriToUse || flashcard.imageUrl }} 
+                        style={styles.image}
+                        resizeMode="contain"
+                        onLoadStart={handleImageLoadStart}
+                        onLoad={handleImageLoad}
+                        onError={handleImageLoadError}
+                      />
+                      
+                      {/* Loading overlay - only show if image hasn't been loaded before */}
+                      {imageLoadingState === 'loading' && !isImageLoaded && (
+                        <View style={styles.imageLoadingOverlay}>
+                          <ActivityIndicator size="large" color={COLORS.primary} />
+                        </View>
+                      )}
+                    </>
+                  )}
                 </View>
               )}
               
@@ -400,20 +592,41 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
       {/* Card Actions */}
       <View style={styles.actionButtonsContainer}>
         {onDelete && (
-          <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-            <Ionicons name="trash-outline" size={22} color={COLORS.royalBlue} />
+          <TouchableOpacity 
+            style={[styles.deleteButton, !isOnline && styles.disabledButton]} 
+            onPress={handleDelete}
+          >
+            <Ionicons 
+              name="trash-outline" 
+              size={22} 
+              color={isOnline ? COLORS.royalBlue : COLORS.darkGray} 
+            />
           </TouchableOpacity>
         )}
         
         {onEdit && (
-          <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
-            <Ionicons name="pencil" size={22} color={COLORS.royalBlue} />
+          <TouchableOpacity 
+            style={[styles.editButton, !isOnline && styles.disabledButton]} 
+            onPress={handleEdit}
+          >
+            <Ionicons 
+              name="pencil" 
+              size={22} 
+              color={isOnline ? COLORS.royalBlue : COLORS.darkGray} 
+            />
           </TouchableOpacity>
         )}
         
         {onSend && (
-          <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
-            <MaterialIcons name="drive-file-move-outline" size={22} color={COLORS.royalBlue} />
+          <TouchableOpacity 
+            style={[styles.sendButton, !isOnline && styles.disabledButton]} 
+            onPress={handleSend}
+          >
+            <MaterialIcons 
+              name="drive-file-move-outline" 
+              size={22} 
+              color={isOnline ? COLORS.royalBlue : COLORS.darkGray} 
+            />
           </TouchableOpacity>
         )}
       </View>
@@ -427,6 +640,21 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
               name="image" 
               size={20} 
               color={COLORS.royalBlue} />
+          </TouchableOpacity>
+        )}
+        
+        {/* Refresh button (only in saved flashcards mode when image is showing) */}
+        {flashcard.imageUrl && showRefreshButton && showImage && (
+          <TouchableOpacity 
+            style={styles.bottomActionButton} 
+            onPress={handleImageRetry}
+            disabled={imageRetryCount >= MAX_RETRY_COUNT}
+          >
+            <Ionicons 
+              name="refresh" 
+              size={20} 
+              color={imageRetryCount >= MAX_RETRY_COUNT ? COLORS.darkGray : COLORS.royalBlue} 
+            />
           </TouchableOpacity>
         )}
         
@@ -574,6 +802,9 @@ const createStyles = (responsiveCardHeight: number) => StyleSheet.create({
     marginHorizontal: 8,
     padding: 6,
   },
+  disabledButton: {
+    opacity: 0.4,
+  },
   imageButton: {
     marginHorizontal: 8,
     padding: 6,
@@ -621,6 +852,26 @@ const createStyles = (responsiveCardHeight: number) => StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
     zIndex: 1, // Behind the card (cardWrapper has no explicit zIndex, defaults to auto)
     borderRadius: 0, // No rounding for backdrop
+  },
+  imageErrorContainer: {
+    width: '100%',
+    height: 400,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.darkSurface,
+    borderRadius: 8,
+    padding: 20,
+  },
+  imageLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
   },
 });
 

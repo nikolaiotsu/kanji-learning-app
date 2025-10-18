@@ -1,10 +1,19 @@
-import { supabase } from './supabaseClient';
+import { supabase, getCurrentUser } from './supabaseClient';
 import { Flashcard } from '../types/Flashcard';
 import { Deck } from '../types/Deck';
 import { decode } from 'base64-arraybuffer';
 import * as FileSystem from 'expo-file-system';
 import { logFlashcardCreation } from './apiUsageLogger';
 import { validateImageFile, validateDeckName } from '../utils/inputValidation';
+import { isOnline, isNetworkError } from './networkManager';
+import { 
+  cacheFlashcards, 
+  getCachedFlashcards, 
+  cacheDecks, 
+  getCachedDecks 
+} from './offlineStorage';
+import { batchCacheImages } from './imageCache';
+import { getUserIdOffline } from './offlineAuth';
 
 import { logger } from '../utils/logger';
 // Simple UUID generator that doesn't rely on crypto.getRandomValues()
@@ -14,6 +23,33 @@ const generateUUID = (): string => {
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
+};
+
+/**
+ * Get user ID - tries Supabase first, falls back to offline storage
+ * This works even when completely offline!
+ */
+const getUserId = async (): Promise<string | null> => {
+  try {
+    // Try to get user from Supabase first (works when online)
+    const user = await getCurrentUser();
+    if (user) {
+      return user.id;
+    }
+  } catch (error) {
+    // Supabase failed (probably offline), try offline storage
+    logger.log('💾 [getUserId] Supabase failed, trying offline storage...');
+  }
+  
+  // Fallback to offline storage (works when offline!)
+  const offlineUserId = await getUserIdOffline();
+  if (offlineUserId) {
+    logger.log('💾 [getUserId] Using offline user ID');
+    return offlineUserId;
+  }
+  
+  logger.log('❌ [getUserId] No user ID available (online or offline)');
+  return null;
 };
 
 /**
@@ -41,9 +77,99 @@ const transformFlashcards = (cards: any[]): Flashcard[] => cards.map(transformFl
 
 /**
  * Get all decks for the current user
+ * Cache-first strategy: Check cache first, then fetch from network if online
  * @returns Array of decks
  */
 export const getDecks = async (createDefaultIfEmpty: boolean = false): Promise<Deck[]> => {
+  let userId: string | null = null;
+  let online = false;
+  
+  try {
+    // Get user ID (works offline via local storage!)
+    userId = await getUserId();
+    
+    try {
+      online = await isOnline();
+    } catch (error) {
+      logger.error('Error checking online status:', error);
+      online = false; // Assume offline if check fails
+    }
+    
+    // CACHE-FIRST STRATEGY: Always check cache first, regardless of network state
+    if (userId) {
+      try {
+        const cachedDecks = await getCachedDecks(userId);
+        
+        // If we have cached data, return it immediately
+        if (cachedDecks.length > 0) {
+          logger.log('📦 [Cache-First] Returning cached decks:', cachedDecks.length);
+          
+          // If online, fetch fresh data in background and update cache
+          if (online) {
+            logger.log('🔄 [Cache-First] Fetching fresh decks in background...');
+            fetchAndCacheDecks(userId, createDefaultIfEmpty).catch(err => {
+              logger.error('Failed to fetch fresh decks in background:', err);
+            });
+          }
+          
+          return cachedDecks;
+        }
+      } catch (cacheError) {
+        logger.error('Error reading cache:', cacheError);
+        // Continue to network fetch if cache read fails
+      }
+    }
+    
+    // No cache available - must fetch from network
+    if (!online) {
+      logger.log('📶 [Offline] No cache available and offline');
+      return [];
+    }
+    
+    // Fetch from network (first time or cache miss)
+    logger.log('🌐 [Network] Fetching decks from Supabase...');
+    return await fetchAndCacheDecks(userId || undefined, createDefaultIfEmpty);
+  } catch (error) {
+    // Last resort: try cache even if we had an error
+    if (isNetworkError(error)) {
+      logger.log('📶 [Network Error] Attempting cache fallback in getDecks');
+      try {
+        // Try to get userId again if we don't have it
+        const fallbackUserId = userId || await getUserId();
+        if (fallbackUserId) {
+          const cachedDecks = await getCachedDecks(fallbackUserId);
+          if (cachedDecks.length > 0) {
+            logger.log('📶 [Cache Rescue] Returning', cachedDecks.length, 'cached decks after network error');
+            return cachedDecks;
+          }
+        }
+      } catch (cacheError) {
+        logger.error('Cache fallback also failed:', cacheError);
+      }
+    }
+    
+    // Don't log network errors
+    if (!isNetworkError(error)) {
+      logger.error('Error in getDecks:', error);
+    }
+    return [];
+  }
+};
+
+/**
+ * Helper function to fetch decks from Supabase and cache them
+ * @param userId User ID for caching
+ * @param createDefaultIfEmpty Whether to create a default deck if none exist
+ * @returns Array of decks
+ */
+const fetchAndCacheDecks = async (userId?: string, createDefaultIfEmpty: boolean = false): Promise<Deck[]> => {
+  // Check online status FIRST - don't attempt Supabase if offline
+  const online = await isOnline().catch(() => false);
+  if (!online) {
+    logger.log('📶 [Offline] Skipping background fetch - offline');
+    return [];
+  }
+  
   try {
     // Try ordering by order_index first (new schema). If the column does not exist yet, fall back to created_at.
     let query = supabase
@@ -54,14 +180,17 @@ export const getDecks = async (createDefaultIfEmpty: boolean = false): Promise<D
     let { data: decks, error } = await query.order('order_index', { ascending: true, nullsFirst: false });
 
     if (error) {
-      logger.warn('order_index column missing or other error – falling back to created_at ordering:', error.message);
+      // Silent log for order_index fallback
       ({ data: decks, error } = await supabase
         .from('decks')
         .select('*')
         .order('created_at', { ascending: false }));
       if (error) {
-        logger.error('Error fetching decks:', error.message);
-        return [];
+        // Don't log network errors
+        if (!isNetworkError(error)) {
+          logger.error('Error fetching decks:', error.message);
+        }
+        throw error;
       }
     }
     
@@ -76,16 +205,43 @@ export const getDecks = async (createDefaultIfEmpty: boolean = false): Promise<D
     const deckList = decks || [];
 
     // Transform from database format to app format, including orderIndex if present
-    return deckList.map((deck: any) => ({
+    const transformedDecks = deckList.map((deck: any) => ({
       id: deck.id,
       name: deck.name,
       createdAt: new Date(deck.created_at).getTime(),
       updatedAt: new Date(deck.updated_at).getTime(),
       orderIndex: deck.order_index ?? undefined,
     }));
+    
+    // Cache decks for offline use
+    if (userId && transformedDecks.length > 0) {
+      cacheDecks(userId, transformedDecks).catch(err => 
+        logger.error('Failed to cache decks:', err)
+      );
+    }
+    
+    return transformedDecks;
   } catch (error) {
-    logger.error('Error getting decks:', error);
-    return [];
+    // If this is a network error and we have a userId, try to return cached decks
+    if (isNetworkError(error) && userId) {
+      logger.log('📶 [Network Error] Fetching decks failed, attempting to return cached decks');
+      try {
+        const cachedDecks = await getCachedDecks(userId);
+        if (cachedDecks.length > 0) {
+          logger.log('📶 [Cache Fallback] Returning', cachedDecks.length, 'cached decks');
+          return cachedDecks;
+        }
+      } catch (cacheError) {
+        logger.error('Failed to retrieve cached decks:', cacheError);
+      }
+    }
+    
+    // If not a network error or cache fallback failed, throw the error
+    // Don't log network errors
+    if (!isNetworkError(error)) {
+      logger.error('fetchAndCacheDecks failed:', error);
+    }
+    throw error;
   }
 };
 
@@ -301,9 +457,107 @@ export const saveFlashcard = async (flashcard: Flashcard, deckId: string): Promi
 
 /**
  * Get all saved flashcards
+ * Cache-first strategy: Check cache first, then fetch from network if online
  * @returns Array of saved flashcards
  */
 export const getFlashcards = async (): Promise<Flashcard[]> => {
+  let userId: string | null = null;
+  let online = false;
+  
+  try {
+    // Get user ID (works offline via local storage!)
+    userId = await getUserId();
+    
+    try {
+      online = await isOnline();
+    } catch (error) {
+      logger.error('Error checking online status:', error);
+      online = false;
+    }
+    
+    // CACHE-FIRST STRATEGY: Always check cache first, regardless of network state
+    if (userId) {
+      try {
+        // Get all decks to know which caches to check
+        const decks = await getCachedDecks(userId);
+        const deckIds = decks.map(d => d.id);
+        
+        if (deckIds.length > 0) {
+          const cachedCards = await getCachedFlashcards(userId, deckIds);
+          
+          // If we have cached data, return it immediately
+          if (cachedCards.length > 0) {
+            logger.log('📦 [Cache-First] Returning all cached flashcards:', cachedCards.length);
+            
+            // If online, fetch fresh data in background and update cache
+            if (online) {
+              logger.log('🔄 [Cache-First] Fetching fresh flashcards in background...');
+              fetchAndCacheAllFlashcards(userId).catch(err => {
+                logger.error('Failed to fetch fresh flashcards in background:', err);
+              });
+            }
+            
+            return cachedCards;
+          }
+        }
+      } catch (cacheError) {
+        logger.error('Error reading cache:', cacheError);
+      }
+    }
+    
+    // No cache available - must fetch from network
+    if (!online) {
+      logger.log('📶 [Offline] No cache available and offline');
+      return [];
+    }
+    
+    // Fetch from network (first time or cache miss)
+    logger.log('🌐 [Network] Fetching all flashcards from Supabase...');
+    return await fetchAndCacheAllFlashcards(userId || undefined);
+  } catch (error) {
+    // Last resort: try cache even if we had an error
+    if (isNetworkError(error)) {
+      logger.log('📶 [Network Error] Attempting cache fallback in getFlashcards');
+      try {
+        // Try to get userId again if we don't have it
+        const fallbackUserId = userId || await getUserId();
+        if (fallbackUserId) {
+          const decks = await getCachedDecks(fallbackUserId);
+          const deckIds = decks.map(d => d.id);
+          if (deckIds.length > 0) {
+            const cachedCards = await getCachedFlashcards(fallbackUserId, deckIds);
+            if (cachedCards.length > 0) {
+              logger.log('📶 [Cache Rescue] Returning', cachedCards.length, 'cached flashcards after network error');
+              return cachedCards;
+            }
+          }
+        }
+      } catch (cacheError) {
+        logger.error('Cache fallback also failed:', cacheError);
+      }
+    }
+    
+    // Don't log network errors
+    if (!isNetworkError(error)) {
+      logger.error('Error in getFlashcards:', error);
+    }
+    return [];
+  }
+};
+
+/**
+ * Helper function to fetch all flashcards from Supabase and cache them
+ * @param userId User ID for caching
+ * @returns Array of flashcards
+ */
+const fetchAndCacheAllFlashcards = async (userId?: string): Promise<Flashcard[]> => {
+  // Check online status FIRST - don't attempt Supabase if offline
+  const online = await isOnline().catch(() => false);
+  if (!online) {
+    logger.log('📶 [Offline] Skipping background fetch - offline');
+    return [];
+  }
+  
   try {
     const { data: flashcards, error } = await supabase
       .from('flashcards')
@@ -311,24 +565,174 @@ export const getFlashcards = async (): Promise<Flashcard[]> => {
       .order('created_at', { ascending: false });
     
     if (error) {
-      logger.error('Error fetching flashcards:', error.message);
-      return [];
+      // Don't log network errors
+      if (!isNetworkError(error)) {
+        logger.error('Error fetching all flashcards:', error.message);
+      }
+      throw error;
     }
     
     // Transform from database format to app format
-    return transformFlashcards(flashcards);
+    const transformedCards = transformFlashcards(flashcards || []);
+    
+    // Cache flashcards for offline use (grouped by deck)
+    if (userId && transformedCards.length > 0) {
+      // Group cards by deck and cache separately
+      const cardsByDeck = new Map<string, Flashcard[]>();
+      
+      for (const card of transformedCards) {
+        if (!cardsByDeck.has(card.deckId)) {
+          cardsByDeck.set(card.deckId, []);
+        }
+        cardsByDeck.get(card.deckId)!.push(card);
+      }
+      
+      // Cache each deck's cards
+      for (const [deckId, cards] of cardsByDeck) {
+        cacheFlashcards(userId, deckId, cards).catch(err =>
+          logger.error(`Failed to cache cards for deck ${deckId}:`, err)
+        );
+      }
+      
+      // Extract image URLs and cache images in background
+      const imageUrls = transformedCards
+        .filter(card => card.imageUrl)
+        .map(card => card.imageUrl!);
+      
+      if (imageUrls.length > 0) {
+        // Don't await - cache images in background
+        batchCacheImages(userId, imageUrls).catch(err =>
+          logger.error('Failed to batch cache images:', err)
+        );
+      }
+    }
+    
+    return transformedCards;
   } catch (error) {
-    logger.error('Error getting flashcards:', error);
-    return [];
+    // If this is a network error and we have a userId, try to return cached flashcards
+    if (isNetworkError(error) && userId) {
+      logger.log('📶 [Network Error] Fetching all flashcards failed, attempting to return cached flashcards');
+      try {
+        const decks = await getCachedDecks(userId);
+        const deckIds = decks.map(d => d.id);
+        if (deckIds.length > 0) {
+          const cachedCards = await getCachedFlashcards(userId, deckIds);
+          if (cachedCards.length > 0) {
+            logger.log('📶 [Cache Fallback] Returning', cachedCards.length, 'cached flashcards');
+            return cachedCards;
+          }
+        }
+      } catch (cacheError) {
+        logger.error('Failed to retrieve cached flashcards:', cacheError);
+      }
+    }
+    
+    // If not a network error or cache fallback failed, throw the error
+    // Don't log network errors
+    if (!isNetworkError(error)) {
+      logger.error('fetchAndCacheAllFlashcards failed:', error);
+    }
+    throw error;
   }
 };
 
 /**
  * Get flashcards by deck ID
+ * Cache-first strategy: Check cache first, then fetch from network if online
  * @param deckId The ID of the deck to get flashcards for
  * @returns Array of flashcards in the specified deck
  */
 export const getFlashcardsByDeck = async (deckId: string): Promise<Flashcard[]> => {
+  let userId: string | null = null;
+  let online = false;
+  
+  try {
+    // Get user ID (works offline via local storage!)
+    userId = await getUserId();
+    
+    try {
+      online = await isOnline();
+    } catch (error) {
+      logger.error('Error checking online status:', error);
+      online = false;
+    }
+    
+    // CACHE-FIRST STRATEGY: Always check cache first, regardless of network state
+    if (userId) {
+      try {
+        const cachedCards = await getCachedFlashcards(userId, [deckId]);
+        
+        // If we have cached data, return it immediately
+        if (cachedCards.length > 0) {
+          logger.log('📦 [Cache-First] Returning cached flashcards for deck:', deckId, 'count:', cachedCards.length);
+          
+          // If online, fetch fresh data in background and update cache
+          if (online) {
+            logger.log('🔄 [Cache-First] Fetching fresh flashcards in background...');
+            fetchAndCacheFlashcardsByDeck(userId, deckId).catch(err => {
+              logger.error('Failed to fetch fresh flashcards in background:', err);
+            });
+          }
+          
+          return cachedCards;
+        }
+      } catch (cacheError) {
+        logger.error('Error reading cache:', cacheError);
+      }
+    }
+    
+    // No cache available - must fetch from network
+    if (!online) {
+      logger.log('📶 [Offline] No cache available and offline for deck:', deckId);
+      return [];
+    }
+    
+    // Fetch from network (first time or cache miss)
+    logger.log('🌐 [Network] Fetching flashcards from Supabase for deck:', deckId);
+    return await fetchAndCacheFlashcardsByDeck(userId || undefined, deckId);
+  } catch (error) {
+    // Last resort: try cache even if we had an error
+    if (isNetworkError(error)) {
+      logger.log('📶 [Network Error] Attempting cache fallback in getFlashcardsByDeck');
+      try {
+        // Try to get userId again if we don't have it
+        const fallbackUserId = userId || await getUserId();
+        if (fallbackUserId) {
+          const cachedCards = await getCachedFlashcards(fallbackUserId, [deckId]);
+          if (cachedCards.length > 0) {
+            logger.log('📶 [Cache Rescue] Returning', cachedCards.length, 'cached flashcards after network error');
+            return cachedCards;
+          }
+        }
+      } catch (cacheError) {
+        logger.error('Cache fallback also failed:', cacheError);
+      }
+    }
+    
+    // Don't log network errors
+    if (!isNetworkError(error)) {
+      logger.error('Error in getFlashcardsByDeck:', error);
+    }
+    return [];
+  }
+};
+
+/**
+ * Helper function to fetch flashcards from Supabase and cache them
+ * @param userId User ID for caching
+ * @param deckId Deck ID to fetch flashcards for
+ * @returns Array of flashcards
+ */
+const fetchAndCacheFlashcardsByDeck = async (userId?: string, deckId?: string): Promise<Flashcard[]> => {
+  if (!deckId) return [];
+  
+  // Check online status FIRST - don't attempt Supabase if offline
+  const online = await isOnline().catch(() => false);
+  if (!online) {
+    logger.log('📶 [Offline] Skipping background fetch - offline');
+    return [];
+  }
+  
   try {
     const { data: flashcards, error } = await supabase
       .from('flashcards')
@@ -337,20 +741,63 @@ export const getFlashcardsByDeck = async (deckId: string): Promise<Flashcard[]> 
       .order('created_at', { ascending: false });
     
     if (error) {
-      logger.error('Error fetching flashcards by deck:', error.message);
-      return [];
+      // Don't log network errors
+      if (!isNetworkError(error)) {
+        logger.error('Error fetching flashcards by deck:', error.message);
+      }
+      throw error;
     }
     
     // Transform from database format to app format
-    return transformFlashcards(flashcards);
+    const transformedCards = transformFlashcards(flashcards || []);
+    
+    // Cache flashcards for offline use
+    if (userId && transformedCards.length > 0) {
+      cacheFlashcards(userId, deckId, transformedCards).catch(err =>
+        logger.error('Failed to cache cards for deck:', err)
+      );
+      
+      // Extract image URLs and cache images in background
+      const imageUrls = transformedCards
+        .filter(card => card.imageUrl)
+        .map(card => card.imageUrl!);
+      
+      if (imageUrls.length > 0) {
+        // Don't await - cache images in background
+        batchCacheImages(userId, imageUrls).catch(err =>
+          logger.error('Failed to batch cache images:', err)
+        );
+      }
+    }
+    
+    return transformedCards;
   } catch (error) {
-    logger.error('Error getting flashcards by deck:', error);
-    return [];
+    // If this is a network error and we have a userId, try to return cached flashcards
+    if (isNetworkError(error) && userId && deckId) {
+      logger.log('📶 [Network Error] Fetching flashcards for deck failed, attempting to return cached flashcards');
+      try {
+        const cachedCards = await getCachedFlashcards(userId, [deckId]);
+        if (cachedCards.length > 0) {
+          logger.log('📶 [Cache Fallback] Returning', cachedCards.length, 'cached flashcards for deck');
+          return cachedCards;
+        }
+      } catch (cacheError) {
+        logger.error('Failed to retrieve cached flashcards for deck:', cacheError);
+      }
+    }
+    
+    // If not a network error or cache fallback failed, throw the error
+    // Don't log network errors
+    if (!isNetworkError(error)) {
+      logger.error('fetchAndCacheFlashcardsByDeck failed:', error);
+    }
+    throw error;
   }
 };
 
 /**
  * Get flashcards by multiple deck IDs
+ * Cache-first strategy: Check cache first, then fetch from network if online
  * @param deckIds Array of deck IDs to get flashcards for
  * @returns Array of flashcards in the specified decks
  */
@@ -359,6 +806,96 @@ export const getFlashcardsByDecks = async (deckIds: string[]): Promise<Flashcard
     return [];
   }
 
+  let userId: string | null = null;
+  let online = false;
+  
+  try {
+    // Get user ID (works offline via local storage!)
+    userId = await getUserId();
+    
+    try {
+      online = await isOnline();
+    } catch (error) {
+      logger.error('Error checking online status:', error);
+      online = false;
+    }
+    
+    // CACHE-FIRST STRATEGY: Always check cache first, regardless of network state
+    if (userId) {
+      try {
+        const cachedCards = await getCachedFlashcards(userId, deckIds);
+        
+        // If we have cached data, return it immediately
+        if (cachedCards.length > 0) {
+          logger.log('📦 [Cache-First] Returning cached flashcards for', deckIds.length, 'decks, count:', cachedCards.length);
+          
+          // If online, fetch fresh data in background and update cache
+          if (online) {
+            logger.log('🔄 [Cache-First] Fetching fresh flashcards for decks in background...');
+            fetchAndCacheFlashcardsByDecks(userId, deckIds).catch(err => {
+              logger.error('Failed to fetch fresh flashcards for decks in background:', err);
+            });
+          }
+          
+          return cachedCards;
+        }
+      } catch (cacheError) {
+        logger.error('Error reading cache:', cacheError);
+      }
+    }
+    
+    // No cache available - must fetch from network
+    if (!online) {
+      logger.log('📶 [Offline] No cache available and offline for decks:', deckIds.length);
+      return [];
+    }
+    
+    // Fetch from network (first time or cache miss)
+    logger.log('🌐 [Network] Fetching flashcards from Supabase for', deckIds.length, 'decks');
+    return await fetchAndCacheFlashcardsByDecks(userId || undefined, deckIds);
+  } catch (error) {
+    // Last resort: try cache even if we had an error
+    if (isNetworkError(error)) {
+      logger.log('📶 [Network Error] Attempting cache fallback in getFlashcardsByDecks');
+      try {
+        // Try to get userId again if we don't have it
+        const fallbackUserId = userId || await getUserId();
+        if (fallbackUserId) {
+          const cachedCards = await getCachedFlashcards(fallbackUserId, deckIds);
+          if (cachedCards.length > 0) {
+            logger.log('📶 [Cache Rescue] Returning', cachedCards.length, 'cached flashcards after network error');
+            return cachedCards;
+          }
+        }
+      } catch (cacheError) {
+        logger.error('Cache fallback also failed:', cacheError);
+      }
+    }
+    
+    // Don't log network errors
+    if (!isNetworkError(error)) {
+      logger.error('Error in getFlashcardsByDecks:', error);
+    }
+    return [];
+  }
+};
+
+/**
+ * Helper function to fetch flashcards for multiple decks from Supabase and cache them
+ * @param userId User ID for caching
+ * @param deckIds Array of deck IDs
+ * @returns Array of flashcards
+ */
+const fetchAndCacheFlashcardsByDecks = async (userId?: string, deckIds?: string[]): Promise<Flashcard[]> => {
+  if (!deckIds || deckIds.length === 0) return [];
+  
+  // Check online status FIRST - don't attempt Supabase if offline
+  const online = await isOnline().catch(() => false);
+  if (!online) {
+    logger.log('📶 [Offline] Skipping background fetch - offline');
+    return [];
+  }
+  
   try {
     const { data: flashcards, error } = await supabase
       .from('flashcards')
@@ -367,15 +904,70 @@ export const getFlashcardsByDecks = async (deckIds: string[]): Promise<Flashcard
       .order('created_at', { ascending: false });
     
     if (error) {
-      logger.error('Error fetching flashcards by decks:', error.message);
-      return [];
+      // Don't log network errors
+      if (!isNetworkError(error)) {
+        logger.error('Error fetching flashcards by decks:', error.message);
+      }
+      throw error;
     }
     
     // Transform from database format to app format
-    return transformFlashcards(flashcards);
+    const transformedCards = transformFlashcards(flashcards || []);
+    
+    // Cache flashcards for offline use (per deck)
+    if (userId && transformedCards.length > 0) {
+      // Group cards by deck and cache separately
+      const cardsByDeck = new Map<string, Flashcard[]>();
+      
+      for (const card of transformedCards) {
+        if (!cardsByDeck.has(card.deckId)) {
+          cardsByDeck.set(card.deckId, []);
+        }
+        cardsByDeck.get(card.deckId)!.push(card);
+      }
+      
+      // Cache each deck's cards
+      for (const [deckId, cards] of cardsByDeck) {
+        cacheFlashcards(userId, deckId, cards).catch(err =>
+          logger.error(`Failed to cache cards for deck ${deckId}:`, err)
+        );
+      }
+      
+      // Extract image URLs and cache images in background
+      const imageUrls = transformedCards
+        .filter(card => card.imageUrl)
+        .map(card => card.imageUrl!);
+      
+      if (imageUrls.length > 0) {
+        // Don't await - cache images in background
+        batchCacheImages(userId, imageUrls).catch(err =>
+          logger.error('Failed to batch cache images:', err)
+        );
+      }
+    }
+    
+    return transformedCards;
   } catch (error) {
-    logger.error('Error getting flashcards by decks:', error);
-    return [];
+    // If this is a network error and we have a userId, try to return cached flashcards
+    if (isNetworkError(error) && userId && deckIds && deckIds.length > 0) {
+      logger.log('📶 [Network Error] Fetching flashcards for decks failed, attempting to return cached flashcards');
+      try {
+        const cachedCards = await getCachedFlashcards(userId, deckIds);
+        if (cachedCards.length > 0) {
+          logger.log('📶 [Cache Fallback] Returning', cachedCards.length, 'cached flashcards for decks');
+          return cachedCards;
+        }
+      } catch (cacheError) {
+        logger.error('Failed to retrieve cached flashcards for decks:', cacheError);
+      }
+    }
+    
+    // If not a network error or cache fallback failed, throw the error
+    // Don't log network errors
+    if (!isNetworkError(error)) {
+      logger.error('fetchAndCacheFlashcardsByDecks failed:', error);
+    }
+    throw error;
   }
 };
 
