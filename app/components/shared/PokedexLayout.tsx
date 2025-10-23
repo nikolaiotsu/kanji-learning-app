@@ -14,6 +14,7 @@ import { COLORS } from '../../constants/colors';
 import TexturedBackground from './TexturedBackground';
 
 import { logger } from '../../utils/logger';
+
 interface PokedexLayoutProps {
   children: ReactNode;
   style?: ViewStyle;
@@ -23,7 +24,6 @@ interface PokedexLayoutProps {
   logoSource?: ImageSourcePropType;
   logoStyle?: ImageStyle;
   logoVisible?: boolean; // Control when logo should be visible/animated
-  logoAnimationKey?: number; // Increment to restart logo animation
   triggerLightAnimation?: boolean;
   textureVariant?: 'gradient' | 'subtle' | 'modern' | 'radial' | 'default';
   // Progressive loading props
@@ -41,7 +41,6 @@ export default memo(function PokedexLayout({
   logoSource,
   logoStyle,
   logoVisible = true,
-  logoAnimationKey = 0,
   triggerLightAnimation = false,
   textureVariant = 'default',
   loadingProgress = 0,
@@ -52,7 +51,7 @@ export default memo(function PokedexLayout({
   
   // Safe area insets handling
 
-  // Animation values - create them with useMemo to avoid recreating on rerenders
+  // Animation values for lights (not for logo - logo is static)
   const animationValues = useMemo(() => {
     return {
       mainLightAnim: new Animated.Value(0),
@@ -61,12 +60,11 @@ export default memo(function PokedexLayout({
         new Animated.Value(0),
         new Animated.Value(0),
         new Animated.Value(0)
-      ],
-      logoOpacityAnim: new Animated.Value(0)
+      ]
     };
   }, []);
   
-  const { mainLightAnim, smallLightsAnim, logoOpacityAnim } = animationValues;
+  const { mainLightAnim, smallLightsAnim } = animationValues;
 
   // Ref to keep track of the currently running animation sequence so we can
   // stop it prematurely when a new trigger is received
@@ -156,25 +154,6 @@ export default memo(function PokedexLayout({
       });
     }
   }, [triggerLightAnimation, mainLightAnim, smallLightsAnim]);
-
-  // Logo elegant fade-in animation - synchronized with content visibility
-  // Restarts whenever logoAnimationKey changes (e.g., when returning from navigation)
-  useEffect(() => {
-    if (logoSource && logoVisible) {
-      // Start invisible
-      logoOpacityAnim.setValue(0);
-      
-      // Elegant fade-in synchronized with card transitions (300ms to match card animations)
-      Animated.timing(logoOpacityAnim, {
-        toValue: 1,
-        duration: 300, // Match card animation duration for synchronization
-        useNativeDriver: true,
-      }).start();
-    } else {
-      // Hide logo when no source provided or not visible
-      logoOpacityAnim.setValue(0);
-    }
-  }, [logoSource, logoVisible, logoAnimationKey, logoOpacityAnim]);
 
   // Progressive loading animation effect
   useEffect(() => {
@@ -472,12 +451,12 @@ export default memo(function PokedexLayout({
             )}
             {/* Logo - positioned absolutely within topSection */}
             {logoSource && (
-              <Animated.Image
+              <Image
                 source={logoSource}
                 style={[
                   styles.logoImage, 
                   logoStyle,
-                  { opacity: logoOpacityAnim }
+                  { opacity: 1 } // Always fully visible - no animation
                 ]}
                 resizeMode="contain"
               />
@@ -517,7 +496,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 3,
     borderBottomColor: COLORS.pokedexBlack,
     position: 'relative',
-    zIndex: 10, // Increased z-index to ensure shadows aren't covered
+    zIndex: 100, // Ensure top bar stays above screen and overlays
+    elevation: 20, // Ensure stacking on Android; harmless on iOS
   },
   flashcardsTopSection: {
     backgroundColor: COLORS.background,
@@ -527,7 +507,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.5,
     shadowRadius: 1,
-    elevation: 10, // Increased elevation to ensure shadows aren't covered
+    elevation: 20, // Keep above screen content
+    zIndex: 100, // Align with main variant stacking
   },
   // Main page - circular light
   mainLight: {
@@ -617,6 +598,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4.65,
     elevation: 8,
+    zIndex: 0,
     borderStyle: 'solid',
   },
   flashcardsScreen: {
@@ -764,7 +746,7 @@ const styles = StyleSheet.create({
     right: 20,
     width: 100,
     height: 30,
-    zIndex: 5,
+    zIndex: 200,
   },
   mainLightHighlight: {
     position: 'absolute',
