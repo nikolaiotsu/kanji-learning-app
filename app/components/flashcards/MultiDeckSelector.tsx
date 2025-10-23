@@ -17,7 +17,9 @@ import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Deck } from '../../types/Deck';
-import { getDecks, deleteDeck } from '../../services/supabaseStorage';
+import { getDecks, deleteDeck, getFlashcardsByDecks } from '../../services/supabaseStorage';
+import { supabase } from '../../services/supabaseClient';
+import { isOnline } from '../../services/networkManager';
 import { COLORS } from '../../constants/colors';
 
 import { logger } from '../../utils/logger';
@@ -42,6 +44,15 @@ export default function MultiDeckSelector({
   const [deletingDeckId, setDeletingDeckId] = useState<string | null>(null);
   const swipeableRefs = useRef<{ [key: string]: Swipeable | null }>({});
 
+  // Helper to transform DB row to Deck type
+  const transformDeckRow = (deck: any): Deck => ({
+    id: deck.id,
+    name: deck.name,
+    createdAt: new Date(deck.created_at).getTime(),
+    updatedAt: new Date(deck.updated_at).getTime(),
+    orderIndex: deck.order_index ?? undefined,
+  });
+
   // Load decks when the component mounts or becomes visible
   useEffect(() => {
     if (visible) {
@@ -49,6 +60,38 @@ export default function MultiDeckSelector({
       setSelectedDeckIds(initialSelectedDeckIds);
     }
   }, [visible, initialSelectedDeckIds]);
+
+  // Real-time subscription to deck changes to reflect updates immediately
+  useEffect(() => {
+    if (!visible) return;
+    let channel: any = null;
+    try {
+      channel = supabase
+        .channel('decks-selector-changes')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'decks' }, (payload: any) => {
+          const newDeck = transformDeckRow(payload.new);
+          setDecks(prev => (prev.some(d => d.id === newDeck.id) ? prev : [...prev, newDeck]));
+        })
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'decks' }, (payload: any) => {
+          const updated = transformDeckRow(payload.new);
+          setDecks(prev => prev.map(d => (d.id === updated.id ? updated : d)));
+        })
+        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'decks' }, (payload: any) => {
+          const deletedId = payload.old?.id;
+          if (deletedId) {
+            setDecks(prev => prev.filter(d => d.id !== deletedId));
+          }
+        })
+        .subscribe();
+    } catch (e) {
+      // Silent failure acceptable
+    }
+    return () => {
+      if (channel) {
+        try { supabase.removeChannel(channel); } catch {}
+      }
+    };
+  }, [visible]);
 
   // Ensure at least one deck is always selected
   useEffect(() => {
@@ -58,12 +101,42 @@ export default function MultiDeckSelector({
     }
   }, [decks, selectedDeckIds]);
 
+  // Keep selectedDeckIds in sync with current decks (prune removed IDs)
+  useEffect(() => {
+    setSelectedDeckIds(prev => {
+      if (prev.length === 0) return prev;
+      const valid = new Set(decks.map(d => d.id));
+      const next = prev.filter(id => valid.has(id));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [decks]);
+
   // Function to load decks from storage
   const loadDecks = async () => {
     setIsLoading(true);
     try {
       const savedDecks = await getDecks();
       setDecks(savedDecks);
+
+      // Force a fresh network read (when online) so newly created decks appear immediately
+      try {
+        const online = await isOnline().catch(() => false);
+        if (online) {
+          let { data: rows, error } = await supabase
+            .from('decks')
+            .select('*')
+            .order('order_index', { ascending: true, nullsFirst: false });
+          if (error) {
+            ({ data: rows, error } = await supabase
+              .from('decks')
+              .select('*')
+              .order('created_at', { ascending: false }));
+          }
+          if (!error && Array.isArray(rows)) {
+            setDecks(rows.map(transformDeckRow));
+          }
+        }
+      } catch {}
       
       // Filter out any invalid deck IDs from initial selection
       const validSelectedIds = initialSelectedDeckIds.filter(id => 
@@ -110,7 +183,7 @@ export default function MultiDeckSelector({
   };
 
   // Function to handle saving the deck selection
-  const handleSaveSelection = () => {
+  const handleSaveSelection = async () => {
     closeAllSwipeables();
     
     // Safety check: ensure at least one deck is selected
@@ -118,6 +191,22 @@ export default function MultiDeckSelector({
       setSelectedDeckIds([decks[0].id]);
       onSelectDecks([decks[0].id]);
     } else {
+      // If the user explicitly selected deck(s), validate they contain cards
+      try {
+        const cards = await getFlashcardsByDecks(selectedDeckIds);
+        if (cards.length === 0) {
+          const titleKey = 'common.error';
+          const msgKey = 'review.noCardsInSelectionSubtitle';
+          const titleT = t(titleKey);
+          const msgT = t(msgKey);
+          const resolvedTitle = titleT === titleKey ? 'No cards to display' : titleT;
+          const resolvedMsg = msgT === msgKey ? 'The selected collection(s) contain no cards. Choose a different collection or add cards.' : msgT;
+          Alert.alert(resolvedTitle, resolvedMsg);
+          return; // Keep the modal open so they can change selection
+        }
+      } catch (e) {
+        // If validation fails, proceed without blocking
+      }
       onSelectDecks(selectedDeckIds);
     }
     

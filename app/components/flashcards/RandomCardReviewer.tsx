@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import FlashcardItem from './FlashcardItem';
 import { useRandomCardReview, LoadingState } from '../../hooks/useRandomCardReview';
-import { getFlashcardsByDecks } from '../../services/supabaseStorage';
+import { getFlashcardsByDecks, getDecks } from '../../services/supabaseStorage';
 import { Flashcard } from '../../types/Flashcard';
 import { COLORS } from '../../constants/colors';
 import MultiDeckSelector from './MultiDeckSelector';
@@ -218,24 +218,14 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               return;
             }
             
-            // SMART VALIDATION: If selected decks result in 0 cards but we have cards in total,
-            // the deck selection is invalid (decks don't exist or are empty for this user)
-            if (cards.length === 0 && allFlashcards.length > 0) {
-              logger.warn('⚠️ [Component] Selected decks have 0 cards but user has', allFlashcards.length, 'total cards - clearing invalid deck selection');
-              // Clear the invalid deck selection
-              setSelectedDeckIds([]);
-              // Clear from storage
-              if (user?.id) {
-                const userStorageKey = getSelectedDeckIdsStorageKey(user.id);
-                await AsyncStorage.removeItem(userStorageKey).catch(err => 
-                  logger.error('Error clearing invalid deck selection:', err)
-                );
-              }
-              // Use all cards instead
-              setFilteredCards(allFlashcards);
-            } else {
-              setFilteredCards(cards);
+            // If we selected specific decks but got no cards, auto-select first populated deck
+            if (selectedDeckIds.length > 0 && cards.length === 0) {
+              await ensureSelection();
+              return;
             }
+
+            // Preserve user's selection even if it yields 0 cards (empty state handled elsewhere)
+            setFilteredCards(cards);
           } else {
             logger.log('🚫 [Component] Filtering cancelled - operation changed from', currentOpId, 'to', currentDeckSelectionRef.current);
           }
@@ -278,6 +268,19 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       logger.error('Error saving selected deck IDs to AsyncStorage:', error);
     }
   };
+
+  // Minimal helper: ensure we have a valid, populated selection when needed
+  const ensureSelection = useCallback(async () => {
+    try {
+      const decks = await getDecks();
+      const firstWithCards = decks.find(d => allFlashcards.some(c => c.deckId === d.id));
+      if (firstWithCards) {
+        await updateSelectedDeckIds([firstWithCards.id]);
+      }
+    } catch (e) {
+      // Best-effort only; ignore failures
+    }
+  }, [allFlashcards, updateSelectedDeckIds]);
 
   // Update remaining count when reviewSessionCards changes
   useEffect(() => {
@@ -412,6 +415,11 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         filteredCardsLength: filteredCards.length
       });
       
+      // Minimal recovery: if selection is empty but cards exist (e.g., first card added), select first populated deck
+      if (selectedDeckIds.length === 0 && allFlashcards.length > 0) {
+        ensureSelection();
+      }
+
       if (onContentReady) {
         onContentReady(isContentReady);
       }
@@ -419,7 +427,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       return () => {
         // Cleanup if needed
       };
-    }, [isInitializing, isCardTransitioning, loadingState, isLoading, onContentReady, isConnected, filteredCards.length])
+    }, [isInitializing, isCardTransitioning, loadingState, isLoading, onContentReady, isConnected, filteredCards.length, selectedDeckIds.length, allFlashcards.length, ensureSelection])
   );
 
   // Configure PanResponder
@@ -762,8 +770,20 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           </View>
           <View style={styles.cardStage}>
             <View style={styles.noCardsContainer}>
-              <Text style={styles.gettingStartedTitle}>{t('review.gettingStarted.title')}</Text>
-              <Text style={styles.gettingStartedSubtitle}>{t('review.gettingStarted.subtitle')}</Text>
+              {(() => {
+                const titleKey = 'review.noCardsInSelectionTitle';
+                const subKey = 'review.noCardsInSelectionSubtitle';
+                const titleT = t(titleKey);
+                const subT = t(subKey);
+                const resolvedTitle = titleT === titleKey ? 'No cards to review' : titleT;
+                const resolvedSub = subT === subKey ? 'The selected collection(s) contain no cards. Choose a different collection or add cards.' : subT;
+                return (
+                  <>
+                    <Text style={styles.gettingStartedTitle}>{resolvedTitle}</Text>
+                    <Text style={styles.gettingStartedSubtitle}>{resolvedSub}</Text>
+                  </>
+                );
+              })()}
               
               <View style={styles.guideItemsContainer}>
                 <View style={styles.guideItem}>

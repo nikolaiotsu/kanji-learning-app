@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, ActivityIndicator, Dimensions } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, ActivityIndicator, Dimensions, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons, MaterialIcons, FontAwesome5, AntDesign, FontAwesome6, Feather } from '@expo/vector-icons';
@@ -77,6 +77,32 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
   
   // New state for image processing loading
   const [isImageProcessing, setIsImageProcessing] = useState(false);
+  // Only show overlay for picker/processing, not for image render
+  // Removed isImageRendering/shouldAnimateOnLoad since overlay is not tied to render anymore
+  // Always-mounted global overlay to guarantee paint order
+  const globalOverlayOpacity = React.useRef(new Animated.Value(0)).current;
+  const [isGlobalOverlayVisible, setIsGlobalOverlayVisible] = useState(false);
+
+  const showGlobalOverlay = React.useCallback((reason: string) => {
+    logger.log(`[KanjiScanner] Global overlay show (${reason})`);
+    setIsGlobalOverlayVisible(true);
+    globalOverlayOpacity.stopAnimation();
+    // Immediate show to avoid any flash of underlying UI
+    Animated.timing(globalOverlayOpacity, {
+      toValue: 1,
+      duration: 0,
+      useNativeDriver: true,
+    }).start();
+  }, [globalOverlayOpacity]);
+
+  const hideGlobalOverlay = React.useCallback((reason: string) => {
+    logger.log(`[KanjiScanner] Global overlay hide (${reason})`);
+    Animated.timing(globalOverlayOpacity, {
+      toValue: 0,
+      duration: 0,
+      useNativeDriver: true,
+    }).start(() => setIsGlobalOverlayVisible(false));
+  }, [globalOverlayOpacity]);
   
   // Safety timeout ref to automatically reset stuck processing states
   const processingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -117,6 +143,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
       processingTimeoutRef.current = setTimeout(() => {
         logger.warn('[KanjiScanner] Processing timeout reached - auto-resetting stuck states');
         setIsImageProcessing(false);
+        hideGlobalOverlay('timeoutReset');
         setLocalProcessing(false);
         setIsNavigating(false);
       }, 60000); // Increased to 60 seconds to allow for longer processing
@@ -223,6 +250,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
 
   const handlePhotoCapture = (imageInfo: CapturedImage | null) => {
     if (imageInfo) {
+      logger.log('[KanjiScanner] New image received (camera/gallery), updating view');
       setCapturedImage(imageInfo);
       setOriginalImage(imageInfo); // Also store as original image
       logger.log('[KanjiScanner] New image captured, storing as original:', imageInfo.uri);
@@ -391,6 +419,12 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
       // Only cleanup if needed, avoiding aggressive cleanup that can cause memory pressure
       await memoryManager.gentleCleanup();
       
+      // Turn on global overlay BEFORE opening picker to avoid any flash of underlying UI
+      showGlobalOverlay('beforePickerOpen');
+      setIsImageProcessing(true);
+      // Yield a frame to render the overlay first
+      await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.8, // Standard quality
@@ -403,8 +437,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
         logger.log('[KanjiScanner pickImage] Selected image:', asset.uri, 
           `${asset.width}x${asset.height}`);
 
-        // Show loading indicator for any processing
-        setIsImageProcessing(true);
+        // isImageProcessing already true from before picker opened
 
         // Get standard processing configuration
         const standardConfig = memoryManager.getStandardImageConfig();
@@ -535,6 +568,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
         // Original image is already set in handlePhotoCapture
         
         setIsImageProcessing(false);
+        hideGlobalOverlay('processed');
         
         // Clean up memory after image processing is complete
         // This ensures fresh memory for the next image selection regardless of whether
@@ -548,10 +582,15 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
         } catch (cleanupError) {
           logger.warn('[KanjiScanner] Memory cleanup failed after image processing:', cleanupError);
         }
+      } else {
+        // Picker cancelled - hide overlay immediately
+        setIsImageProcessing(false);
+        hideGlobalOverlay('pickerCancelled');
       }
     } catch (error) {
       logger.error('[KanjiScanner] Error picking image:', error);
       setIsImageProcessing(false);
+      hideGlobalOverlay('pickerError');
       
       // Attempt recovery by forcing cleanup
       await memoryManager.forceCleanup();
@@ -635,7 +674,6 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
           
           logger.log('[KanjiScanner] Crop applied. New image:', processedUri, 'New Dims:', imageInfo);
           logger.log('[KanjiScanner] Original image remains:', originalImage?.uri);
-          
           setCapturedImage({
             uri: processedUri,
             width: imageInfo.width,
@@ -1037,6 +1075,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
     // Clear all state after cleanup to ensure we don't reference deleted images
     setCapturedImage(null);
     setOriginalImage(null);
+    // No image-render overlay management anymore
     setHighlightModeActive(false);
     setCropModeActive(false);
     setImageHistory([]);
@@ -1076,7 +1115,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
           }
           
           // If history is empty but we have an original image, try to use that
-          if (originalImage && originalImage.uri !== capturedImage.uri) {
+        if (originalImage && originalImage.uri !== capturedImage.uri) {
             const originalFileInfo = await FileSystem.getInfoAsync(originalImage.uri);
             if (originalFileInfo.exists) {
               logger.log('[KanjiScanner] No more history but original image exists, using it:', originalImage.uri);
@@ -1084,7 +1123,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
               // Save current image to forward history
               setForwardHistory([...forwardHistory, capturedImage]);
               
-              // Set original image as current
+            // Set original image as current
               setCapturedImage(originalImage);
               return;
             }
@@ -1529,6 +1568,16 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
         // logger.log(`[KanjiScannerRootView] onLayout: x:${x}, y:${y}, width:${width}, height:${height}`);
       }}
     >
+      {/* Always-mounted global overlay for guaranteed paint order */}
+      <Animated.View
+        pointerEvents={(isImageProcessing || isGlobalOverlayVisible) ? 'auto' : 'none'}
+        style={[
+          styles.loadingOverlay,
+          { opacity: globalOverlayOpacity }
+        ]}
+      >
+        <ActivityIndicator size="large" color="#FFFFFF" />
+      </Animated.View>
       {!capturedImage ? (
         <>
           {/* Settings Button */}
@@ -1583,8 +1632,8 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
               size="medium"
               shape="square"
               style={styles.rowButton}
-              disabled={!isConnected || localProcessing || isImageProcessing} // Disable when offline or during processing
-              darkDisabled={!canCreateFlashcard || !isConnected || localProcessing || isImageProcessing} // Show dark disabled appearance when offline, limit reached or processing
+              disabled={!isConnected || localProcessing || isImageProcessing} // Disable when offline or processing
+              darkDisabled={!canCreateFlashcard || !isConnected || localProcessing || isImageProcessing} // Dark disabled when offline, limit reached or processing
             />
             <PokedexButton
               onPress={handleNavigateToSavedFlashcards}
@@ -1600,8 +1649,8 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
               size="medium"
               shape="square"
               style={styles.rowButton}
-              disabled={!isConnected || localProcessing || isImageProcessing} // Disable when offline or during processing
-              darkDisabled={!canCreateFlashcard || !isConnected || localProcessing || isImageProcessing} // Show dark disabled appearance when offline, limit reached or processing
+              disabled={!isConnected || localProcessing || isImageProcessing} // Disable when offline or processing
+              darkDisabled={!canCreateFlashcard || !isConnected || localProcessing || isImageProcessing} // Dark disabled when offline, limit reached or processing
             />
             {isImageProcessing || localProcessing || !isConnected ? (
               <PokedexButton
@@ -1764,7 +1813,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
                             icon="arrow-undo"
                             size="small"
                             shape="square"
-                            disabled={localProcessing || isImageProcessing}
+                          disabled={localProcessing || isImageProcessing}
                           />
                         )}
                         {currentRotationUIState.canRedo && (
@@ -1773,7 +1822,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
                             icon="arrow-redo"
                             size="small"
                             shape="square"
-                            disabled={localProcessing || isImageProcessing}
+                          disabled={localProcessing || isImageProcessing}
                           />
                         )}
                         {currentRotationUIState.hasRotated && (
@@ -1809,12 +1858,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
         </View>
       )}
 
-      {/* Image Processing Loading Overlay */}
-      {isImageProcessing && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#FFFFFF" />
-        </View>
-      )}
+      {/* Note: global overlay above replaces conditional overlay */}
 
       {/* Text Input Modal */}
       <Modal

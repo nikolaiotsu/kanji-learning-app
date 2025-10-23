@@ -353,3 +353,120 @@ export const getCacheStatus = async (userId: string): Promise<{
   }
 };
 
+/**
+ * Remove a specific deck and its cached cards from local cache
+ */
+export const removeDeckFromCache = async (userId: string, deckId: string): Promise<void> => {
+  try {
+    // Remove cached cards for this deck and compute removed count
+    const cardsKey = getCardsKey(userId, deckId);
+    const existingCardsStr = await AsyncStorage.getItem(cardsKey);
+    let removedCount = 0;
+    if (existingCardsStr) {
+      try {
+        const existingCards: Flashcard[] = JSON.parse(existingCardsStr) || [];
+        removedCount = Array.isArray(existingCards) ? existingCards.length : 0;
+      } catch {
+        removedCount = 0;
+      }
+      await AsyncStorage.removeItem(cardsKey);
+    }
+
+    // Remove deck from cached deck list
+    const decksKey = getDecksKey(userId);
+    const decksStr = await AsyncStorage.getItem(decksKey);
+    if (decksStr) {
+      try {
+        const decks: Deck[] = JSON.parse(decksStr) || [];
+        const filtered = decks.filter(d => d.id !== deckId);
+        await AsyncStorage.setItem(decksKey, JSON.stringify(filtered));
+      } catch (e) {
+        logger.error('Error pruning deck from cache:', e);
+      }
+    }
+
+    // Update metadata
+    const metadataKey = getMetadataKey(userId);
+    const metadataStr = await AsyncStorage.getItem(metadataKey);
+    if (metadataStr) {
+      try {
+        const metadata: CacheMetadata = JSON.parse(metadataStr);
+        metadata.deckIds = (metadata.deckIds || []).filter(id => id !== deckId);
+        if (removedCount > 0) {
+          metadata.cardCount = Math.max(0, (metadata.cardCount || 0) - removedCount);
+        }
+        metadata.lastUpdated = Date.now();
+        await AsyncStorage.setItem(metadataKey, JSON.stringify(metadata));
+      } catch (e) {
+        logger.error('Error updating cache metadata for deck removal:', e);
+      }
+    }
+
+    logger.log(`🧹 [OfflineStorage] Removed deck from cache: ${deckId}`);
+  } catch (error) {
+    logger.error('Error removing deck from cache:', error);
+  }
+};
+
+/**
+ * Remove a specific flashcard from local cache
+ */
+export const removeFlashcardFromCache = async (
+  userId: string,
+  deckId: string,
+  cardId: string
+): Promise<void> => {
+  try {
+    const key = getCardsKey(userId, deckId);
+    const data = await AsyncStorage.getItem(key);
+    if (data) {
+      try {
+        const cards: Flashcard[] = JSON.parse(data) || [];
+        const filtered = cards.filter(c => c.id !== cardId);
+        await AsyncStorage.setItem(key, JSON.stringify(filtered));
+      } catch (e) {
+        logger.error('Error parsing cached cards while removing flashcard:', e);
+      }
+    }
+
+    // Update metadata (best-effort)
+    const metadataKey = getMetadataKey(userId);
+    const metadataStr = await AsyncStorage.getItem(metadataKey);
+    if (metadataStr) {
+      try {
+        const metadata: CacheMetadata = JSON.parse(metadataStr);
+        metadata.cardCount = Math.max(0, (metadata.cardCount || 0) - 1);
+        metadata.lastUpdated = Date.now();
+        await AsyncStorage.setItem(metadataKey, JSON.stringify(metadata));
+      } catch (e) {
+        logger.error('Error updating cache metadata for flashcard removal:', e);
+      }
+    }
+
+    logger.log(`🧹 [OfflineStorage] Removed flashcard from cache: ${cardId}`);
+  } catch (error) {
+    logger.error('Error removing flashcard from cache:', error);
+  }
+};
+
+/**
+ * Remove a single image mapping from cache (does not delete file)
+ */
+export const removeImageMapping = async (
+  userId: string,
+  imageUrl: string
+): Promise<void> => {
+  try {
+    const key = getImageMappingKey(userId);
+    const data = await AsyncStorage.getItem(key);
+    const mapping = data ? JSON.parse(data) : {};
+    if (mapping && mapping[imageUrl]) {
+      delete mapping[imageUrl];
+      await AsyncStorage.setItem(key, JSON.stringify(mapping));
+      logger.log(`🧹 [OfflineStorage] Removed image mapping: ${imageUrl}`);
+    }
+  } catch (error) {
+    logger.error('Error removing image mapping:', error);
+  }
+};
+

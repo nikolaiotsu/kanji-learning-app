@@ -92,7 +92,7 @@ const EDGE_TOLERANCE = 50; // pixels outside image boundary for starting highlig
 // Ref for the PanResponder View - MOVED INSIDE COMPONENT
 // const panResponderViewRef = React.useRef<View>(null); // REMOVE FROM HERE
 
-const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(({
+const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(({ 
   imageUri,
   imageWidth,
   imageHeight,

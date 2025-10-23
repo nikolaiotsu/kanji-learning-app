@@ -1,5 +1,5 @@
 import * as FileSystem from 'expo-file-system';
-import { cacheImageMapping, getCachedImagePath } from './offlineStorage';
+import { cacheImageMapping, getCachedImagePath, removeImageMapping } from './offlineStorage';
 import { logger } from '../utils/logger';
 
 /**
@@ -158,6 +158,38 @@ export const clearImageCache = async (userId: string): Promise<void> => {
   } catch (error) {
     logger.error('Error clearing image cache:', error);
     throw error;
+  }
+};
+
+/**
+ * Delete a specific cached image and remove its mapping
+ */
+export const deleteCachedImage = async (userId: string, imageUrl: string): Promise<void> => {
+  try {
+    const mappedPath = await getCachedImagePath(userId, imageUrl);
+    if (mappedPath) {
+      const fileInfo = await FileSystem.getInfoAsync(mappedPath);
+      if (fileInfo.exists) {
+        await FileSystem.deleteAsync(mappedPath, { idempotent: true });
+      }
+    }
+    await removeImageMapping(userId, imageUrl);
+    logger.log('🖼️ [ImageCache] Deleted cached image + mapping:', imageUrl);
+  } catch (error) {
+    logger.error('Error deleting cached image:', error);
+  }
+};
+
+/**
+ * Delete multiple cached images by URL
+ */
+export const deleteCachedImages = async (userId: string, imageUrls: string[]): Promise<void> => {
+  for (const url of imageUrls) {
+    try {
+      await deleteCachedImage(userId, url);
+    } catch (e) {
+      logger.warn('Failed to delete cached image, continuing:', url);
+    }
   }
 };
 

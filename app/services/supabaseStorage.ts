@@ -10,9 +10,11 @@ import {
   cacheFlashcards, 
   getCachedFlashcards, 
   cacheDecks, 
-  getCachedDecks 
+  getCachedDecks,
+  removeDeckFromCache,
+  removeFlashcardFromCache
 } from './offlineStorage';
-import { batchCacheImages } from './imageCache';
+import { batchCacheImages, deleteCachedImage, deleteCachedImages } from './imageCache';
 import { getUserIdOffline } from './offlineAuth';
 
 import { logger } from '../utils/logger';
@@ -258,13 +260,36 @@ export const createDeck = async (name: string): Promise<Deck> => {
       throw new Error(validation.error);
     }
 
+    // Determine next order_index so new decks appear to the right (append)
+    let nextOrderIndex: number | undefined = undefined;
+    try {
+      const { data: maxDeck, error: maxErr } = await supabase
+        .from('decks')
+        .select('order_index')
+        .order('order_index', { ascending: false, nullsFirst: false })
+        .limit(1)
+        .single();
+      if (!maxErr && maxDeck && typeof maxDeck.order_index === 'number') {
+        nextOrderIndex = (maxDeck.order_index as number) + 1;
+      } else {
+        // Fallback: if no order_index column or no rows, start at 0
+        nextOrderIndex = 0;
+      }
+    } catch {
+      // If this fails (e.g., column missing), silently continue without order_index
+      nextOrderIndex = undefined;
+    }
+
     // Let Supabase generate the UUID on the server when possible
     // Only generate locally if needed for specific use cases
-    const newDeck = {
+    const newDeck: any = {
       name: name.trim(), // Trim whitespace
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
+    if (typeof nextOrderIndex === 'number') {
+      newDeck.order_index = nextOrderIndex;
+    }
     
     const { data, error } = await supabase
       .from('decks')
@@ -278,12 +303,25 @@ export const createDeck = async (name: string): Promise<Deck> => {
     }
     
     // Transform from database format to app format
-    return {
+    const created: Deck = {
       id: data.id,
       name: data.name,
       createdAt: new Date(data.created_at).getTime(),
       updatedAt: new Date(data.updated_at).getTime(),
+      orderIndex: typeof data.order_index === 'number' ? data.order_index : undefined,
     };
+
+    // Refresh deck cache in background so cache-first consumers see the new deck immediately
+    try {
+      const userId = await getUserIdOffline();
+      if (userId) {
+        fetchAndCacheDecks(userId, false).catch(() => {});
+      }
+    } catch {
+      // Non-fatal
+    }
+
+    return created;
   } catch (error) {
     logger.error('Error creating deck:', error);
     throw error;
@@ -423,6 +461,16 @@ export const saveFlashcard = async (flashcard: Flashcard, deckId: string): Promi
       throw error;
     }
     
+    // Refresh cache for this deck so the Saved Flashcards screen shows it immediately
+    try {
+      const userId = await getUserIdOffline();
+      if (userId) {
+        await fetchAndCacheFlashcardsByDeck(userId, deckId);
+      }
+    } catch (cacheErr) {
+      logger.error('Failed to refresh deck cache after saving flashcard:', cacheErr);
+    }
+
     logger.log('Flashcard saved successfully to deck:', deckId);
     
     // Log successful flashcard creation
@@ -1004,6 +1052,8 @@ export const getFlashcardById = async (id: string): Promise<Flashcard | null> =>
  */
 export const deleteFlashcard = async (id: string): Promise<boolean> => {
   try {
+    // Fetch card first to capture deck and image info
+    const card = await getFlashcardById(id);
     const { error } = await supabase
       .from('flashcards')
       .delete()
@@ -1012,6 +1062,19 @@ export const deleteFlashcard = async (id: string): Promise<boolean> => {
     if (error) {
       logger.error('Error deleting flashcard:', error.message);
       return false;
+    }
+
+    // Invalidate local caches and image mapping
+    try {
+      const userId = await getUserIdOffline();
+      if (userId && card) {
+        await removeFlashcardFromCache(userId, card.deckId, id);
+        if (card.imageUrl) {
+          await deleteCachedImage(userId, card.imageUrl);
+        }
+      }
+    } catch (cacheError) {
+      logger.error('Error invalidating cache on deleteFlashcard:', cacheError);
     }
     
     return true;
@@ -1029,6 +1092,20 @@ export const deleteFlashcard = async (id: string): Promise<boolean> => {
  */
 export const deleteDeck = async (deckId: string, deleteFlashcards: boolean = true): Promise<boolean> => {
   try {
+    // Pre-fetch image URLs for flashcards in this deck (best-effort)
+    let imageUrls: string[] = [];
+    try {
+      const { data: deckCards, error: fetchErr } = await supabase
+        .from('flashcards')
+        .select('image_url')
+        .eq('deck_id', deckId);
+      if (!fetchErr && Array.isArray(deckCards)) {
+        imageUrls = deckCards.map((c: any) => c.image_url).filter((u: string | null) => !!u);
+      }
+    } catch (e) {
+      // Non-fatal
+    }
+
     // Delete flashcards in the deck if requested
     if (deleteFlashcards) {
       const { error: flashcardsError } = await supabase
@@ -1051,6 +1128,21 @@ export const deleteDeck = async (deckId: string, deleteFlashcards: boolean = tru
     if (deckError) {
       logger.error('Error deleting deck:', deckError.message);
       return false;
+    }
+
+    // Invalidate local caches and images
+    try {
+      const userId = await getUserIdOffline();
+      if (userId) {
+        await removeDeckFromCache(userId, deckId);
+        if (imageUrls.length > 0) {
+          await deleteCachedImages(userId, imageUrls);
+        }
+        // Refresh deck cache in background (do not block)
+        fetchAndCacheDecks(userId, false).catch(() => {});
+      }
+    } catch (cacheError) {
+      logger.error('Error invalidating cache on deleteDeck:', cacheError);
     }
     
     return true;
@@ -1145,6 +1237,9 @@ export const updateDeckOrder = async (deckId: string, newOrderIndex: number): Pr
  */
 export const moveFlashcardToDeck = async (flashcardId: string, targetDeckId: string): Promise<boolean> => {
   try {
+    // Fetch current card to capture source deck id
+    const current = await getFlashcardById(flashcardId);
+
     const { error } = await supabase
       .from('flashcards')
       .update({ 
@@ -1156,7 +1251,23 @@ export const moveFlashcardToDeck = async (flashcardId: string, targetDeckId: str
       logger.error('Error moving flashcard to deck:', error.message);
       return false;
     }
-    
+    // Proactively update local caches to avoid stale reappearance
+    try {
+      const userId = await getUserIdOffline();
+      if (userId) {
+        if (current?.deckId && current.deckId !== targetDeckId) {
+          // Remove from source deck cache immediately
+          await removeFlashcardFromCache(userId, current.deckId, flashcardId);
+          // Then refresh source deck cache from network
+          await fetchAndCacheFlashcardsByDeck(userId, current.deckId);
+        }
+        // Refresh target deck cache from network so the moved card appears promptly
+        await fetchAndCacheFlashcardsByDeck(userId, targetDeckId);
+      }
+    } catch (cacheErr) {
+      logger.error('Error refreshing caches after move:', cacheErr);
+    }
+
     return true;
   } catch (error) {
     logger.error('Error moving flashcard to deck:', error);

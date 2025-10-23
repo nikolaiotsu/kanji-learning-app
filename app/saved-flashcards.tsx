@@ -193,35 +193,34 @@ export default function SavedFlashcardsScreen() {
       return;
     }
 
-    logger.log('🔄 [SavedFlashcards] Setting up real-time flashcard subscription for deck:', selectedDeckId);
+    logger.log('🔄 [SavedFlashcards] Setting up real-time flashcard subscription (all changes) for deck:', selectedDeckId);
     
     let flashcardsSubscription: any = null;
     
     try {
-      // Subscribe to changes in the flashcards table for the selected deck
+      // Subscribe to all changes in the flashcards table and refresh selected deck on any change
       flashcardsSubscription = supabase
         .channel('flashcards-changes')
         .on('postgres_changes', { 
           event: '*', 
           schema: 'public', 
-          table: 'flashcards',
-          filter: `deck_id=eq.${selectedDeckId}`
+          table: 'flashcards'
         }, () => {
-          // Reload flashcards when changes occur
-          loadFlashcardsByDeck(selectedDeckId);
+          // Reload flashcards when any change occurs to reflect moves in/out of this deck
+          if (selectedDeckId) {
+            loadFlashcardsByDeck(selectedDeckId);
+          }
         })
         .subscribe((status, err) => {
-          // Subscription callback - silently handle all errors
           if (status === 'SUBSCRIBED') {
             logger.log('🔄 [SavedFlashcards] Flashcard subscription active');
           }
-          // Silently ignore all other statuses and errors
         });
     } catch (error) {
       // Silent - expected when offline
     }
 
-    // Cleanup subscription on unmount
+    // Cleanup subscription on unmount or dependency change
     return () => {
       if (flashcardsSubscription) {
         try {
@@ -229,7 +228,6 @@ export default function SavedFlashcardsScreen() {
           supabase.removeChannel(flashcardsSubscription);
         } catch (error) {
           logger.error('Error cleaning up flashcard subscription:', error);
-          // Silently fail - we're unmounting anyway
         }
       }
     };
@@ -259,9 +257,9 @@ export default function SavedFlashcardsScreen() {
     setIsLoadingDecks(true);
     
     try {
-      logger.log('📚 [SavedFlashcards] Calling getDecks(true)...');
-      // Pass true to create a default deck if no decks exist
-      const savedDecks = await getDecks(true);
+      logger.log('📚 [SavedFlashcards] Calling getDecks(false)...');
+      // Do not auto-create a default deck; allow zero-deck state
+      const savedDecks = await getDecks(false);
       logger.log('📚 [SavedFlashcards] getDecks returned:', savedDecks.length, 'decks');
       
       if (savedDecks.length > 0) {
@@ -499,7 +497,17 @@ export default function SavedFlashcardsScreen() {
     try {
       // Create new deck
       const newDeck = await createDeck(newDeckNameForSend.trim());
-      
+
+      // Append deck locally to appear immediately, honoring right-append order
+      setDecks(prev => {
+        const next = [...prev, newDeck];
+        return next;
+      });
+
+      // Select the new deck in the UI immediately
+      setSelectedDeckId(newDeck.id);
+      setSelectedDeckIndex(Math.max(0, decks.length));
+
       // Move flashcard to new deck
       const success = await moveFlashcardToDeck(selectedFlashcardId, newDeck.id);
       

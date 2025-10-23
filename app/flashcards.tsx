@@ -347,6 +347,8 @@ export default function LanguageFlashcardsScreen() {
       // Upload image to storage if available
       let storedImageUrl: string | undefined = undefined;
       if (imageUri) {
+        // Give UI a frame to show the spinner before uploading
+        await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
         try {
           const uploadedUrl = await uploadImageToStorage(imageUri);
           if (uploadedUrl) {
