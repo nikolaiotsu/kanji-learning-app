@@ -414,7 +414,7 @@ export default function LanguageFlashcardsScreen() {
           { 
             text: t('flashcard.save.viewSaved'), 
             onPress: () => {
-              router.push('/saved-flashcards');
+              router.push({ pathname: '/saved-flashcards', params: { deckId } });
             }
           },
           { text: t('common.ok') }

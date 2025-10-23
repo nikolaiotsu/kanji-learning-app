@@ -23,7 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from './context/AuthContext';
 import { supabase } from './services/supabaseClient';
 import { COLORS } from './constants/colors';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import PokedexLayout from './components/shared/PokedexLayout';
 import { useNetworkState, isOnline } from './services/networkManager';
 import OfflineBanner from './components/shared/OfflineBanner';
@@ -36,6 +36,8 @@ export default function SavedFlashcardsScreen() {
   logger.log('🎬 [SavedFlashcards] ========== COMPONENT RENDER START ==========');
   
   const { t } = useTranslation();
+  const params = useLocalSearchParams();
+  const requestedDeckId = Array.isArray(params.deckId) ? params.deckId[0] : params.deckId;
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [decks, setDecks] = useState<Deck[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
@@ -86,6 +88,59 @@ export default function SavedFlashcardsScreen() {
       logger.log(`📋 [SavedFlashcards] Deck list: ${decks.map(d => d.name).join(', ')}`);
     }
   }, [decks, isLoadingDecks]);
+
+  // On decks load, select requested deckId or newest by createdAt
+  useEffect(() => {
+    if (decks.length === 0) return;
+    
+    // If a deck is already selected, don't override
+    if (selectedDeckId) return;
+
+    // If route param provided, try to select it
+    if (requestedDeckId && typeof requestedDeckId === 'string') {
+      const idx = decks.findIndex(d => d.id === requestedDeckId);
+      if (idx >= 0) {
+        setSelectedDeckId(decks[idx].id);
+        setSelectedDeckIndex(idx);
+        // Scroll both the deck selector chips and the deck pager
+        try {
+          deckSelectorRef.current?.scrollToIndex({ index: idx, animated: false, viewPosition: 0.5 });
+        } catch {}
+        try {
+          flashcardsListRef.current?.scrollToIndex({ index: idx, animated: false });
+        } catch {
+          // Retry once after a short delay in case layout isn't ready yet
+          setTimeout(() => {
+            try {
+              deckSelectorRef.current?.scrollToIndex({ index: idx, animated: false, viewPosition: 0.5 });
+              flashcardsListRef.current?.scrollToIndex({ index: idx, animated: false });
+            } catch {}
+          }, 100);
+        }
+        return;
+      }
+    }
+    
+    // Otherwise default to newest deck by createdAt
+    const newestIdx = decks.reduce((bestIdx, deck, i) => 
+      deck.createdAt > decks[bestIdx].createdAt ? i : bestIdx
+    , 0);
+    setSelectedDeckId(decks[newestIdx].id);
+    setSelectedDeckIndex(newestIdx);
+    try {
+      deckSelectorRef.current?.scrollToIndex({ index: newestIdx, animated: false, viewPosition: 0.5 });
+    } catch {}
+    try {
+      flashcardsListRef.current?.scrollToIndex({ index: newestIdx, animated: false });
+    } catch {
+      setTimeout(() => {
+        try {
+          deckSelectorRef.current?.scrollToIndex({ index: newestIdx, animated: false, viewPosition: 0.5 });
+          flashcardsListRef.current?.scrollToIndex({ index: newestIdx, animated: false });
+        } catch {}
+      }, 100);
+    }
+  }, [decks.length]);
   
   // Load decks and flashcards on mount
   useEffect(() => {
@@ -120,12 +175,7 @@ export default function SavedFlashcardsScreen() {
         if (cachedDecks.length > 0) {
           logger.log('📦 [SavedFlashcards] Found cached decks, restoring state:', cachedDecks.length, 'decks');
           setDecks(cachedDecks);
-          
-          // Select first deck if none selected
-          if (!selectedDeckId) {
-            setSelectedDeckId(cachedDecks[0].id);
-            setSelectedDeckIndex(0);
-          }
+          // Do not select here; let the decks-load effect pick requested or newest
         } else {
           logger.log('⚠️ [SavedFlashcards] No cached decks found. Online:', online);
           if (!online) {
@@ -236,15 +286,16 @@ export default function SavedFlashcardsScreen() {
   // Load flashcards when selected deck changes
   useEffect(() => {
     if (selectedDeckId) {
+      // Ensure we don't render stale cards while switching decks
+      setIsLoadingFlashcards(true);
+      setFlashcards([]);
       loadFlashcardsByDeck(selectedDeckId);
-    } else if (decks.length > 0) {
-      // If no deck is selected but decks are loaded, select the first deck
-      setSelectedDeckId(decks[0].id);
-      setSelectedDeckIndex(0);
     } else {
       // If no decks are available, show empty state
-      setFlashcards([]);
-      setIsLoadingFlashcards(false);
+      if (decks.length === 0) {
+        setFlashcards([]);
+        setIsLoadingFlashcards(false);
+      }
     }
   }, [selectedDeckId, decks]);
 
@@ -269,15 +320,10 @@ export default function SavedFlashcardsScreen() {
       logger.log('📚 [SavedFlashcards] Calling setDecks with', savedDecks.length, 'decks');
       setDecks(savedDecks);
       
-      // If there are decks, select the first one by default
-      if (savedDecks.length > 0 && !selectedDeckId) {
-        logger.log('📚 [SavedFlashcards] Auto-selecting first deck:', savedDecks[0].name);
-        setSelectedDeckId(savedDecks[0].id);
-      } else if (savedDecks.length === 0) {
+      // Selection handled by separate effect to respect route params/newest deck
+      if (savedDecks.length === 0) {
         logger.log('⚠️ [SavedFlashcards] No decks returned - user may need to sync online first');
-      } else {
-        logger.log('📚 [SavedFlashcards] Already have selectedDeckId:', selectedDeckId);
-      }
+      } 
     } catch (error) {
       logger.error('❌ [SavedFlashcards] Error loading collections:', error);
       Alert.alert(t('common.error'), t('savedFlashcards.loadCollectionsError'));
