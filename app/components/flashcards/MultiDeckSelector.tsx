@@ -301,14 +301,14 @@ export default function MultiDeckSelector({
                 logger.log('Collection deleted successfully:', deckName);
               } else {
                 Alert.alert(
-                  'Error',
+                  t('common.error'),
                   t('savedFlashcards.deleteCollectionError')
                 );
               }
             } catch (error) {
               logger.error('Error deleting deck:', error);
               Alert.alert(
-                'Error',
+                t('common.error'),
                 t('savedFlashcards.deleteCollectionError')
               );
             }

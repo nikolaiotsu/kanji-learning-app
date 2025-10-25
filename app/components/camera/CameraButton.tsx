@@ -7,6 +7,7 @@ import { COLORS } from '../../constants/colors';
 import PokedexButton from '../shared/PokedexButton';
 import MemoryManager from '../../services/memoryManager';
 import * as Haptics from 'expo-haptics';
+import { useTranslation } from 'react-i18next';
 
 import { logger } from '../../utils/logger';
 interface CameraButtonProps {
@@ -24,15 +25,16 @@ interface CameraButtonProps {
 
 export default function CameraButton({ onPhotoCapture, style, onProcessingStateChange, disabled = false, onDisabledPress, darkDisabled = false }: CameraButtonProps) {
   const [hasPhoto, setHasPhoto] = useState(false);
+  const { t } = useTranslation();
 
   useEffect(() => {
     (async () => {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Sorry, we need camera permissions to make this work!');
+        Alert.alert(t('camera.permissionDenied'));
       }
     })();
-  }, []);
+  }, [t]);
 
   const takePhoto = async () => {
     if (disabled) {
@@ -170,7 +172,7 @@ export default function CameraButton({ onPhotoCapture, style, onProcessingStateC
       
       let errorMessage = 'Failed to take photo. Please try again.';
       
-      Alert.alert('Error', errorMessage);
+      Alert.alert(t('common.error'), errorMessage);
       logger.error(error);
     }
   };

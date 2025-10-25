@@ -217,15 +217,15 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
     setSettingsMenuVisible(false);
     try {
       Alert.alert(
-        "Logout",
-        "Are you sure you want to log out?",
+        t('camera.logoutTitle'),
+        t('camera.logoutConfirm'),
         [
           {
-            text: "Cancel",
+            text: t('common.cancel'),
             style: "cancel"
           },
           {
-            text: "Logout",
+            text: t('camera.logoutTitle'),
             onPress: async () => {
               await signOut();
               router.replace('/login');
@@ -235,7 +235,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
       );
     } catch (error) {
       logger.error('Error logging out:', error);
-      Alert.alert('Error', 'Failed to log out. Please try again.');
+      Alert.alert(t('common.error'), t('camera.logoutError'));
     }
   };
 
@@ -348,9 +348,9 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
         
         // Could not restore - image is missing
         Alert.alert(
-          'Image Missing',
-          'The current image is no longer available. Please select a new image.',
-          [{ text: 'OK' }]
+          t('camera.imageMissingTitle'),
+          t('camera.imageMissingMessage'),
+          [{ text: t('common.ok') }]
         );
         
         return false;
@@ -390,7 +390,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
 
   const handleSubmitTextInput = () => {
     if (!inputText.trim()) {
-      Alert.alert("Empty Input", "Please enter some text to translate.");
+      Alert.alert(t('camera.emptyInputTitle'), t('camera.emptyInputMessage'));
       return;
     }
 
@@ -597,7 +597,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
       
       let errorMessage = 'Failed to process image. Please try selecting a different image.';
       
-      Alert.alert('Error', errorMessage);
+      Alert.alert(t('common.error'), errorMessage);
     }
   };
 
@@ -695,7 +695,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
 
     } catch (error) {
       logger.error('[KanjiScanner] Error in handleRegionSelected:', error);
-      Alert.alert("Processing Error", "Could not process the selected region.");
+      Alert.alert(t('common.error'), t('camera.processingError'));
       setLocalProcessing(false);
     }
   };
@@ -712,11 +712,11 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
     // Check if user can perform OCR
     if (!canPerformOCR) {
       Alert.alert(
-        'OCR Limit Reached',
-        `You have reached your daily limit. You have ${remainingScans} scans remaining. Upgrade to Premium for unlimited scans!`,
+        t('camera.ocrLimitReachedTitle'),
+        t('camera.ocrLimitReachedMessage', { remaining: remainingScans }),
         [
-          { text: 'OK', style: 'default' },
-          { text: 'Upgrade', style: 'default', onPress: () => {
+          { text: t('common.ok'), style: 'default' },
+          { text: t('subscription.limit.upgradeToPremium'), style: 'default', onPress: () => {
             // Navigate to subscription screen
             router.push('/settings'); // You can create a dedicated subscription screen route
           }}
@@ -788,9 +788,9 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
           : DETECTABLE_LANGUAGES[forcedDetectionLanguage as keyof typeof DETECTABLE_LANGUAGES] || 'text';
           
         Alert.alert(
-          `No ${languageName} Text Found`,
-          `No ${languageName.toLowerCase()} text was detected in the selected area. Please try selecting a different area.`,
-          [{ text: "OK" }]
+          t('camera.noTextFoundTitle', { language: languageName }),
+          t('camera.noTextFoundMessage', { language: languageName.toLowerCase() }),
+          [{ text: t('common.ok') }]
         );
       }
     } catch (error: any) {
@@ -799,15 +799,15 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
       // Check if it's a timeout error from our OCR service
       if (error.message && error.message.includes('timed out')) {
         Alert.alert(
-          "Processing Limit Reached",
-          "The selected text area is too large or complex. Please try selecting a smaller section of text.",
-          [{ text: "OK" }]
+          t('camera.processingLimitReachedTitle'),
+          t('camera.processingLimitReachedMessage'),
+          [{ text: t('common.ok') }]
         );
       } else {
         Alert.alert(
-          "OCR Error",
-          "There was a problem recognizing text in the selected area. Please try again.",
-          [{ text: "OK" }]
+          t('camera.ocrErrorTitle'),
+          t('camera.ocrErrorMessage'),
+          [{ text: t('common.ok') }]
         );
       }
     } finally {
@@ -1524,7 +1524,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
       }
     } catch (error) {
       logger.error('[KanjiScanner] Error confirming rotation:', error);
-      Alert.alert('Rotation Error', 'Could not apply rotation.');
+      Alert.alert(t('common.error'), t('camera.rotationError'));
     } finally {
       // Always clean up state regardless of success or failure
       imageHighlighterRef.current?.toggleRotateMode(); // Explicitly exit rotate mode in ImageHighlighter

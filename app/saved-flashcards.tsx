@@ -480,8 +480,8 @@ export default function SavedFlashcardsScreen() {
     }
     
     Alert.alert(
-      'Collection Options',
-      'What would you like to do with this collection?',
+      t('savedFlashcards.collectionOptionsTitle'),
+      t('savedFlashcards.collectionOptionsMessage'),
       [
         {
           text: t('deck.reorder.title'),
@@ -521,7 +521,7 @@ export default function SavedFlashcardsScreen() {
         if (selectedDeckId === flashcards.find(f => f.id === selectedFlashcardId)?.deckId) {
           setFlashcards(cards => cards.filter(card => card.id !== selectedFlashcardId));
         }
-        Alert.alert(t('common.success'), 'Flashcard moved successfully');
+        Alert.alert(t('common.success'), t('savedFlashcards.flashcardMovedSuccess'));
       } else {
         Alert.alert(t('common.error'), t('savedFlashcards.moveFlashcardError'));
       }
@@ -669,7 +669,7 @@ export default function SavedFlashcardsScreen() {
           )
         );
         setShowEditModal(false);
-        Alert.alert(t('common.success'), 'Flashcard updated successfully.');
+        Alert.alert(t('common.success'), t('savedFlashcards.flashcardUpdatedSuccess'));
       } else {
         Alert.alert(t('common.error'), t('savedFlashcards.updateFlashcardError'));
       }

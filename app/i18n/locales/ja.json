@@ -88,8 +88,11 @@
     "save": {
       "title": "フラッシュカードが保存されました",
       "message": "{{cardType}}が{{deckName}}に保存されました！",
+      "cannotSaveTitle": "保存できません",
       "cannotSaveTranslation": "フラッシュカードの翻訳がありません。テキストが正しく処理されていることを確認してください。",
       "cannotSaveContent": "フラッシュカードのコンテンツがありません。テキストが正しく処理されていることを確認してください。",
+      "imageUploadFailedTitle": "画像のアップロードに失敗しました",
+      "imageUploadFailedMessage": "{{error}}\n\n画像なしでフラッシュカードを保存します。",
       "saveError": "保存エラー",
       "saveFailed": "フラッシュカードの保存に失敗しました。もう一度お試しください。",
       "viewSaved": "保存されたフラッシュカードを表示",
@@ -205,6 +208,8 @@
   "savedFlashcards": {
     "title": "あなたのコレクション",
     "noCollections": "利用可能なコレクションがありません",
+    "collectionOptionsTitle": "コレクションオプション",
+    "collectionOptionsMessage": "このコレクションで何をしますか？",
     "renameCollection": "コレクション名を変更",
     "deleteCollection": "コレクションを削除",
     "deleteCollectionConfirm": "このコレクションを削除してもよろしいですか？",
@@ -221,6 +226,8 @@
     "noFlashcardsTitle": "このコレクションにフラッシュカードがありません",
     "noFlashcardsText": "このコレクションに保存したフラッシュカードがここに表示されます。テキストをスキャンしてフラッシュカードとして保存してください！",
     "moveSuccess": "フラッシュカードが新しいコレクションに移動されました: {{name}}",
+    "flashcardMovedSuccess": "フラッシュカードが正常に移動されました",
+    "flashcardUpdatedSuccess": "フラッシュカードが正常に更新されました",
     "enterDeckName": "デッキ名を入力してください",
     "loadCollectionsError": "コレクションの読み込みに失敗しました。もう一度お試しください。",
     "loadFlashcardsError": "フラッシュカードの読み込みに失敗しました。もう一度お試しください。",
@@ -244,11 +251,36 @@
     "translate": "翻訳"
   },
   "offline": {
+    "title": "オフラインモード",
     "banner": "オフライン - キャッシュされたカードを使用中",
     "createCardError": "カードの作成にはインターネット接続が必要です",
     "deckNotCached": "このデッキはキャッシュされていません - オンラインで表示してください",
     "syncInProgress": "カードを同期中...",
     "noCacheTitle": "キャッシュデータがありません",
-    "noCacheMessage": "オフライン状態で、まだオンライン時にフラッシュカードを読み込んでいません。初回読み込みのためにインターネットに接続してください。"
+    "noCacheMessage": "オフライン状態で、まだオンライン時にフラッシュカードを読み込んでいません。初回読み込みのためにインターネットに接続してください。",
+    "deckManagementDisabled": "デッキ管理（名前変更、削除、並べ替え）にはインターネット接続が必要です。オフラインでもキャッシュされたフラッシュカードは表示できます。",
+    "editDisabled": "フラッシュカードの編集と削除にはインターネット接続が必要です。",
+    "moveDisabled": "フラッシュカードの移動にはインターネット接続が必要です。",
+    "createDeckDisabled": "デッキの作成にはインターネット接続が必要です。"
+  },
+  "camera": {
+    "logoutTitle": "ログアウト",
+    "logoutConfirm": "ログアウトしてもよろしいですか？",
+    "logoutError": "ログアウトに失敗しました。もう一度お試しください。",
+    "imageMissingTitle": "画像が見つかりません",
+    "imageMissingMessage": "現在の画像は利用できません。新しい画像を選択してください。",
+    "emptyInputTitle": "入力が空です",
+    "emptyInputMessage": "翻訳するテキストを入力してください。",
+    "processingError": "選択した領域を処理できませんでした。",
+    "ocrLimitReachedTitle": "OCR制限に達しました",
+    "ocrLimitReachedMessage": "1日の制限に達しました。残り{{remaining}}回のスキャンが利用可能です。無制限スキャンにはプレミアムにアップグレードしてください！",
+    "noTextFoundTitle": "{{language}}のテキストが見つかりません",
+    "noTextFoundMessage": "選択した領域で{{language}}のテキストが検出されませんでした。別の領域を選択してください。",
+    "processingLimitReachedTitle": "処理制限に達しました",
+    "processingLimitReachedMessage": "選択したテキスト領域が大きすぎるか複雑すぎます。より小さなテキスト部分を選択してください。",
+    "ocrErrorTitle": "OCRエラー",
+    "ocrErrorMessage": "選択した領域でテキストを認識できませんでした。もう一度お試しください。",
+    "rotationError": "回転を適用できませんでした。",
+    "permissionDenied": "申し訳ありませんが、カメラの権限が必要です！"
   }
 } 

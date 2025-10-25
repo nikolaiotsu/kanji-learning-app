@@ -94,8 +94,11 @@
     "save": {
       "title": "Flashcard Saved",
       "message": "Your {{cardType}} has been saved to {{deckName}}!",
+      "cannotSaveTitle": "Cannot Save",
       "cannotSaveTranslation": "Missing translation for the flashcard. Please make sure the text was processed correctly.",
       "cannotSaveContent": "Missing content for the flashcard. Please make sure the text was processed correctly.",
+      "imageUploadFailedTitle": "Image Upload Failed",
+      "imageUploadFailedMessage": "{{error}}\n\nThe flashcard will be saved without the image.",
       "saveError": "Save Error",
       "saveFailed": "Failed to save flashcard. Please try again.",
       "viewSaved": "View Saved Flashcards",
@@ -211,6 +214,8 @@
   "savedFlashcards": {
     "title": "Your Collections",
     "noCollections": "No collections available",
+    "collectionOptionsTitle": "Collection Options",
+    "collectionOptionsMessage": "What would you like to do with this collection?",
     "renameCollection": "Rename Collection",
     "deleteCollection": "Delete Collection",
     "deleteCollectionConfirm": "Are you sure you want to delete this collection?",
@@ -227,6 +232,8 @@
     "noFlashcardsTitle": "No Flashcards in This Collection",
     "noFlashcardsText": "Flashcards you save to this collection will appear here. Go scan some text and save it as a flashcard!",
     "moveSuccess": "Flashcard moved to new collection: {{name}}",
+    "flashcardMovedSuccess": "Flashcard moved successfully",
+    "flashcardUpdatedSuccess": "Flashcard updated successfully",
     "enterDeckName": "Please enter a deck name",
     "loadCollectionsError": "Failed to load collections. Please try again.",
     "loadFlashcardsError": "Failed to load flashcards. Please try again.",
@@ -261,5 +268,25 @@
     "editDisabled": "Editing and deleting flashcards requires an internet connection.",
     "moveDisabled": "Moving flashcards requires an internet connection.",
     "createDeckDisabled": "Creating decks requires an internet connection."
+  },
+  "camera": {
+    "logoutTitle": "Logout",
+    "logoutConfirm": "Are you sure you want to log out?",
+    "logoutError": "Failed to log out. Please try again.",
+    "imageMissingTitle": "Image Missing",
+    "imageMissingMessage": "The current image is no longer available. Please select a new image.",
+    "emptyInputTitle": "Empty Input",
+    "emptyInputMessage": "Please enter some text to translate.",
+    "processingError": "Could not process the selected region.",
+    "ocrLimitReachedTitle": "OCR Limit Reached",
+    "ocrLimitReachedMessage": "You have reached your daily limit. You have {{remaining}} scans remaining. Upgrade to Premium for unlimited scans!",
+    "noTextFoundTitle": "No {{language}} Text Found",
+    "noTextFoundMessage": "No {{language}} text was detected in the selected area. Please try selecting a different area.",
+    "processingLimitReachedTitle": "Processing Limit Reached",
+    "processingLimitReachedMessage": "The selected text area is too large or complex. Please try selecting a smaller section of text.",
+    "ocrErrorTitle": "OCR Error",
+    "ocrErrorMessage": "There was a problem recognizing text in the selected area. Please try again.",
+    "rotationError": "Could not apply rotation.",
+    "permissionDenied": "Sorry, we need camera permissions to make this work!"
   }
 } 

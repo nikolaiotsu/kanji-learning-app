@@ -16,6 +16,7 @@ import {
 } from './offlineStorage';
 import { batchCacheImages, deleteCachedImage, deleteCachedImages } from './imageCache';
 import { getUserIdOffline } from './offlineAuth';
+import { generatePrivacySafeImageId, sanitizeForLogging } from './privacyService';
 
 import { logger } from '../utils/logger';
 // Simple UUID generator that doesn't rely on crypto.getRandomValues()
@@ -342,9 +343,9 @@ export const initializeDecks = async (): Promise<void> => {
 };
 
 /**
- * Upload an image to Supabase Storage and return the URL
+ * Upload an image to Supabase Storage and return a signed URL
  * @param imageUri Local URI of the image to upload
- * @returns URL of the uploaded image
+ * @returns Signed URL of the uploaded image (expires in 1 year)
  */
 export const uploadImageToStorage = async (imageUri: string): Promise<string | null> => {
   try {
@@ -362,9 +363,15 @@ export const uploadImageToStorage = async (imageUri: string): Promise<string | n
       throw new Error(validation.error);
     }
     
-    // Generate a unique filename for the image
+    // Get user ID - required for authenticated storage access
+    const userId = await getUserIdOffline();
+    if (!userId) {
+      throw new Error('User must be authenticated to upload images');
+    }
+    
+    // Generate a privacy-safe filename for the image
     const fileExt = imageUri.split('.').pop();
-    const fileName = `${generateUUID()}.${fileExt}`;
+    const fileName = `${generatePrivacySafeImageId(userId)}.${fileExt}`;
     const filePath = `flashcard-images/${fileName}`;
     
     // Read the file as base64
@@ -375,10 +382,10 @@ export const uploadImageToStorage = async (imageUri: string): Promise<string | n
     // Convert base64 to ArrayBuffer
     const arrayBuffer = decode(base64);
     
-    // Upload to Supabase Storage
+    // Upload to Supabase Storage (private bucket)
     const { data, error } = await supabase
       .storage
-      .from('flashcards')  // Make sure this bucket exists in your Supabase project
+      .from('flashcards')
       .upload(filePath, arrayBuffer, {
         contentType: `image/${fileExt}`,
         upsert: true,
@@ -389,14 +396,20 @@ export const uploadImageToStorage = async (imageUri: string): Promise<string | n
       throw new Error('Failed to upload image to storage.');
     }
     
-    // Get public URL for the uploaded image
-    const { data: { publicUrl } } = supabase
+    // Create a signed URL (expires in 1 year = 31536000 seconds)
+    // This allows the image to be accessed even when the bucket is private
+    const { data: signedUrlData, error: signedUrlError } = await supabase
       .storage
       .from('flashcards')
-      .getPublicUrl(filePath);
+      .createSignedUrl(filePath, 31536000); // 1 year expiration
     
-    logger.log('Image uploaded successfully, URL:', publicUrl);
-    return publicUrl;
+    if (signedUrlError || !signedUrlData) {
+      logger.error('Error creating signed URL:', signedUrlError);
+      throw new Error('Failed to create signed URL for uploaded image.');
+    }
+    
+    logger.log('Image uploaded successfully with signed URL');
+    return signedUrlData.signedUrl;
   } catch (error) {
     logger.error('Error uploading image:', error);
     // Re-throw to preserve error message for user display
@@ -405,16 +418,129 @@ export const uploadImageToStorage = async (imageUri: string): Promise<string | n
 };
 
 /**
+ * Get a signed URL for an existing image
+ * Use this when displaying images or when signed URLs need to be refreshed
+ * @param imagePath The storage path or full URL of the image
+ * @param expiresIn Expiration time in seconds (default: 1 hour)
+ * @returns Signed URL
+ */
+export const getSignedImageUrl = async (
+  imagePath: string, 
+  expiresIn: number = 3600
+): Promise<string | null> => {
+  try {
+    // Extract just the path if a full URL was provided
+    let path = imagePath;
+    
+    if (imagePath.includes('flashcard-images/')) {
+      // Handle both public and signed URLs
+      const parts = imagePath.split('flashcard-images/');
+      if (parts.length > 1) {
+        // Remove query parameters (from signed URLs)
+        const pathPart = parts[1].split('?')[0];
+        path = `flashcard-images/${pathPart}`;
+      }
+    }
+    
+    logger.log('Creating signed URL for path:', path);
+    
+    const { data, error } = await supabase
+      .storage
+      .from('flashcards')
+      .createSignedUrl(path, expiresIn);
+    
+    if (error || !data) {
+      logger.error('Error creating signed URL:', error);
+      return null;
+    }
+    
+    return data.signedUrl;
+  } catch (error) {
+    logger.error('Error in getSignedImageUrl:', error);
+    return null;
+  }
+};
+
+/**
+ * Refresh signed URLs for flashcards
+ * Call this when loading flashcards to ensure images are accessible
+ * @param flashcards Array of flashcards
+ * @param expiresIn Expiration time in seconds (default: 1 hour)
+ * @returns Flashcards with refreshed signed URLs
+ */
+export const refreshFlashcardImageUrls = async (
+  flashcards: Flashcard[],
+  expiresIn: number = 3600
+): Promise<Flashcard[]> => {
+  try {
+    logger.log(`Refreshing signed URLs for ${flashcards.length} flashcards`);
+    
+    const updatedFlashcards = await Promise.all(
+      flashcards.map(async (card) => {
+        if (!card.imageUrl) return card;
+        
+        // Check if URL is a signed URL (contains token parameter)
+        const isSignedUrl = card.imageUrl.includes('token=');
+        
+        // Always refresh signed URLs to ensure they're not expired
+        if (isSignedUrl) {
+          const newUrl = await getSignedImageUrl(card.imageUrl, expiresIn);
+          if (newUrl) {
+            return { ...card, imageUrl: newUrl };
+          }
+        }
+        
+        // If it's a public URL (legacy), convert to signed URL
+        if (card.imageUrl.includes('/object/public/')) {
+          logger.log('Converting legacy public URL to signed URL');
+          const newUrl = await getSignedImageUrl(card.imageUrl, expiresIn);
+          if (newUrl) {
+            return { ...card, imageUrl: newUrl };
+          }
+        }
+        
+        return card;
+      })
+    );
+    
+    logger.log('Signed URLs refreshed successfully');
+    return updatedFlashcards;
+  } catch (error) {
+    logger.error('Error refreshing flashcard image URLs:', error);
+    return flashcards; // Return original flashcards on error
+  }
+};
+
+/**
  * Delete an image from Supabase Storage
+ * Handles both public and signed URLs
  * @param imageUrl URL of the image to delete
  * @returns True if deleted successfully, false otherwise
  */
 export const deleteImageFromStorage = async (imageUrl: string): Promise<boolean> => {
   try {
-    // Extract the file path from the URL
-    const urlParts = imageUrl.split('/');
-    const fileName = urlParts[urlParts.length - 1];
+    // Extract the file path from the URL (works with both public and signed URLs)
+    let fileName: string;
+    
+    if (imageUrl.includes('flashcard-images/')) {
+      const urlParts = imageUrl.split('flashcard-images/');
+      if (urlParts.length > 1) {
+        // Remove query parameters (from signed URLs)
+        fileName = urlParts[1].split('?')[0];
+      } else {
+        // Fallback: use last part of URL
+        const parts = imageUrl.split('/');
+        fileName = parts[parts.length - 1].split('?')[0];
+      }
+    } else {
+      // Fallback: use last part of URL
+      const urlParts = imageUrl.split('/');
+      fileName = urlParts[urlParts.length - 1].split('?')[0];
+    }
+    
     const filePath = `flashcard-images/${fileName}`;
+    
+    logger.log('Deleting image from storage:', filePath);
     
     const { error } = await supabase
       .storage
@@ -426,7 +552,7 @@ export const deleteImageFromStorage = async (imageUrl: string): Promise<boolean>
       return false;
     }
     
-    logger.log('Image deleted successfully');
+    logger.log('Image deleted successfully:', filePath);
     return true;
   } catch (error) {
     logger.error('Error deleting image:', error);

@@ -235,7 +235,8 @@ export default function LanguageFlashcardsScreen() {
         if (needsRomanization) {
           setFuriganaText(result.furiganaText);
           // Show error if romanization is missing for languages that should have it
-          if (!result.furiganaText) {
+          // BUT skip this check if we're translating TO Japanese/Chinese (where furigana/pinyin is not needed)
+          if (!result.furiganaText && targetLanguage !== 'ja' && targetLanguage !== 'zh') {
             // For Japanese text, provide more specific error message if kanji is present
             if (hasJapanese && containsKanji(text)) {
               setError('Failed to generate furigana for kanji characters. This may affect readability. The translation is still available.');
@@ -326,13 +327,20 @@ export default function LanguageFlashcardsScreen() {
     
     // For texts that don't need furigana, we only need the translation to be present
     if (!needsRomanization && !translatedText) {
-      Alert.alert('Cannot Save', t('flashcard.save.cannotSaveTranslation'));
+      Alert.alert(t('flashcard.save.cannotSaveTitle'), t('flashcard.save.cannotSaveTranslation'));
       return;
     }
     
     // For texts that need furigana (Japanese), we need both furigana and translation
-    if (needsRomanization && (!editedText || !furiganaText || !translatedText)) {
-      Alert.alert('Cannot Save', t('flashcard.save.cannotSaveContent'));
+    // EXCEPT when translating TO Japanese/Chinese (where furigana/pinyin is not generated)
+    if (needsRomanization && (!editedText || !translatedText)) {
+      Alert.alert(t('flashcard.save.cannotSaveTitle'), t('flashcard.save.cannotSaveContent'));
+      return;
+    }
+    
+    // Additional validation: if source needs romanization AND we're not translating TO ja/zh, require furigana
+    if (needsRomanization && !furiganaText && targetLanguage !== 'ja' && targetLanguage !== 'zh') {
+      Alert.alert(t('flashcard.save.cannotSaveTitle'), t('flashcard.save.cannotSaveContent'));
       return;
     }
     
@@ -358,8 +366,8 @@ export default function LanguageFlashcardsScreen() {
           // Image upload failed (validation or upload error)
           const errorMsg = imageError instanceof Error ? imageError.message : 'Unable to upload image.';
           Alert.alert(
-            'Image Upload Failed',
-            `${errorMsg}\n\nThe flashcard will be saved without the image.`
+            t('flashcard.save.imageUploadFailedTitle'),
+            t('flashcard.save.imageUploadFailedMessage', { error: errorMsg })
           );
         }
       }
