@@ -11,7 +11,7 @@ export function cleanFuriganaText(text: string): string {
   if (!text) return text;
   
   // Remove any duplicate reading patterns (e.g., "東京(とうきょう)東京(とうきょう)" -> "東京(とうきょう)")
-  const readingRegex = /([\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F]+)\(([ぁ-ゟa-zA-ZāēīōūǎěǐǒǔàèìòùáéíóúǘǜɑĉĝĥĵŝŭĈĜĤĴŜŬ\s\-0-9]+)\)/g;
+  const readingRegex = /([\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F]+)\(([ぁ-ゟa-zA-ZāēīōūǎěǐǒǔàèìòùáéíóúǘǙǚǜǖǕǗǙǛüÜɑĉĝĥĵŝŭĈĜĤĴŜŬ\s\-0-9]+)\)/g;
   const seen = new Set<string>();
   
   return text.replace(readingRegex, (match, characters, reading) => {
@@ -42,7 +42,7 @@ export function validateFuriganaFormat(text: string): boolean {
   // Arabic: العربية(al-arabiya) - arabic with transliteration
   // Hindi: हिन्दी(hindī) - devanagari with romanization
   // Esperanto: Esperanto characters with Latin script
-  const readingRegex = /([\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F\u3040-\u309f\u30a0-\u30ff]+)\(([ぁ-ゟa-zA-ZāēīōūǎěǐǒǔàèìòùáéíóúǘǜɑĉĝĥĵŝŭĈĜĤĴŜŬ\s\-0-9]+)\)/;
+  const readingRegex = /([\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F\u3040-\u309f\u30a0-\u30ff]+)\(([ぁ-ゟa-zA-ZāēīōūǎěǐǒǔàèìòùáéíóúǘǙǚǜǖǕǗǙǛüÜɑĉĝĥĵŝŭĈĜĤĴŜŬ\s\-0-9]+)\)/;
   return readingRegex.test(text);
 }
 

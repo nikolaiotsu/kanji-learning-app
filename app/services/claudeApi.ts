@@ -86,41 +86,47 @@ function cleanJsonString(jsonString: string): string {
     const furiganaStart = cleaned.indexOf('"furiganaText"');
     const translationStart = cleaned.indexOf('"translatedText"');
     
-    if (furiganaStart === -1 || translationStart === -1) {
-      throw new Error('Could not find required fields');
+    if (translationStart === -1) {
+      throw new Error('Could not find required translatedText field');
     }
-    
-    // Extract furiganaText value - improved extraction to handle large texts
-    const furiganaColonIndex = cleaned.indexOf(':', furiganaStart);
-    const furiganaQuoteStart = cleaned.indexOf('"', furiganaColonIndex) + 1;
-    
-    // Find the end quote, handling escaped quotes
-    // Use a more robust approach to find the closing quote
-    let furiganaQuoteEnd = furiganaQuoteStart;
-    let inEscape = false;
-    
-    while (furiganaQuoteEnd < cleaned.length) {
-      const char = cleaned[furiganaQuoteEnd];
-      
-      if (inEscape) {
-        inEscape = false;
-      } else if (char === '\\') {
-        inEscape = true;
-      } else if (char === '"') {
-        // Found unescaped quote
-        break;
+
+    let furiganaValue = '';
+
+    if (furiganaStart !== -1) {
+      // Extract furiganaText value - improved extraction to handle large texts
+      const furiganaColonIndex = cleaned.indexOf(':', furiganaStart);
+      const furiganaQuoteStart = cleaned.indexOf('"', furiganaColonIndex) + 1;
+
+      // Find the end quote, handling escaped quotes
+      // Use a more robust approach to find the closing quote
+      let furiganaQuoteEnd = furiganaQuoteStart;
+      let inEscapeFurigana = false;
+
+      while (furiganaQuoteEnd < cleaned.length) {
+        const char = cleaned[furiganaQuoteEnd];
+
+        if (inEscapeFurigana) {
+          inEscapeFurigana = false;
+        } else if (char === '\\') {
+          inEscapeFurigana = true;
+        } else if (char === '"') {
+          // Found unescaped quote
+          break;
+        }
+
+        furiganaQuoteEnd++;
       }
-      
-      furiganaQuoteEnd++;
+
+      furiganaValue = cleaned.substring(furiganaQuoteStart, Math.min(furiganaQuoteEnd, cleaned.length));
     }
-    
+
     // Extract translatedText value with the same improved approach
     const translationColonIndex = cleaned.indexOf(':', translationStart);
     const translationQuoteStart = cleaned.indexOf('"', translationColonIndex) + 1;
     
     let translationQuoteEnd = translationQuoteStart;
-    inEscape = false;
-    
+    let inEscape = false;
+
     while (translationQuoteEnd < cleaned.length) {
       const char = cleaned[translationQuoteEnd];
       
@@ -137,7 +143,6 @@ function cleanJsonString(jsonString: string): string {
     }
     
     // Extract the raw values
-    let furiganaValue = cleaned.substring(furiganaQuoteStart, furiganaQuoteEnd);
     let translationValue = cleaned.substring(translationQuoteStart, translationQuoteEnd);
     
     // Log the extracted values length for debugging
@@ -594,66 +599,96 @@ Examples:
 
 Be precise and return ONLY the JSON with no additional explanation.`;
 
-  try {
-    const response = await axios.post(
-      'https://api.anthropic.com/v1/messages',
-      {
-        model: "claude-3-haiku-20240307",
-        max_tokens: 200, // Small response, just need the JSON
-        temperature: 0,
-        messages: [
-          {
-            role: "user",
-            content: validationPrompt
-          }
-        ]
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'anthropic-version': '2023-06-01',
-          'x-api-key': apiKey
-        },
-        timeout: 10000 // 10 second timeout for quick validation
-      }
-    );
+  const MAX_VALIDATION_RETRIES = 3;
+  const INITIAL_BACKOFF_DELAY = 500;
+  let attempt = 0;
+  let lastError: unknown = null;
 
-    // Extract JSON from response
-    if (response.data && response.data.content && Array.isArray(response.data.content)) {
-      const textContent = response.data.content.find((item: ClaudeContentItem) => item.type === "text");
-      
-      if (textContent && textContent.text) {
-        const jsonMatch = textContent.text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const result = JSON.parse(jsonMatch[0]);
-          
-          logger.log(`[Claude Language Validation] Detected: ${result.detectedLanguage}, Confidence: ${result.confidence}, Matches: ${result.matches}`);
-          
-          return {
-            isValid: result.matches === true,
-            detectedLanguage: result.detectedLanguage || 'Unknown',
-            confidence: result.confidence || 'low'
-          };
+  while (attempt < MAX_VALIDATION_RETRIES) {
+    try {
+      const response = await axios.post(
+        'https://api.anthropic.com/v1/messages',
+        {
+          model: "claude-3-haiku-20240307",
+          max_tokens: 200, // Small response, just need the JSON
+          temperature: 0,
+          messages: [
+            {
+              role: "user",
+              content: validationPrompt
+            }
+          ]
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'anthropic-version': '2023-06-01',
+            'x-api-key': apiKey
+          },
+          timeout: 10000 // 10 second timeout for quick validation
+        }
+      );
+
+      // Extract JSON from response
+      if (response.data && response.data.content && Array.isArray(response.data.content)) {
+        const textContent = response.data.content.find((item: ClaudeContentItem) => item.type === "text");
+        
+        if (textContent && textContent.text) {
+          const jsonMatch = textContent.text.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const result = JSON.parse(jsonMatch[0]);
+            
+            logger.log(`[Claude Language Validation] Detected: ${result.detectedLanguage}, Confidence: ${result.confidence}, Matches: ${result.matches}`);
+            
+            return {
+              isValid: result.matches === true,
+              detectedLanguage: result.detectedLanguage || 'Unknown',
+              confidence: result.confidence || 'low'
+            };
+          }
         }
       }
+      
+      // Fallback if parsing fails
+      logger.warn('[Claude Language Validation] Could not parse Claude response, falling back to pattern matching');
+      return {
+        isValid: true, // Fall back to allowing the request
+        detectedLanguage: 'Unknown',
+        confidence: 'low'
+      };
+    } catch (error) {
+      lastError = error;
+      const shouldRetry = error instanceof AxiosError &&
+        (error.response?.status === 529 || error.response?.headers?.['x-should-retry'] === 'true');
+
+      if (shouldRetry && attempt < MAX_VALIDATION_RETRIES - 1) {
+        const backoffDelay = INITIAL_BACKOFF_DELAY * Math.pow(2, attempt);
+        logger.warn(`[Claude Language Validation] Service overloaded. Retrying in ${backoffDelay}ms (attempt ${attempt + 1}/${MAX_VALIDATION_RETRIES})`);
+        await sleep(backoffDelay);
+        attempt++;
+        continue;
+      }
+
+      logger.error('[Claude Language Validation] Error during validation:', error);
+      break;
     }
-    
-    // Fallback if parsing fails
-    logger.warn('[Claude Language Validation] Could not parse Claude response, falling back to pattern matching');
-    return {
-      isValid: true, // Fall back to allowing the request
-      detectedLanguage: 'Unknown',
-      confidence: 'low'
-    };
-  } catch (error) {
-    logger.error('[Claude Language Validation] Error during validation:', error);
-    // If validation fails, fall back to allowing the request rather than blocking it
-    return {
-      isValid: true,
-      detectedLanguage: 'Unknown',
-      confidence: 'low'
-    };
   }
+
+  if (lastError instanceof AxiosError) {
+    logger.warn('[Claude Language Validation] Falling back to pattern matching after validation retries exhausted:', {
+      status: lastError.response?.status,
+      headers: lastError.response?.headers
+    });
+  } else if (lastError) {
+    logger.warn('[Claude Language Validation] Falling back to pattern matching after validation retries exhausted:', lastError);
+  }
+
+  // If validation fails, fall back to allowing the request rather than blocking it
+  return {
+    isValid: true,
+    detectedLanguage: 'Unknown',
+    confidence: 'low'
+  };
 }
 
 /**
@@ -833,9 +868,20 @@ If the target language is Russian, the translation must use Cyrillic characters.
 If the target language is Arabic, the translation must use Arabic script.
 
 `;
+      const normalizedForcedLanguage = typeof forcedLanguage === 'string' ? forcedLanguage.toLowerCase() : 'auto';
+      const readingLanguageCodes = new Set(['zh', 'ko', 'ru', 'ar', 'hi']);
+      const readingLanguageNames = new Set(['Chinese', 'Korean', 'Russian', 'Arabic', 'Hindi']);
+      const hasSourceReadingPrompt =
+        (normalizedForcedLanguage !== 'auto' && readingLanguageCodes.has(normalizedForcedLanguage)) ||
+        readingLanguageNames.has(primaryLanguage);
       
       // Check if we're translating TO Japanese from a non-Japanese source
-      if (targetLanguage === 'ja' && forcedLanguage !== 'ja' && primaryLanguage !== 'Japanese') {
+      if (
+        targetLanguage === 'ja' &&
+        forcedLanguage !== 'ja' &&
+        primaryLanguage !== 'Japanese' &&
+        !hasSourceReadingPrompt
+      ) {
         logger.log(`[DEBUG] TRANSLATING TO JAPANESE: Using natural Japanese translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
         // Natural Japanese translation prompt - for translating TO Japanese
         userMessage = `

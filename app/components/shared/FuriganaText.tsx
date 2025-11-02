@@ -60,7 +60,7 @@ const FuriganaText: React.FC<FuriganaTextProps> = ({
     // For Russian: Русский(russkiy) - cyrillic with romanization
     // For Arabic: العربية(al-arabiya) - arabic with transliteration
     // For Hindi: हिन्दी(hindī) - devanagari with IAST romanization
-    const readingRegex = /([\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F\u3040-\u309f\u30a0-\u30ff]+)([!?.,;:'"'"‚""„‹›«»‑–—…\s]*)\(([ぁ-ゟa-zA-Zāēīōūǎěǐǒǔàèìòùáéíóúǘǜɑśṅñṭḍṇḷṛṣḥṁṃḷ̥ṝṟĝśḱńṗṟť\s\-0-9!?.,;:'"'"‚""„‹›«»‑–—…]+)\)/g;
+    const readingRegex = /([\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F\u3040-\u309f\u30a0-\u30ff]+)([!?.,;:'"'"‚""„‹›«»‑–—…\s]*)\(([ぁ-ゟa-zA-ZāēīōūǎěǐǒǔàèìòùáéíóúǘǙǚǜǖǕǗǙǛüÜɑśṅñṭḍṇḷṛṣḥṁṃḷ̥ṝṟĝśḱńṗṟť\s\-0-9!?.,;:'"'"‚""„‹›«»‑–—…]+)\)/g;
     
     let lastIndex = 0;
     let match;
@@ -69,22 +69,38 @@ const FuriganaText: React.FC<FuriganaTextProps> = ({
       // Add any plain text before this match
               if (match.index > lastIndex) {
           const plainText = cleanedText.slice(lastIndex, match.index);
-        if (plainText.trim()) {
+        // Clean up any English words that accidentally got furigana annotations
+        // Remove patterns like "LINE(らいん)" -> "LINE"
+        const cleanedPlainText = plainText.replace(/([a-zA-Z]+)\([ぁ-ゟa-zA-Z\s\-0-9!?.,;:'"'"‚""„‹›«»‑–—…]+\)/g, '$1');
+        if (cleanedPlainText.trim()) {
           segments.push({
-            kanji: plainText,
+            kanji: cleanedPlainText,
             furigana: '',
             type: 'plain'
           });
         }
       }
       
-      // Add the furigana segment
-      // match[1] = Korean/CJK characters, match[2] = punctuation, match[3] = romanization
-      segments.push({
-        kanji: match[1] + (match[2] || ''), // Include punctuation with the main text
-        furigana: match[3],
-        type: 'furigana'
-      });
+      // Safety check: Filter out English words that accidentally got furigana
+      // Check if match[1] contains only ASCII letters (a-z, A-Z) - this is an error
+      const mainText = match[1];
+      const isOnlyEnglish = /^[a-zA-Z]+$/.test(mainText);
+      
+      if (isOnlyEnglish) {
+        // This is an English word that shouldn't have furigana - treat as plain text
+        segments.push({
+          kanji: mainText + (match[2] || ''),
+          furigana: '',
+          type: 'plain'
+        });
+      } else {
+        // Valid furigana segment - add it
+        segments.push({
+          kanji: mainText + (match[2] || ''), // Include punctuation with the main text
+          furigana: match[3],
+          type: 'furigana'
+        });
+      }
       
       lastIndex = readingRegex.lastIndex;
     }
@@ -92,9 +108,11 @@ const FuriganaText: React.FC<FuriganaTextProps> = ({
     // Add any remaining plain text
     if (lastIndex < cleanedText.length) {
       const remainingText = cleanedText.slice(lastIndex);
-      if (remainingText.trim()) {
+      // Clean up any English words that accidentally got furigana annotations
+      const cleanedRemainingText = remainingText.replace(/([a-zA-Z]+)\([ぁ-ゟa-zA-Z\s\-0-9!?.,;:'"'"‚""„‹›«»‑–—…]+\)/g, '$1');
+      if (cleanedRemainingText.trim()) {
         segments.push({
-          kanji: remainingText,
+          kanji: cleanedRemainingText,
           furigana: '',
           type: 'plain'
         });
