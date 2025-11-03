@@ -6,15 +6,13 @@ import en from './locales/en.json';
 import ja from './locales/ja.json';
 import zh from './locales/zh.json';
 import hi from './locales/hi.json';
-import eo from './locales/eo.json';
 
 import { logger } from '../utils/logger';
 // Determine the device locale
 const deviceLocale = Localization.locale;
 const detectedLanguage = deviceLocale.startsWith('ja') ? 'ja' : 
                         deviceLocale.startsWith('zh') ? 'zh' : 
-                        deviceLocale.startsWith('hi') ? 'hi' : 
-                        deviceLocale.startsWith('eo') ? 'eo' : 'en';
+                        deviceLocale.startsWith('hi') ? 'hi' : 'en';
 
 logger.log('[i18n] Device locale:', deviceLocale, 'Detected language:', detectedLanguage);
 
@@ -28,7 +26,6 @@ i18next
       ja: { translation: ja },
       zh: { translation: zh },
       hi: { translation: hi },
-      eo: { translation: eo },
     },
     lng: detectedLanguage,
     fallbackLng: 'en',

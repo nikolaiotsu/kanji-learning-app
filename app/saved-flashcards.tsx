@@ -9,6 +9,7 @@ import {
   getFlashcards, 
   deleteFlashcard, 
   getDecks, 
+  refreshDecksFromServer,
   getFlashcardsByDeck, 
   deleteDeck,
   updateDeckName,
@@ -53,6 +54,7 @@ export default function SavedFlashcardsScreen() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [flashcardToEdit, setFlashcardToEdit] = useState<Flashcard | null>(null);
   const [triggerLightAnimation, setTriggerLightAnimation] = useState(false);
+  const [hasAppliedRequestedDeck, setHasAppliedRequestedDeck] = useState(false);
   const { user } = useAuth();
   const router = useRouter();
   const { isConnected } = useNetworkState();
@@ -89,37 +91,86 @@ export default function SavedFlashcardsScreen() {
     }
   }, [decks, isLoadingDecks]);
 
+  // Helper function to calculate appropriate viewPosition based on deck position
+  const getViewPosition = (idx: number, totalDecks: number): number => {
+    // If deck is in the last 20% of decks OR it's one of the last 2 decks: use right-aligned
+    // Otherwise: use centered
+    const isNearEnd = idx >= totalDecks - 2 || idx >= Math.ceil(totalDecks * 0.8);
+    return isNearEnd ? 1 : 0.5;
+  };
+
+  const ALIGN_RIGHT_THRESHOLD = 0.95;
+
+  const scrollDeckSelectorToIndex = (idx: number, viewPosition: number, animated: boolean) => {
+    const listRef = deckSelectorRef.current;
+    if (!listRef) return;
+
+    const shouldAlignRight = viewPosition >= ALIGN_RIGHT_THRESHOLD;
+
+    if (shouldAlignRight && typeof listRef.scrollToEnd === 'function') {
+      const performScrollToEnd = () => {
+        try {
+          listRef.scrollToEnd({ animated });
+        } catch {}
+      };
+
+      performScrollToEnd();
+      requestAnimationFrame(performScrollToEnd);
+      setTimeout(performScrollToEnd, 120);
+      setTimeout(performScrollToEnd, 280);
+      return;
+    }
+
+    try {
+      listRef.scrollToIndex({ index: idx, animated, viewPosition });
+    } catch {}
+  };
+
+  // Helper function to scroll to a deck index with appropriate positioning
+  const scrollToDeck = (idx: number, viewPosition: number = 0.5) => {
+    try {
+      scrollDeckSelectorToIndex(idx, viewPosition, false);
+    } catch {}
+    try {
+      flashcardsListRef.current?.scrollToIndex({ index: idx, animated: false });
+    } catch {
+      // Retry once after a short delay in case layout isn't ready yet
+      setTimeout(() => {
+        try {
+          scrollDeckSelectorToIndex(idx, viewPosition, false);
+          flashcardsListRef.current?.scrollToIndex({ index: idx, animated: false });
+        } catch {}
+      }, 120);
+    }
+  };
+
   // On decks load, select requested deckId or newest by createdAt
+  useEffect(() => {
+    if (requestedDeckId) {
+      setHasAppliedRequestedDeck(false);
+    } else {
+      setHasAppliedRequestedDeck(true);
+    }
+  }, [requestedDeckId]);
+
   useEffect(() => {
     if (decks.length === 0) return;
     
-    // If a deck is already selected, don't override
-    if (selectedDeckId) return;
-
-    // If route param provided, try to select it
-    if (requestedDeckId && typeof requestedDeckId === 'string') {
+    // If route param provided, apply it once when available
+    if (requestedDeckId && typeof requestedDeckId === 'string' && !hasAppliedRequestedDeck) {
       const idx = decks.findIndex(d => d.id === requestedDeckId);
       if (idx >= 0) {
         setSelectedDeckId(decks[idx].id);
         setSelectedDeckIndex(idx);
-        // Scroll both the deck selector chips and the deck pager
-        try {
-          deckSelectorRef.current?.scrollToIndex({ index: idx, animated: false, viewPosition: 0.5 });
-        } catch {}
-        try {
-          flashcardsListRef.current?.scrollToIndex({ index: idx, animated: false });
-        } catch {
-          // Retry once after a short delay in case layout isn't ready yet
-          setTimeout(() => {
-            try {
-              deckSelectorRef.current?.scrollToIndex({ index: idx, animated: false, viewPosition: 0.5 });
-              flashcardsListRef.current?.scrollToIndex({ index: idx, animated: false });
-            } catch {}
-          }, 100);
-        }
+        const viewPosition = getViewPosition(idx, decks.length);
+        scrollToDeck(idx, viewPosition);
+        setHasAppliedRequestedDeck(true);
         return;
       }
     }
+    
+    // If a deck is already selected and no param requested (or already applied), don't override
+    if (selectedDeckId) return;
     
     // Otherwise default to newest deck by createdAt
     const newestIdx = decks.reduce((bestIdx, deck, i) => 
@@ -127,20 +178,10 @@ export default function SavedFlashcardsScreen() {
     , 0);
     setSelectedDeckId(decks[newestIdx].id);
     setSelectedDeckIndex(newestIdx);
-    try {
-      deckSelectorRef.current?.scrollToIndex({ index: newestIdx, animated: false, viewPosition: 0.5 });
-    } catch {}
-    try {
-      flashcardsListRef.current?.scrollToIndex({ index: newestIdx, animated: false });
-    } catch {
-      setTimeout(() => {
-        try {
-          deckSelectorRef.current?.scrollToIndex({ index: newestIdx, animated: false, viewPosition: 0.5 });
-          flashcardsListRef.current?.scrollToIndex({ index: newestIdx, animated: false });
-        } catch {}
-      }, 100);
-    }
-  }, [decks.length]);
+    const viewPosition = getViewPosition(newestIdx, decks.length);
+    scrollToDeck(newestIdx, viewPosition);
+    setHasAppliedRequestedDeck(true);
+  }, [decks.length, requestedDeckId, hasAppliedRequestedDeck, selectedDeckId]);
   
   // Load decks and flashcards on mount
   useEffect(() => {
@@ -310,18 +351,38 @@ export default function SavedFlashcardsScreen() {
     try {
       logger.log('📚 [SavedFlashcards] Calling getDecks(false)...');
       // Do not auto-create a default deck; allow zero-deck state
-      const savedDecks = await getDecks(false);
-      logger.log('📚 [SavedFlashcards] getDecks returned:', savedDecks.length, 'decks');
-      
-      if (savedDecks.length > 0) {
-        logger.log('📚 [SavedFlashcards] Deck names:', savedDecks.map(d => d.name).join(', '));
+      const cachedDecks = await getDecks(false);
+      logger.log('📚 [SavedFlashcards] getDecks returned:', cachedDecks.length, 'decks');
+
+      if (cachedDecks.length > 0) {
+        logger.log('📚 [SavedFlashcards] Deck names:', cachedDecks.map(d => d.name).join(', '));
       }
-      
-      logger.log('📚 [SavedFlashcards] Calling setDecks with', savedDecks.length, 'decks');
-      setDecks(savedDecks);
+
+      let decksToUse = cachedDecks;
+
+      // If we navigated here with a requested deck and it's missing from cache, force a network refresh
+      const needsRefresh = Boolean(
+        requestedDeckId &&
+        cachedDecks.every(deck => deck.id !== requestedDeckId) &&
+        isConnected
+      );
+
+      if (needsRefresh) {
+        logger.log('🔄 [SavedFlashcards] Requested deck not in cache; forcing refresh from server');
+        const refreshedDecks = await refreshDecksFromServer();
+        if (refreshedDecks.length > 0) {
+          logger.log('🔄 [SavedFlashcards] Refresh returned', refreshedDecks.length, 'decks');
+          decksToUse = refreshedDecks;
+        } else {
+          logger.log('⚠️ [SavedFlashcards] Refresh did not return any decks');
+        }
+      }
+
+      logger.log('📚 [SavedFlashcards] Calling setDecks with', decksToUse.length, 'decks');
+      setDecks(decksToUse);
       
       // Selection handled by separate effect to respect route params/newest deck
-      if (savedDecks.length === 0) {
+      if (decksToUse.length === 0) {
         logger.log('⚠️ [SavedFlashcards] No decks returned - user may need to sync online first');
       } 
     } catch (error) {
@@ -603,15 +664,15 @@ export default function SavedFlashcardsScreen() {
     // Update selected deck state
     setSelectedDeckId(deckId);
     setSelectedDeckIndex(index);
+    setHasAppliedRequestedDeck(true);
+    
+    // Calculate appropriate view position based on deck location
+    const viewPosition = getViewPosition(index, decks.length);
     
     // Scroll the deck selector to keep the selected deck visible
-    if (deckSelectorRef.current) {
-      deckSelectorRef.current.scrollToIndex({
-        index,
-        animated: true,
-        viewPosition: 0.5
-      });
-    }
+    try {
+      scrollDeckSelectorToIndex(index, viewPosition, true);
+    } catch {}
 
     // Scroll the deck pager to show the selected deck
     if (flashcardsListRef.current) {
@@ -632,19 +693,19 @@ export default function SavedFlashcardsScreen() {
       
       // Set loading state first to prevent showing stale content
       setIsLoadingFlashcards(true);
+      setHasAppliedRequestedDeck(true);
       
       // Update selected deck ID and index
       setSelectedDeckId(deck.id);
       setSelectedDeckIndex(index);
       
+      // Calculate appropriate view position based on deck location
+      const viewPosition = getViewPosition(index, decks.length);
+      
       // Scroll the deck selector to keep the selected deck visible
-      if (deckSelectorRef.current) {
-        deckSelectorRef.current.scrollToIndex({
-          index,
-          animated: true,
-          viewPosition: 0.5
-        });
-      }
+      try {
+        scrollDeckSelectorToIndex(index, viewPosition, true);
+      } catch {}
     }
   };
 
@@ -730,14 +791,13 @@ export default function SavedFlashcardsScreen() {
       if (newIndex >= 0) {
         // Use setTimeout to ensure the deck list has been updated
         setTimeout(() => {
+          // Calculate appropriate view position based on deck location
+          const viewPosition = getViewPosition(newIndex, newDecks.length);
+          
           // Scroll deck selector
-          if (deckSelectorRef.current) {
-            deckSelectorRef.current.scrollToIndex({
-              index: newIndex,
-              animated: true,
-              viewPosition: 0.5
-            });
-          }
+          try {
+            scrollDeckSelectorToIndex(newIndex, viewPosition, true);
+          } catch {}
           
           // Scroll main flashcard pager
           if (flashcardsListRef.current) {

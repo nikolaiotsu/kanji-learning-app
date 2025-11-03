@@ -4,7 +4,7 @@ import 'dotenv/config';
 
 export default {
   expo: {
-    name: "Worddex",
+    name: "WordDex",
     slug: "kanji-learning-app",
     // ... other existing config
     scheme: "kanjiapp",

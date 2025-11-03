@@ -249,6 +249,25 @@ const fetchAndCacheDecks = async (userId?: string, createDefaultIfEmpty: boolean
 };
 
 /**
+ * Force-refresh the deck list from Supabase (bypasses cache) and update local cache
+ * Useful after creating a new deck so consumers immediately see it
+ */
+export const refreshDecksFromServer = async (): Promise<Deck[]> => {
+  try {
+    const userId = await getUserIdOffline();
+    // Even if we don't have a user ID (edge case), attempt the fetch to keep behaviour consistent
+    const decks = await fetchAndCacheDecks(userId || undefined, false);
+    return decks;
+  } catch (error) {
+    // Don't log network errors to avoid noise
+    if (!isNetworkError(error)) {
+      logger.error('Error refreshing decks from server:', error);
+    }
+    return [];
+  }
+};
+
+/**
  * Create a new deck
  * @param name The name of the deck
  * @returns The created deck
@@ -1434,6 +1453,7 @@ export const updateFlashcard = async (flashcard: Flashcard): Promise<boolean> =>
 // Add default export to satisfy Expo Router's requirement
 export default {
   getDecks,
+  refreshDecksFromServer,
   createDeck,
   initializeDecks,
   saveFlashcard,

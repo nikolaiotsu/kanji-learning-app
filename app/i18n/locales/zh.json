@@ -56,7 +56,12 @@
       "error": "请为新收藏集输入名称",
       "failed": "创建新收藏集失败。请重试。"
     },
-    "created": "创建时间：{{date}}"
+    "created": "创建时间：{{date}}",
+    "reorder": {
+      "title": "重新排列收藏集",
+      "instruction": "长按并拖动以重新排列您的收藏集",
+      "failed": "更新收藏集顺序失败"
+    }
   },
   "flashcard": {
 
