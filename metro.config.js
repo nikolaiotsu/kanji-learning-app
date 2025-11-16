@@ -13,11 +13,14 @@ module.exports = (() => {
     // Resolve React Native specific modules and exclude Node.js specific ones
     resolverMainFields: ['react-native', 'browser', 'main'],
     platforms: ['ios', 'android', 'native', 'web'],
-    // Exclude Node.js specific modules from being bundled
+    // Exclude Node.js specific modules and test files from being bundled
     blockList: [
       /node_modules\/ws\//,
       /node_modules\/bufferutil/,
       /node_modules\/utf-8-validate/,
+      /.*\/__tests__\/.*/,  // Exclude all __tests__ directories
+      /.*\.test\.(js|ts|tsx)$/,  // Exclude all .test files
+      /.*\.spec\.(js|ts|tsx)$/,  // Exclude all .spec files
     ],
     // Custom resolver for Node.js modules
     resolveRequest: (context, moduleName, platform) => {

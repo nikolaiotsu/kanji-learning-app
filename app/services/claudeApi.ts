@@ -4,6 +4,7 @@ import { Alert } from 'react-native';
 import { apiLogger, logClaudeAPI, APIUsageMetrics } from './apiUsageLogger';
 import { validateTextLength } from '../utils/inputValidation';
 import { logger } from '../utils/logger';
+import { sanitizeKoreanRomanization, analyzeKoreanRomanization } from './koreanRomanizationGuards';
 import { 
   containsJapanese, 
   containsChinese, 
@@ -19,7 +20,8 @@ import {
   containsArabicText,
   containsHindiText,
   containsEsperantoText,
-  containsKanji
+  containsKanji,
+  normalizeQuotationMarks
 } from '../utils/textFormatting';
 
 // Define response structure
@@ -93,50 +95,99 @@ function cleanJsonString(jsonString: string): string {
     let furiganaValue = '';
 
     if (furiganaStart !== -1) {
-      // Extract furiganaText value - improved extraction to handle large texts
+      // Extract furiganaText value using INDUSTRY STANDARD approach
       const furiganaColonIndex = cleaned.indexOf(':', furiganaStart);
       const furiganaQuoteStart = cleaned.indexOf('"', furiganaColonIndex) + 1;
 
-      // Find the end quote, handling escaped quotes
-      // Use a more robust approach to find the closing quote
       let furiganaQuoteEnd = furiganaQuoteStart;
       let inEscapeFurigana = false;
 
+      // Same robust parsing logic as translatedText
       while (furiganaQuoteEnd < cleaned.length) {
         const char = cleaned[furiganaQuoteEnd];
 
         if (inEscapeFurigana) {
           inEscapeFurigana = false;
-        } else if (char === '\\') {
+          furiganaQuoteEnd++;
+          continue;
+        }
+
+        if (char === '\\') {
           inEscapeFurigana = true;
-        } else if (char === '"') {
-          // Found unescaped quote
-          break;
+          furiganaQuoteEnd++;
+          continue;
+        }
+
+        if (char === '"') {
+          // Check what follows this quote
+          let nextNonWhitespace = furiganaQuoteEnd + 1;
+          while (nextNonWhitespace < cleaned.length && 
+                 /\s/.test(cleaned[nextNonWhitespace])) {
+            nextNonWhitespace++;
+          }
+          
+          const nextChar = cleaned[nextNonWhitespace];
+          
+          // Valid ending: comma, closing brace, or end of string
+          if (nextChar === ',' || nextChar === '}' || nextNonWhitespace >= cleaned.length) {
+            break;
+          }
         }
 
         furiganaQuoteEnd++;
       }
 
-      furiganaValue = cleaned.substring(furiganaQuoteStart, Math.min(furiganaQuoteEnd, cleaned.length));
+      furiganaValue = cleaned.substring(furiganaQuoteStart, furiganaQuoteEnd);
     }
 
-    // Extract translatedText value with the same improved approach
+    // Extract translatedText value with INDUSTRY STANDARD approach
+    // Parse character by character, respecting JSON escape sequences
+    // This handles quotes, commas, and braces within the value correctly
     const translationColonIndex = cleaned.indexOf(':', translationStart);
     const translationQuoteStart = cleaned.indexOf('"', translationColonIndex) + 1;
     
     let translationQuoteEnd = translationQuoteStart;
     let inEscape = false;
-
+    
+    // BEST PRACTICE: Scan forward respecting escape sequences until we find:
+    // - An unescaped quote followed by optional whitespace and either:
+    //   - A comma (next field)
+    //   - A closing brace (end of object)
+    //   - End of string
     while (translationQuoteEnd < cleaned.length) {
       const char = cleaned[translationQuoteEnd];
       
       if (inEscape) {
+        // Previous char was backslash, this char is escaped
         inEscape = false;
-      } else if (char === '\\') {
+        translationQuoteEnd++;
+        continue;
+      }
+      
+      if (char === '\\') {
+        // Start of escape sequence
         inEscape = true;
-      } else if (char === '"') {
-        // Found unescaped quote
-        break;
+        translationQuoteEnd++;
+        continue;
+      }
+      
+      if (char === '"') {
+        // Found potential closing quote
+        // Check what comes after (allowing whitespace)
+        let nextNonWhitespace = translationQuoteEnd + 1;
+        while (nextNonWhitespace < cleaned.length && 
+               /\s/.test(cleaned[nextNonWhitespace])) {
+          nextNonWhitespace++;
+        }
+        
+        const nextChar = cleaned[nextNonWhitespace];
+        
+        // Valid JSON value endings: comma (next field), closing brace (end), or end of string
+        if (nextChar === ',' || nextChar === '}' || nextNonWhitespace >= cleaned.length) {
+          // This is the actual closing quote
+          break;
+        }
+        // Otherwise, this quote is part of the value content, keep scanning
       }
       
       translationQuoteEnd++;
@@ -149,9 +200,17 @@ function cleanJsonString(jsonString: string): string {
     logger.log(`Extracted furigana length: ${furiganaValue.length}`);
     logger.log(`Extracted translation length: ${translationValue.length}`);
     
-    // Clean up the extracted values - remove ALL problematic characters
+    // Clean up the extracted values
+    // CRITICAL: Remove JSON artifacts and clean problematic characters
+    // STEP 1: Unescape JSON escape sequences first
     furiganaValue = furiganaValue
-      .replace(/[""‚„«»]/g, '"')     // Unicode quotes → regular quotes
+      .replace(/\\"/g, '"')          // Unescape quotes \" → "
+      .replace(/\\\\/g, '\\')        // Unescape backslashes \\\\ → \\
+      .replace(/\\n/g, '\n')         // Unescape newlines
+      .replace(/\\t/g, '\t')         // Unescape tabs
+      .replace(/\\r/g, '\r')         // Unescape carriage returns
+      .replace(/[\s}]+$/, '')        // Remove trailing whitespace and JSON artifacts like }
+      .replace(/[""‚„]/g, '"')       // Unicode quotes → regular quotes (keep « » as-is)
       .replace(/[''‛‹›]/g, "'")      // Unicode single quotes → regular quotes  
       .replace(/[–—]/g, '-')         // Unicode dashes → regular dashes
       .replace(/[\u00A0\u2000-\u200B\u2028\u2029]/g, ' ') // Unicode spaces → regular spaces
@@ -160,7 +219,13 @@ function cleanJsonString(jsonString: string): string {
       .trim();
     
     translationValue = translationValue
-      .replace(/[""‚„«»]/g, '"')     // Unicode quotes → regular quotes
+      .replace(/\\"/g, '"')          // Unescape quotes \" → "
+      .replace(/\\\\/g, '\\')        // Unescape backslashes \\\\ → \\
+      .replace(/\\n/g, '\n')         // Unescape newlines
+      .replace(/\\t/g, '\t')         // Unescape tabs
+      .replace(/\\r/g, '\r')         // Unescape carriage returns
+      .replace(/[\s}]+$/, '')        // Remove trailing whitespace and JSON artifacts like }
+      .replace(/[""‚„]/g, '"')       // Unicode quotes → regular quotes (keep « » as-is)
       .replace(/[''‛‹›]/g, "'")      // Unicode single quotes → regular quotes
       .replace(/[–—]/g, '-')         // Unicode dashes → regular dashes
       .replace(/[\u00A0\u2000-\u200B\u2028\u2029]/g, ' ') // Unicode spaces → regular spaces
@@ -704,6 +769,12 @@ export async function processWithClaude(
   forcedLanguage: string = 'auto',
   onProgress?: (checkpoint: number) => void
 ): Promise<ClaudeResponse> {
+  // CRITICAL: Normalize quotation marks and special characters BEFORE processing
+  // This prevents JSON parsing issues when Claude includes quotes in translations
+  // E.g., French << suspension >> → « suspension » (safe for JSON)
+  text = normalizeQuotationMarks(text);
+  logger.log('[Claude API] Text normalized for safe JSON processing');
+  
   // Start logging metrics
   const metrics: APIUsageMetrics = apiLogger.startAPICall('https://api.anthropic.com/v1/messages', {
     text: text.substring(0, 100), // Log first 100 chars for debugging
@@ -829,6 +900,24 @@ export async function processWithClaude(
   if (forcedLanguage !== 'auto') {
     logger.log(`Using forced language detection: ${forcedLanguage} (${primaryLanguage})`);
   }
+
+  const shouldEnforceKoreanRomanization =
+    primaryLanguage === "Korean" || forcedLanguage === 'ko';
+
+  const applyKoreanRomanizationGuards = (value: string, context: string) => {
+    if (!shouldEnforceKoreanRomanization || !value) {
+      return value;
+    }
+
+    const { sanitizedText, strippedAnnotations } = sanitizeKoreanRomanization(value);
+    if (strippedAnnotations.length > 0) {
+      const preview = strippedAnnotations.slice(0, 3).join(', ');
+      logger.warn(
+        `[KoreanRomanization] Removed ${strippedAnnotations.length} non-Hangul annotations during ${context}: ${preview}`
+      );
+    }
+    return sanitizedText;
+  };
   
   // Add explicit debugging for Japanese forced detection
   if (forcedLanguage === 'ja') {
@@ -931,11 +1020,13 @@ TRANSLATION GUIDELINES:
 - Choose appropriate levels of formality based on context
 - Use natural Chinese expressions rather than literal translations
 - Ensure proper sentence structure and flow
+- CRITICAL: For quoted speech, use proper Chinese quotation marks 「」or 『』instead of Western quotes
+- If the source has quoted phrases, translate them naturally using Chinese punctuation conventions
 
 Format your response as valid JSON with these exact keys:
 {
   "furiganaText": "",
-  "translatedText": "Natural Chinese translation using appropriate Chinese characters - NO pinyin readings"
+  "translatedText": "Natural Chinese translation using appropriate Chinese characters and Chinese quotation marks 「」- NO pinyin readings or Western quotes"
 }`;
       }
       // FAILSAFE: If Japanese is forced, always use Japanese prompt regardless of detected language
@@ -1219,10 +1310,11 @@ You are a Korean language expert. I need you to analyze and translate this Korea
 CRITICAL FORMATTING REQUIREMENTS FOR KOREAN TEXT:
 - Keep all original Korean text exactly as is (including any English words, numbers, or punctuation)
 - For EVERY Korean word/phrase, add the Revised Romanization in parentheses immediately after the Korean text
-- Do NOT add romanization to English words or numbers - leave them unchanged
+- Do NOT add romanization to English words, numbers, or punctuation - leave them untouched and remove any accidental parentheses
 - Follow the official Revised Romanization system rules
 - The format should be: 한국어(han-gug-eo) NOT "han-gug-eo (Korean)" or any other format
 - Do NOT mix English translations in the romanization - only provide pronunciation guide
+- NEVER output Japanese romaji spellings (ni-sen, san-ju, shi, tsu, etc.) even if the translation target is Japanese. Romanization must always remain Korean Revised Romanization.
 - Translate into ${targetLangName} language, NOT English (unless English is specifically requested)
 
 KOREAN-SPECIFIC VALIDATION:
@@ -1259,6 +1351,7 @@ WRONG examples (do NOT use these formats):
 - "gong-bu-ha-go (study)" ❌
 - Inconsistent vowels: "학생" as "hag-sang" instead of "hag-saeng" ❌
 - Missing syllable boundaries in compounds ❌
+- Japanese romaji numbers or syllables such as "2030(ni-sen-san-ju)" or "국회에(goku-e)" ❌
 
 Format your response as valid JSON with these exact keys:
 {
@@ -2343,7 +2436,7 @@ Format your response as valid JSON with these exact keys:
             }
             
             // For Japanese text, validate furigana coverage
-            let furiganaText = parsedContent.furiganaText || "";
+            let furiganaText = applyKoreanRomanizationGuards(parsedContent.furiganaText || "", "initial-parse");
             
             // Universal verification for readings (furigana, pinyin, etc.)
             if (furiganaText && retryCount < MAX_RETRIES - 1) {
@@ -2388,7 +2481,9 @@ For Korean text:
 - Verify ㅡ (eu) vs ㅜ (u) consistency
 - Check compound word boundaries are logical with clear syllable separation
 - Validate formal endings are complete (-습니다 = -seum-ni-da, -았습니다 = -ass-seum-ni-da)
-- Verify common patterns: particles (은/는 = eun/neun), time expressions (시 = si), causative forms (-시키다 = -si-ki-da)`;
+- Verify common patterns: particles (은/는 = eun/neun), time expressions (시 = si), causative forms (-시키다 = -si-ki-da)
+- Reject any annotations where the base text has zero Hangul (numbers, Latin text, punctuation). Those parentheses must be removed entirely.
+- Flag readings that contain Japanese-only romaji such as ni-sen, san-ju, gatsu, desu, shi, or tsu.`;
               } else if (primaryLanguage === "Russian" || forcedLanguage === 'ru') {
                 readingType = "transliteration";
                 readingSpecificInstructions = `
@@ -2480,7 +2575,7 @@ Format your response as valid JSON with these exact keys:
                     if (!isReadingComplete && verifiedFuriganaText.length > furiganaText.length) {
                       logger.log(`${readingType} were incomplete. Analysis: ${readingAnalysis}`);
                       logger.log(`Using improved ${readingType} from verification`);
-                      furiganaText = verifiedFuriganaText;
+                      furiganaText = applyKoreanRomanizationGuards(verifiedFuriganaText, "reading-verification");
                     } else {
                       logger.log(`${readingType} verification result: ${isReadingComplete ? 'Complete' : 'Incomplete'}`);
                       if (!isReadingComplete) {
@@ -2846,7 +2941,7 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
                         // Use retry result if it's significantly better
                         if (retryValidation.accuracy > validation.accuracy + 5 || 
                             (retryValidation.isValid && !validation.isValid)) {
-                          furiganaText = retryRomanizedText;
+                          furiganaText = applyKoreanRomanizationGuards(retryRomanizedText, "korean-retry");
                           logger.log(`Korean retry successful - improved accuracy from ${validation.accuracy}% to ${retryValidation.accuracy}%`);
                         } else {
                           logger.log(`Korean retry did not significantly improve romanization quality - using original result`);
@@ -2871,7 +2966,7 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
             onProgress?.(4);
             
             const result = {
-              furiganaText: furiganaText,
+              furiganaText: applyKoreanRomanizationGuards(furiganaText, "final-output"),
               translatedText: translatedText
             };
 
@@ -2902,7 +2997,7 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
                 const blockParsedContent = JSON.parse(blockJsonString);
                 logger.log("Successfully parsed JSON from block markers");
                 const result = {
-                  furiganaText: blockParsedContent.furiganaText || "",
+                  furiganaText: applyKoreanRomanizationGuards(blockParsedContent.furiganaText || "", "fallback-block-parse"),
                   translatedText: blockParsedContent.translatedText || ""
                 };
 
@@ -2927,7 +3022,7 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
                 const flexibleParsedContent = JSON.parse(flexibleJsonString);
                 logger.log("Successfully parsed JSON with flexible regex");
                 const result = {
-                  furiganaText: flexibleParsedContent.furiganaText || "",
+                  furiganaText: applyKoreanRomanizationGuards(flexibleParsedContent.furiganaText || "", "fallback-flex-parse"),
                   translatedText: flexibleParsedContent.translatedText || ""
                 };
 
@@ -2951,7 +3046,10 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
               if (furiganaMatch && translatedMatch) {
                 logger.log("Extracted values manually with regex");
                 const result = {
-                  furiganaText: furiganaMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\'),
+                  furiganaText: applyKoreanRomanizationGuards(
+                    furiganaMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\'),
+                    "fallback-manual-parse"
+                  ),
                   translatedText: translatedMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\')
                 };
 
@@ -3067,6 +3165,11 @@ function validatePinyinAccuracy(originalText: string, pinyinText: string): {
 } {
   const issues: string[] = [];
   const suggestions: string[] = [];
+  const addSuggestion = (message: string) => {
+    if (!suggestions.includes(message)) {
+      suggestions.push(message);
+    }
+  };
   
   // Extract all Chinese characters from original text
   const chineseCharRegex = /[\u4e00-\u9fff]/g;
@@ -3273,6 +3376,11 @@ function validateKoreanRomanization(originalText: string, romanizedText: string)
 } {
   const issues: string[] = [];
   const suggestions: string[] = [];
+  const addSuggestion = (message: string) => {
+    if (!suggestions.includes(message)) {
+      suggestions.push(message);
+    }
+  };
   
   // Extract all Korean characters from original text (Hangul syllables)
   const koreanRegex = /[\uAC00-\uD7AF]/g;
@@ -3296,8 +3404,19 @@ function validateKoreanRomanization(originalText: string, romanizedText: string)
   
   if (totalCoveredChars < totalKoreanCount * 0.9) { // Allow 10% tolerance for edge cases
     issues.push("Incomplete romanization coverage - some Korean words missing romanization");
-    suggestions.push("Ensure all Korean words have romanization readings");
+    addSuggestion("Ensure all Korean words have romanization readings");
   }
+
+  const annotationIssues = analyzeKoreanRomanization(romanizedText);
+  annotationIssues.forEach(issue => {
+    if (issue.reason === 'nonHangulBase') {
+      issues.push(`Romanization applied to non-Hangul text: ${issue.base}(${issue.reading})`);
+      addSuggestion("Remove romanization from numbers/Latin text and only annotate Hangul words.");
+    } else if (issue.reason === 'japaneseSyllable') {
+      issues.push(`Japanese-style romaji detected: ${issue.base}(${issue.reading})`);
+      addSuggestion("Use Revised Romanization syllables (no ni-sen, san-ju, shi, tsu, gatsu, desu, etc.).");
+    }
+  });
   
   // Check 2: ㅓ/ㅗ vowel distinction accuracy
   const vowelDistinctionChecks = [

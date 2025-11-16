@@ -1,4 +1,29 @@
 /**
+ * Normalizes quotation marks and special punctuation to prevent JSON parsing issues.
+ * Converts ASCII pseudo-quotes to proper typographic quotes that won't break JSON strings.
+ * @param text The text to normalize
+ * @returns Text with normalized quotation marks
+ */
+export function normalizeQuotationMarks(text: string): string {
+  if (!text) return text;
+  
+  return text
+    // Convert << >> to French guillemets (safer for JSON)
+    .replace(/<<\s*/g, '\u00AB')  // « (U+00AB LEFT-POINTING DOUBLE ANGLE QUOTATION MARK)
+    .replace(/\s*>>/g, '\u00BB')  // » (U+00BB RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK)
+    // CRITICAL: Convert ALL straight ASCII double quotes to typographic quotes
+    // This prevents JSON parsing errors when Claude includes quotes in translations
+    // We use a simple alternating pattern: odd quotes = open, even quotes = close
+    .replace(/"/g, (match, offset, string) => {
+      // Count preceding quotes to determine if this is opening or closing
+      const precedingQuotes = string.substring(0, offset).split('"').length - 1;
+      return precedingQuotes % 2 === 0 ? '\u201C' : '\u201D';  // " or "
+    })
+    // Convert straight single quotes to typographic apostrophes in contractions
+    .replace(/(\w)'(\w)/g, '$1\u2019$2');  // ' (U+2019 RIGHT SINGLE QUOTATION MARK)
+}
+
+/**
  * Cleans text by removing unwanted characters and formatting
  */
 export function cleanText(text: string): string {
@@ -7,6 +32,9 @@ export function cleanText(text: string): string {
   
   // Remove extra spaces
   cleanedText = cleanedText.replace(/\s+/g, ' ').trim();
+  
+  // Normalize quotation marks to prevent JSON parsing issues
+  cleanedText = normalizeQuotationMarks(cleanedText);
   
   // Check if text contains Chinese or Japanese characters
   const containsChineseOrJapanese = containsChineseJapanese(cleanedText);
@@ -239,7 +267,8 @@ export const cleanJapaneseText = cleanText;
 // Add this default export to satisfy Expo Router
 const TextFormatting = { 
   cleanText, 
-  cleanJapaneseText, 
+  cleanJapaneseText,
+  normalizeQuotationMarks,
   containsJapanese, 
   containsChineseJapanese,
   containsChinese,
