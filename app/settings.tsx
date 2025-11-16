@@ -148,19 +148,6 @@ export default function SettingsScreen() {
           
           <TouchableOpacity
             style={styles.settingItem}
-            onPress={handleShowLanguageSelector}
-          >
-            <Ionicons name="language-outline" size={24} color={COLORS.primary} style={styles.settingIcon} />
-            <View style={styles.settingTextContainer}>
-              <Text style={styles.settingLabel}>{t('settings.translateTo')}</Text>
-              <Text style={styles.settingDescription}>
-                {availableLanguages[targetLanguage as keyof typeof availableLanguages]} {t('settings.tapToChange')}
-              </Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.settingItem}
             onPress={handleShowDetectionSelector}
           >
             <Ionicons name="scan-outline" size={24} color={COLORS.primary} style={styles.settingIcon} />
@@ -178,6 +165,19 @@ export default function SettingsScreen() {
                 <Ionicons name="refresh" size={20} color={COLORS.text} />
               </TouchableOpacity>
             )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={handleShowLanguageSelector}
+          >
+            <Ionicons name="language-outline" size={24} color={COLORS.primary} style={styles.settingIcon} />
+            <View style={styles.settingTextContainer}>
+              <Text style={styles.settingLabel}>{t('settings.translateTo')}</Text>
+              <Text style={styles.settingDescription}>
+                {availableLanguages[targetLanguage as keyof typeof availableLanguages]} {t('settings.tapToChange')}
+              </Text>
+            </View>
           </TouchableOpacity>
 
           {/* Language Swap Button */}

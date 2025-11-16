@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS } from '../../constants/colors';
-import { cleanFuriganaText, validateFuriganaFormat } from '../../utils/furiganaUtils';
+import { parseFuriganaText, FuriganaWord } from '../../utils/furiganaUtils';
 
 interface FuriganaTextProps {
   text: string;
@@ -11,12 +11,6 @@ interface FuriganaTextProps {
   furiganaColor?: string;
   textAlign?: 'left' | 'center' | 'right';
   style?: any;
-}
-
-interface FuriganaSegment {
-  kanji: string;  // The original characters (kanji, hanzi, hangul, cyrillic, arabic, or devanagari)
-  furigana: string;  // The reading (hiragana, pinyin, romanization, or transliteration)
-  type: 'furigana' | 'plain';
 }
 
 const FuriganaText: React.FC<FuriganaTextProps> = ({
@@ -32,100 +26,99 @@ const FuriganaText: React.FC<FuriganaTextProps> = ({
   const calcFuriganaFontSize = furiganaFontSize || Math.max(10, fontSize * 0.5);
   const calcFuriganaColor = furiganaColor || color;
 
-  // Parse the text into segments with and without furigana
-  const parseText = (inputText: string): FuriganaSegment[] => {
-    const segments: FuriganaSegment[] = [];
+  /**
+   * Memoized parsing: Only re-parse when the input text changes.
+   * This prevents expensive regex operations on every render.
+   */
+  const words = useMemo(() => {
+    console.log('[FuriganaText] Input text:', text);
+    const parsed = parseFuriganaText(text);
+    console.log('[FuriganaText] Parsed words:', JSON.stringify(parsed, null, 2));
     
-    // Clean the input text first
-    const cleanedText = cleanFuriganaText(inputText);
-    
-    // Validate format
-    if (!validateFuriganaFormat(cleanedText)) {
-      // If no valid furigana format found, treat as plain text
-      segments.push({
-        kanji: cleanedText,
-        furigana: '',
-        type: 'plain'
-      });
-      return segments;
-    }
-    
-    // Regex to match text with readings in parentheses
-    // Now supports mixed kanji-hiragana-katakana words and punctuation
-    // For Japanese: 東京(とうきょう) - kanji with hiragana
-    //              落ち着いた(おちついた) - mixed kanji-hiragana with hiragana reading
-    //              食べ物(たべもの) - mixed kanji-hiragana with hiragana reading
-    // For Chinese: 中国(zhōngguó) - hanzi with pinyin
-    // For Korean: 한국어(han-gug-eo) or 안녕하세요!(an-nyeong-ha-se-yo!) - hangul with romanization
-    // For Russian: Русский(russkiy) - cyrillic with romanization
-    // For Arabic: العربية(al-arabiya) - arabic with transliteration
-    // For Hindi: हिन्दी(hindī) - devanagari with IAST romanization
-    const readingRegex = /([\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F\u3040-\u309f\u30a0-\u30ff]+)([!?.,;:'"'"‚""„‹›«»‑–—…\s]*)\(([ぁ-ゟa-zA-ZāēīōūǎěǐǒǔàèìòùáéíóúǘǙǚǜǖǕǗǙǛüÜɑśṅñṭḍṇḷṛṣḥṁṃḷ̥ṝṟĝśḱńṗṟť\s\-0-9!?.,;:'"'"‚""„‹›«»‑–—…]+)\)/g;
-    
-    let lastIndex = 0;
-    let match;
-    
-    while ((match = readingRegex.exec(cleanedText)) !== null) {
-      // Add any plain text before this match
-              if (match.index > lastIndex) {
-          const plainText = cleanedText.slice(lastIndex, match.index);
-        // Clean up any English words that accidentally got furigana annotations
-        // Remove patterns like "LINE(らいん)" -> "LINE"
-        const cleanedPlainText = plainText.replace(/([a-zA-Z]+)\([ぁ-ゟa-zA-Z\s\-0-9!?.,;:'"'"‚""„‹›«»‑–—…]+\)/g, '$1');
-        if (cleanedPlainText.trim()) {
-          segments.push({
-            kanji: cleanedPlainText,
-            furigana: '',
-            type: 'plain'
-          });
+    // Validation: Log warnings for potential data quality issues
+    parsed.forEach((word, index) => {
+      if (word.type === 'ruby' && word.ruby) {
+        const baseLength = Array.from(word.base).length;
+        const rubyLength = Array.from(word.ruby).length;
+        
+        // Warn if ruby text is significantly shorter than base (might indicate missing mora)
+        if (rubyLength < baseLength * 0.5) {
+          console.warn(
+            `[FuriganaText] Potential data issue at word ${index}: ` +
+            `base="${word.base}" (${baseLength} chars) has unusually short ` +
+            `ruby="${word.ruby}" (${rubyLength} chars). Check if reading is complete.`
+          );
         }
       }
-      
-      // Safety check: Filter out English words that accidentally got furigana
-      // Check if match[1] contains only ASCII letters (a-z, A-Z) - this is an error
-      const mainText = match[1];
-      const isOnlyEnglish = /^[a-zA-Z]+$/.test(mainText);
-      
-      if (isOnlyEnglish) {
-        // This is an English word that shouldn't have furigana - treat as plain text
-        segments.push({
-          kanji: mainText + (match[2] || ''),
-          furigana: '',
-          type: 'plain'
-        });
-      } else {
-        // Valid furigana segment - add it
-        segments.push({
-          kanji: mainText + (match[2] || ''), // Include punctuation with the main text
-          furigana: match[3],
-          type: 'furigana'
-        });
-      }
-      
-      lastIndex = readingRegex.lastIndex;
-    }
+    });
     
-    // Add any remaining plain text
-    if (lastIndex < cleanedText.length) {
-      const remainingText = cleanedText.slice(lastIndex);
-      // Clean up any English words that accidentally got furigana annotations
-      const cleanedRemainingText = remainingText.replace(/([a-zA-Z]+)\([ぁ-ゟa-zA-Z\s\-0-9!?.,;:'"'"‚""„‹›«»‑–—…]+\)/g, '$1');
-      if (cleanedRemainingText.trim()) {
-        segments.push({
-          kanji: cleanedRemainingText,
-          furigana: '',
-          type: 'plain'
-        });
-      }
-    }
-    
-    return segments;
+    return parsed;
+  }, [text]);
+
+  /**
+   * Render a word with ruby annotation (furigana above kanji).
+   * Industry best practice: Stack ruby text directly above base text in a centered column.
+   * This mimics HTML <ruby> behavior and ensures consistent alignment.
+   * 
+   * CRITICAL: Let React Native measure text naturally instead of forcing widths.
+   * The container flexes to fit the wider of base or ruby text.
+   */
+  const renderRubyWord = (word: FuriganaWord, index: number) => {
+    return (
+      <View 
+        key={`ruby-${index}`} 
+        style={styles.rubyColumn}
+      >
+        <Text
+          style={[
+            styles.rubyText,
+            {
+              fontSize: calcFuriganaFontSize,
+              color: calcFuriganaColor,
+            }
+          ]}
+          numberOfLines={1}
+        >
+          {word.ruby}
+        </Text>
+        <Text
+          style={[
+            styles.baseText,
+            {
+              fontSize,
+              color,
+            }
+          ]}
+          numberOfLines={1}
+        >
+          {word.base}
+        </Text>
+      </View>
+    );
   };
 
-  const segments = parseText(text);
+  /**
+   * Render plain text without ruby annotation.
+   * No artificial spacing - alignment is handled by flexbox baseline.
+   */
+  const renderPlainWord = (word: FuriganaWord, index: number) => (
+    <View key={`text-${index}`} style={styles.textColumn}>
+      <Text
+        style={[
+          styles.plainText,
+          {
+            fontSize,
+            color,
+          }
+        ]}
+      >
+        {word.base}
+      </Text>
+    </View>
+  );
 
-  // If no furigana found, render as plain text
-  if (segments.length === 0 || segments.every(s => s.type === 'plain')) {
+  // If no words parsed or all plain text, render simply
+  if (words.length === 0 || words.every(w => w.type === 'text')) {
     return (
       <Text style={[{ fontSize, color, textAlign }, style]}>
         {text}
@@ -136,54 +129,29 @@ const FuriganaText: React.FC<FuriganaTextProps> = ({
   return (
     <View style={[styles.container, { alignItems: textAlign === 'center' ? 'center' : textAlign === 'right' ? 'flex-end' : 'flex-start' }, style]}>
       <View style={styles.textContainer}>
-        {segments.map((segment, index) => (
-          <View key={index} style={styles.segmentContainer}>
-            {segment.type === 'furigana' ? (
-              <>
-                {/* Furigana text positioned above */}
-                <Text style={[
-                  styles.furiganaText,
-                  {
-                    fontSize: calcFuriganaFontSize,
-                    color: calcFuriganaColor,
-                    textAlign: 'center'
-                  }
-                ]}>
-                  {segment.furigana}
-                </Text>
-                {/* Main kanji text below */}
-                <Text style={[
-                  styles.kanjiText,
-                  {
-                    fontSize,
-                    color,
-                    textAlign: 'center'
-                  }
-                ]}>
-                  {segment.kanji}
-                </Text>
-              </>
-            ) : (
-              // Plain text without furigana
-              <Text style={[
-                styles.plainText,
-                {
-                  fontSize,
-                  color,
-                  // Add top margin to align with kanji that have furigana
-                  marginTop: calcFuriganaFontSize + 2
-                }
-              ]}>
-                {segment.kanji}
-              </Text>
-            )}
-          </View>
-        ))}
+        {words.map((word, index) =>
+          word.type === 'ruby'
+            ? renderRubyWord(word, index)
+            : renderPlainWord(word, index)
+        )}
       </View>
     </View>
   );
 };
 
+/**
+ * Styles following industry best practices for ruby text rendering:
+ * - Use flexbox baseline alignment to keep all text on the same line
+ * - Center ruby text above base text naturally without width calculations
+ * - Let Text components size themselves based on content
+ * - Minimal spacing between words for natural reading flow
+ * 
+ * This matches the HTML <ruby> tag standard used by:
+ * - NHK News Web Easy
+ * - Kindle Japanese e-books
+ * - Jisho.org dictionary
+ * - Japanese language learning apps
+ */
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'column',
@@ -191,21 +159,32 @@ const styles = StyleSheet.create({
   textContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    alignItems: 'flex-end',
+    alignItems: 'flex-end', // Align all columns by their baseline (bottom text)
   },
-  segmentContainer: {
+  rubyColumn: {
+    flexDirection: 'column',
+    alignItems: 'center', // Center ruby text above base text
+    justifyContent: 'flex-end', // Align to baseline
+    flexShrink: 0, // Prevent shrinking
+  },
+  textColumn: {
+    flexDirection: 'column',
     alignItems: 'center',
-    marginHorizontal: 1,
+    justifyContent: 'flex-end', // Align plain text with baseline of ruby columns
+    flexShrink: 0, // Prevent shrinking
   },
-  furiganaText: {
-    lineHeight: undefined, // Use default line height for furigana
-    marginBottom: 2,
+  rubyText: {
+    textAlign: 'center',
+    marginBottom: 1, // Minimal gap between ruby and base text
+    writingDirection: 'ltr', // Force left-to-right for horizontal furigana
   },
-  kanjiText: {
-    lineHeight: undefined, // Use default line height for kanji
+  baseText: {
+    textAlign: 'center',
+    writingDirection: 'ltr', // Force left-to-right
   },
   plainText: {
-    lineHeight: undefined, // Use default line height for plain text
+    textAlign: 'center',
+    writingDirection: 'ltr', // Force left-to-right
   },
 });
 
