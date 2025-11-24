@@ -154,16 +154,24 @@ export function parseFuriganaText(text: string): FuriganaWord[] {
   // PUNCTUATION HANDLING: Allow optional punctuation between base and reading
   // e.g., 심각하다"(sim-gag-ha-da) or 요청했다.(yo-cheong-haess-da.)
   // We capture the punctuation and move it outside the ruby annotation
-  const rubyRegex = /([\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F]+)(["'.!?,;:。、]+)?\(([ぁ-ゟa-zA-ZāēīōūǎěǐǒǔàèìòùáéíóúǘǙǚǜǖǕǗǙǛüÜɑśṅñṭḍṇḷṛṣḥṁṃḷ̥ṝṟĝśḱńṗṟť\s\-0-9!?.,;:'"‚""„‹›«»‑–—…]+)\)/g;
+  //
+  // QUOTE WRAPPING: Handle quotes/guillemets wrapping the base text
+  // e.g., «الأهرام»(al-'ahraam) or "東京"(とうきょう)
+  // We capture leading and trailing quotes separately
+  //
+  // COMBINING DIACRITICAL MARKS: Include Unicode combining marks (U+0300-U+036F, U+0323-U+0333)
+  // for languages that use them in romanization (e.g., Arabic k̲h̲, Hindi ṃ, etc.)
+  const rubyRegex = /([«»"'「」『』‹›]?)([\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F]+)([»«"'」」』』›‹.!?,;:。、]+)?\(([ぁ-ゟa-zA-ZāēīōūǎěǐǒǔàèìòùáéíóúǘǙǚǜǖǕǗǙǛüÜɑśṅñṭḍṇḷṛṣḥṁṃḷ̥ṝṟĝśḱńṗṟť\u0300-\u036F\u0323-\u0333\s\-0-9!?.,;:'"‚""„‹›«»‑–—…']+)\)/g;
   
   let lastIndex = 0;
   let match;
   
   while ((match = rubyRegex.exec(cleanedText)) !== null) {
-    const fullMatch = match[0];        // e.g., "東京(とうきょう)" or "심각하다"(sim-gag-ha-da)"
-    const baseText = match[1];         // e.g., "東京" or "심각하다" (captured group 1)
-    const punctuation = match[2] || '';// e.g., """ or "." (captured group 2, optional)
-    const reading = match[3];          // e.g., "とうきょう" or "sim-gag-ha-da" (captured group 3)
+    const fullMatch = match[0];          // e.g., "«الأهرام»(al-'ahraam)" or "東京(とうきょう)"
+    const leadingQuote = match[1] || ''; // e.g., "«" or """ (captured group 1, optional)
+    const baseText = match[2];           // e.g., "الأهرام" or "東京" (captured group 2)
+    const trailingPunct = match[3] || '';// e.g., "»" or "." (captured group 3, optional)
+    const reading = match[4];            // e.g., "al-'ahraam" or "とうきょう" (captured group 4)
     const matchStart = match.index;
     
     // Add plain text before this ruby annotation
@@ -174,11 +182,16 @@ export function parseFuriganaText(text: string): FuriganaWord[] {
       }
     }
     
+    // Add leading quote as plain text if present
+    if (leadingQuote) {
+      words.push({ base: leadingQuote, ruby: '', type: 'text' });
+    }
+    
     // FILTER 1: Skip English-only words that shouldn't have furigana
     if (/^[a-zA-Z]+$/.test(baseText)) {
       words.push({ base: baseText, ruby: '', type: 'text' });
-      if (punctuation) {
-        words.push({ base: punctuation, ruby: '', type: 'text' });
+      if (trailingPunct) {
+        words.push({ base: trailingPunct, ruby: '', type: 'text' });
       }
       lastIndex = rubyRegex.lastIndex;
       continue;
@@ -194,8 +207,8 @@ export function parseFuriganaText(text: string): FuriganaWord[] {
     if (isOnlyHiragana && readingMatchesBase) {
       // This is hiragana annotated with itself - treat as plain text
       words.push({ base: baseText, ruby: '', type: 'text' });
-      if (punctuation) {
-        words.push({ base: punctuation, ruby: '', type: 'text' });
+      if (trailingPunct) {
+        words.push({ base: trailingPunct, ruby: '', type: 'text' });
       }
       lastIndex = rubyRegex.lastIndex;
       continue;
@@ -206,8 +219,8 @@ export function parseFuriganaText(text: string): FuriganaWord[] {
     const isOnlyKana = /^[\u3040-\u309f\u30a0-\u30ff]+$/.test(baseText);
     if (isOnlyKana) {
       words.push({ base: baseText, ruby: '', type: 'text' });
-      if (punctuation) {
-        words.push({ base: punctuation, ruby: '', type: 'text' });
+      if (trailingPunct) {
+        words.push({ base: trailingPunct, ruby: '', type: 'text' });
       }
       lastIndex = rubyRegex.lastIndex;
       continue;
@@ -220,9 +233,9 @@ export function parseFuriganaText(text: string): FuriganaWord[] {
       type: 'ruby'
     });
     
-    // Add punctuation as plain text if it was between base and reading
-    if (punctuation) {
-      words.push({ base: punctuation, ruby: '', type: 'text' });
+    // Add trailing punctuation as plain text if it was between base and reading
+    if (trailingPunct) {
+      words.push({ base: trailingPunct, ruby: '', type: 'text' });
     }
     
     lastIndex = rubyRegex.lastIndex;

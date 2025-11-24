@@ -79,6 +79,31 @@ function cleanJsonString(jsonString: string): string {
   }
   
   logger.log('🧹 Starting cleanup for:', cleaned.substring(0, 100) + '...');
+
+  const isInlineComma = (commaIndex: number): boolean => {
+    if (commaIndex < 0 || commaIndex >= cleaned.length) {
+      return false;
+    }
+
+    let lookAhead = commaIndex + 1;
+    while (lookAhead < cleaned.length && /\s/.test(cleaned[lookAhead])) {
+      lookAhead++;
+    }
+
+    if (lookAhead >= cleaned.length) {
+      return false;
+    }
+
+    const lookAheadChar = cleaned[lookAhead];
+    return lookAheadChar !== '"' && lookAheadChar !== '}' && lookAheadChar !== ']';
+  };
+
+  const logInlineQuoteDetection = (context: 'furigana' | 'translation', pointer: number) => {
+    const snippetStart = Math.max(pointer - 15, 0);
+    const snippetEnd = Math.min(pointer + 25, cleaned.length);
+    const snippet = cleaned.substring(snippetStart, snippetEnd);
+    logger.log(`[cleanJsonString] inline quote/comma detected inside ${context} field. Snippet: ${snippet}`);
+  };
   
   // EMERGENCY APPROACH: Extract values directly and rebuild JSON from scratch
   // This bypasses all JSON parsing issues by manually extracting the actual content
@@ -128,6 +153,12 @@ function cleanJsonString(jsonString: string): string {
           
           const nextChar = cleaned[nextNonWhitespace];
           
+          if (nextChar === ',' && isInlineComma(nextNonWhitespace)) {
+            logInlineQuoteDetection('furigana', furiganaQuoteEnd);
+            furiganaQuoteEnd++;
+            continue;
+          }
+
           // Valid ending: comma, closing brace, or end of string
           if (nextChar === ',' || nextChar === '}' || nextNonWhitespace >= cleaned.length) {
             break;
@@ -182,6 +213,12 @@ function cleanJsonString(jsonString: string): string {
         
         const nextChar = cleaned[nextNonWhitespace];
         
+          if (nextChar === ',' && isInlineComma(nextNonWhitespace)) {
+            logInlineQuoteDetection('translation', translationQuoteEnd);
+            translationQuoteEnd++;
+            continue;
+          }
+
         // Valid JSON value endings: comma (next field), closing brace (end), or end of string
         if (nextChar === ',' || nextChar === '}' || nextNonWhitespace >= cleaned.length) {
           // This is the actual closing quote
@@ -919,6 +956,26 @@ export async function processWithClaude(
     return sanitizedText;
   };
   
+  const sanitizeTranslatedText = (value: string, targetLangCode: string) => {
+    if (!value) {
+      return value;
+    }
+
+    let sanitized = value;
+
+    // Strip ANY reading annotations from target language text
+    // This handles pinyin in Chinese, romanization from any source language
+    if (targetLangCode === 'zh') {
+      // More robust pattern: Chinese characters followed by ANY romanization in parentheses
+      // This catches pinyin, Hindi romanization, Korean romanization, etc.
+      const chineseWithAnnotationPattern =
+        /([\u4e00-\u9fff]+)\([^)]+\)/g;
+      sanitized = sanitized.replace(chineseWithAnnotationPattern, '$1');
+    }
+
+    return sanitized;
+  };
+  
   // Add explicit debugging for Japanese forced detection
   if (forcedLanguage === 'ja') {
     logger.log(`[DEBUG] Japanese forced detection active. Using Japanese prompt.`);
@@ -998,8 +1055,8 @@ Format your response as valid JSON with these exact keys:
   "translatedText": "Natural Japanese translation using appropriate kanji, hiragana, and katakana - NO furigana readings"
 }`;
       }
-      // Check if we're translating TO Chinese from a non-Chinese source
-      else if (targetLanguage === 'zh' && forcedLanguage !== 'zh' && primaryLanguage !== 'Chinese') {
+      // Check if we're translating TO Chinese from a non-Chinese source (but NOT from a reading language)
+      else if (targetLanguage === 'zh' && forcedLanguage !== 'zh' && primaryLanguage !== 'Chinese' && !hasSourceReadingPrompt) {
         logger.log(`[DEBUG] TRANSLATING TO CHINESE: Using natural Chinese translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
         // Natural Chinese translation prompt - for translating TO Chinese
         userMessage = `
@@ -1030,9 +1087,10 @@ Format your response as valid JSON with these exact keys:
 }`;
       }
       // FAILSAFE: If Japanese is forced, always use Japanese prompt regardless of detected language
-      else if (forcedLanguage === 'ja') {
-        logger.log(`[DEBUG] FORCED JAPANESE: Using Japanese prompt (furigana) regardless of primaryLanguage: ${primaryLanguage}`);
+      else if (forcedLanguage === 'ja' && targetLanguage !== 'ja') {
+        logger.log(`[DEBUG] FORCED JAPANESE: Using Japanese prompt (furigana) regardless of primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage}`);
         // Japanese prompt - Enhanced for contextual compound word readings
+        // Note: Only add furigana when translating TO a different language (Japanese speakers don't need furigana for their native language)
         userMessage = `
 ${promptTopSection}
 You are a Japanese language expert. I need you to analyze this text and add furigana to ALL words containing kanji: "${text}"
@@ -1138,9 +1196,10 @@ Format your response as valid JSON with these exact keys:
   "furiganaText": "Japanese text with furigana after EVERY kanji word as shown in examples - THIS IS MANDATORY AND MUST BE COMPLETE",
   "translatedText": "Complete and accurate translation in ${targetLangName} without any truncation or abbreviation"
 }`;
-      } else if (primaryLanguage === "Chinese" || forcedLanguage === 'zh') {
-        logger.log(`[DEBUG] Using Chinese prompt (pinyin) for primaryLanguage: ${primaryLanguage}, forcedLanguage: ${forcedLanguage}`);
+      } else if ((primaryLanguage === "Chinese" || forcedLanguage === 'zh') && targetLanguage !== 'zh') {
+        logger.log(`[DEBUG] Using Chinese prompt (pinyin) for primaryLanguage: ${primaryLanguage}, forcedLanguage: ${forcedLanguage}, targetLanguage: ${targetLanguage}`);
         // Enhanced Chinese-specific prompt with comprehensive pinyin rules
+        // Note: Only add pinyin when translating TO a different language (Chinese speakers don't need pinyin for their native language)
         userMessage = `
 ${promptTopSection}
 You are a Chinese language expert. I need you to analyze and add pinyin to this Chinese text: "${text}"
@@ -1273,8 +1332,8 @@ FINAL CHECK BEFORE RESPONDING:
 ✓ Did you follow the format: 中文(zhōngwén) not just "zhōngwén"?
 `;
       }
-      // Check if we're translating TO Korean from a non-Korean source
-      else if (targetLanguage === 'ko' && forcedLanguage !== 'ko' && primaryLanguage !== 'Korean') {
+      // Check if we're translating TO Korean from a non-Korean source (but NOT from a reading language)
+      else if (targetLanguage === 'ko' && forcedLanguage !== 'ko' && primaryLanguage !== 'Korean' && !hasSourceReadingPrompt) {
         logger.log(`[DEBUG] TRANSLATING TO KOREAN: Using natural Korean translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
         // Natural Korean translation prompt - for translating TO Korean
         userMessage = `
@@ -1301,8 +1360,9 @@ Format your response as valid JSON with these exact keys:
   "furiganaText": "",
   "translatedText": "Natural Korean translation using Hangul characters - NO romanization"
 }`;
-      } else if (primaryLanguage === "Korean") {
+      } else if (primaryLanguage === "Korean" && targetLanguage !== 'ko') {
         // Korean-specific prompt with Enhanced Revised Romanization
+        // Note: Only add romanization when translating TO a different language (Korean speakers don't need romanization for their native language)
         userMessage = `
 ${promptTopSection}
 You are a Korean language expert. I need you to analyze and translate this Korean text: "${text}"
@@ -1360,8 +1420,8 @@ Format your response as valid JSON with these exact keys:
 }
 `;
       }
-      // Check if we're translating TO Russian from a non-Russian source
-      else if (targetLanguage === 'ru' && forcedLanguage !== 'ru' && primaryLanguage !== 'Russian') {
+      // Check if we're translating TO Russian from a non-Russian source (but NOT from a reading language)
+      else if (targetLanguage === 'ru' && forcedLanguage !== 'ru' && primaryLanguage !== 'Russian' && !hasSourceReadingPrompt) {
         logger.log(`[DEBUG] TRANSLATING TO RUSSIAN: Using natural Russian translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
         // Natural Russian translation prompt - for translating TO Russian
         userMessage = `
@@ -1388,8 +1448,11 @@ Format your response as valid JSON with these exact keys:
   "furiganaText": "",
   "translatedText": "Natural Russian translation using Cyrillic characters - NO romanization"
 }`;
-      } else if (primaryLanguage === "Russian") {
+      } else if ((primaryLanguage === "Russian" || forcedLanguage === 'ru') && targetLanguage !== 'ru') {
         // Russian-specific prompt with Enhanced Practical Romanization
+        // CRITICAL: This should run regardless of target language to preserve Cyrillic + romanization
+        // Note: Only add romanization when translating TO a different language (Russian speakers don't need romanization for their native language)
+        logger.log(`[DEBUG] RUSSIAN SOURCE TEXT: Adding romanization and translating to ${targetLangName} (targetLanguage: ${targetLanguage})`);
         userMessage = `
 ${promptTopSection}
 You are a Russian language expert. I need you to analyze and translate this Russian text: "${text}"
@@ -1402,6 +1465,7 @@ CRITICAL FORMATTING REQUIREMENTS FOR RUSSIAN TEXT:
 - The format should be: Русский(russkiy) NOT "russkiy (Russian)" or any other format
 - Do NOT mix English translations in the romanization - only provide pronunciation guide
 - Translate into ${targetLangName} language, NOT English (unless English is specifically requested)
+- IMPORTANT: The furiganaText field must contain the ORIGINAL Cyrillic text with romanization, regardless of target language
 
 PALATALIZATION CONSISTENCY - MANDATORY RULES:
 - ль = l' (soft L) - ALWAYS use apostrophe for palatalized L
@@ -1465,8 +1529,8 @@ Format your response as valid JSON with these exact keys:
 }
 `;
       }
-      // Check if we're translating TO Arabic from a non-Arabic source
-      else if (targetLanguage === 'ar' && forcedLanguage !== 'ar' && primaryLanguage !== 'Arabic') {
+      // Check if we're translating TO Arabic from a non-Arabic source (but NOT from a reading language)
+      else if (targetLanguage === 'ar' && forcedLanguage !== 'ar' && primaryLanguage !== 'Arabic' && !hasSourceReadingPrompt) {
         logger.log(`[DEBUG] TRANSLATING TO ARABIC: Using natural Arabic translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
         // Natural Arabic translation prompt - for translating TO Arabic
         userMessage = `
@@ -1493,8 +1557,9 @@ Format your response as valid JSON with these exact keys:
   "furiganaText": "",
   "translatedText": "Natural Arabic translation using Arabic script - NO transliteration"
 }`;
-      } else if (primaryLanguage === "Arabic") {
+      } else if (primaryLanguage === "Arabic" && targetLanguage !== 'ar') {
         // Arabic-specific prompt with Enhanced Arabic Chat Alphabet including Sun Letter Assimilation
+        // Note: Only add transliteration when translating TO a different language (Arabic speakers don't need transliteration for their native language)
         userMessage = `
 ${promptTopSection}
 You are an Arabic language expert. I need you to analyze and translate this Arabic text: "${text}"
@@ -1539,14 +1604,22 @@ ENHANCED ROMANIZATION STANDARDS:
 - ع = ' (ayn - glottal stop)
 - غ = gh (voiced velar fricative)
 - ح = h (voiceless pharyngeal fricative)  
-- خ = kh (voiceless velar fricative)
+- خ = kh (voiceless velar fricative) - NEVER use k̲h̲ or other diacritics
 - ق = q (voiceless uvular stop)
-- ص = s (emphatic s)
-- ض = d (emphatic d)
-- ط = t (emphatic t)
-- ظ = dh (emphatic dh)
+- ص = s (emphatic s) - NEVER use ṣ or underlined s
+- ض = d (emphatic d) - NEVER use ḍ or d̲ or underlined d
+- ط = t (emphatic t) - NEVER use ṭ or underlined t
+- ظ = dh (emphatic dh) - NEVER use d̲h̲ or underlined dh
 - ث = th (voiceless dental fricative)
 - ذ = dh (voiced dental fricative)
+- ش = sh (NOT s̲h̲ or underlined sh)
+
+CRITICAL: DO NOT USE DIACRITICAL MARKS OR COMBINING CHARACTERS!
+- NO underlines: k̲h̲, s̲h̲, d̲ are WRONG
+- NO dots below: ṣ, ḍ, ṭ are WRONG
+- NO special IPA symbols
+- Use ONLY simple ASCII letters: a-z, A-Z, and apostrophe (')
+- The romanization must be readable without special fonts
 
 LONG VOWEL CONSISTENCY - MANDATORY RULES:
 - ا = aa (ALWAYS long) - consistent representation of alif
@@ -1698,8 +1771,8 @@ Format your response as valid JSON with these exact keys:
 }
 `;
       }
-      // Check if we're translating TO Hindi from a non-Hindi source
-      else if (targetLanguage === 'hi' && forcedLanguage !== 'hi' && primaryLanguage !== 'Hindi') {
+      // Check if we're translating TO Hindi from a non-Hindi source (but NOT from a reading language)
+      else if (targetLanguage === 'hi' && forcedLanguage !== 'hi' && primaryLanguage !== 'Hindi' && !hasSourceReadingPrompt) {
         logger.log(`[DEBUG] TRANSLATING TO HINDI: Using natural Hindi translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
         // Natural Hindi translation prompt - for translating TO Hindi
         userMessage = `
@@ -1726,8 +1799,9 @@ Format your response as valid JSON with these exact keys:
   "furiganaText": "",
   "translatedText": "Natural Hindi translation using Devanagari script - NO romanization"
 }`;
-      } else if (primaryLanguage === "Hindi") {
+      } else if (primaryLanguage === "Hindi" && targetLanguage !== 'hi') {
         // Enhanced Hindi-specific prompt with comprehensive romanization accuracy
+        // Note: Only add romanization when translating TO a different language (Hindi speakers don't need romanization for their native language)
         userMessage = `
 ${promptTopSection}
 You are a Hindi language expert. I need you to analyze and translate this Hindi text: "${text}"
@@ -2418,7 +2492,7 @@ Format your response as valid JSON with these exact keys:
                       
                       return {
                         furiganaText: parsedContent.furiganaText || "",
-                        translatedText: verifiedTranslatedText
+                        translatedText: sanitizeTranslatedText(verifiedTranslatedText, targetLanguage)
                       };
                     } else {
                       logger.log(`Translation verification result: ${isComplete ? 'Complete' : 'Incomplete'}`);
@@ -2438,159 +2512,16 @@ Format your response as valid JSON with these exact keys:
             // For Japanese text, validate furigana coverage
             let furiganaText = applyKoreanRomanizationGuards(parsedContent.furiganaText || "", "initial-parse");
             
-            // Universal verification for readings (furigana, pinyin, etc.)
-            if (furiganaText && retryCount < MAX_RETRIES - 1) {
-              logger.log("Verifying reading completeness...");
-              
-              // Checkpoint 3: Preparing your word entries (verification phase)
-              logger.log('🎯 [Claude API] Checkpoint 3: Preparing your word entries (verification phase)');
-              onProgress?.(3);
-              
-              // Increment retry counter
-              retryCount++;
-              
-              // Create language-specific verification instructions
-              let readingType = "readings";
-              let readingSpecificInstructions = "";
-              
-              if (primaryLanguage === "Japanese" || forcedLanguage === 'ja') {
-                readingType = "furigana";
-                readingSpecificInstructions = `
-For Japanese text:
-- EVERY kanji character or compound must have furigana readings
-- Readings should follow the pattern: 漢字(かんじ)
-- Check for any missing readings, especially in compound words
-- Verify readings are correct based on context`;
-              } else if (primaryLanguage === "Chinese" || forcedLanguage === 'zh') {
-                readingType = "pinyin";
-                readingSpecificInstructions = `
-For Chinese text:
-- EVERY hanzi character or compound must have pinyin readings with tone marks
-- Readings should follow the pattern: 汉字(hànzì)
-- Check for any missing readings or incorrect tones
-- Verify readings are correct based on context`;
-              } else if (primaryLanguage === "Korean" || forcedLanguage === 'ko') {
-                readingType = "romanization";
-                readingSpecificInstructions = `
-For Korean text:
-- EVERY hangul word should have romanization
-- Readings should follow the pattern: 한국어(han-gug-eo)
-- Check for any missing romanization
-- Verify romanization follows the Revised Romanization system
-- Ensure ㅓ/ㅗ vowel distinctions are correct (ㅓ = eo, ㅗ = o)
-- Verify ㅡ (eu) vs ㅜ (u) consistency
-- Check compound word boundaries are logical with clear syllable separation
-- Validate formal endings are complete (-습니다 = -seum-ni-da, -았습니다 = -ass-seum-ni-da)
-- Verify common patterns: particles (은/는 = eun/neun), time expressions (시 = si), causative forms (-시키다 = -si-ki-da)
-- Reject any annotations where the base text has zero Hangul (numbers, Latin text, punctuation). Those parentheses must be removed entirely.
-- Flag readings that contain Japanese-only romaji such as ni-sen, san-ju, gatsu, desu, shi, or tsu.`;
-              } else if (primaryLanguage === "Russian" || forcedLanguage === 'ru') {
-                readingType = "transliteration";
-                readingSpecificInstructions = `
-For Russian text:
-- EVERY Cyrillic word should have transliteration
-- Readings should follow the pattern: Русский(russkiy)
-- Check for any missing transliteration
-- Verify transliteration follows standard conventions`;
-              } else {
-                readingType = "pronunciation guide";
-                readingSpecificInstructions = `
-For this language:
-- EVERY non-Latin word should have a pronunciation guide
-- Check for any missing pronunciation guides
-- Verify the guides are consistent and follow standard conventions for this language`;
-              }
-              
-              // Create a reading verification prompt
-              const readingVerificationPrompt = `
-${promptTopSection}
-You are a language expert. I need you to verify if the following text with ${readingType} is complete.
-
-Original text: "${text}"
-
-Current text with ${readingType}: "${furiganaText}"
-
-${readingSpecificInstructions}
-
-VERIFICATION TASK:
-1. Compare the original text and the text with ${readingType}
-2. Determine if EVERY word that needs ${readingType} has them
-3. Check if any parts of the original text are missing ${readingType}
-4. Verify that the ${readingType} are correct and consistent
-
-If the ${readingType} are incomplete, provide a new complete version.
-
-Format your response as valid JSON with these exact keys:
-{
-  "isComplete": true/false (boolean indicating if the current ${readingType} are complete),
-  "analysis": "Brief explanation of what's missing or incomplete (if applicable)",
-  "furiganaText": "Complete text with ${readingType} for ALL appropriate words - either the original if it was complete, or a new complete version if it wasn't",
-  "translatedText": "${parsedContent.translatedText || ""}"
-}`;
-
-              // Make reading verification request
-              const readingVerificationResponse = await axios.post(
-                'https://api.anthropic.com/v1/messages',
-                {
-                  model: "claude-3-haiku-20240307",
-                  max_tokens: 4000,
-                  temperature: 0,
-                  messages: [
-                    {
-                      role: "user",
-                      content: readingVerificationPrompt
-                    }
-                  ]
-                },
-                {
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'anthropic-version': '2023-06-01',
-                    'x-api-key': apiKey
-                  }
-                }
-              );
-              
-              // Process reading verification response
-              if (readingVerificationResponse.data && readingVerificationResponse.data.content && Array.isArray(readingVerificationResponse.data.content)) {
-                const readingVerificationTextContent = readingVerificationResponse.data.content.find((item: ClaudeContentItem) => item.type === "text");
-                
-                if (readingVerificationTextContent && readingVerificationTextContent.text) {
-                  try {
-                    const readingVerificationJsonMatch = readingVerificationTextContent.text.match(/\{[\s\S]*\}/);
-                    let readingVerificationJsonString = readingVerificationJsonMatch ? readingVerificationJsonMatch[0] : readingVerificationTextContent.text;
-                    
-                    // Comprehensive JSON cleaning for common LLM output issues
-                    readingVerificationJsonString = cleanJsonString(readingVerificationJsonString);
-                    
-                    // Add detailed logging for reading verification attempt
-                    logger.log("Reading verification raw response text length:", readingVerificationTextContent.text.length);
-                    logger.log("Reading verification extracted JSON string length:", readingVerificationJsonString.length);
-                    
-                    const readingVerificationParsedContent = JSON.parse(readingVerificationJsonString);
-                    const isReadingComplete = readingVerificationParsedContent.isComplete === true;
-                    const readingAnalysis = readingVerificationParsedContent.analysis || "";
-                    const verifiedFuriganaText = readingVerificationParsedContent.furiganaText || "";
-                    
-                    if (!isReadingComplete && verifiedFuriganaText.length > furiganaText.length) {
-                      logger.log(`${readingType} were incomplete. Analysis: ${readingAnalysis}`);
-                      logger.log(`Using improved ${readingType} from verification`);
-                      furiganaText = applyKoreanRomanizationGuards(verifiedFuriganaText, "reading-verification");
-                    } else {
-                      logger.log(`${readingType} verification result: ${isReadingComplete ? 'Complete' : 'Incomplete'}`);
-                      if (!isReadingComplete) {
-                        logger.log(`Analysis: ${readingAnalysis}`);
-                        logger.log(`Verification did not provide better ${readingType} - using original`);
-                      }
-                    }
-                  } catch (readingVerificationParseError) {
-                    logger.error("Error parsing reading verification response:", readingVerificationParseError);
-                    // Continue with original result
-                  }
-                }
-              }
-            }
+            // ============================================================================
+            // STEP 1: LANGUAGE-SPECIFIC VALIDATION (Script/Format Correctness)
+            // Run these FIRST to ensure the correct script is used before checking completeness
+            // ============================================================================
             
+            // Checkpoint 3: Preparing your word entries (verification phase)
+            logger.log('🎯 [Claude API] Checkpoint 3: Preparing your word entries (verification phase)');
+            onProgress?.(3);
+            
+            // Japanese furigana validation and smart retry logic
             if ((primaryLanguage === "Japanese" || forcedLanguage === 'ja') && furiganaText) {
               const validation = validateJapaneseFurigana(text, furiganaText);
               logger.log(`Furigana validation: ${validation.details}`);
@@ -2960,6 +2891,435 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
                 logger.log(`Korean romanization validation passed with ${validation.accuracy}% accuracy`);
               }
             }
+
+          // Russian transliteration validation and smart retry logic
+          if ((primaryLanguage === "Russian" || forcedLanguage === 'ru') && furiganaText) {
+            const validation = validateRussianTransliteration(text, furiganaText);
+            logger.log(`Russian transliteration validation: ${validation.details}`);
+            
+            if (!validation.isValid && validation.cyrillicCoverage < 90) {
+              logger.warn(`Russian transliteration quality issues detected: ${validation.details}`);
+              
+              // FIRST: Try automatic rebuild if Cyrillic is missing
+              if (validation.cyrillicCoverage < 50) {
+                logger.log('Attempting automatic rebuild of Russian text with Cyrillic base...');
+                const rebuilt = rebuildRussianFuriganaFromRomanization(text, furiganaText);
+                
+                if (rebuilt) {
+                  const rebuildValidation = validateRussianTransliteration(text, rebuilt);
+                  logger.log(`Rebuild validation: ${rebuildValidation.details}`);
+                  
+                  if (rebuildValidation.cyrillicCoverage > validation.cyrillicCoverage) {
+                    furiganaText = rebuilt;
+                    logger.log(`Automatic rebuild successful - improved Cyrillic coverage from ${validation.cyrillicCoverage}% to ${rebuildValidation.cyrillicCoverage}%`);
+                    
+                    // Re-validate after rebuild
+                    if (rebuildValidation.isValid) {
+                      logger.log('Russian text validated successfully after rebuild');
+                    }
+                  }
+                }
+              }
+              
+              // SECOND: If still not valid and this is first attempt, retry with corrective prompt
+              const finalValidation = validateRussianTransliteration(text, furiganaText);
+              if (!finalValidation.isValid && finalValidation.cyrillicCoverage < 90 && retryCount === 0 && validation.issues.length > 0) {
+                logger.log("Retrying with enhanced Russian transliteration correction prompt...");
+                retryCount++;
+                
+                // Create specific correction prompt based on validation issues
+                const correctionPrompt = `
+${promptTopSection}
+CRITICAL RUSSIAN TRANSLITERATION RETRY - PREVIOUS ATTEMPT HAD QUALITY ISSUES
+
+You are a Russian language expert. The previous attempt had these specific issues that must be fixed:
+
+DETECTED ISSUES:
+${validation.issues.map(issue => `- ${issue}`).join('\n')}
+
+SUGGESTED CORRECTIONS:
+${validation.suggestions.map(suggestion => `- ${suggestion}`).join('\n')}
+
+Original text: "${text}"
+Previous result Cyrillic coverage: ${validation.cyrillicCoverage}%
+
+MANDATORY CORRECTIONS - Fix these specific problems:
+1. ${validation.issues.some(i => i.includes('Missing Cyrillic')) ? 'PRESERVE ORIGINAL CYRILLIC TEXT - DO NOT replace with romanization' : ''}
+2. ${validation.issues.some(i => i.includes('without Cyrillic base')) ? 'ADD CYRILLIC BASE before romanization - format must be: Русский(russkiy) NOT Putin(Putin)' : ''}
+3. ${validation.issues.some(i => i.includes('palatalization')) ? 'ADD PALATALIZATION MARKERS - soft consonants need apostrophes (ь = \')' : ''}
+4. ${validation.issues.some(i => i.includes('coverage')) ? 'ENSURE COMPLETE COVERAGE - every Russian word must have transliteration' : ''}
+
+CRITICAL FORMAT REQUIREMENTS:
+- MUST preserve original Cyrillic characters as the BASE text
+- Add romanization in parentheses AFTER the Cyrillic
+- Format: Путин(Putin) заявил(zayavil) NOT Putin(Putin) zayavil(zayavil)
+- Soft sign (ь) must become apostrophe in romanization: Путь(put')
+
+Examples of CORRECT formatting:
+- "Привет мир" → "Привет(privet) мир(mir)"
+- "Учитель" → "Учитель(uchitel')" [note the apostrophe for ь]
+- "Словарь" → "Словарь(slovar')" [note the apostrophe for ь]
+- "Путин заявил" → "Путин(Putin) заявил(zayavil)"
+
+WRONG examples (DO NOT USE):
+- "privet (hello)" ❌ (missing Cyrillic base)
+- "Putin(Putin)" ❌ (Latin base instead of Cyrillic)
+- "uchitel" ❌ (missing palatalization marker for ь)
+
+Format your response as valid JSON with these exact keys:
+{
+  "furiganaText": "Russian text with Cyrillic base + transliteration addressing all issues above",
+  "translatedText": "Accurate translation in ${targetLangName} language"
+}
+
+CRITICAL: Every Russian word must have its ORIGINAL CYRILLIC text preserved with romanization in parentheses.
+`;
+
+                try {
+                  logger.log('Making Russian transliteration correction request to Claude...');
+                  const retryResponse = await axios.post(
+                    'https://api.anthropic.com/v1/messages',
+                    {
+                      model: "claude-3-haiku-20240307",
+                      max_tokens: 4000,
+                      temperature: 0,
+                      messages: [{
+                        role: "user",
+                        content: correctionPrompt
+                      }]
+                    },
+                    {
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'anthropic-version': '2023-06-01',
+                        'x-api-key': apiKey
+                      },
+                      timeout: 60000
+                    }
+                  );
+
+                  if (retryResponse.data && retryResponse.data.content && retryResponse.data.content[0] && retryResponse.data.content[0].text) {
+                    try {
+                      const retryResponseText = retryResponse.data.content[0].text;
+                      logger.log("Russian retry response received:", retryResponseText.substring(0, 200) + "...");
+                      
+                      const retryCleanedJson = cleanJsonString(retryResponseText);
+                      const retryParsedResponse = JSON.parse(retryCleanedJson);
+                      const retryTransliteratedText = retryParsedResponse.furiganaText;
+                      
+                      // Validate the retry result
+                      const retryValidation = validateRussianTransliteration(text, retryTransliteratedText);
+                      logger.log(`Russian retry validation: ${retryValidation.details}`);
+                      
+                      // Use retry result if it's significantly better
+                      if (retryValidation.cyrillicCoverage > finalValidation.cyrillicCoverage + 10 || 
+                          (retryValidation.isValid && !finalValidation.isValid)) {
+                        furiganaText = retryTransliteratedText;
+                        logger.log(`Russian retry successful - improved Cyrillic coverage from ${finalValidation.cyrillicCoverage}% to ${retryValidation.cyrillicCoverage}%`);
+                      } else {
+                        logger.log(`Russian retry did not significantly improve transliteration quality - using current result`);
+                      }
+                    } catch (retryParseError) {
+                      logger.error("Error parsing Russian retry response:", retryParseError);
+                      // Continue with current result
+                    }
+                  }
+                } catch (retryError) {
+                  logger.error("Error during Russian transliteration retry:", retryError);
+                  // Continue with current result
+                }
+              }
+            } else if (validation.isValid) {
+              logger.log(`Russian transliteration validation passed with ${validation.cyrillicCoverage}% Cyrillic coverage`);
+            }
+          }
+
+          // Arabic romanization validation and smart retry logic
+          if ((primaryLanguage === "Arabic" || forcedLanguage === 'ar') && furiganaText) {
+            // FIRST: Strip any diacritical marks that Claude may have used
+            // This converts academic transliteration (k̲h̲, ṣ, ḍ) to simple Chat Alphabet (kh, s, d)
+            const hasDiacritics = /[\u0300-\u036F\u0323-\u0333]/.test(furiganaText);
+            if (hasDiacritics) {
+              logger.log('[Arabic] Detected diacritical marks in romanization, stripping them...');
+              furiganaText = stripArabicDiacritics(furiganaText);
+            }
+            
+            const validation = validateArabicRomanization(text, furiganaText);
+            logger.log(`Arabic romanization validation: ${validation.details}`);
+            
+            if (!validation.isValid && validation.accuracy < 90) {
+              logger.warn(`Arabic romanization quality issues detected: ${validation.details}`);
+              
+              // If this is first attempt and we have significant issues, retry with corrective prompt
+              if (retryCount === 0 && validation.issues.length > 0) {
+                logger.log("Retrying with enhanced Arabic romanization correction prompt...");
+                retryCount++;
+                
+                // Create specific correction prompt based on validation issues
+                const correctionPrompt = `
+${promptTopSection}
+CRITICAL ARABIC ROMANIZATION RETRY - PREVIOUS ATTEMPT HAD FORMATTING ISSUES
+
+You are an Arabic language expert. The previous attempt had these specific issues that must be fixed:
+
+DETECTED ISSUES:
+${validation.issues.map(issue => `- ${issue}`).join('\n')}
+
+SUGGESTED CORRECTIONS:
+${validation.suggestions.map(suggestion => `- ${suggestion}`).join('\n')}
+
+Original text: "${text}"
+Previous result Arabic coverage: ${validation.arabicCoverage}%
+Previous result accuracy: ${validation.accuracy}%
+
+MANDATORY CORRECTIONS - Fix these specific problems:
+1. ${validation.issues.some(i => i.includes('Missing Arabic base')) ? 'PRESERVE ORIGINAL ARABIC TEXT - DO NOT replace with romanization' : ''}
+2. ${validation.issues.some(i => i.includes('wrong order')) ? 'CORRECT ORDER - Must be Arabic(romanization), NOT (romanization)Arabic' : ''}
+3. ${validation.issues.some(i => i.includes('without Arabic base')) ? 'ADD ARABIC BASE before romanization - format must be: العربية(al-arabiya) NOT (al-arabiya)' : ''}
+4. ${validation.issues.some(i => i.includes('Sun letter')) ? 'FIX SUN LETTER ASSIMILATION - at-/ad-/ar-/as-/ash-/an- NOT al-' : ''}
+5. ${validation.issues.some(i => i.includes('coverage')) ? 'ENSURE COMPLETE COVERAGE - every Arabic word must have Chat Alphabet romanization' : ''}
+
+CRITICAL FORMAT REQUIREMENTS:
+- MUST preserve original Arabic characters as the BASE text
+- Add Chat Alphabet romanization in parentheses AFTER the Arabic
+- Format: العربية(al-arabiya) NOT (al-arabiya) or (al-arabiya)العربية
+- Use proper sun letter assimilation (at-/ar-/as-/ash- etc.)
+
+Examples of CORRECT formatting:
+- "مرحبا" → "مرحبا(marhabaa)"
+- "السلام عليكم" → "السلام(as-salaam) عليكم('alaykum)"
+- "الشمس" → "الشمس(ash-shams)" [sun letter assimilation]
+- "الوزير" → "الوزير(al-waziir)" [moon letter - no assimilation]
+
+WRONG examples (DO NOT USE):
+- "(marhabaa)" ❌ (missing Arabic base)
+- "(sarakha)صرخ" ❌ (wrong order - romanization before Arabic)
+- "الشمس(al-shams)" ❌ (missing sun letter assimilation - should be ash-shams)
+
+Format your response as valid JSON with these exact keys:
+{
+  "furiganaText": "Arabic text with Arabic base + Chat Alphabet addressing all issues above",
+  "translatedText": "Accurate translation in ${targetLangName} language"
+}
+
+CRITICAL: Every Arabic word must have its ORIGINAL ARABIC text preserved with romanization in parentheses immediately after.
+`;
+
+                try {
+                  logger.log('Making Arabic romanization correction request to Claude...');
+                  const retryResponse = await axios.post(
+                    'https://api.anthropic.com/v1/messages',
+                    {
+                      model: "claude-3-haiku-20240307",
+                      max_tokens: 4000,
+                      temperature: 0,
+                      messages: [{
+                        role: "user",
+                        content: correctionPrompt
+                      }]
+                    },
+                    {
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'anthropic-version': '2023-06-01',
+                        'x-api-key': apiKey
+                      },
+                      timeout: 60000
+                    }
+                  );
+
+                  if (retryResponse.data && retryResponse.data.content && retryResponse.data.content[0] && retryResponse.data.content[0].text) {
+                    try {
+                      const retryResponseText = retryResponse.data.content[0].text;
+                      logger.log("Arabic retry response received:", retryResponseText.substring(0, 200) + "...");
+                      
+                      const retryCleanedJson = cleanJsonString(retryResponseText);
+                      const retryParsedResponse = JSON.parse(retryCleanedJson);
+                      const retryRomanizedText = retryParsedResponse.furiganaText;
+                      
+                      // Validate the retry result
+                      const retryValidation = validateArabicRomanization(text, retryRomanizedText);
+                      logger.log(`Arabic retry validation: ${retryValidation.details}`);
+                      
+                      // Use retry result if it's significantly better
+                      if (retryValidation.accuracy > validation.accuracy + 10 || 
+                          (retryValidation.isValid && !validation.isValid)) {
+                        furiganaText = retryRomanizedText;
+                        logger.log(`Arabic retry successful - improved accuracy from ${validation.accuracy}% to ${retryValidation.accuracy}%`);
+                      } else {
+                        logger.log(`Arabic retry did not significantly improve romanization quality - using current result`);
+                      }
+                    } catch (retryParseError) {
+                      logger.error("Error parsing Arabic retry response:", retryParseError);
+                      // Continue with current result
+                    }
+                  }
+                } catch (retryError) {
+                  logger.error("Error during Arabic romanization retry:", retryError);
+                  // Continue with current result
+                }
+              }
+            } else if (validation.isValid) {
+              logger.log(`Arabic romanization validation passed with ${validation.arabicCoverage}% Arabic coverage and ${validation.accuracy}% accuracy`);
+            }
+          }
+          
+            // ============================================================================
+            // STEP 2: UNIVERSAL READING VERIFICATION (Completeness Check)
+            // Run this AFTER language-specific validation to check for missing annotations
+            // SKIP when translating TO a reading language to avoid script confusion
+            // ============================================================================
+            
+            // Universal verification for readings (furigana, pinyin, etc.)
+            // Skip if target is a reading language (causes Claude to rewrite source in target script)
+            const targetIsReadingLanguage = ['ja', 'zh', 'ko', 'ru', 'ar', 'hi'].includes(targetLanguage);
+            if (furiganaText && retryCount < MAX_RETRIES - 1 && !targetIsReadingLanguage) {
+              logger.log("Verifying reading completeness...");
+              
+              // Increment retry counter
+              retryCount++;
+              
+              // Create language-specific verification instructions
+              let readingType = "readings";
+              let readingSpecificInstructions = "";
+              
+              if (primaryLanguage === "Japanese" || forcedLanguage === 'ja') {
+                readingType = "furigana";
+                readingSpecificInstructions = `
+For Japanese text:
+- EVERY kanji character or compound must have furigana readings
+- Readings should follow the pattern: 漢字(かんじ)
+- Check for any missing readings, especially in compound words
+- Verify readings are correct based on context`;
+              } else if (primaryLanguage === "Chinese" || forcedLanguage === 'zh') {
+                readingType = "pinyin";
+                readingSpecificInstructions = `
+For Chinese text:
+- EVERY hanzi character or compound must have pinyin readings with tone marks
+- Readings should follow the pattern: 汉字(hànzì)
+- Check for any missing readings or incorrect tones
+- Verify readings are correct based on context`;
+              } else if (primaryLanguage === "Korean" || forcedLanguage === 'ko') {
+                readingType = "romanization";
+                readingSpecificInstructions = `
+For Korean text:
+- EVERY hangul word should have romanization
+- Readings should follow the pattern: 한국어(han-gug-eo)
+- Check for any missing romanization
+- Verify romanization follows the Revised Romanization system
+- Ensure ㅓ/ㅗ vowel distinctions are correct (ㅓ = eo, ㅗ = o)
+- Verify ㅡ (eu) vs ㅜ (u) consistency
+- Check compound word boundaries are logical with clear syllable separation
+- Validate formal endings are complete (-습니다 = -seum-ni-da, -았습니다 = -ass-seum-ni-da)
+- Verify common patterns: particles (은/는 = eun/neun), time expressions (시 = si), causative forms (-시키다 = -si-ki-da)
+- Reject any annotations where the base text has zero Hangul (numbers, Latin text, punctuation). Those parentheses must be removed entirely.
+- Flag readings that contain Japanese-only romaji such as ni-sen, san-ju, gatsu, desu, shi, or tsu.`;
+              } else if (primaryLanguage === "Russian" || forcedLanguage === 'ru') {
+                readingType = "transliteration";
+                readingSpecificInstructions = `
+For Russian text:
+- EVERY Cyrillic word should have transliteration
+- Readings should follow the pattern: Русский(russkiy)
+- Check for any missing transliteration
+- Verify transliteration follows standard conventions`;
+              } else {
+                readingType = "pronunciation guide";
+                readingSpecificInstructions = `
+For this language:
+- EVERY non-Latin word should have a pronunciation guide
+- Check for any missing pronunciation guides
+- Verify the guides are consistent and follow standard conventions for this language`;
+              }
+              
+              // Create a reading verification prompt
+              const readingVerificationPrompt = `
+${promptTopSection}
+You are a language expert. I need you to verify if the following text with ${readingType} is complete.
+
+Original text: "${text}"
+
+Current text with ${readingType}: "${furiganaText}"
+
+${readingSpecificInstructions}
+
+VERIFICATION TASK:
+1. Compare the original text and the text with ${readingType}
+2. Determine if EVERY word that needs ${readingType} has them
+3. Check if any parts of the original text are missing ${readingType}
+4. Verify that the ${readingType} are correct and consistent
+
+If the ${readingType} are incomplete, provide a new complete version.
+
+Format your response as valid JSON with these exact keys:
+{
+  "isComplete": true/false (boolean indicating if the current ${readingType} are complete),
+  "analysis": "Brief explanation of what's missing or incomplete (if applicable)",
+  "furiganaText": "Complete text with ${readingType} for ALL appropriate words - either the original if it was complete, or a new complete version if it wasn't",
+  "translatedText": "${parsedContent.translatedText || ""}"
+}`;
+
+              // Make reading verification request
+              const readingVerificationResponse = await axios.post(
+                'https://api.anthropic.com/v1/messages',
+                {
+                  model: "claude-3-haiku-20240307",
+                  max_tokens: 4000,
+                  temperature: 0,
+                  messages: [
+                    {
+                      role: "user",
+                      content: readingVerificationPrompt
+                    }
+                  ]
+                },
+                {
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'anthropic-version': '2023-06-01',
+                    'x-api-key': apiKey
+                  }
+                }
+              );
+              
+              // Process reading verification response
+              if (readingVerificationResponse.data && readingVerificationResponse.data.content && Array.isArray(readingVerificationResponse.data.content)) {
+                const readingVerificationTextContent = readingVerificationResponse.data.content.find((item: ClaudeContentItem) => item.type === "text");
+                
+                if (readingVerificationTextContent && readingVerificationTextContent.text) {
+                  try {
+                    const readingVerificationJsonMatch = readingVerificationTextContent.text.match(/\{[\s\S]*\}/);
+                    let readingVerificationJsonString = readingVerificationJsonMatch ? readingVerificationJsonMatch[0] : readingVerificationTextContent.text;
+                    
+                    // Comprehensive JSON cleaning for common LLM output issues
+                    readingVerificationJsonString = cleanJsonString(readingVerificationJsonString);
+                    
+                    // Add detailed logging for reading verification attempt
+                    logger.log("Reading verification raw response text length:", readingVerificationTextContent.text.length);
+                    logger.log("Reading verification extracted JSON string length:", readingVerificationJsonString.length);
+                    
+                    const readingVerificationParsedContent = JSON.parse(readingVerificationJsonString);
+                    const isReadingComplete = readingVerificationParsedContent.isComplete === true;
+                    const readingAnalysis = readingVerificationParsedContent.analysis || "";
+                    const verifiedFuriganaText = readingVerificationParsedContent.furiganaText || "";
+                    
+                    if (!isReadingComplete && verifiedFuriganaText.length > furiganaText.length) {
+                      logger.log(`${readingType} were incomplete. Analysis: ${readingAnalysis}`);
+                      logger.log(`Using improved ${readingType} from verification`);
+                      furiganaText = applyKoreanRomanizationGuards(verifiedFuriganaText, "reading-verification");
+                    } else {
+                      logger.log(`${readingType} verification result: ${isReadingComplete ? 'Complete' : 'Incomplete'}`);
+                      if (!isReadingComplete) {
+                        logger.log(`Analysis: ${readingAnalysis}`);
+                        logger.log(`Verification did not provide better ${readingType} - using original`);
+                      }
+                    }
+                  } catch (readingVerificationParseError) {
+                    logger.error("Error parsing reading verification response:", readingVerificationParseError);
+                    // Continue with original result
+                  }
+                }
+              }
+            }
             
             // Checkpoint 4: Processing complete successfully, polishing complete
             logger.log('🎯 [Claude API] Checkpoint 4: Processing complete successfully, polishing complete');
@@ -2967,7 +3327,7 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
             
             const result = {
               furiganaText: applyKoreanRomanizationGuards(furiganaText, "final-output"),
-              translatedText: translatedText
+              translatedText: sanitizeTranslatedText(translatedText, targetLanguage)
             };
 
             // Log successful API call
@@ -2998,7 +3358,7 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
                 logger.log("Successfully parsed JSON from block markers");
                 const result = {
                   furiganaText: applyKoreanRomanizationGuards(blockParsedContent.furiganaText || "", "fallback-block-parse"),
-                  translatedText: blockParsedContent.translatedText || ""
+                  translatedText: sanitizeTranslatedText(blockParsedContent.translatedText || "", targetLanguage)
                 };
 
                 // Log successful API call
@@ -3023,7 +3383,7 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
                 logger.log("Successfully parsed JSON with flexible regex");
                 const result = {
                   furiganaText: applyKoreanRomanizationGuards(flexibleParsedContent.furiganaText || "", "fallback-flex-parse"),
-                  translatedText: flexibleParsedContent.translatedText || ""
+                  translatedText: sanitizeTranslatedText(flexibleParsedContent.translatedText || "", targetLanguage)
                 };
 
                 // Log successful API call
@@ -3050,7 +3410,10 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
                     furiganaMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\'),
                     "fallback-manual-parse"
                   ),
-                  translatedText: translatedMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\')
+                  translatedText: sanitizeTranslatedText(
+                    translatedMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\'),
+                    targetLanguage
+                  )
                 };
 
                 // Log successful API call
@@ -3553,6 +3916,291 @@ function validateKoreanRomanization(originalText: string, romanizedText: string)
 }
 
 /**
+ * Validates Russian text with transliteration for accuracy and completeness
+ * @param originalText The original Russian text
+ * @param transliteratedText The text with transliteration added
+ * @returns Object with validation result and details
+ */
+function validateRussianTransliteration(originalText: string, transliteratedText: string): {
+  isValid: boolean;
+  issues: string[];
+  suggestions: string[];
+  cyrillicCoverage: number;
+  details: string;
+} {
+  const issues: string[] = [];
+  const suggestions: string[] = [];
+  const addSuggestion = (message: string) => {
+    if (!suggestions.includes(message)) {
+      suggestions.push(message);
+    }
+  };
+  
+  // Extract all Cyrillic characters from original text
+  const cyrillicRegex = /[\u0400-\u04FF]/g;
+  const originalCyrillic = originalText.match(cyrillicRegex) || [];
+  const totalCyrillicCount = originalCyrillic.length;
+  
+  if (totalCyrillicCount === 0) {
+    return {
+      isValid: true,
+      issues: [],
+      suggestions: [],
+      cyrillicCoverage: 100,
+      details: "No Russian characters found in text"
+    };
+  }
+  
+  // Check 1: Ensure Cyrillic base text is preserved in transliteratedText
+  // Pattern: Cyrillic(romanization) - the Cyrillic MUST be present
+  const cyrillicWordsWithTranslit = transliteratedText.match(/[\u0400-\u04FF]+(?=[!?.,;:'"'"‚""„‹›«»‑–—…\s]*\([^)]+\))/g) || [];
+  const totalCoveredChars = cyrillicWordsWithTranslit.join('').length;
+  const cyrillicCoverage = totalCyrillicCount > 0 ? Math.round((totalCoveredChars / totalCyrillicCount) * 100) : 0;
+  
+  if (cyrillicCoverage < 90) { // Allow 10% tolerance for edge cases
+    issues.push(`Missing Cyrillic base text - only ${cyrillicCoverage}% of original Cyrillic preserved`);
+    addSuggestion("Ensure all Russian words keep their original Cyrillic text with romanization in parentheses");
+  }
+  
+  // Check 2: Detect if romanization is shown WITHOUT Cyrillic base (common Claude error)
+  // This happens when Claude outputs "Putin(Putin)" instead of "Путин(Putin)"
+  const romanOnlyPattern = /\b([a-zA-Z]+)\(\1\)/g;
+  const romanOnlyMatches = transliteratedText.match(romanOnlyPattern);
+  if (romanOnlyMatches && romanOnlyMatches.length > 0) {
+    issues.push(`Romanization without Cyrillic base detected: ${romanOnlyMatches.slice(0, 3).join(', ')}`);
+    addSuggestion("Replace Latin text with original Cyrillic characters before the romanization");
+  }
+  
+  // Check 3: Palatalization marker consistency (soft sign handling)
+  const palatalizationChecks = [
+    { cyrillic: 'ль', translit: "l'", description: 'Soft L should use apostrophe' },
+    { cyrillic: 'нь', translit: "n'", description: 'Soft N should use apostrophe' },
+    { cyrillic: 'ть', translit: "t'", description: 'Soft T should use apostrophe' },
+    { cyrillic: 'дь', translit: "d'", description: 'Soft D should use apostrophe' },
+    { cyrillic: 'сь', translit: "s'", description: 'Soft S should use apostrophe' }
+  ];
+  
+  palatalizationChecks.forEach(check => {
+    const cyrillicPattern = new RegExp(`[\\u0400-\\u04FF]*${check.cyrillic}[\\u0400-\\u04FF]*[!?.,;:'"'"‚""„‹›«»‑–—…\\s]*\\(([^)]+)\\)`, 'g');
+    const matches = transliteratedText.match(cyrillicPattern);
+    if (matches) {
+      matches.forEach(match => {
+        const translitPart = match.match(/\(([^)]+)\)/)?.[1] || '';
+        if (!translitPart.includes("'")) {
+          issues.push(`Missing palatalization marker in: ${match}`);
+          addSuggestion(`Use ${check.translit} for ${check.cyrillic} (${check.description})`);
+        }
+      });
+    }
+  });
+  
+  // Check 4: Complete coverage - ensure all Russian words have transliteration
+  // Count Cyrillic sequences (words) in both texts
+  const originalCyrillicWords = originalText.match(/[\u0400-\u04FF]+/g) || [];
+  const coveredCyrillicWords = transliteratedText.match(/[\u0400-\u04FF]+(?=[!?.,;:'"'"‚""„‹›«»‑–—…\s]*\([^)]+\))/g) || [];
+  
+  if (coveredCyrillicWords.length < originalCyrillicWords.length * 0.9) {
+    issues.push("Incomplete transliteration coverage - some Russian words missing romanization");
+    addSuggestion("Ensure all Russian words have transliteration readings");
+  }
+  
+  return {
+    isValid: issues.length === 0 && cyrillicCoverage >= 90,
+    issues,
+    suggestions,
+    cyrillicCoverage,
+    details: `Checked ${totalCyrillicCount} Cyrillic characters, coverage: ${cyrillicCoverage}%, found ${issues.length} issues`
+  };
+}
+
+/**
+ * Attempts to rebuild Russian furigana text by matching romanization back to original Cyrillic
+ * This is a fallback when Claude outputs romanization without Cyrillic base text
+ * @param originalText The original Russian text with Cyrillic
+ * @param brokenFuriganaText The text where Cyrillic was replaced with romanization
+ * @returns Rebuilt text with Cyrillic(romanization) format, or empty string if rebuild fails
+ */
+function rebuildRussianFuriganaFromRomanization(originalText: string, brokenFuriganaText: string): string {
+  try {
+    // Extract Cyrillic words from original text in order
+    const cyrillicWords = originalText.match(/[\u0400-\u04FF]+/g) || [];
+    
+    // Extract romanization patterns like "Putin(Putin)" or "zayavil(zayavil')"
+    const romanizationPattern = /([a-zA-Z]+)\(([a-zA-Z'"\s\-]+)\)/g;
+    
+    let rebuilt = brokenFuriganaText;
+    let wordIndex = 0;
+    
+    rebuilt = rebuilt.replace(romanizationPattern, (match, base, reading) => {
+      // If we have a corresponding Cyrillic word, use it as the base
+      if (wordIndex < cyrillicWords.length) {
+        const cyrillicBase = cyrillicWords[wordIndex];
+        wordIndex++;
+        // Return Cyrillic with the romanization reading
+        return `${cyrillicBase}(${reading})`;
+      }
+      // If no Cyrillic word available, keep as is (might be actual Latin text)
+      return match;
+    });
+    
+    logger.log(`[Russian Rebuild] Attempted to rebuild ${wordIndex} words from romanization to Cyrillic`);
+    
+    // Verify the rebuild actually improved things
+    const cyrillicCount = (rebuilt.match(/[\u0400-\u04FF]/g) || []).length;
+    if (cyrillicCount > 0) {
+      logger.log(`[Russian Rebuild] Successfully restored ${cyrillicCount} Cyrillic characters`);
+      return rebuilt;
+    }
+    
+    logger.warn('[Russian Rebuild] Rebuild did not restore Cyrillic characters');
+    return '';
+  } catch (error) {
+    logger.error('[Russian Rebuild] Error during rebuild:', error);
+    return '';
+  }
+}
+
+/**
+ * Validates Arabic text with romanization for accuracy and completeness
+ * @param originalText The original Arabic text
+ * @param romanizedText The text with Chat Alphabet romanization added
+ * @returns Object with validation result and details
+ */
+function validateArabicRomanization(originalText: string, romanizedText: string): {
+  isValid: boolean;
+  issues: string[];
+  suggestions: string[];
+  arabicCoverage: number;
+  accuracy: number;
+  details: string;
+} {
+  const issues: string[] = [];
+  const suggestions: string[] = [];
+  const addSuggestion = (message: string) => {
+    if (!suggestions.includes(message)) {
+      suggestions.push(message);
+    }
+  };
+  
+  // Extract all Arabic characters from original text
+  const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/g;
+  const originalArabic = originalText.match(arabicRegex) || [];
+  const totalArabicCount = originalArabic.length;
+  
+  if (totalArabicCount === 0) {
+    return {
+      isValid: true,
+      issues: [],
+      suggestions: [],
+      arabicCoverage: 100,
+      accuracy: 100,
+      details: "No Arabic characters found in text"
+    };
+  }
+  
+  // Check 1: Ensure Arabic base text is preserved in romanizedText
+  // Pattern: Arabic(romanization) - the Arabic MUST be present before the parentheses
+  const arabicWordsWithRoman = romanizedText.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+(?=[!?.,;:'"'"‚""„‹›«»‑–—…\s]*\([^)]+\))/g) || [];
+  const totalCoveredChars = arabicWordsWithRoman.join('').length;
+  const arabicCoverage = totalArabicCount > 0 ? Math.round((totalCoveredChars / totalArabicCount) * 100) : 0;
+  
+  if (arabicCoverage < 90) {
+    issues.push(`Missing Arabic base text - only ${arabicCoverage}% of original Arabic preserved`);
+    addSuggestion("Ensure all Arabic words keep their original Arabic script with Chat Alphabet in parentheses");
+  }
+  
+  // Check 2: Detect if romanization is shown BEFORE Arabic (wrong order)
+  // Pattern: (romanization)Arabic is WRONG - should be Arabic(romanization)
+  const wrongOrderPattern = /\([a-zA-Z\-']+\)[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+/g;
+  const wrongOrderMatches = romanizedText.match(wrongOrderPattern);
+  if (wrongOrderMatches && wrongOrderMatches.length > 0) {
+    issues.push(`Romanization before Arabic text detected (wrong order): ${wrongOrderMatches.slice(0, 3).join(', ')}`);
+    addSuggestion("Format must be: Arabic(romanization), NOT (romanization)Arabic");
+  }
+  
+  // Check 3: Detect if romanization appears without Arabic base (lone parentheses)
+  // Pattern: (sarakha) without Arabic text nearby
+  const loneRomanPattern = /(?<![[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF])\([a-zA-Z\-']+\)(?![[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF])/g;
+  const loneRomanMatches = romanizedText.match(loneRomanPattern);
+  if (loneRomanMatches && loneRomanMatches.length > 0) {
+    issues.push(`Romanization without Arabic base detected: ${loneRomanMatches.slice(0, 3).join(', ')}`);
+    addSuggestion("Add the original Arabic text before each romanization in parentheses");
+  }
+  
+  // Check 4: Verify sun letter assimilation usage (quality check)
+  // If we see 'al-' before known sun letters, flag it as incorrect
+  const sunLetterErrors = [
+    { pattern: /al-t[ahiou]/g, correction: 'at-', example: 'at-ta, at-ti' },
+    { pattern: /al-d[ahiou]/g, correction: 'ad-', example: 'ad-da, ad-du' },
+    { pattern: /al-r[ahiou]/g, correction: 'ar-', example: 'ar-ra, ar-ri' },
+    { pattern: /al-s[ahiou]/g, correction: 'as-', example: 'as-sa, as-si' },
+    { pattern: /al-sh[ahiou]/g, correction: 'ash-', example: 'ash-sha' },
+    { pattern: /al-n[ahiou]/g, correction: 'an-', example: 'an-na, an-ni' }
+  ];
+  
+  sunLetterErrors.forEach(check => {
+    const matches = romanizedText.match(check.pattern);
+    if (matches && matches.length > 0) {
+      issues.push(`Sun letter assimilation error: found "${matches[0]}" - should use "${check.correction}"`);
+      addSuggestion(`Use ${check.correction} for sun letters (e.g., ${check.example})`);
+    }
+  });
+  
+  // Check 5: Complete coverage - ensure all Arabic words have romanization
+  const originalArabicWords = originalText.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+/g) || [];
+  const coveredArabicWords = romanizedText.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+(?=[!?.,;:'"'"‚""„‹›«»‑–—…\s]*\([^)]+\))/g) || [];
+  
+  if (coveredArabicWords.length < originalArabicWords.length * 0.9) {
+    issues.push("Incomplete romanization coverage - some Arabic words missing Chat Alphabet");
+    addSuggestion("Ensure all Arabic words have romanization readings");
+  }
+  
+  // Check 6: Detect diacritical marks in romanization (should use simple ASCII)
+  // Common problematic patterns: k̲h̲, s̲h̲, d̲, ṣ, ḍ, ṭ (underlines and dots below)
+  const diacriticalPattern = /[\u0300-\u036F\u0323-\u0333]/g;
+  const diacriticalMatches = romanizedText.match(diacriticalPattern);
+  if (diacriticalMatches && diacriticalMatches.length > 0) {
+    issues.push(`Diacritical marks detected in romanization (${diacriticalMatches.length} found) - should use simple ASCII`);
+    addSuggestion("Use simple ASCII letters: kh (not k̲h̲), sh (not s̲h̲), d (not ḍ or d̲)");
+  }
+  
+  // Calculate accuracy based on coverage and issues
+  const issueWeight = Math.min(issues.length * 5, 30); // Each issue reduces accuracy by 5%, max 30%
+  const accuracy = Math.max(0, arabicCoverage - issueWeight);
+  
+  return {
+    isValid: issues.length === 0 && arabicCoverage >= 90,
+    issues,
+    suggestions,
+    arabicCoverage,
+    accuracy,
+    details: `Checked ${totalArabicCount} Arabic characters, coverage: ${arabicCoverage}%, accuracy: ${accuracy}%, found ${issues.length} issues`
+  };
+}
+
+/**
+ * Strips diacritical marks from Arabic romanization text
+ * Converts academic transliteration (k̲h̲, ṣ, ḍ) to simple Chat Alphabet (kh, s, d)
+ * @param text The romanized text that may contain diacritical marks
+ * @returns Text with diacritical marks removed
+ */
+function stripArabicDiacritics(text: string): string {
+  if (!text) return text;
+  
+  // Remove combining diacritical marks (underlines, dots below, etc.)
+  // U+0300-U+036F: Combining Diacritical Marks
+  // U+0323-U+0333: Combining dot below, combining low line, etc.
+  let cleaned = text.normalize('NFD').replace(/[\u0300-\u036F\u0323-\u0333]/g, '');
+  
+  // Normalize back to composed form
+  cleaned = cleaned.normalize('NFC');
+  
+  logger.log(`[Arabic Diacritics] Stripped diacritics: "${text.substring(0, 50)}..." -> "${cleaned.substring(0, 50)}..."`);
+  
+  return cleaned;
+}
+
+/**
  * Exported validation functions for use in other parts of the app
  */
-export { validateJapaneseFurigana, validateKoreanRomanization }; 
+export { validateJapaneseFurigana, validateKoreanRomanization, validateRussianTransliteration, validateArabicRomanization }; 
