@@ -3163,6 +3163,133 @@ CRITICAL: Every Arabic word must have its ORIGINAL ARABIC text preserved with ro
               logger.log(`Arabic romanization validation passed with ${validation.arabicCoverage}% Arabic coverage and ${validation.accuracy}% accuracy`);
             }
           }
+
+          // Hindi romanization validation and smart retry logic
+          if ((primaryLanguage === "Hindi" || forcedLanguage === 'hi') && furiganaText) {
+            const validation = validateHindiRomanization(text, furiganaText);
+            logger.log(`Hindi romanization validation: ${validation.details}`);
+            
+            if (!validation.isValid && validation.accuracy < 90) {
+              logger.warn(`Hindi romanization quality issues detected: ${validation.details}`);
+              
+              // If this is first attempt and we have significant issues, retry with corrective prompt
+              if (retryCount === 0 && validation.issues.length > 0) {
+                logger.log("Retrying with enhanced Hindi romanization correction prompt...");
+                retryCount++;
+                
+                // Create specific correction prompt based on validation issues
+                const correctionPrompt = `
+${promptTopSection}
+CRITICAL HINDI ROMANIZATION RETRY - PREVIOUS ATTEMPT HAD FORMATTING ISSUES
+
+You are a Hindi language expert. The previous attempt had these specific issues that must be fixed:
+
+DETECTED ISSUES:
+${validation.issues.map(issue => `- ${issue}`).join('\n')}
+
+SUGGESTED CORRECTIONS:
+${validation.suggestions.map(suggestion => `- ${suggestion}`).join('\n')}
+
+Original text: "${text}"
+Previous result Hindi coverage: ${validation.hindiCoverage}%
+Previous result accuracy: ${validation.accuracy}%
+
+MANDATORY CORRECTIONS - Fix these specific problems:
+1. ${validation.issues.some(i => i.includes('Missing Hindi base')) ? 'PRESERVE ORIGINAL HINDI TEXT - DO NOT replace with romanization' : ''}
+2. ${validation.issues.some(i => i.includes('wrong order')) ? 'CORRECT ORDER - Must be Hindi(romanization), NOT (romanization)Hindi' : ''}
+3. ${validation.issues.some(i => i.includes('without Hindi base')) ? 'ADD HINDI BASE before romanization - format must be: हिन्दी(hindī) NOT (hindī)' : ''}
+4. ${validation.issues.some(i => i.includes('inside parentheses')) ? 'MOVE QUOTES OUTSIDE - Format: हूं(hūṃ)" NOT हूं(hūṃ")' : ''}
+5. ${validation.issues.some(i => i.includes('vowel length')) ? 'ADD VOWEL LENGTH MARKS - Use ā, ī, ū with macrons for long vowels' : ''}
+6. ${validation.issues.some(i => i.includes('retroflex')) ? 'ADD RETROFLEX DOTS - Use ṭ, ḍ, ṇ, ṣ with dots below' : ''}
+7. ${validation.issues.some(i => i.includes('coverage')) ? 'ENSURE COMPLETE COVERAGE - every Hindi word must have IAST romanization' : ''}
+
+CRITICAL FORMAT REQUIREMENTS:
+- MUST preserve original Devanagari characters as the BASE text
+- Add IAST romanization in parentheses AFTER the Hindi
+- Format: हिन्दी(hindī) NOT (hindī) or (hindī)हिन्दी
+- Quotes and punctuation MUST be OUTSIDE parentheses: हूं(hūṃ)" NOT हूं(hūṃ")
+- Use proper IAST with diacritical marks (ā, ī, ū, ṭ, ḍ, ṇ, ṣ, ṃ)
+
+Examples of CORRECT formatting:
+- "नमस्ते" → "नमस्ते(namaste)"
+- "हिन्दी" → "हिन्दी(hindī)"
+- "राष्ट्रपति" → "राष्ट्रपति(rāṣṭrapati)"
+- "कहा 'हम यह कर सकते हैं'" → "कहा(kahā) 'हम(ham) यह(yah) कर(kar) सकते(sakte) हैं(haiṃ)'"
+
+WRONG examples (DO NOT USE):
+- "(namaste)" ❌ (missing Hindi base)
+- "(hindī)हिन्दी" ❌ (wrong order - romanization before Hindi)
+- "हूं(hūṃ"" ❌ (quote inside parentheses - should be हूं(hūṃ)")
+- "hindi" ❌ (missing macron - should be hindī)
+- "rashtrapati" ❌ (missing diacritics - should be rāṣṭrapati)
+
+Format your response as valid JSON with these exact keys:
+{
+  "furiganaText": "Hindi text with Devanagari base + IAST romanization addressing all issues above",
+  "translatedText": "Accurate translation in ${targetLangName} language"
+}
+
+CRITICAL: Every Hindi word must have its ORIGINAL DEVANAGARI text preserved with romanization in parentheses immediately after. Quotes and punctuation MUST be outside parentheses.
+`;
+
+                try {
+                  logger.log('Making Hindi romanization correction request to Claude...');
+                  const retryResponse = await axios.post(
+                    'https://api.anthropic.com/v1/messages',
+                    {
+                      model: "claude-3-haiku-20240307",
+                      max_tokens: 4000,
+                      temperature: 0,
+                      messages: [{
+                        role: "user",
+                        content: correctionPrompt
+                      }]
+                    },
+                    {
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'anthropic-version': '2023-06-01',
+                        'x-api-key': apiKey
+                      },
+                      timeout: 60000
+                    }
+                  );
+
+                  if (retryResponse.data && retryResponse.data.content && retryResponse.data.content[0] && retryResponse.data.content[0].text) {
+                    try {
+                      const retryResponseText = retryResponse.data.content[0].text;
+                      logger.log("Hindi retry response received:", retryResponseText.substring(0, 200) + "...");
+                      
+                      const retryCleanedJson = cleanJsonString(retryResponseText);
+                      const retryParsedResponse = JSON.parse(retryCleanedJson);
+                      const retryRomanizedText = retryParsedResponse.furiganaText;
+                      
+                      // Validate the retry result
+                      const retryValidation = validateHindiRomanization(text, retryRomanizedText);
+                      logger.log(`Hindi retry validation: ${retryValidation.details}`);
+                      
+                      // Use retry result if it's significantly better
+                      if (retryValidation.accuracy > validation.accuracy + 10 || 
+                          (retryValidation.isValid && !validation.isValid)) {
+                        furiganaText = retryRomanizedText;
+                        logger.log(`Hindi retry successful - improved accuracy from ${validation.accuracy}% to ${retryValidation.accuracy}%`);
+                      } else {
+                        logger.log(`Hindi retry did not significantly improve romanization quality - using current result`);
+                      }
+                    } catch (retryParseError) {
+                      logger.error("Error parsing Hindi retry response:", retryParseError);
+                      // Continue with current result
+                    }
+                  }
+                } catch (retryError) {
+                  logger.error("Error during Hindi romanization retry:", retryError);
+                  // Continue with current result
+                }
+              }
+            } else if (validation.isValid) {
+              logger.log(`Hindi romanization validation passed with ${validation.hindiCoverage}% Hindi coverage and ${validation.accuracy}% accuracy`);
+            }
+          }
           
             // ============================================================================
             // STEP 2: UNIVERSAL READING VERIFICATION (Completeness Check)
@@ -4201,6 +4328,120 @@ function stripArabicDiacritics(text: string): string {
 }
 
 /**
+ * Validates Hindi text with romanization for accuracy and completeness
+ * @param originalText The original Hindi text
+ * @param romanizedText The text with IAST romanization added
+ * @returns Object with validation result and details
+ */
+function validateHindiRomanization(originalText: string, romanizedText: string): {
+  isValid: boolean;
+  issues: string[];
+  suggestions: string[];
+  hindiCoverage: number;
+  accuracy: number;
+  details: string;
+} {
+  const issues: string[] = [];
+  const suggestions: string[] = [];
+  const addSuggestion = (message: string) => {
+    if (!suggestions.includes(message)) {
+      suggestions.push(message);
+    }
+  };
+  
+  // Extract all Hindi (Devanagari) characters from original text
+  const hindiRegex = /[\u0900-\u097F]/g;
+  const originalHindi = originalText.match(hindiRegex) || [];
+  const totalHindiCount = originalHindi.length;
+  
+  if (totalHindiCount === 0) {
+    return {
+      isValid: true,
+      issues: [],
+      suggestions: [],
+      hindiCoverage: 100,
+      accuracy: 100,
+      details: "No Hindi characters found in text"
+    };
+  }
+  
+  // Check 1: Ensure Hindi base text is preserved in romanizedText
+  // Pattern: Hindi(romanization) - the Hindi MUST be present before the parentheses
+  const hindiWordsWithRoman = romanizedText.match(/[\u0900-\u097F]+(?=[!?.,;:'"'"‚""„‹›«»‑–—…\s]*\([^)]+\))/g) || [];
+  const totalCoveredChars = hindiWordsWithRoman.join('').length;
+  const hindiCoverage = totalHindiCount > 0 ? Math.round((totalCoveredChars / totalHindiCount) * 100) : 0;
+  
+  if (hindiCoverage < 90) {
+    issues.push(`Missing Hindi base text - only ${hindiCoverage}% of original Hindi preserved`);
+    addSuggestion("Ensure all Hindi words keep their original Devanagari script with IAST romanization in parentheses");
+  }
+  
+  // Check 2: Detect if romanization is shown BEFORE Hindi (wrong order)
+  // Pattern: (romanization)Hindi is WRONG - should be Hindi(romanization)
+  const wrongOrderPattern = /\([a-zA-ZāēīōūǎěǐǒǔàèìòùáéíóúǘǙǚǜǖǕǗǙǛüÜɑśṅñṭḍṇḷṛṣḥṁṃḷ̥ṝṟĝśḱńṗṟť\-']+\)[\u0900-\u097F]+/g;
+  const wrongOrderMatches = romanizedText.match(wrongOrderPattern);
+  if (wrongOrderMatches && wrongOrderMatches.length > 0) {
+    issues.push(`Romanization before Hindi text detected (wrong order): ${wrongOrderMatches.slice(0, 3).join(', ')}`);
+    addSuggestion("Format must be: Hindi(romanization), NOT (romanization)Hindi");
+  }
+  
+  // Check 3: Detect if romanization appears without Hindi base (lone parentheses)
+  // Pattern: (romanization) without Hindi text nearby
+  const loneRomanPattern = /(?<![\u0900-\u097F])\([a-zA-ZāēīōūǎěǐǒǔàèìòùáéíóúǘǙǚǜǖǕǗǙǛüÜɑśṅñṭḍṇḷṛṣḥṁṃḷ̥ṝṟĝśḱńṗṟť\-']+\)(?![\u0900-\u097F])/g;
+  const loneRomanMatches = romanizedText.match(loneRomanPattern);
+  if (loneRomanMatches && loneRomanMatches.length > 0) {
+    issues.push(`Romanization without Hindi base detected: ${loneRomanMatches.slice(0, 3).join(', ')}`);
+    addSuggestion("Add the original Hindi text before each romanization in parentheses");
+  }
+  
+  // Check 4: Detect quotes or punctuation INSIDE parentheses (formatting error)
+  // Pattern: Hindi(romanization" or Hindi(romanization') - quote should be OUTSIDE
+  const quoteInsidePattern = /[\u0900-\u097F]+\([^)]*['""][^)]*\)/g;
+  const quoteInsideMatches = romanizedText.match(quoteInsidePattern);
+  if (quoteInsideMatches && quoteInsideMatches.length > 0) {
+    issues.push(`Quote or punctuation inside parentheses detected: ${quoteInsideMatches.slice(0, 3).join(', ')}`);
+    addSuggestion("Quotes and punctuation should be OUTSIDE parentheses: हूं(hūṃ)\" NOT हूं(hūṃ\")");
+  }
+  
+  // Check 5: Verify IAST diacritical marks are present (quality check)
+  // Hindi romanization should have macrons (ā, ī, ū) and dots (ṭ, ḍ, ṇ, ṣ, ṃ)
+  const hasMacrons = /[āīū]/.test(romanizedText);
+  const hasRetroflexDots = /[ṭḍṇṣṃṅñśḥḷṛ]/.test(romanizedText);
+  
+  if (!hasMacrons && totalHindiCount > 10) {
+    issues.push("Missing vowel length marks (ā, ī, ū) - romanization may be incomplete");
+    addSuggestion("Use proper IAST: आ = ā, ई = ī, ऊ = ū (with macrons)");
+  }
+  
+  if (!hasRetroflexDots && totalHindiCount > 10) {
+    issues.push("Missing retroflex/nasal marks (ṭ, ḍ, ṇ, ṣ, ṃ) - romanization may be incomplete");
+    addSuggestion("Use proper IAST: ट = ṭ, ड = ḍ, ण = ṇ, ष = ṣ, ं = ṃ (with dots)");
+  }
+  
+  // Check 6: Complete coverage - ensure all Hindi words have romanization
+  const originalHindiWords = originalText.match(/[\u0900-\u097F]+/g) || [];
+  const coveredHindiWords = romanizedText.match(/[\u0900-\u097F]+(?=[!?.,;:'"'"‚""„‹›«»‑–—…\s]*\([^)]+\))/g) || [];
+  
+  if (coveredHindiWords.length < originalHindiWords.length * 0.9) {
+    issues.push("Incomplete romanization coverage - some Hindi words missing IAST");
+    addSuggestion("Ensure all Hindi words have romanization readings");
+  }
+  
+  // Calculate accuracy based on coverage and issues
+  const issueWeight = Math.min(issues.length * 5, 30); // Each issue reduces accuracy by 5%, max 30%
+  const accuracy = Math.max(0, hindiCoverage - issueWeight);
+  
+  return {
+    isValid: issues.length === 0 && hindiCoverage >= 90,
+    issues,
+    suggestions,
+    hindiCoverage,
+    accuracy,
+    details: `Checked ${totalHindiCount} Hindi characters, coverage: ${hindiCoverage}%, accuracy: ${accuracy}%, found ${issues.length} issues`
+  };
+}
+
+/**
  * Exported validation functions for use in other parts of the app
  */
-export { validateJapaneseFurigana, validateKoreanRomanization, validateRussianTransliteration, validateArabicRomanization }; 
+export { validateJapaneseFurigana, validateKoreanRomanization, validateRussianTransliteration, validateArabicRomanization, validateHindiRomanization }; 

@@ -134,8 +134,12 @@ export interface FuriganaWord {
 export function parseFuriganaText(text: string): FuriganaWord[] {
   if (!text) return [];
   
+  // Fix quotes inside parentheses with missing closing paren: हूं(hūṃ" → हूं(hūṃ)"
+  // This handles Claude's malformed output where quote ends up inside and ) is dropped
+  let fixedText = text.replace(/\(([a-zA-Zāēīōūǎěǐǒǔàèìòùáéíóúṭḍṇṣṃṅñśḥṁḷṛ\-]+)(["']+)(?=\s|$)/g, '($1)$2');
+  
   const words: FuriganaWord[] = [];
-  const cleanedText = cleanFuriganaText(text);
+  const cleanedText = cleanFuriganaText(fixedText);
   
   // If no valid furigana format, return as plain text
   if (!validateFuriganaFormat(cleanedText)) {
