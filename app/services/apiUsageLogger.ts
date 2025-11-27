@@ -210,10 +210,10 @@ class APIUsageLogger {
       
       // You can adjust these limits based on your subscription logic
       const FREE_LIMITS = {
-        claude: 100,    // Conservative daily limit
-        vision: 500,    // Your current OCR limit
+        claude: 20,    // Conservative daily limit
+        vision: 100,    // Your current OCR limit
         flashcards: 3,  // Your current flashcard limit
-        ocr: 500        // Your current OCR limit
+        ocr: 100        // Your current OCR limit
       };
 
       return {

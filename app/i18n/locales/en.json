@@ -201,6 +201,8 @@
     "noCollectionsFound": "No collections found. Create collections in the flashcards screen.",
     "loadingCollections": "Loading collections...",
     "failedToLoad": "Failed to load collections. Please try again.",
+    "noCardsInSelectionTitle": "No cards to review",
+    "noCardsInSelectionSubtitle": "The selected collection(s) contain no cards. Choose a different collection or add cards.",
     "gettingStarted": {
       "title": "Getting Started",
       "subtitle": "Build your first collection:",

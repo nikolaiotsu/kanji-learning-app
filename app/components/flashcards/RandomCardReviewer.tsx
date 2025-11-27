@@ -517,6 +517,10 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       // the transition effect will treat it as a new card and fade it back in.
       setLastCardId(null);
       
+      // Reset image expanded state for the new card
+      // (new FlashcardItem will start with showImage: false)
+      setIsImageExpanded(false);
+      
       // Execute the callback based on direction
       if (direction === 'left') {
         handleSwipeLeft();

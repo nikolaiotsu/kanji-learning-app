@@ -197,6 +197,8 @@
     "noCollectionsFound": "未找到收藏集。在单词卡屏幕中创建收藏集。",
     "loadingCollections": "加载收藏集中...",
     "failedToLoad": "加载收藏集失败。请重试。",
+    "noCardsInSelectionTitle": "没有要复习的卡片",
+    "noCardsInSelectionSubtitle": "所选收藏集中没有卡片。请选择其他收藏集或添加卡片。",
     "gettingStarted": {
       "title": "入门指南",
       "subtitle": "创建您的第一个收藏集：",
