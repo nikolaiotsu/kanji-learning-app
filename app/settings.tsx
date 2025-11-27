@@ -157,14 +157,6 @@ export default function SettingsScreen() {
                 {detectableLanguages[forcedDetectionLanguage as keyof typeof detectableLanguages]} {t('settings.tapToChange')}
               </Text>
             </View>
-            {forcedDetectionLanguage !== 'auto' && (
-              <TouchableOpacity 
-                style={styles.resetButton} 
-                onPress={() => handleSelectDetectionLanguage('auto')}
-              >
-                <Ionicons name="refresh" size={20} color={COLORS.text} />
-              </TouchableOpacity>
-            )}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -181,17 +173,15 @@ export default function SettingsScreen() {
           </TouchableOpacity>
 
           {/* Language Swap Button */}
-          {forcedDetectionLanguage !== 'auto' && (
-            <View style={styles.swapButtonContainer}>
-              <TouchableOpacity
-                style={styles.swapButton}
-                onPress={handleSwapLanguages}
-              >
-                <Ionicons name="swap-vertical" size={20} color="#000" />
-                <Text style={styles.swapButtonText}>{t('settings.swapLanguages')}</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+          <View style={styles.swapButtonContainer}>
+            <TouchableOpacity
+              style={styles.swapButton}
+              onPress={handleSwapLanguages}
+            >
+              <Ionicons name="swap-vertical" size={20} color="#000" />
+              <Text style={styles.swapButtonText}>{t('settings.swapLanguages')}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.section}>
@@ -355,9 +345,6 @@ export default function SettingsScreen() {
                 <Ionicons name="close" size={24} color={COLORS.text} />
               </TouchableOpacity>
             </View>
-            <Text style={styles.modalDescription}>
-              {t('settings.forceDetectionDescription')}
-            </Text>
             <FlatList
               data={detectionLanguageData}
               keyExtractor={(item) => item.code}

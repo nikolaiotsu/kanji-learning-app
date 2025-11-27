@@ -164,56 +164,28 @@ export default function LanguageFlashcardsScreen() {
       
       // Determine language label for display purposes only
       let language = 'unknown';
-      if (forcedDetectionLanguage !== 'auto') {
-        // Use the forced language setting if enabled
-        switch (forcedDetectionLanguage) {
-          case 'en': language = 'English'; break;
-          case 'zh': language = 'Chinese'; break;
-          case 'ja': language = 'Japanese'; break;
-          case 'ko': language = 'Korean'; break;
-                      case 'ru': language = 'Russian'; break;
-            case 'ar': language = 'Arabic'; break;
-            case 'hi': language = 'Hindi'; break;
-            case 'eo': language = 'Esperanto'; break;
-            case 'it': language = 'Italian'; break;
-            case 'es': language = 'Spanish'; break;
-          case 'fr': language = 'French'; break;
-          case 'tl': language = 'Tagalog'; break;
-          case 'pt': language = 'Portuguese'; break;
-          case 'de': language = 'German'; break;
-          default: language = 'unknown';
-        }
-        logger.log(`Using forced language detection: ${language}`);
-        
-        // Language validation now handled by hybrid AI/pattern validation in processWithClaude
-        // No need for pre-validation here - let the hybrid system handle it
-      } else if (hasJapanese && !hasChinese && !hasKorean) {
-        language = 'Japanese';
-      } else if (hasChinese) {
-        language = 'Chinese';
-      } else if (hasKorean) {
-        language = 'Korean';
-      } else if (hasRussian) {
-        language = 'Russian';
-              } else if (hasArabic) {
-          language = 'Arabic';
-        } else if (hasHindi) {
-          language = 'Hindi';
-        } else if (hasEsperanto) {
-          language = 'Esperanto';
-        } else if (hasItalian) {
-          language = 'Italian';
-      } else if (hasTagalog) {
-        language = 'Tagalog';
-      } else if (hasFrench) {
-        language = 'French';
-      } else if (hasSpanish) {
-        language = 'Spanish';
-      } else if (hasPortuguese) {
-        language = 'Portuguese';
-      } else if (hasGerman) {
-        language = 'German';
+      // Use the forced language setting
+      switch (forcedDetectionLanguage) {
+        case 'en': language = 'English'; break;
+        case 'zh': language = 'Chinese'; break;
+        case 'ja': language = 'Japanese'; break;
+        case 'ko': language = 'Korean'; break;
+        case 'ru': language = 'Russian'; break;
+        case 'ar': language = 'Arabic'; break;
+        case 'hi': language = 'Hindi'; break;
+        case 'eo': language = 'Esperanto'; break;
+        case 'it': language = 'Italian'; break;
+        case 'es': language = 'Spanish'; break;
+        case 'fr': language = 'French'; break;
+        case 'tl': language = 'Tagalog'; break;
+        case 'pt': language = 'Portuguese'; break;
+        case 'de': language = 'German'; break;
+        default: language = 'unknown';
       }
+      logger.log(`Using forced language detection: ${language}`);
+      
+      // Language validation now handled by hybrid AI/pattern validation in processWithClaude
+      // No need for pre-validation here - let the hybrid system handle it
       
       setDetectedLanguage(language);
       

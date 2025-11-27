@@ -22,7 +22,6 @@ export const AVAILABLE_LANGUAGES = {
 
 // Languages that can be forced for detection
 export const DETECTABLE_LANGUAGES = {
-  auto: 'Auto-detect',
   en: 'English',
   zh: 'Chinese',
   ja: 'Japanese',
@@ -54,7 +53,7 @@ interface SettingsContextType {
 const SettingsContext = createContext<SettingsContextType>({
   targetLanguage: 'en',
   setTargetLanguage: async () => {},
-  forcedDetectionLanguage: 'auto',
+  forcedDetectionLanguage: 'ja',
   setForcedDetectionLanguage: async () => {},
   swapLanguages: async () => {},
   availableLanguages: AVAILABLE_LANGUAGES,
@@ -71,8 +70,8 @@ const SETTINGS_STORAGE_KEY = 'app_settings';
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // State for target language (default to English)
   const [targetLanguage, setTargetLanguageState] = useState<string>('en');
-  // State for forced detection language (default to auto-detect)
-  const [forcedDetectionLanguage, setForcedDetectionLanguageState] = useState<string>('auto');
+  // State for forced detection language (default to Japanese)
+  const [forcedDetectionLanguage, setForcedDetectionLanguageState] = useState<string>('ja');
 
   // Load settings from AsyncStorage on mount
   useEffect(() => {
@@ -85,7 +84,15 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             setTargetLanguageState(settings.targetLanguage);
           }
           if (settings.forcedDetectionLanguage) {
-            setForcedDetectionLanguageState(settings.forcedDetectionLanguage);
+            // Migrate from 'auto' to 'ja' for existing users
+            if (settings.forcedDetectionLanguage === 'auto') {
+              logger.log('[SettingsContext] Migrating from auto-detect to Japanese');
+              settings.forcedDetectionLanguage = 'ja';
+              await AsyncStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+              setForcedDetectionLanguageState('ja');
+            } else {
+              setForcedDetectionLanguageState(settings.forcedDetectionLanguage);
+            }
           }
         }
       } catch (error) {
@@ -100,7 +107,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const setTargetLanguage = async (lang: string) => {
     try {
       // Validate that target language is different from forced detection language
-      if (lang === forcedDetectionLanguage && forcedDetectionLanguage !== 'auto') {
+      if (lang === forcedDetectionLanguage) {
         throw new Error('Target language cannot be the same as the detection language. Please choose a different language.');
       }
       
@@ -118,7 +125,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const setForcedDetectionLanguage = async (lang: string) => {
     try {
       // Validate that forced detection language is different from target language
-      if (lang === targetLanguage && lang !== 'auto') {
+      if (lang === targetLanguage) {
         throw new Error('Detection language cannot be the same as the target language. Please choose a different language.');
       }
       
@@ -135,10 +142,6 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Function to swap languages
   const swapLanguages = async () => {
     try {
-      if (forcedDetectionLanguage === 'auto') {
-        throw new Error('Cannot swap languages when detection is set to auto-detect.');
-      }
-
       // Check if both languages exist in their respective language lists
       const targetExists = AVAILABLE_LANGUAGES[forcedDetectionLanguage as keyof typeof AVAILABLE_LANGUAGES];
       const detectionExists = DETECTABLE_LANGUAGES[targetLanguage as keyof typeof DETECTABLE_LANGUAGES];

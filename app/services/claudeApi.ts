@@ -302,11 +302,11 @@ function cleanJsonString(jsonString: string): string {
 /**
  * Determines the primary language of a text while acknowledging it may contain other languages
  * @param text The text to analyze
- * @param forcedLanguage Optional code to force a specific language detection
+ * @param forcedLanguage Optional code to force a specific language detection, or 'auto' to auto-detect
  * @returns The detected primary language
  */
-function detectPrimaryLanguage(text: string, forcedLanguage: string = 'auto'): string {
-  // If a specific language is forced, return that instead of detecting
+function detectPrimaryLanguage(text: string, forcedLanguage: string = 'ja'): string {
+  // If a specific language is forced (not 'auto'), return that instead of detecting
   if (forcedLanguage !== 'auto') {
     logger.log(`[detectPrimaryLanguage] Using forced language: ${forcedLanguage}`);
     switch (forcedLanguage) {
@@ -451,15 +451,9 @@ function detectPrimaryLanguage(text: string, forcedLanguage: string = 'auto'): s
  * Validates if the text contains the specified forced language
  * @param text The text to validate
  * @param forcedLanguage The language code to validate against
- * @returns True if the text matches the forced language or if forcedLanguage is 'auto', false otherwise
+ * @returns True if the text matches the forced language, false otherwise
  */
-export function validateTextMatchesLanguage(text: string, forcedLanguage: string = 'auto'): boolean {
-  // If auto-detect is enabled, always return true (no validation needed)
-  if (forcedLanguage === 'auto') {
-    logger.log('[validateTextMatchesLanguage] Auto-detect enabled, returning true');
-    return true;
-  }
-
+export function validateTextMatchesLanguage(text: string, forcedLanguage: string = 'ja'): boolean {
   // If text is too short, don't validate (prevent false rejections for very short inputs)
   if (text.trim().length < 2) {
     logger.log('[validateTextMatchesLanguage] Text too short, returning true');
@@ -803,7 +797,7 @@ Be precise and return ONLY the JSON with no additional explanation.`;
 export async function processWithClaude(
   text: string, 
   targetLanguage: string = 'en',
-  forcedLanguage: string = 'auto',
+  forcedLanguage: string = 'ja',
   onProgress?: (checkpoint: number) => void
 ): Promise<ClaudeResponse> {
   // CRITICAL: Normalize quotation marks and special characters BEFORE processing
@@ -847,7 +841,7 @@ export async function processWithClaude(
   // HYBRID LANGUAGE VALIDATION STRATEGY (for forced language modes)
   // - Latin languages (en, fr, es, it, pt, de, tl, eo): Use AI validation (overlapping patterns)
   // - Non-Latin languages (ja, zh, ko, ru, ar, hi): Use pattern matching (unique character sets)
-  if (forcedLanguage && forcedLanguage !== 'auto') {
+  if (forcedLanguage) {
     // Define which languages use which validation method
     const latinLanguages = ['en', 'fr', 'es', 'it', 'pt', 'de', 'tl', 'eo'];
     const nonLatinLanguages = ['ja', 'zh', 'ko', 'ru', 'ar', 'hi'];
@@ -934,9 +928,7 @@ export async function processWithClaude(
   // Detect primary language, respecting any forced language setting
   const primaryLanguage = detectPrimaryLanguage(text, forcedLanguage);
   logger.log(`Translating to: ${targetLangName}`);
-  if (forcedLanguage !== 'auto') {
-    logger.log(`Using forced language detection: ${forcedLanguage} (${primaryLanguage})`);
-  }
+  logger.log(`Using forced language detection: ${forcedLanguage} (${primaryLanguage})`);
 
   const shouldEnforceKoreanRomanization =
     primaryLanguage === "Korean" || forcedLanguage === 'ko';
@@ -1018,7 +1010,7 @@ If the target language is Arabic, the translation must use Arabic script.
       const readingLanguageCodes = new Set(['zh', 'ko', 'ru', 'ar', 'hi']);
       const readingLanguageNames = new Set(['Chinese', 'Korean', 'Russian', 'Arabic', 'Hindi']);
       const hasSourceReadingPrompt =
-        (normalizedForcedLanguage !== 'auto' && readingLanguageCodes.has(normalizedForcedLanguage)) ||
+        readingLanguageCodes.has(normalizedForcedLanguage) ||
         readingLanguageNames.has(primaryLanguage);
       
       // Check if we're translating TO Japanese from a non-Japanese source

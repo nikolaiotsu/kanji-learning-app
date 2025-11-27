@@ -156,8 +156,7 @@
     }
   },
   "settings": {
-    "forceDetection": "Force Language Detection",
-    "forceDetectionDescription": "This setting forces the app to treat the text as being in a specific language, bypassing automatic detection. Use this when working with languages that may be confused with each other. When a language is selected (other than \"Auto-detect\"), the app will only accept text in that language and will display an error message if the text appears to be in a different language.",
+    "forceDetection": "Source Language Detection",
     "account": "Account",
     "preferences": "Preferences",
     "subscription": "Subscription",

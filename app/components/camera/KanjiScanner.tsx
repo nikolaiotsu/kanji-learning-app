@@ -782,10 +782,8 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
           }
         });
       } else {
-        // Get the current forced language name, defaulting to "text" if auto-detect
-        const languageName = forcedDetectionLanguage === 'auto' 
-          ? 'text' 
-          : DETECTABLE_LANGUAGES[forcedDetectionLanguage as keyof typeof DETECTABLE_LANGUAGES] || 'text';
+        // Get the current forced language name
+        const languageName = DETECTABLE_LANGUAGES[forcedDetectionLanguage as keyof typeof DETECTABLE_LANGUAGES] || 'text';
           
         Alert.alert(
           t('camera.noTextFoundTitle', { language: languageName }),

@@ -153,7 +153,6 @@
   },
   "settings": {
     "forceDetection": "强制语言检测",
-    "forceDetectionDescription": "此设置强制应用将文本视为特定语言，绕过自动检测。在处理可能相互混淆的语言时使用此功能。当选择了语言（除了\"自动检测\"）时，应用将只接受该语言的文本，如果文本似乎是不同的语言，将显示错误消息。",
     "account": "账户",
     "preferences": "偏好设置",
     "subscription": "订阅",
