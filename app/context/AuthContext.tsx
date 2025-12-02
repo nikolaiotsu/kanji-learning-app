@@ -4,6 +4,8 @@ import * as authService from '../services/authService';
 import { supabase } from '../services/supabaseClient';
 import { syncAllUserData } from '../services/syncManager';
 import { storeUserIdOffline, clearUserIdOffline } from '../services/offlineAuth';
+import { requestAccountDeletion } from '../services/userDataControlService';
+import { clearCache } from '../services/offlineStorage';
 
 import { logger } from '../utils/logger';
 // Define the shape of our Auth context
@@ -15,6 +17,7 @@ type AuthContextType = {
   signUp: (email: string, password: string) => Promise<{ user: User | null; session: Session | null } | null>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  deleteAccount: () => Promise<{ success: boolean; error?: string }>;
 };
 
 // Create the Auth context
@@ -171,6 +174,41 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  // Delete account function
+  const deleteAccount = async (): Promise<{ success: boolean; error?: string }> => {
+    setIsLoading(true);
+    try {
+      logger.log('🗑️ [AuthContext] Starting account deletion...');
+      
+      // Request account deletion via Edge Function
+      const result = await requestAccountDeletion();
+      
+      if (!result.success) {
+        logger.error('❌ [AuthContext] Account deletion failed:', result.error);
+        return result;
+      }
+      
+      logger.log('✅ [AuthContext] Account deleted successfully, cleaning up...');
+      
+      // Clear offline user ID and local cache
+      await clearUserIdOffline();
+      
+      // Clear auth state
+      setSession(null);
+      setUser(null);
+      
+      return { success: true };
+    } catch (error) {
+      logger.error('❌ [AuthContext] Error deleting account:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+      };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Reset password function
   const resetPassword = async (email: string) => {
     try {
@@ -190,6 +228,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     signUp,
     signOut,
     resetPassword,
+    deleteAccount,
   };
 
   // Provide the Auth context to children

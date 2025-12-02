@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Modal, FlatList } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Modal, FlatList, TextInput, ActivityIndicator, Animated, Pressable, KeyboardAvoidingView, Platform, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -14,7 +14,7 @@ import PokedexLayout from './components/shared/PokedexLayout';
 import { logger } from './utils/logger';
 export default function SettingsScreen() {
   const { t } = useTranslation();
-  const { user, signOut } = useAuth();
+  const { user, signOut, deleteAccount } = useAuth();
   const { 
     targetLanguage, 
     setTargetLanguage, 
@@ -30,6 +30,13 @@ export default function SettingsScreen() {
   const router = useRouter();
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
   const [showDetectionSelector, setShowDetectionSelector] = useState(false);
+  const [showDeleteWarning, setShowDeleteWarning] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [isLongPressing, setIsLongPressing] = useState(false);
+  const longPressProgress = useRef(new Animated.Value(0)).current;
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
   // Function to handle sign out
   const handleSignOut = async () => {
@@ -118,31 +125,127 @@ export default function SettingsScreen() {
     );
   };
 
+  // Function to show delete account warning
+  const handleShowDeleteWarning = () => {
+    setShowDeleteWarning(true);
+  };
+
+  // Function to proceed to confirmation step
+  const handleProceedToConfirm = () => {
+    setShowDeleteWarning(false);
+    setShowDeleteConfirm(true);
+    setDeleteConfirmText('');
+  };
+
+  // Function to handle account deletion
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== 'DELETE') {
+      Alert.alert(
+        t('settings.deleteAccountError'),
+        'Please type DELETE to confirm'
+      );
+      return;
+    }
+
+    setIsDeletingAccount(true);
+
+    try {
+      const result = await deleteAccount();
+      
+      if (result.success) {
+        setShowDeleteConfirm(false);
+        Alert.alert(
+          t('settings.deleteAccountSuccess'),
+          t('settings.deleteAccountSuccessMessage'),
+          [
+            {
+              text: t('common.ok'),
+              onPress: () => {
+                router.replace('/');
+              }
+            }
+          ]
+        );
+      } else {
+        setIsDeletingAccount(false);
+        Alert.alert(
+          t('settings.deleteAccountError'),
+          result.error || t('settings.deleteAccountErrorMessage')
+        );
+      }
+    } catch (error) {
+      setIsDeletingAccount(false);
+      logger.error('Error deleting account:', error);
+      Alert.alert(
+        t('settings.deleteAccountError'),
+        t('settings.deleteAccountErrorMessage')
+      );
+    }
+  };
+
+  // Function to cancel delete account flow
+  const handleCancelDelete = () => {
+    setShowDeleteWarning(false);
+    setShowDeleteConfirm(false);
+    setDeleteConfirmText('');
+  };
+
+  // Function to open privacy policy
+  const handleOpenPrivacyPolicy = async () => {
+    // TODO: Replace this URL with your actual Notion privacy policy URL
+    const privacyPolicyUrl = 'https://rapid-inch-201.notion.site/WordDex-Privacy-Policy-2bcb8594739e80f7814ffea26df1c3a9';
+    
+    try {
+      const supported = await Linking.canOpenURL(privacyPolicyUrl);
+      if (supported) {
+        await Linking.openURL(privacyPolicyUrl);
+      } else {
+        Alert.alert(t('common.error'), 'Cannot open privacy policy URL');
+      }
+    } catch (error) {
+      logger.error('Error opening privacy policy:', error);
+      Alert.alert(t('common.error'), 'Failed to open privacy policy');
+    }
+  };
+
+  // Long press handlers for delete account button
+  const handleDeletePressIn = () => {
+    setIsLongPressing(true);
+    
+    // Animate the progress bar
+    Animated.timing(longPressProgress, {
+      toValue: 1,
+      duration: 1500, // 1.5 seconds long press
+      useNativeDriver: false,
+    }).start();
+
+    // Set timer to trigger action after long press
+    longPressTimer.current = setTimeout(() => {
+      handleShowDeleteWarning();
+      handleDeletePressOut();
+    }, 1500);
+  };
+
+  const handleDeletePressOut = () => {
+    setIsLongPressing(false);
+    
+    // Clear timer if released early
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+
+    // Reset animation
+    Animated.timing(longPressProgress, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  };
+
   return (
     <PokedexLayout>
       <ScrollView>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('settings.account')}</Text>
-          {user ? (
-            <View style={styles.profileInfo}>
-              <Text style={styles.emailText}>{user.email}</Text>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.settingItem}
-              onPress={() => router.push('/login')}
-            >
-              <Ionicons name="log-in-outline" size={24} color={COLORS.primary} style={styles.settingIcon} />
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingLabel}>{t('settings.signIn')}</Text>
-                <Text style={styles.settingDescription}>
-                  {t('settings.signInDescription')}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          )}
-        </View>
-
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('settings.preferences')}</Text>
           
@@ -213,6 +316,85 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('settings.account')}</Text>
+          {user ? (
+            <>
+              <View style={styles.profileInfo}>
+                <Text style={styles.emailText}>{user.email}</Text>
+              </View>
+              
+              <TouchableOpacity
+                style={styles.settingItem}
+                onPress={handleOpenPrivacyPolicy}
+              >
+                <Ionicons name="shield-checkmark-outline" size={24} color={COLORS.primary} style={styles.settingIcon} />
+                <View style={styles.settingTextContainer}>
+                  <Text style={styles.settingLabel}>{t('settings.privacyPolicy')}</Text>
+                  <Text style={styles.settingDescription}>
+                    {t('settings.viewPrivacyPolicy')}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={COLORS.darkGray} />
+              </TouchableOpacity>
+
+              <Pressable
+                style={styles.settingItem}
+                onPressIn={handleDeletePressIn}
+                onPressOut={handleDeletePressOut}
+              >
+                <Ionicons name="trash-outline" size={24} color={COLORS.danger} style={styles.settingIcon} />
+                <View style={styles.settingTextContainer}>
+                  <Text style={[styles.settingLabel, { color: COLORS.danger }]}>{t('settings.deleteAccount')}</Text>
+                  <Text style={styles.longPressHint}>{t('settings.deleteAccountHoldToConfirm')}</Text>
+                </View>
+                <View style={styles.longPressProgressContainer}>
+                  <Animated.View 
+                    style={[
+                      styles.longPressProgressBar,
+                      {
+                        width: longPressProgress.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0%', '100%']
+                        })
+                      }
+                    ]}
+                  />
+                </View>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <TouchableOpacity
+                style={styles.settingItem}
+                onPress={() => router.push('/login')}
+              >
+                <Ionicons name="log-in-outline" size={24} color={COLORS.primary} style={styles.settingIcon} />
+                <View style={styles.settingTextContainer}>
+                  <Text style={styles.settingLabel}>{t('settings.signIn')}</Text>
+                  <Text style={styles.settingDescription}>
+                    {t('settings.signInDescription')}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.settingItem}
+                onPress={handleOpenPrivacyPolicy}
+              >
+                <Ionicons name="shield-checkmark-outline" size={24} color={COLORS.primary} style={styles.settingIcon} />
+                <View style={styles.settingTextContainer}>
+                  <Text style={styles.settingLabel}>{t('settings.privacyPolicy')}</Text>
+                  <Text style={styles.settingDescription}>
+                    {t('settings.viewPrivacyPolicy')}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={COLORS.darkGray} />
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+
         {/* Testing Section - Only shown in development */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🧪 Beta Testing</Text>
@@ -268,12 +450,12 @@ export default function SettingsScreen() {
         {user && (
           <View style={styles.section}>
             <TouchableOpacity
-              style={styles.settingItem}
+              style={styles.signOutButton}
               onPress={handleSignOut}
             >
-              <Ionicons name="log-out-outline" size={24} color={COLORS.danger} style={styles.settingIcon} />
+              <Ionicons name="log-out-outline" size={24} color="white" style={styles.settingIcon} />
               <View style={styles.settingTextContainer}>
-                <Text style={[styles.settingLabel, { color: COLORS.danger }]}>{t('settings.signOut')}</Text>
+                <Text style={styles.signOutButtonText}>{t('settings.signOut')}</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -378,6 +560,114 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           </View>
         </View>
+      </Modal>
+
+      {/* Delete Account Warning Modal */}
+      <Modal
+        visible={showDeleteWarning}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCancelDelete}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.deleteModalContent}>
+            <View style={styles.deleteModalHeader}>
+              <Ionicons name="warning" size={48} color={COLORS.danger} />
+              <Text style={styles.deleteModalTitle}>{t('settings.deleteAccountTitle')}</Text>
+            </View>
+            
+            <Text style={styles.deleteModalWarning}>{t('settings.deleteAccountWarning')}</Text>
+            <Text style={styles.deleteModalItems}>{t('settings.deleteAccountWarningItems')}</Text>
+            
+            <View style={styles.deleteModalButtons}>
+              <TouchableOpacity
+                style={styles.deleteCancelButton}
+                onPress={handleCancelDelete}
+              >
+                <Text style={styles.deleteCancelButtonText}>{t('settings.deleteAccountCancelButton')}</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.deleteConfirmButton}
+                onPress={handleProceedToConfirm}
+              >
+                <Text style={styles.deleteConfirmButtonText}>{t('common.continue')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete Account Confirmation Modal */}
+      <Modal
+        visible={showDeleteConfirm}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCancelDelete}
+      >
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity 
+            style={styles.modalOverlay} 
+            activeOpacity={1} 
+            onPress={handleCancelDelete}
+          >
+            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+              <ScrollView 
+                contentContainerStyle={styles.deleteModalScrollContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={styles.deleteModalContent}>
+                  <View style={styles.deleteModalHeader}>
+                    <Ionicons name="alert-circle" size={48} color={COLORS.danger} />
+                    <Text style={styles.deleteModalTitle}>{t('settings.deleteAccountConfirmTitle')}</Text>
+                  </View>
+                  
+                  <Text style={styles.deleteModalWarning}>{t('settings.deleteAccountConfirmMessage')}</Text>
+                  
+                  <Text style={styles.deleteModalTypeText}>{t('settings.deleteAccountTypeDelete')}</Text>
+                  <TextInput
+                    style={styles.deleteConfirmInput}
+                    placeholder={t('settings.deleteAccountTypePlaceholder')}
+                    placeholderTextColor={COLORS.darkGray}
+                    value={deleteConfirmText}
+                    onChangeText={setDeleteConfirmText}
+                    autoCapitalize="characters"
+                    editable={!isDeletingAccount}
+                  />
+                  
+                  <View style={styles.deleteModalButtons}>
+                    <TouchableOpacity
+                      style={styles.deleteCancelButton}
+                      onPress={handleCancelDelete}
+                      disabled={isDeletingAccount}
+                    >
+                      <Text style={styles.deleteCancelButtonText}>{t('settings.deleteAccountCancelButton')}</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      style={[
+                        styles.deleteFinalButton,
+                        (isDeletingAccount || deleteConfirmText !== 'DELETE') && styles.deleteButtonDisabled
+                      ]}
+                      onPress={handleDeleteAccount}
+                      disabled={isDeletingAccount || deleteConfirmText !== 'DELETE'}
+                    >
+                      {isDeletingAccount ? (
+                        <ActivityIndicator color="white" />
+                      ) : (
+                        <Text style={styles.deleteFinalButtonText}>{t('settings.deleteAccountConfirmButton')}</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </ScrollView>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
     </PokedexLayout>
   );
@@ -592,5 +882,141 @@ const styles = StyleSheet.create({
     color: COLORS.muted,
     marginBottom: 12,
     lineHeight: 20,
+  },
+  deleteModalScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  deleteModalContent: {
+    width: 340,
+    maxWidth: '85%',
+    backgroundColor: COLORS.darkSurface,
+    borderRadius: 16,
+    padding: 24,
+  },
+  deleteModalHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  deleteModalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  deleteModalWarning: {
+    fontSize: 16,
+    color: COLORS.text,
+    marginBottom: 16,
+    lineHeight: 22,
+    textAlign: 'center',
+  },
+  deleteModalItems: {
+    fontSize: 14,
+    color: COLORS.darkGray,
+    marginBottom: 24,
+    lineHeight: 22,
+    paddingLeft: 8,
+  },
+  deleteModalTypeText: {
+    fontSize: 14,
+    color: COLORS.text,
+    marginBottom: 8,
+    fontWeight: '600',
+  },
+  deleteConfirmInput: {
+    backgroundColor: COLORS.background,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: COLORS.text,
+    borderWidth: 2,
+    borderColor: COLORS.danger,
+    marginBottom: 24,
+  },
+  deleteModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  deleteCancelButton: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    borderRadius: 8,
+    padding: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.darkGray,
+  },
+  deleteCancelButtonText: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  deleteConfirmButton: {
+    flex: 1,
+    backgroundColor: COLORS.danger,
+    borderRadius: 8,
+    padding: 14,
+    alignItems: 'center',
+  },
+  deleteConfirmButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  deleteFinalButton: {
+    flex: 1,
+    backgroundColor: COLORS.danger,
+    borderRadius: 8,
+    padding: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  deleteFinalButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  deleteButtonDisabled: {
+    backgroundColor: COLORS.darkGray,
+    opacity: 0.5,
+  },
+  longPressHint: {
+    fontSize: 12,
+    color: COLORS.darkGray,
+    marginTop: 2,
+  },
+  longPressProgressContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: 'rgba(255, 59, 48, 0.2)',
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
+    overflow: 'hidden',
+  },
+  longPressProgressBar: {
+    height: '100%',
+    backgroundColor: COLORS.danger,
+  },
+  signOutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: COLORS.danger,
+    borderRadius: 10,
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
+  signOutButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
   },
 }); 

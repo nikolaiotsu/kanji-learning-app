@@ -4,6 +4,7 @@ import { getUserIdOffline } from './offlineAuth';
 import { clearCache } from './offlineStorage';
 import { deleteCachedImages } from './imageCache';
 import { sanitizeForLogging } from './privacyService';
+import { EXPO_PUBLIC_SUPABASE_URL } from '@env';
 
 /**
  * User Data Control Service
@@ -113,7 +114,74 @@ export const exportUserData = async (): Promise<UserDataExport | null> => {
 };
 
 /**
+ * Request account deletion via Edge Function
+ * This is the primary method for deleting accounts as it uses service_role privileges
+ */
+export const requestAccountDeletion = async (): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const userId = await getUserIdOffline();
+    if (!userId) {
+      return { success: false, error: 'No user ID available' };
+    }
+
+    logger.log(`🗑️ [UserDataControl] Requesting account deletion for user: ${userId}`);
+
+    // Get the current session token
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session) {
+      logger.error('❌ [UserDataControl] No active session found:', sessionError);
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    // Call the Edge Function
+    const supabaseUrl = EXPO_PUBLIC_SUPABASE_URL;
+    const functionUrl = `${supabaseUrl}/functions/v1/delete-account`;
+
+    logger.log(`🗑️ [UserDataControl] Calling Edge Function at: ${functionUrl}`);
+
+    const response = await fetch(functionUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userId }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      logger.error('❌ [UserDataControl] Edge Function error:', result);
+      return { 
+        success: false, 
+        error: result.error || result.details || 'Failed to delete account' 
+      };
+    }
+
+    logger.log('✅ [UserDataControl] Account deletion successful');
+
+    // Clear local cache
+    try {
+      await clearCache(userId);
+      logger.log('✅ [UserDataControl] Local cache cleared');
+    } catch (cacheError) {
+      logger.warn('⚠️ [UserDataControl] Failed to clear local cache:', cacheError);
+      // Not critical - continue
+    }
+
+    return { success: true };
+  } catch (error) {
+    logger.error('❌ [UserDataControl] Error requesting account deletion:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error occurred' 
+    };
+  }
+};
+
+/**
  * Delete all user data (account deletion)
+ * @deprecated Use requestAccountDeletion instead - this function cannot delete auth users from client
  */
 export const deleteAllUserData = async (): Promise<{ success: boolean; errors: string[] }> => {
   const result = { success: true, errors: [] as string[] };
@@ -455,6 +523,7 @@ export const anonymizeUserData = async (): Promise<boolean> => {
 
 export default {
   exportUserData,
+  requestAccountDeletion,
   deleteAllUserData,
   deleteFlashcardData,
   getUserDataSummary,
