@@ -39,6 +39,8 @@ import { PRODUCT_IDS } from './constants/config';
 import MemoryManager from './services/memoryManager';
 import * as Haptics from 'expo-haptics';
 import { useNetworkState } from './services/networkManager';
+import { incrementLifetimeCount, shouldShowReviewPrompt } from './services/reviewPromptService';
+import ReviewPromptModal from './components/shared/ReviewPromptModal';
 
 import { logger } from './utils/logger';
 export default function LanguageFlashcardsScreen() {
@@ -99,6 +101,9 @@ export default function LanguageFlashcardsScreen() {
   
   // Flag to prevent main useEffect from running during manual operations
   const [isManualOperation, setIsManualOperation] = useState(false);
+  
+  // State for review prompt modal
+  const [showReviewPrompt, setShowReviewPrompt] = useState(false);
   
   // Debug: Log state changes
   useEffect(() => {
@@ -360,6 +365,16 @@ export default function LanguageFlashcardsScreen() {
       
       // Increment flashcard counter after successful save
       await incrementFlashcardCount();
+      
+      // Increment lifetime count and check if we should show review prompt
+      await incrementLifetimeCount();
+      const shouldShowReview = await shouldShowReviewPrompt();
+      if (shouldShowReview) {
+        // Delay showing the review prompt slightly so the success alert shows first
+        setTimeout(() => {
+          setShowReviewPrompt(true);
+        }, 500);
+      }
       
       // Do NOT delete the local image file after upload
       // This ensures the image is still available for navigation in the KanjiScanner
@@ -982,6 +997,12 @@ export default function LanguageFlashcardsScreen() {
             </View>
           </KeyboardAvoidingView>
         </Modal>
+
+        {/* Review Prompt Modal */}
+        <ReviewPromptModal
+          visible={showReviewPrompt}
+          onClose={() => setShowReviewPrompt(false)}
+        />
 
       </SafeAreaView>
     </PokedexLayout>

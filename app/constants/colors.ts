@@ -12,6 +12,7 @@ export const COLORS = {
   backgroundSubtle: 'linear-gradient(45deg, #006ad6 0%, #0074e6 25%, #006ad6 50%, #0074e6 75%, #006ad6 100%)', // Subtle texture
   backgroundModern: 'linear-gradient(135deg, #006ad6 0%, #0074e6 25%, #005bb8 50%, #0074e6 75%, #006ad6 100%)', // Modern variation
   text: '#FFFFFF', // White text for contrast
+  textSecondary: '#B0B0B0', // Secondary text color for less emphasis
   lightGray: '#D3D3D3', // Light gray for borders or secondary text
   darkGray: '#A9A9A9', // Darker gray for less emphasis
   disabledDark: '#4A4A4A', // Much darker gray for disabled buttons

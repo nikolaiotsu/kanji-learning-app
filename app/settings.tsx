@@ -10,6 +10,7 @@ import { useSubscription } from './context/SubscriptionContext';
 import { useRouter } from 'expo-router';
 import { COLORS } from './constants/colors';
 import PokedexLayout from './components/shared/PokedexLayout';
+import { resetReviewPromptState, resetLifetimeCount, getReviewStatus } from './services/reviewPromptService';
 
 import { logger } from './utils/logger';
 export default function SettingsScreen() {
@@ -125,6 +126,39 @@ export default function SettingsScreen() {
     );
   };
 
+  // Function to handle review prompt reset for testing
+  const handleResetReviewPrompt = async () => {
+    try {
+      // Get current status before reset
+      const status = await getReviewStatus();
+      
+      Alert.alert(
+        'Reset Review Prompt',
+        `Current Status:\n` +
+        `• Lifetime Cards: ${status.lifetimeCount}\n` +
+        `• Has Reviewed: ${status.hasReviewed ? 'Yes' : 'No'}\n` +
+        `${status.reviewedAt ? `• Reviewed At: ${new Date(status.reviewedAt).toLocaleDateString()}\n` : ''}` +
+        `\nThis will reset both the lifetime flashcard count and review prompt state, allowing you to test the prompt again after saving 10 cards.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Reset',
+            style: 'destructive',
+            onPress: async () => {
+              await resetLifetimeCount();
+              await resetReviewPromptState();
+              Alert.alert('Success', 'Review prompt state has been reset. The prompt will show after you save 10 flashcards.');
+              logger.log('Review prompt state reset via settings');
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      logger.error('Error resetting review prompt:', error);
+      Alert.alert('Error', 'Failed to reset review prompt state. Please try again.');
+    }
+  };
+
   // Function to show delete account warning
   const handleShowDeleteWarning = () => {
     setShowDeleteWarning(true);
@@ -192,7 +226,6 @@ export default function SettingsScreen() {
 
   // Function to open privacy policy
   const handleOpenPrivacyPolicy = async () => {
-    // TODO: Replace this URL with your actual Notion privacy policy URL
     const privacyPolicyUrl = 'https://rapid-inch-201.notion.site/WordDex-Privacy-Policy-2bcb8594739e80f7814ffea26df1c3a9';
     
     try {
@@ -431,7 +464,7 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           </View>
           
-          {/* Reset Button */}
+          {/* Reset Buttons */}
           <View style={styles.resetButtonContainer}>
             <TouchableOpacity
               style={styles.resetCountButton}
@@ -440,6 +473,16 @@ export default function SettingsScreen() {
               <Ionicons name="refresh" size={16} color="white" style={{ marginRight: 8 }} />
               <Text style={styles.resetCountButtonText}>
                 Reset Daily Limits
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.resetCountButton, { backgroundColor: COLORS.secondary }]}
+              onPress={handleResetReviewPrompt}
+            >
+              <Ionicons name="star-outline" size={16} color="white" style={{ marginRight: 8 }} />
+              <Text style={styles.resetCountButtonText}>
+                Reset Review Prompt
               </Text>
             </TouchableOpacity>
           </View>
@@ -862,6 +905,7 @@ const styles = StyleSheet.create({
   resetButtonContainer: {
     paddingHorizontal: 16,
     paddingBottom: 16,
+    gap: 12,
   },
   resetCountButton: {
     backgroundColor: COLORS.danger,

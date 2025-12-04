@@ -61,6 +61,12 @@
       "title": "重新排列收藏集",
       "instruction": "长按并拖动以重新排列您的收藏集",
       "failed": "更新收藏集顺序失败"
+    },
+    "limit": {
+      "title": "已达到收藏集数量上限",
+      "messageFree": "免费用户最多可创建{{maxDecks}}个收藏集。升级到高级版可获得无限收藏集！",
+      "messagePremium": "您已达到最大收藏集数量（{{maxDecks}}个）。",
+      "reorderHint": "长按并拖动以重新排列"
     }
   },
   "flashcard": {
@@ -275,5 +281,12 @@
     "syncInProgress": "正在同步卡片...",
     "noCacheTitle": "没有缓存数据",
     "noCacheMessage": "您处于离线状态，尚未在线时加载过闪卡。请连接到互联网以首次加载您的闪卡。"
+  },
+  "reviewPrompt": {
+    "title": "享受收藏吗？",
+    "message": "在App Store上告诉全世界关于WordDex！作为独立开发者，这对我帮助很大！",
+    "rateButton": "评价WordDex",
+    "laterButton": "以后再说",
+    "noThanksButton": "不，谢谢"
   }
 } 

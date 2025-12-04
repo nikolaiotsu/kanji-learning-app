@@ -209,4 +209,60 @@ BEGIN
       CASE WHEN p_operation_type = 'vision_api' THEN 1 ELSE 0 END,
     last_updated = CURRENT_TIMESTAMP;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER; 
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ========================================
+-- Subscriptions Table (IAP Receipt Validation)
+-- ========================================
+
+-- Create subscriptions table for server-side receipt validation
+CREATE TABLE subscriptions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
+  product_id TEXT NOT NULL,
+  original_transaction_id TEXT UNIQUE,
+  purchase_date TIMESTAMP WITH TIME ZONE,
+  expires_date TIMESTAMP WITH TIME ZONE,
+  is_active BOOLEAN DEFAULT false,
+  is_trial BOOLEAN DEFAULT false,
+  auto_renew_status BOOLEAN DEFAULT true,
+  receipt_data TEXT,
+  environment TEXT DEFAULT 'production', -- 'sandbox' or 'production'
+  last_validated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Add indexes for performance
+CREATE INDEX subscriptions_user_id_idx ON subscriptions(user_id);
+CREATE INDEX subscriptions_original_transaction_id_idx ON subscriptions(original_transaction_id);
+CREATE INDEX subscriptions_is_active_idx ON subscriptions(is_active);
+CREATE INDEX subscriptions_expires_date_idx ON subscriptions(expires_date);
+
+-- Enable RLS on subscriptions table
+ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
+
+-- RLS policies for subscriptions
+CREATE POLICY "Users can view their own subscription" 
+  ON subscriptions FOR SELECT 
+  USING (auth.uid() = user_id);
+
+-- Only the edge function can insert/update subscriptions using service role
+CREATE POLICY "Service role can manage subscriptions" 
+  ON subscriptions FOR ALL
+  USING (auth.jwt() ->> 'role' = 'service_role');
+
+-- Function to update subscription updated_at timestamp
+CREATE OR REPLACE FUNCTION update_subscription_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = CURRENT_TIMESTAMP;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to automatically update updated_at
+CREATE TRIGGER update_subscriptions_updated_at
+BEFORE UPDATE ON subscriptions
+FOR EACH ROW
+EXECUTE FUNCTION update_subscription_updated_at(); 

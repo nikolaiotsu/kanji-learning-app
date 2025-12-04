@@ -1,63 +1,49 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
-import { onSyncStatusChange, getIsSyncing } from '../../services/syncManager';
+import { useAuth } from '../../context/AuthContext';
+import { useNetworkState } from '../../services/networkManager';
 
+/**
+ * OfflineBanner Component
+ * Displays a compact orange cloud icon when offline
+ * Shows for both: no internet connection AND offline mode (using cached data)
+ * Used next to navigation buttons to indicate offline status
+ */
 interface OfflineBannerProps {
-  visible: boolean;
+  visible?: boolean; // Optional - if not provided, auto-detects offline state
 }
 
-const OfflineBanner: React.FC<OfflineBannerProps> = ({ visible }) => {
-  const [isSyncing, setIsSyncing] = useState(getIsSyncing());
+export const OfflineBanner = ({ visible }: OfflineBannerProps) => {
+  const { isOfflineMode } = useAuth();
+  const { isConnected } = useNetworkState();
   
-  // Listen to sync status changes
-  useEffect(() => {
-    const unsubscribe = onSyncStatusChange((syncing) => {
-      setIsSyncing(syncing);
-    });
-    
-    return unsubscribe;
-  }, []);
+  // Show if explicitly visible OR if offline (no connection or using cached data)
+  const shouldShow = visible ?? (!isConnected || isOfflineMode);
   
-  // Show sync indicator even when online
-  if (isSyncing) {
-    return (
-      <View style={[styles.container, styles.syncingContainer]}>
-        <ActivityIndicator size="small" color={COLORS.text} />
-      </View>
-    );
+  if (!shouldShow) {
+    return null;
   }
   
-  // Show offline indicator when offline
-  if (visible) {
-    return (
-      <View style={styles.container}>
-        <Ionicons name="cloud-offline" size={18} color={COLORS.text} />
-      </View>
-    );
-  }
-  
-  return null;
+  return (
+    <View style={styles.container}>
+      <Ionicons 
+        name="cloud-offline-outline" 
+        size={24} 
+        color={COLORS.secondary} 
+      />
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
   container: {
-    width: 36,
-    height: 36,
-    backgroundColor: 'rgba(255, 152, 0, 0.3)',
-    borderRadius: 8,
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 152, 0, 0.5)',
-    marginHorizontal: 8,
-  },
-  syncingContainer: {
-    backgroundColor: 'rgba(33, 150, 243, 0.3)',
-    borderColor: 'rgba(33, 150, 243, 0.5)',
   },
 });
 
 export default OfflineBanner;
-

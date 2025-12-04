@@ -3,9 +3,10 @@ import { Session, User } from '@supabase/supabase-js';
 import * as authService from '../services/authService';
 import { supabase } from '../services/supabaseClient';
 import { syncAllUserData } from '../services/syncManager';
-import { storeUserIdOffline, clearUserIdOffline } from '../services/offlineAuth';
+import { storeUserIdOffline, clearUserIdOffline, getUserIdOffline } from '../services/offlineAuth';
 import { requestAccountDeletion } from '../services/userDataControlService';
 import { clearCache } from '../services/offlineStorage';
+import { isOnline } from '../services/networkManager';
 
 import { logger } from '../utils/logger';
 // Define the shape of our Auth context
@@ -13,6 +14,7 @@ type AuthContextType = {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
+  isOfflineMode: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<{ user: User | null; session: Session | null } | null>;
   signOut: () => Promise<void>;
@@ -33,14 +35,41 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
 
   // Check for session on mount
   useEffect(() => {
     const getInitialSession = async () => {
       try {
+        // Check network status first for offline-first approach
+        const online = await isOnline();
+        
+        if (!online) {
+          logger.log('📶 [AuthContext] Offline - checking for cached user...');
+          
+          // Try to get cached user ID for offline mode
+          const cachedUserId = await getUserIdOffline();
+          
+          if (cachedUserId) {
+            logger.log('✅ [AuthContext] Found cached user, entering offline mode');
+            // Create a minimal "offline user" object to allow app access
+            setUser({ id: cachedUserId } as User);
+            setIsOfflineMode(true);
+          } else {
+            logger.log('⚠️ [AuthContext] No cached user - user will need to connect to sign in');
+            // No cached user - they'll need to go online to authenticate
+          }
+          
+          setIsLoading(false);
+          return;
+        }
+
+        // Online flow - proceed with normal Supabase auth
+        logger.log('🌐 [AuthContext] Online - checking Supabase session...');
         const { data: { session } } = await supabase.auth.getSession();
         setSession(session);
         setUser(session?.user ?? null);
+        setIsOfflineMode(false);
         
         // Store user ID offline for cache access when offline
         if (session?.user) {
@@ -55,10 +84,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           });
         }
       } catch (error) {
-        // Silent error for network issues - auth state can be restored from local storage
-        const errorStr = error instanceof Error ? error.message : String(error);
-        if (!errorStr.toLowerCase().includes('network')) {
-          logger.error('Error getting initial session:', error);
+        // On error (likely network), try offline fallback
+        logger.log('⚠️ [AuthContext] Error getting session, trying offline fallback...');
+        const cachedUserId = await getUserIdOffline();
+        
+        if (cachedUserId) {
+          logger.log('✅ [AuthContext] Fallback: Found cached user, entering offline mode');
+          setUser({ id: cachedUserId } as User);
+          setIsOfflineMode(true);
+        } else {
+          // Silent error for network issues when no cached user
+          const errorStr = error instanceof Error ? error.message : String(error);
+          if (!errorStr.toLowerCase().includes('network')) {
+            logger.error('Error getting initial session:', error);
+          }
         }
       } finally {
         setIsLoading(false);
@@ -76,6 +115,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         logger.log('🔐 [AuthContext] Setting session and user state...');
         setSession(session);
         setUser(session?.user ?? null);
+        setIsOfflineMode(false); // We're online if we got an auth state change
         setIsLoading(false);
         logger.log('✅ [AuthContext] Auth state updated');
         
@@ -224,6 +264,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     user,
     session,
     isLoading,
+    isOfflineMode,
     signIn,
     signUp,
     signOut,

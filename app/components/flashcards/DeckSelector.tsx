@@ -23,6 +23,7 @@ import { getDecks, createDeck } from '../../services/supabaseStorage';
 import { COLORS } from '../../constants/colors';
 import { supabase } from '../../services/supabaseClient';
 import { useNetworkState } from '../../services/networkManager';
+import { useSubscription } from '../../context/SubscriptionContext';
 
 import { logger } from '../../utils/logger';
 interface DeckSelectorProps {
@@ -34,6 +35,7 @@ interface DeckSelectorProps {
 export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSelectorProps) {
   const { t } = useTranslation();
   const { isConnected } = useNetworkState();
+  const { getMaxDecks, subscription } = useSubscription();
   const [decks, setDecks] = useState<Deck[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreatingDeck, setIsCreatingDeck] = useState(false);
@@ -94,6 +96,20 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
     
     if (!newDeckName.trim()) {
       Alert.alert(t('common.error'), t('deck.create.error'));
+      return;
+    }
+
+    // Check deck limit for free users
+    const maxDecks = getMaxDecks();
+    if (decks.length >= maxDecks) {
+      const isPremium = subscription.plan === 'PREMIUM';
+      Alert.alert(
+        t('deck.limit.title'),
+        isPremium 
+          ? t('deck.limit.messagePremium', { maxDecks })
+          : t('deck.limit.messageFree', { maxDecks }),
+        [{ text: t('common.ok') }]
+      );
       return;
     }
 
@@ -371,6 +387,21 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
                         );
                         return;
                       }
+                      
+                      // Check deck limit before showing input
+                      const maxDecks = getMaxDecks();
+                      if (decks.length >= maxDecks) {
+                        const isPremium = subscription.plan === 'PREMIUM';
+                        Alert.alert(
+                          t('deck.limit.title'),
+                          isPremium 
+                            ? t('deck.limit.messagePremium', { maxDecks })
+                            : t('deck.limit.messageFree', { maxDecks }),
+                          [{ text: t('common.ok') }]
+                        );
+                        return;
+                      }
+                      
                       setShowNewDeckInput(true);
                     }}
                   >

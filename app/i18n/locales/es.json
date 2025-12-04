@@ -62,6 +62,12 @@
       "title": "Reordenar colecciones",
       "instruction": "Mantén presionado y arrastra para reordenar tus colecciones",
       "failed": "Error al actualizar el orden de las colecciones"
+    },
+    "limit": {
+      "title": "Límite de colecciones alcanzado",
+      "messageFree": "Los usuarios gratuitos pueden crear hasta {{maxDecks}} colecciones. ¡Actualiza a Premium para colecciones ilimitadas!",
+      "messagePremium": "Has alcanzado el número máximo de colecciones ({{maxDecks}}).",
+      "reorderHint": "Mantén presionado y arrastra para reordenar"
     }
   },
   "flashcard": {
@@ -308,6 +314,13 @@
     "ocrErrorMessage": "Hubo un problema al reconocer el texto en el área seleccionada. Por favor intenta de nuevo.",
     "rotationError": "No se pudo aplicar la rotación.",
     "permissionDenied": "¡Lo sentimos, necesitamos permisos de cámara para que esto funcione!"
+  },
+  "reviewPrompt": {
+    "title": "¿Disfrutando coleccionando?",
+    "message": "¡Cuéntale al mundo sobre WordDex en el App Store! Como desarrollador individual, ¡es una gran ayuda!",
+    "rateButton": "Calificar WordDex",
+    "laterButton": "Tal vez después",
+    "noThanksButton": "No, gracias"
   }
 }
 

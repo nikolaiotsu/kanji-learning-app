@@ -29,6 +29,7 @@ import PokedexLayout from './components/shared/PokedexLayout';
 import { useNetworkState, isOnline } from './services/networkManager';
 import OfflineBanner from './components/shared/OfflineBanner';
 import { registerSyncCallback, unregisterSyncCallback } from './services/syncManager';
+import { useSubscription } from './context/SubscriptionContext';
 
 import { logger } from './utils/logger';
 const POKEDEX_LAYOUT_HORIZONTAL_REDUCTION = 20; // Updated: (padding 10) * 2
@@ -58,6 +59,7 @@ export default function SavedFlashcardsScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const { isConnected } = useNetworkState();
+  const { getMaxDecks, subscription } = useSubscription();
   
   logger.log('🎬 [SavedFlashcards] State initialized - user:', !!user, 'isConnected:', isConnected);
 
@@ -601,6 +603,20 @@ export default function SavedFlashcardsScreen() {
       return;
     }
     
+    // Check deck limit for free users
+    const maxDecks = getMaxDecks();
+    if (decks.length >= maxDecks) {
+      const isPremium = subscription.plan === 'PREMIUM';
+      Alert.alert(
+        t('deck.limit.title'),
+        isPremium 
+          ? t('deck.limit.messagePremium', { maxDecks })
+          : t('deck.limit.messageFree', { maxDecks }),
+        [{ text: t('common.ok') }]
+      );
+      return;
+    }
+    
     try {
       // Create new deck
       const newDeck = await createDeck(newDeckNameForSend.trim());
@@ -1084,7 +1100,22 @@ export default function SavedFlashcardsScreen() {
                     </TouchableOpacity>
                     <TouchableOpacity 
                       style={[styles.renameButton, styles.saveButton]} 
-                      onPress={() => setNewDeckMode(true)}
+                      onPress={() => {
+                        // Check deck limit before showing new deck input
+                        const maxDecks = getMaxDecks();
+                        if (decks.length >= maxDecks) {
+                          const isPremium = subscription.plan === 'PREMIUM';
+                          Alert.alert(
+                            t('deck.limit.title'),
+                            isPremium 
+                              ? t('deck.limit.messagePremium', { maxDecks })
+                              : t('deck.limit.messageFree', { maxDecks }),
+                            [{ text: t('common.ok') }]
+                          );
+                          return;
+                        }
+                        setNewDeckMode(true);
+                      }}
                     >
                       <Text style={[styles.renameButtonText, styles.saveButtonText]}>{t('savedFlashcards.newCollection')}</Text>
                     </TouchableOpacity>

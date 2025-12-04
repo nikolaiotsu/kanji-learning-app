@@ -61,6 +61,12 @@
       "title": "コレクションの並び替え",
       "instruction": "長押ししてドラッグしてコレクションを並び替えます",
       "failed": "コレクションの順序の更新に失敗しました"
+    },
+    "limit": {
+      "title": "コレクション数の上限に達しました",
+      "messageFree": "無料ユーザーは最大{{maxDecks}}個のコレクションを作成できます。無制限のコレクションをご利用いただくには、プレミアムにアップグレードしてください！",
+      "messagePremium": "最大コレクション数（{{maxDecks}}個）に達しました。",
+      "reorderHint": "長押ししてドラッグして並び替え"
     }
   },
   "flashcard": {
@@ -307,5 +313,12 @@
     "ocrErrorMessage": "選択した領域でテキストを認識できませんでした。もう一度お試しください。",
     "rotationError": "回転を適用できませんでした。",
     "permissionDenied": "申し訳ありませんが、カメラの権限が必要です！"
+  },
+  "reviewPrompt": {
+    "title": "コレクションを楽しんでいますか？",
+    "message": "App StoreでWordDexについて世界に伝えてください！個人開発者として、大きな助けになります！",
+    "rateButton": "WordDexを評価",
+    "laterButton": "後で",
+    "noThanksButton": "いいえ、結構です"
   }
 } 

@@ -1216,6 +1216,8 @@ export const deleteFlashcard = async (id: string): Promise<boolean> => {
         await removeFlashcardFromCache(userId, card.deckId, id);
         if (card.imageUrl) {
           await deleteCachedImage(userId, card.imageUrl);
+          // Also delete from Supabase Storage
+          await deleteImageFromStorage(card.imageUrl);
         }
       }
     } catch (cacheError) {
