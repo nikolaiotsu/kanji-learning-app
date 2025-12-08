@@ -4,8 +4,9 @@ import { Deck } from '../types/Deck';
 import { decode } from 'base64-arraybuffer';
 import * as FileSystem from 'expo-file-system';
 import { logFlashcardCreation } from './apiUsageLogger';
-import { validateImageFile, validateDeckName } from '../utils/inputValidation';
+import { validateImageFile, validateDeckName, VALIDATION_LIMITS } from '../utils/inputValidation';
 import { isOnline, isNetworkError } from './networkManager';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { 
   cacheFlashcards, 
   getCachedFlashcards, 
@@ -370,8 +371,52 @@ export const uploadImageToStorage = async (imageUri: string): Promise<string | n
   try {
     logger.log('Uploading image to storage:', imageUri);
     
+    // Check file size and compress if needed (safety net before validation)
+    let finalImageUri = imageUri;
+    const fileInfo = await FileSystem.getInfoAsync(imageUri);
+    const fileSize = fileInfo.exists ? fileInfo.size : 0;
+    
+    if (fileSize && fileSize > VALIDATION_LIMITS.MAX_IMAGE_SIZE) {
+      logger.log(`Image is ${(fileSize / (1024 * 1024)).toFixed(1)}MB, compressing before upload...`);
+      
+      try {
+        // Progressive compression: try 0.6 first, then 0.4 if still too large
+        let compressed = await ImageManipulator.manipulateAsync(
+          imageUri,
+          [],
+          { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG }
+        );
+        
+        let compressedInfo = await FileSystem.getInfoAsync(compressed.uri);
+        let compressedSize = compressedInfo.exists ? compressedInfo.size : 0;
+        
+        // If still too large, compress more aggressively
+        if (compressedSize && compressedSize > VALIDATION_LIMITS.MAX_IMAGE_SIZE) {
+          logger.log(`Still too large (${(compressedSize / (1024 * 1024)).toFixed(1)}MB), applying more aggressive compression...`);
+          compressed = await ImageManipulator.manipulateAsync(
+            compressed.uri,
+            [],
+            { compress: 0.4, format: ImageManipulator.SaveFormat.JPEG }
+          );
+          
+          // Check final size
+          compressedInfo = await FileSystem.getInfoAsync(compressed.uri);
+          compressedSize = compressedInfo.exists ? compressedInfo.size : 0;
+          if (compressedSize) {
+            logger.log(`Final compressed size: ${(compressedSize / (1024 * 1024)).toFixed(1)}MB`);
+          }
+        }
+        
+        finalImageUri = compressed.uri;
+        logger.log('Image compressed successfully');
+      } catch (compressionError) {
+        logger.error('Error compressing image:', compressionError);
+        // Continue with original - validation will catch if still too large
+      }
+    }
+    
     // Validate image before upload (security + cost protection)
-    const validation = await validateImageFile(imageUri, async (uri: string) => {
+    const validation = await validateImageFile(finalImageUri, async (uri: string) => {
       const info = await FileSystem.getInfoAsync(uri);
       return { size: info.exists ? info.size : undefined };
     });
@@ -389,12 +434,12 @@ export const uploadImageToStorage = async (imageUri: string): Promise<string | n
     }
     
     // Generate a privacy-safe filename for the image
-    const fileExt = imageUri.split('.').pop();
+    const fileExt = finalImageUri.split('.').pop();
     const fileName = `${generatePrivacySafeImageId(userId)}.${fileExt}`;
     const filePath = `flashcard-images/${fileName}`;
     
     // Read the file as base64
-    const base64 = await FileSystem.readAsStringAsync(imageUri, {
+    const base64 = await FileSystem.readAsStringAsync(finalImageUri, {
       encoding: FileSystem.EncodingType.Base64,
     });
     

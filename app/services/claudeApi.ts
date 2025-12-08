@@ -1091,23 +1091,24 @@ CRITICAL REQUIREMENTS FOR JAPANESE TEXT - THESE ARE MANDATORY:
 1. Keep all original text exactly as is (including any English words, numbers, or punctuation)
 2. For EVERY word containing kanji, you MUST add the complete hiragana reading in parentheses immediately after the word
 3. The reading should cover the entire word (including any hiragana/katakana parts attached to the kanji)
-4. You MUST NOT skip any kanji - every single kanji character must have furigana
-5. Non-kanji words (pure hiragana/katakana), English words, and numbers should remain unchanged
-6. Translate into ${targetLangName}
+4. USE STANDARD DICTIONARY READINGS for all compound words - do NOT create readings by combining individual kanji sounds phonetically
+5. You MUST NOT skip any kanji - every single kanji character must have furigana
+6. Non-kanji words (pure hiragana/katakana), English words, and numbers should remain unchanged
+7. Translate into ${targetLangName}
 
 CRITICAL WORD-LEVEL READING PRIORITY:
 - FIRST analyze the text for compound words, counter words, and context-dependent readings
-- Compound words should be read as single units with their contextual pronunciation
+- Compound words MUST use their STANDARD DICTIONARY READING - consult your knowledge of established Japanese compound word pronunciations
+- DO NOT phonetically combine individual kanji readings - compound words have fixed, standard readings that may differ from the sum of individual kanji readings
 - Counter words undergo sound changes (rendaku) and must be read as complete units
 - Only split into individual kanji readings when words cannot be read as compounds
 
-SELF-VERIFICATION REQUIREMENT:
-After generating furigana readings, you MUST perform these verification steps:
-1. Review EVERY kanji compound word in your output
-2. For each compound, verify if the reading is the standard dictionary reading (not just combining individual kanji readings)
-3. Pay special attention to words where the compound reading differs from individual kanji readings
-4. If you find any errors, correct them before finalizing your response
-5. Double-check all compounds against the common examples provided below
+MANDATORY VERIFICATION BEFORE RESPONDING - DO THIS STEP BY STEP:
+1. For EVERY compound word, check: "Is this the standard dictionary reading, or did I combine individual kanji readings?"
+2. If you combined readings (e.g., 最安値 = さい+あん+ち instead of さいやすね), CORRECT IT to the standard reading
+3. Verify that EVERY kanji character has corresponding furigana - none can be skipped
+4. For single-kanji words (左, 右, 上, etc.), ensure each has furigana even if it seems obvious
+5. Double-check that compound readings match standard Japanese dictionaries, not phonetic combinations
 
 Examples of MANDATORY correct Japanese furigana formatting:
 
@@ -2111,18 +2112,24 @@ CRITICAL REQUIREMENTS FOR JAPANESE TEXT - THESE ARE MANDATORY:
 1. Keep all original text exactly as is (including any English words, numbers, or punctuation)
 2. For EVERY word containing kanji, you MUST add the complete hiragana reading in parentheses immediately after the word
 3. The reading should cover the entire word (including any hiragana/katakana parts attached to the kanji)
-4. You MUST NOT skip any kanji - every single kanji character must have furigana
-5. Non-kanji words (pure hiragana/katakana), English words, and numbers should remain unchanged
-6. Translate into ${targetLangName}
+4. USE STANDARD DICTIONARY READINGS for all compound words - do NOT create readings by combining individual kanji sounds phonetically
+5. You MUST NOT skip any kanji - every single kanji character must have furigana
+6. Non-kanji words (pure hiragana/katakana), English words, and numbers should remain unchanged
+7. Translate into ${targetLangName}
 
 CRITICAL WORD-LEVEL READING PRIORITY:
 - FIRST analyze the text for compound words, counter words, and context-dependent readings
-- Compound words should be read as single units with their contextual pronunciation
+- Compound words MUST use their STANDARD DICTIONARY READING - consult your knowledge of established Japanese compound word pronunciations
+- DO NOT phonetically combine individual kanji readings - compound words have fixed, standard readings that may differ from the sum of individual kanji readings
 - Counter words undergo sound changes (rendaku) and must be read as complete units
 - Only split into individual kanji readings when words cannot be read as compounds
 
-VALIDATION REQUIREMENT:
-Before providing your response, verify that EVERY kanji character in the original text has corresponding furigana in your output. If you cannot determine the reading for any kanji, use the most common reading and mark it with [?].
+MANDATORY VERIFICATION BEFORE RESPONDING - DO THIS STEP BY STEP:
+1. For EVERY compound word, check: "Is this the standard dictionary reading, or did I combine individual kanji readings?"
+2. If you combined readings (e.g., 最安値 = さい+あん+ち instead of さいやすね), CORRECT IT to the standard reading
+3. Verify that EVERY kanji character has corresponding furigana - none can be skipped
+4. For single-kanji words (左, 右, 上, etc.), ensure each has furigana even if it seems obvious
+5. Double-check that compound readings match standard Japanese dictionaries, not phonetic combinations
 
 Examples of MANDATORY correct Japanese furigana formatting:
 
@@ -2540,41 +2547,48 @@ ABSOLUTE REQUIREMENTS - NO EXCEPTIONS:
 1. EVERY SINGLE KANJI CHARACTER must have furigana in parentheses
 2. Count the kanji in the original text: ${validation.totalKanjiCount} kanji total
 3. Your response must have exactly ${validation.totalKanjiCount} kanji with furigana
-4. If you're unsure of a reading, use the most common one and add [?]
-5. DO NOT SKIP ANY KANJI - this is mandatory
+4. USE STANDARD DICTIONARY READINGS - do NOT combine individual kanji sounds phonetically
+5. If you're unsure of a reading, use the most common one 
+6. DO NOT SKIP ANY KANJI - this is mandatory
 
-CRITICAL: PRIORITIZE COMPOUND WORD CONTEXTUAL READINGS:
+CRITICAL: STANDARD DICTIONARY READINGS FOR COMPOUNDS - DO NOT COMBINE PHONETICALLY:
+- Compound words MUST use their STANDARD DICTIONARY READING - consult your knowledge of established pronunciations
+- DO NOT create readings by combining individual kanji sounds (e.g., 最安値 = さい+あん+ち is WRONG - correct is さいやすね)
 - Look for compound words, counter words, and context-dependent readings FIRST
 - Numbers + counters (匹、人、本、個、etc.) should be read as units with rendaku
 - 一匹 = いっぴき (NOT いちひき), 三匹 = さんびき (NOT さんひき)
 - Only split into individual kanji when no compound reading exists
 
 COMPOUND WORD VERIFICATION - MANDATORY:
-You MUST check these common compounds for their correct readings:
-- 車道 = しゃどう (NOT くるまみち)
-- 歩道 = ほどう (NOT あるきみち)
-- 自転車 = じてんしゃ (NOT じでんしゃ)
-- 新聞 = しんぶん (NOT しんもん)
-- 今朝 = けさ (NOT いまあさ)
-- 市場 = いちば (context dependent)
-- 一人 = ひとり (NOT いちにん)
-- 二人 = ふたり (NOT ににん)
-- 今日 = きょう (NOT いまひ/こんにち)
-- 明日 = あした/あす (NOT みょうにち)
-- 昨日 = きのう (NOT さくじつ)
-- 大人 = おとな (NOT だいじん)
-- 子供 = こども (NOT しきょう)
+For EVERY compound word, verify: "Did I use the standard dictionary reading, or did I combine individual kanji readings phonetically?"
+You MUST check common compounds like these for their correct STANDARD readings:
+- 車道 = しゃどう (NOT くるまみち - standard dictionary reading)
+- 歩道 = ほどう (NOT あるきみち - standard dictionary reading)
+- 自転車 = じてんしゃ (NOT じでんしゃ - standard dictionary reading)
+- 新聞 = しんぶん (NOT しんもん - standard dictionary reading)
+- 今朝 = けさ (NOT いまあさ - standard dictionary reading)
+- 市場 = いちば (standard dictionary reading, context dependent)
+- 一人 = ひとり (NOT いちにん - standard dictionary reading)
+- 二人 = ふたり (NOT ににん - standard dictionary reading)
+- 今日 = きょう (NOT いまひ/こんにち - standard dictionary reading)
+- 明日 = あした/あす (NOT みょうにち - standard dictionary reading)
+- 昨日 = きのう (NOT さくじつ - standard dictionary reading)
+- 大人 = おとな (NOT だいじん - standard dictionary reading)
+- 子供 = こども (NOT しきょう - standard dictionary reading)
 
 MANDATORY FORMAT for each kanji word:
 - Counter words: 一匹(いっぴき), 三匹(さんびき), 一人(ひとり)
 - Compound words: 東京(とうきょう), 日本語(にほんご), 大学生(だいがくせい)
 - Mixed words: 勉強する(べんきょうする)
 - Individual kanji (only when not compound): 食(た)べ物(もの)
+- Single-kanji words: 左(ひだり), 右(みぎ), 上(うえ), 下(した) - NEVER skip these!
 
 VERIFICATION STEP: Before responding, manually check:
 1. Original kanji count: ${validation.totalKanjiCount}
 2. Your furigana count: [must equal ${validation.totalKanjiCount}]
-3. All compound words have correct dictionary readings, not just individual kanji readings
+3. For each compound word: "Is this the standard dictionary reading, or did I combine individual kanji readings?"
+4. All compound words have correct STANDARD DICTIONARY readings, not phonetic combinations
+5. Every single-kanji word has furigana (左, 右, 上, 下, etc.)
 
 Format as JSON:
 {
