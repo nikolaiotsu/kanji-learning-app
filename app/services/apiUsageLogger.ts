@@ -1,5 +1,7 @@
 import { supabase } from './supabaseClient';
 import Constants from 'expo-constants';
+import { SUBSCRIPTION_PLANS } from '../constants/config';
+import { SubscriptionPlan } from '../../types';
 
 import { logger } from '../utils/logger';
 // Types for logging
@@ -198,8 +200,9 @@ class APIUsageLogger {
 
   /**
    * Check if user is approaching rate limits
+   * @param subscriptionPlan - The user's subscription plan ('FREE' or 'PREMIUM')
    */
-  public async checkRateLimitStatus(): Promise<{
+  public async checkRateLimitStatus(subscriptionPlan: SubscriptionPlan = 'FREE'): Promise<{
     claudeCallsRemaining: number;
     visionCallsRemaining: number;
     flashcardsRemaining: number;
@@ -207,20 +210,25 @@ class APIUsageLogger {
   }> {
     try {
       const usage = await this.getDailyUsage();
+      const planConfig = SUBSCRIPTION_PLANS[subscriptionPlan];
       
-      // You can adjust these limits based on your subscription logic
-      const FREE_LIMITS = {
-        claude: 20,    // Conservative daily limit
-        vision: 100,    // Your current OCR limit
-        flashcards: 3,  // Your current flashcard limit
-        ocr: 100        // Your current OCR limit
-      };
+      // Total API calls limit (applies to both claude and vision API calls combined)
+      const totalApiCallsLimit = planConfig.ocrScansPerDay;
+      const totalApiCallsUsed = (usage?.claude_api_calls || 0) + (usage?.vision_api_calls || 0);
+      const totalApiCallsRemaining = Math.max(0, totalApiCallsLimit - totalApiCallsUsed);
+      
+      // Flashcard limit (unlimited for premium is represented as -1)
+      const flashcardLimit = planConfig.flashcardsPerDay;
+      const isUnlimitedFlashcards = flashcardLimit === -1;
+      const flashcardsRemaining = isUnlimitedFlashcards 
+        ? Number.MAX_SAFE_INTEGER 
+        : Math.max(0, flashcardLimit - (usage?.flashcards_created || 0));
 
       return {
-        claudeCallsRemaining: Math.max(0, FREE_LIMITS.claude - (usage?.claude_api_calls || 0)),
-        visionCallsRemaining: Math.max(0, FREE_LIMITS.vision - (usage?.vision_api_calls || 0)),
-        flashcardsRemaining: Math.max(0, FREE_LIMITS.flashcards - (usage?.flashcards_created || 0)),
-        ocrScansRemaining: Math.max(0, FREE_LIMITS.ocr - (usage?.ocr_scans_performed || 0))
+        claudeCallsRemaining: totalApiCallsRemaining, // Combined limit for all API calls
+        visionCallsRemaining: totalApiCallsRemaining, // Combined limit for all API calls
+        flashcardsRemaining: flashcardsRemaining,
+        ocrScansRemaining: totalApiCallsRemaining // OCR scans use the same API call limit
       };
     } catch (error) {
       logger.error('[APILogger] Error checking rate limits:', error);

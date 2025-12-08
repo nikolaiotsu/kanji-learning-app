@@ -157,7 +157,7 @@
     },
     "limit": {
       "title": "Daily Limit Reached",
-      "message": "Casual Collectors: 3 card daily limit. Serious Collectors: Unlimited.",
+      "message": "Casual Collectors: 5 card daily limit. Serious Collectors: Unlimited.",
       "upgradeToPremium": "Upgrade to Premium"
     }
   },
@@ -194,6 +194,7 @@
     "forceWordDexDetect": "Force Word Dex to detect:",
     "swapLanguages": "Swap Languages",
     "premiumPlan": "Premium Plan",
+    "premiumPlanDescription": "Unlimited flashcards, unlimited decks and priority access to upcoming features",
     "freePlan": "Free Plan",
     "unlimitedScans": "Unlimited OCR scans, no ads",
     "limitedScans": "{{maxScans}} OCR scans per day, ads supported",
@@ -209,7 +210,7 @@
     "setDetectionLanguageError": "Failed to set detection language. Please try again."
   },
   "review": {
-    "remaining": "{{count}} remaining (swipe ← to review, → to dismiss)",
+    "remaining": "{{count}} remaining - swipe ← to review again - swipe → to dismiss",
     "nothingToReview": "Nothing to review",
     "scanText": "Go scan some text to add to your collection!",
     "finishedReview": "You've finished your review!",

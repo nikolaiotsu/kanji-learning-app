@@ -106,9 +106,20 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Function to update target language
   const setTargetLanguage = async (lang: string) => {
     try {
-      // Validate that target language is different from forced detection language
+      // If target language would be the same as forced detection language, swap them
       if (lang === forcedDetectionLanguage) {
-        throw new Error('Target language cannot be the same as the detection language. Please choose a different language.');
+        logger.log('[SettingsContext] Target language same as detection language - auto-swapping');
+        // Swap: set new target to lang, and move current target to detection
+        const newDetectionLanguage = targetLanguage;
+        
+        setTargetLanguageState(lang);
+        setForcedDetectionLanguageState(newDetectionLanguage);
+        
+        const settings = await getSettings();
+        settings.targetLanguage = lang;
+        settings.forcedDetectionLanguage = newDetectionLanguage;
+        await AsyncStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+        return;
       }
       
       setTargetLanguageState(lang);
@@ -124,9 +135,20 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Function to update forced detection language
   const setForcedDetectionLanguage = async (lang: string) => {
     try {
-      // Validate that forced detection language is different from target language
+      // If forced detection language would be the same as target language, swap them
       if (lang === targetLanguage) {
-        throw new Error('Detection language cannot be the same as the target language. Please choose a different language.');
+        logger.log('[SettingsContext] Detection language same as target language - auto-swapping');
+        // Swap: set new detection to lang, and move current detection to target
+        const newTargetLanguage = forcedDetectionLanguage;
+        
+        setForcedDetectionLanguageState(lang);
+        setTargetLanguageState(newTargetLanguage);
+        
+        const settings = await getSettings();
+        settings.forcedDetectionLanguage = lang;
+        settings.targetLanguage = newTargetLanguage;
+        await AsyncStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+        return;
       }
       
       setForcedDetectionLanguageState(lang);

@@ -153,7 +153,7 @@
     },
     "limit": {
       "title": "每日限制已达到",
-      "message": "休闲收藏者：每日3卡限制。认真收藏者：无限制。",
+      "message": "休闲收藏者：每日5卡限制。认真收藏者：无限制。",
       "upgradeToPremium": "升级到高级版"
     }
   },
@@ -190,6 +190,7 @@
     "forceWordDexDetect": "强制Word Dex检测：",
     "swapLanguages": "交换语言",
     "premiumPlan": "高级版计划",
+    "premiumPlanDescription": "无限闪卡，无限卡组和优先访问即将推出的功能",
     "freePlan": "免费计划",
     "unlimitedScans": "无限OCR扫描，无广告",
     "limitedScans": "每天{{maxScans}}次OCR扫描，广告支持",
@@ -205,7 +206,7 @@
     "setDetectionLanguageError": "设置检测语言失败。请重试。"
   },
   "review": {
-    "remaining": "剩余{{count}}张（← 滑动复习，→ 滑动忽略）",
+    "remaining": "剩余{{count}}张 - ← 滑动再次复习 - → 滑动继续",
     "nothingToReview": "没有需要复习的内容",
     "scanText": "去扫描一些文本添加到您的收藏集！",
     "finishedReview": "您已完成复习！",

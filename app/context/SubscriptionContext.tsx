@@ -404,7 +404,9 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
   };
 
   const getMaxFlashcards = (): number => {
-    return SUBSCRIPTION_PLANS[subscription.plan].flashcardsPerDay;
+    const limit = SUBSCRIPTION_PLANS[subscription.plan].flashcardsPerDay;
+    // -1 represents unlimited for premium users
+    return limit === -1 ? Number.MAX_SAFE_INTEGER : limit;
   };
 
   const getMaxDecks = (): number => {

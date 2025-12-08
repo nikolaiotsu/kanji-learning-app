@@ -11,16 +11,16 @@ export const APP_CONFIG = {
 // Subscription plan configurations
 export const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanConfig> = {
   FREE: {
-    ocrScansPerDay: 500, // High limit for abuse protection, hidden from users
-    flashcardsPerDay: 3, // New limit: 3 flashcards per 24 hours
+    ocrScansPerDay: 30, // 30 API calls per day for free users
+    flashcardsPerDay: 5, // 5 flashcards per day for free users
     maxDecks: 2, // Free users can create up to 2 decks
     showAds: true,
     features: ['basic_scanning', 'flashcards', 'basic_ocr']
   },
   PREMIUM: {
-    ocrScansPerDay: 3000, // 3000 OCR scans per day for premium users
-    flashcardsPerDay: 999999, // Essentially unlimited flashcards for premium users
-    maxDecks: 999999, // Essentially unlimited decks for premium users
+    ocrScansPerDay: 5000, // 5000 API calls per day for premium users (to prevent spam)
+    flashcardsPerDay: -1, // -1 represents unlimited flashcards for premium users
+    maxDecks: 150, // Essentially unlimited decks for premium users
     showAds: false,
     features: [
       'basic_scanning', 

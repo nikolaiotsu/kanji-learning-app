@@ -157,7 +157,7 @@
     },
     "limit": {
       "title": "Límite diario alcanzado",
-      "message": "Coleccionistas casuales: límite de 3 tarjetas diarias. Coleccionistas serios: Ilimitado.",
+      "message": "Coleccionistas casuales: límite de 5 tarjetas diarias. Coleccionistas serios: Ilimitado.",
       "upgradeToPremium": "Actualizar a Premium"
     }
   },
@@ -194,6 +194,7 @@
     "forceWordDexDetect": "Forzar a Word Dex a detectar:",
     "swapLanguages": "Intercambiar idiomas",
     "premiumPlan": "Plan Premium",
+    "premiumPlanDescription": "Tarjetas didácticas ilimitadas, mazos ilimitados y acceso prioritario a próximas funciones",
     "freePlan": "Plan gratuito",
     "unlimitedScans": "Escaneos OCR ilimitados, sin anuncios",
     "limitedScans": "{{maxScans}} escaneos OCR por día, con anuncios",
@@ -209,7 +210,7 @@
     "setDetectionLanguageError": "Error al establecer el idioma de detección. Por favor intenta de nuevo."
   },
   "review": {
-    "remaining": "{{count}} restantes (desliza ← para revisar, → para descartar)",
+    "remaining": "{{count}} restantes - desliza ← para revisar de nuevo - desliza → para descartar",
     "nothingToReview": "Nada que revisar",
     "scanText": "¡Escanea texto para agregar a tu colección!",
     "finishedReview": "¡Has terminado tu revisión!",

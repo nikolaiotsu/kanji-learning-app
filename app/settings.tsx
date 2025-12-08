@@ -9,6 +9,7 @@ import { useFlashcardCounter } from './context/FlashcardCounterContext';
 import { useSubscription } from './context/SubscriptionContext';
 import { useRouter } from 'expo-router';
 import { COLORS } from './constants/colors';
+import { PRODUCT_IDS, PRODUCT_DETAILS } from './constants/config';
 import PokedexLayout from './components/shared/PokedexLayout';
 import { resetReviewPromptState, resetLifetimeCount, getReviewStatus } from './services/reviewPromptService';
 
@@ -26,7 +27,15 @@ export default function SettingsScreen() {
     detectableLanguages 
   } = useSettings();
   const { resetFlashcardCount } = useFlashcardCounter();
-  const { subscription, setTestingSubscriptionPlan, getMaxFlashcards } = useSubscription();
+  const { 
+    subscription, 
+    setTestingSubscriptionPlan, 
+    getMaxFlashcards,
+    purchaseSubscription,
+    restorePurchases,
+    isLoading: isSubscriptionLoading,
+    availableProducts
+  } = useSubscription();
   
   const router = useRouter();
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
@@ -36,6 +45,7 @@ export default function SettingsScreen() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isLongPressing, setIsLongPressing] = useState(false);
+  const [isPurchasing, setIsPurchasing] = useState(false);
   const longPressProgress = useRef(new Animated.Value(0)).current;
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -241,6 +251,80 @@ export default function SettingsScreen() {
     }
   };
 
+  // Function to handle premium purchase
+  const handlePurchase = async (productId: string) => {
+    if (isPurchasing || isSubscriptionLoading) {
+      return;
+    }
+
+    try {
+      setIsPurchasing(true);
+      logger.log('Initiating purchase for:', productId);
+      
+      const success = await purchaseSubscription(productId);
+      
+      if (success) {
+        Alert.alert(
+          'Success!',
+          'Premium subscription activated! Enjoy unlimited flashcards and features.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert(
+          'Purchase Failed',
+          'Unable to complete the purchase. Please try again.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      logger.error('Error purchasing subscription:', error);
+      Alert.alert(
+        'Error',
+        'An error occurred while processing your purchase. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsPurchasing(false);
+    }
+  };
+
+  // Function to restore purchases
+  const handleRestorePurchases = async () => {
+    if (isPurchasing || isSubscriptionLoading) {
+      return;
+    }
+
+    try {
+      setIsPurchasing(true);
+      logger.log('Attempting to restore purchases...');
+      
+      const success = await restorePurchases();
+      
+      if (success) {
+        Alert.alert(
+          'Restored!',
+          'Your premium subscription has been restored successfully.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert(
+          'No Purchases Found',
+          'We couldn\'t find any previous purchases to restore. If you believe this is an error, please contact support.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      logger.error('Error restoring purchases:', error);
+      Alert.alert(
+        'Error',
+        'An error occurred while restoring purchases. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsPurchasing(false);
+    }
+  };
+
   // Long press handlers for delete account button
   const handleDeletePressIn = () => {
     setIsLongPressing(true);
@@ -323,30 +407,104 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('settings.subscription')}</Text>
           
-          <View style={styles.settingItem}>
-            <Ionicons 
-              name={subscription.plan === 'PREMIUM' ? "diamond" : "star-outline"} 
-              size={24} 
-              color={subscription.plan === 'PREMIUM' ? COLORS.premium : COLORS.primary} 
-              style={styles.settingIcon} 
-            />
-            <View style={styles.settingTextContainer}>
-              <Text style={styles.settingLabel}>
-                {subscription.plan === 'PREMIUM' ? t('settings.premiumPlan') : t('settings.freePlan')}
-              </Text>
-              <Text style={styles.settingDescription}>
-                {subscription.plan === 'PREMIUM' 
-                  ? 'Unlimited flashcards and features'
-                  : `${getMaxFlashcards()} flashcards per day`
-                }
-              </Text>
-            </View>
-            {subscription.plan === 'PREMIUM' && (
+          {subscription.plan === 'PREMIUM' ? (
+            // Premium user - show current status
+            <View style={styles.settingItem}>
+              <Ionicons 
+                name="diamond" 
+                size={24} 
+                color={COLORS.premium} 
+                style={styles.settingIcon} 
+              />
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>
+                  {t('settings.premiumPlan')}
+                </Text>
+                <Text style={styles.settingDescription}>
+                  {t('settings.premiumPlanDescription')}
+                </Text>
+              </View>
               <View style={[styles.counterBadge, { backgroundColor: COLORS.premium }]}>
                 <Ionicons name="diamond" size={16} color="white" />
               </View>
-            )}
-          </View>
+            </View>
+          ) : (
+            // Free user - show upgrade options
+            <View>
+              <View style={styles.upgradeHeader}>
+                <Ionicons name="star-outline" size={28} color={COLORS.primary} />
+                <View style={styles.upgradeHeaderText}>
+                  <Text style={styles.upgradeTitle}>Unlock Premium</Text>
+                  <Text style={styles.upgradeSubtitle}>{t('settings.premiumPlanDescription')}</Text>
+                </View>
+              </View>
+
+              {/* Monthly Subscription Button */}
+              <TouchableOpacity
+                style={[
+                  styles.purchaseButton,
+                  (isPurchasing || isSubscriptionLoading) && styles.purchaseButtonDisabled
+                ]}
+                onPress={() => handlePurchase(PRODUCT_IDS.PREMIUM_MONTHLY)}
+                disabled={isPurchasing || isSubscriptionLoading}
+              >
+                {isPurchasing || isSubscriptionLoading ? (
+                  <ActivityIndicator color="white" size="small" />
+                ) : (
+                  <>
+                    <View style={styles.purchaseButtonContent}>
+                      <View style={styles.purchaseButtonLeft}>
+                        <Ionicons name="diamond" size={20} color="white" style={{ marginRight: 8 }} />
+                        <Text style={styles.purchaseButtonTitle}>Premium Monthly</Text>
+                      </View>
+                      <Text style={styles.purchaseButtonPrice}>{PRODUCT_DETAILS[PRODUCT_IDS.PREMIUM_MONTHLY].priceUSD}/mo</Text>
+                    </View>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              {/* Yearly Subscription Button */}
+              <TouchableOpacity
+                style={[
+                  styles.purchaseButton,
+                  (isPurchasing || isSubscriptionLoading) && styles.purchaseButtonDisabled
+                ]}
+                onPress={() => handlePurchase(PRODUCT_IDS.PREMIUM_YEARLY)}
+                disabled={isPurchasing || isSubscriptionLoading}
+              >
+                {isPurchasing || isSubscriptionLoading ? (
+                  <ActivityIndicator color="white" size="small" />
+                ) : (
+                  <>
+                    <View style={styles.purchaseButtonContent}>
+                      <View style={styles.purchaseButtonLeft}>
+                        <Ionicons name="diamond" size={20} color="white" style={{ marginRight: 8 }} />
+                        <View>
+                          <Text style={styles.purchaseButtonTitle}>Premium Yearly</Text>
+                          <Text style={styles.purchaseButtonSavings}>Save 17%!</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.purchaseButtonPrice}>{PRODUCT_DETAILS[PRODUCT_IDS.PREMIUM_YEARLY].priceUSD}/yr</Text>
+                    </View>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              {/* Restore Purchases Link */}
+              <TouchableOpacity
+                style={styles.restoreButtonContainer}
+                onPress={handleRestorePurchases}
+                disabled={isPurchasing || isSubscriptionLoading}
+              >
+                <Text style={[
+                  styles.restoreButtonText,
+                  (isPurchasing || isSubscriptionLoading) && styles.restoreButtonTextDisabled
+                ]}>
+                  Restore Purchases
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -444,7 +602,7 @@ export default function SettingsScreen() {
                 styles.testingButtonText,
                 subscription.plan === 'FREE' ? styles.activeTestingButtonText : styles.inactiveTestingButtonText
               ]}>
-                Switch to FREE (3 cards/day)
+                Switch to FREE (5 cards/day)
               </Text>
             </TouchableOpacity>
             
@@ -1062,5 +1220,88 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: 'white',
+  },
+  upgradeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    paddingBottom: 8,
+  },
+  upgradeHeaderText: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  upgradeTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 2,
+  },
+  upgradeSubtitle: {
+    fontSize: 14,
+    color: COLORS.darkGray,
+  },
+  purchaseButton: {
+    backgroundColor: '#22C55E',
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    minHeight: 60,
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  purchaseButtonDisabled: {
+    backgroundColor: '#A0A0A0',
+    opacity: 0.7,
+  },
+  purchaseButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  purchaseButtonLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  purchaseButtonTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: 'white',
+  },
+  purchaseButtonSavings: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'white',
+    opacity: 0.9,
+    marginTop: 2,
+  },
+  purchaseButtonPrice: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: 'white',
+  },
+  restoreButtonContainer: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingBottom: 20,
+  },
+  restoreButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: COLORS.primary,
+    textDecorationLine: 'underline',
+  },
+  restoreButtonTextDisabled: {
+    color: COLORS.darkGray,
+    opacity: 0.5,
   },
 }); 

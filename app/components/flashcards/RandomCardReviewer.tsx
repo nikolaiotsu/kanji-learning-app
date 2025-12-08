@@ -56,7 +56,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const HEADER_HEIGHT = 45;
   const HEADER_TO_CARD_SPACING = 16;
   const CARD_TO_CONTROLS_SPACING = 12;
-  const CONTROLS_HEIGHT = 25;
+  const CONTROLS_HEIGHT = 30; // Increased from 25 to accommodate longer localized text
   const CONTAINER_PADDING_TOP = 10;
   const CONTAINER_PADDING_BOTTOM = 10;
   
@@ -705,6 +705,19 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     />
   ), [showDeckSelector, selectedDeckIds, handleDeckSelection]);
 
+  // Interpolate overlay opacities based on swipe distance
+  const rightSwipeOpacity = slideAnim.interpolate({
+    inputRange: [0, SWIPE_THRESHOLD],
+    outputRange: [0, 0.7],
+    extrapolate: 'clamp',
+  });
+
+  const leftSwipeOpacity = slideAnim.interpolate({
+    inputRange: [-SWIPE_THRESHOLD, 0],
+    outputRange: [0.7, 0],
+    extrapolate: 'clamp',
+  });
+
   // Create dynamic styles based on calculated dimensions
   const styles = useMemo(() => createStyles(
     CONTAINER_PADDING_TOP,
@@ -892,15 +905,39 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
             ]}
             {...panResponder.panHandlers}
           >
-            <FlashcardItem 
-              key={currentCard.id}
-              flashcard={currentCard} 
-              disableTouchHandling={false}
-              cardHeight={CARD_STAGE_HEIGHT}
-              onImageToggle={(showImage) => {
-                setIsImageExpanded(showImage);
-              }}
-            />
+            <View style={styles.cardWithOverlayWrapper}>
+              <FlashcardItem 
+                key={currentCard.id}
+                flashcard={currentCard} 
+                disableTouchHandling={false}
+                cardHeight={CARD_STAGE_HEIGHT}
+                onImageToggle={(showImage) => {
+                  setIsImageExpanded(showImage);
+                }}
+              />
+              {/* Right swipe overlay - Green with checkmark */}
+              <Animated.View 
+                style={[
+                  styles.swipeOverlay,
+                  styles.swipeOverlayRight,
+                  { opacity: rightSwipeOpacity }
+                ]}
+                pointerEvents="none"
+              >
+                <Ionicons name="checkmark-circle" size={80} color={COLORS.text} />
+              </Animated.View>
+              {/* Left swipe overlay - Orange with loop/replay */}
+              <Animated.View 
+                style={[
+                  styles.swipeOverlay,
+                  styles.swipeOverlayLeft,
+                  { opacity: leftSwipeOpacity }
+                ]}
+                pointerEvents="none"
+              >
+                <Ionicons name="refresh" size={80} color={COLORS.text} />
+              </Animated.View>
+            </View>
           </Animated.View>
         ) : isInitializing ? (
           <LoadingCard />
@@ -987,6 +1024,11 @@ const createStyles = (
     flex: 1, // Expand to fill available space
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+  cardWithOverlayWrapper: {
+    width: '100%',
+    position: 'relative',
   },
   controlsContainer: {
     flexDirection: 'row',
@@ -995,10 +1037,14 @@ const createStyles = (
     width: '100%',
     height: controlsHeight,
     paddingTop: 0, // Spacing handled by cardStage marginBottom (12pt)
+    paddingHorizontal: 16, // Add horizontal padding to prevent edge overflow
   },
   countText: {
     color: '#b3b3b3',
     fontSize: 12,
+    textAlign: 'center',
+    flexShrink: 1, // Allow text to shrink if needed
+    flexWrap: 'wrap', // Allow text to wrap on smaller screens
   },
   loadingCardContainer: {
     width: '100%',
@@ -1111,6 +1157,20 @@ const createStyles = (
     color: COLORS.text,
     marginLeft: 16,
     flex: 1,
+  },
+  swipeOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 15,
+    zIndex: 100, // Above the FlashcardItem
+    elevation: 100, // For Android
+  },
+  swipeOverlayRight: {
+    backgroundColor: COLORS.success,
+  },
+  swipeOverlayLeft: {
+    backgroundColor: COLORS.secondary,
   },
 });
 

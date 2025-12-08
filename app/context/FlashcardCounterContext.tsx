@@ -29,8 +29,10 @@ export const FlashcardCounterProvider: React.FC<{ children: React.ReactNode }> =
 
   // Get subscription-aware limits
   const maxFlashcards = getMaxFlashcards();
-  const canCreateFlashcard = flashcardCount < maxFlashcards;
-  const remainingFlashcards = Math.max(0, maxFlashcards - flashcardCount);
+  // Handle unlimited (when maxFlashcards is Number.MAX_SAFE_INTEGER)
+  const isUnlimited = maxFlashcards === Number.MAX_SAFE_INTEGER;
+  const canCreateFlashcard = isUnlimited || flashcardCount < maxFlashcards;
+  const remainingFlashcards = isUnlimited ? Number.MAX_SAFE_INTEGER : Math.max(0, maxFlashcards - flashcardCount);
 
   // Load flashcard counter from AsyncStorage on mount
   useEffect(() => {

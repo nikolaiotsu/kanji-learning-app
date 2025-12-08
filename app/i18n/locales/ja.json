@@ -156,7 +156,7 @@
     },
     "limit": {
       "title": "1日の制限に達しました",
-      "message": "カジュアルコレクター：1日3カード制限。シリアスコレクター：無制限。",
+      "message": "カジュアルコレクター：1日5カード制限。シリアスコレクター：無制限。",
       "upgradeToPremium": "プレミアムにアップグレード"
     }
   },
@@ -193,6 +193,7 @@
     "forceWordDexDetect": "Word Dexに強制検出させる:",
     "swapLanguages": "言語を交換",
     "premiumPlan": "プレミアムプラン",
+    "premiumPlanDescription": "無制限のフラッシュカード、無制限のデッキ、今後の機能への優先アクセス",
     "freePlan": "無料プラン",
     "unlimitedScans": "無制限のOCRスキャン、広告なし",
     "limitedScans": "1日{{maxScans}}回のOCRスキャン、広告サポート",
@@ -208,7 +209,7 @@
     "setDetectionLanguageError": "検出言語の設定に失敗しました。もう一度お試しください。"
   },
   "review": {
-    "remaining": "残り{{count}}枚（← スワイプで復習、→ スワイプで除外）",
+    "remaining": "残り{{count}}枚 - 左スワイプでもう一度復習 - 右スワイプで進む",
     "nothingToReview": "復習するものがありません",
     "scanText": "テキストをスキャンしてコレクションに追加してください！",
     "finishedReview": "復習が完了しました！",
