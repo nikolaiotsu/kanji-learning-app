@@ -27,9 +27,14 @@ interface RandomCardReviewerProps {
   onCardSwipe?: () => void;
   // Add callback to notify when content is ready for display
   onContentReady?: (isReady: boolean) => void;
+  // Ref for collections button (for walkthrough)
+  collectionsButtonRef?: React.RefObject<View>;
+  // Walkthrough state
+  isWalkthroughActive?: boolean;
+  currentWalkthroughStepId?: string;
 }
 
-const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, onContentReady }) => {
+const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, onContentReady, collectionsButtonRef, isWalkthroughActive = false, currentWalkthroughStepId }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -93,6 +98,15 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   // Prevent multiple initialization calls with refs
   const initializationInProgressRef = useRef(false);
   const lastFilteredCardsHashRef = useRef<string>('');
+  
+  // Track last content ready state to prevent unnecessary callbacks
+  const lastContentReadyRef = useRef<boolean | null>(null);
+  const onContentReadyRef = useRef(onContentReady);
+  
+  // Keep ref updated when callback changes
+  useEffect(() => {
+    onContentReadyRef.current = onContentReady;
+  }, [onContentReady]);
   
   // Fade animation for smooth transitions
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -388,10 +402,12 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                             !isLoading) ||
                            (!isConnected && filteredCards.length > 0 && !isInitializing && !isCardTransitioning);
     
-    if (onContentReady) {
-      onContentReady(isContentReady);
+    // Only call onContentReady if the state actually changed
+    if (lastContentReadyRef.current !== isContentReady && onContentReadyRef.current) {
+      lastContentReadyRef.current = isContentReady;
+      onContentReadyRef.current(isContentReady);
     }
-  }, [isInitializing, isCardTransitioning, loadingState, isLoading, onContentReady, isConnected, filteredCards.length]);
+  }, [isInitializing, isCardTransitioning, loadingState, isLoading, isConnected, filteredCards.length]);
 
   // Ensure onContentReady is called when the screen comes into focus
   // This fixes the issue where the logo doesn't reappear after navigating back from saved-flashcards
@@ -420,14 +436,16 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         ensureSelection();
       }
 
-      if (onContentReady) {
-        onContentReady(isContentReady);
+      // Only call onContentReady if the state actually changed
+      if (lastContentReadyRef.current !== isContentReady && onContentReadyRef.current) {
+        lastContentReadyRef.current = isContentReady;
+        onContentReadyRef.current(isContentReady);
       }
       
       return () => {
         // Cleanup if needed
       };
-    }, [isInitializing, isCardTransitioning, loadingState, isLoading, onContentReady, isConnected, filteredCards.length, selectedDeckIds.length, allFlashcards.length, ensureSelection])
+    }, [isInitializing, isCardTransitioning, loadingState, isLoading, isConnected, filteredCards.length, selectedDeckIds.length, allFlashcards.length, ensureSelection])
   );
 
   // Configure PanResponder
@@ -735,13 +753,39 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.deckButton} 
-            disabled={true}
+          <View 
+            ref={collectionsButtonRef} 
+            collapsable={false}
+            style={
+              isWalkthroughActive && currentWalkthroughStepId === 'collections' 
+                ? styles.highlightedCollectionsButtonWrapper 
+                : undefined
+            }
+            pointerEvents={isWalkthroughActive && currentWalkthroughStepId !== 'collections' ? 'none' : 'auto'}
           >
-            <Ionicons name="albums-outline" size={20} color={COLORS.primary} />
-            <Text style={styles.deckButtonText}>{t('review.collections')}</Text>
+          <TouchableOpacity 
+            style={[
+              styles.deckButton,
+              isWalkthroughActive && currentWalkthroughStepId === 'collections' && { backgroundColor: 'transparent' }
+            ]} 
+            disabled={isWalkthroughActive && currentWalkthroughStepId !== 'collections'}
+          >
+              <Ionicons 
+                name="albums-outline" 
+                size={20} 
+                color={COLORS.primary} // Stay blue throughout walkthrough
+                style={{ zIndex: 1001 }} // Ensure icon is above yellow background
+              />
+              <Text 
+                style={[
+                  styles.deckButtonText,
+                  isWalkthroughActive && currentWalkthroughStepId !== 'collections' && styles.deckButtonDisabled
+                ]}
+              >
+                {t('review.collections')}
+              </Text>
           </TouchableOpacity>
+          </View>
         </View>
         <LoadingCard />
         <View style={styles.controlsContainer}>
@@ -777,13 +821,40 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       return (
         <View style={styles.container}>
           <View style={styles.header}>
-            <TouchableOpacity 
-              style={styles.deckButton} 
-              onPress={() => setShowDeckSelector(true)}
+            <View 
+              ref={collectionsButtonRef} 
+              collapsable={false}
+              style={
+                isWalkthroughActive && currentWalkthroughStepId === 'collections' 
+                  ? styles.highlightedCollectionsButtonWrapper 
+                  : undefined
+              }
+              pointerEvents={isWalkthroughActive && currentWalkthroughStepId !== 'collections' ? 'none' : 'auto'}
             >
-              <Ionicons name="albums-outline" size={20} color={COLORS.primary} />
-              <Text style={styles.deckButtonText}>{t('review.collections')}</Text>
+            <TouchableOpacity 
+                style={[
+                  styles.deckButton,
+                  isWalkthroughActive && currentWalkthroughStepId === 'collections' && { backgroundColor: 'transparent' }
+                ]} 
+              onPress={() => setShowDeckSelector(true)}
+                disabled={isWalkthroughActive && currentWalkthroughStepId !== 'collections'}
+            >
+                <Ionicons 
+                  name="albums-outline" 
+                  size={20} 
+                  color={COLORS.primary} // Stay blue throughout walkthrough
+                  style={{ zIndex: 1001 }} // Ensure icon is above yellow background
+                />
+                <Text 
+                  style={[
+                    styles.deckButtonText,
+                    isWalkthroughActive && currentWalkthroughStepId !== 'collections' && styles.deckButtonDisabled
+                  ]}
+                >
+                  {t('review.collections')}
+                </Text>
             </TouchableOpacity>
+            </View>
           </View>
           <View style={styles.cardStage}>
             <View style={styles.noCardsContainer}>
@@ -837,13 +908,40 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       return (
         <View style={styles.container}>
           <View style={styles.header}>
-            <TouchableOpacity 
-              style={styles.deckButton} 
-              onPress={() => setShowDeckSelector(true)}
+            <View 
+              ref={collectionsButtonRef} 
+              collapsable={false}
+              style={
+                isWalkthroughActive && currentWalkthroughStepId === 'collections' 
+                  ? styles.highlightedCollectionsButtonWrapper 
+                  : undefined
+              }
+              pointerEvents={isWalkthroughActive && currentWalkthroughStepId !== 'collections' ? 'none' : 'auto'}
             >
-              <Ionicons name="albums-outline" size={20} color={COLORS.primary} />
-              <Text style={styles.deckButtonText}>{t('review.collections')}</Text>
+            <TouchableOpacity 
+                style={[
+                  styles.deckButton,
+                  isWalkthroughActive && currentWalkthroughStepId === 'collections' && { backgroundColor: 'transparent' }
+                ]} 
+              onPress={() => setShowDeckSelector(true)}
+                disabled={isWalkthroughActive && currentWalkthroughStepId !== 'collections'}
+            >
+                <Ionicons 
+                  name="albums-outline" 
+                  size={20} 
+                  color={COLORS.primary} // Stay blue throughout walkthrough
+                  style={{ zIndex: 1001 }} // Ensure icon is above yellow background
+                />
+                <Text 
+                  style={[
+                    styles.deckButtonText,
+                    isWalkthroughActive && currentWalkthroughStepId !== 'collections' && styles.deckButtonDisabled
+                  ]}
+                >
+                  {t('review.collections')}
+                </Text>
             </TouchableOpacity>
+            </View>
           </View>
           <View style={styles.cardStage}>
             <View style={styles.noCardsContainer}>
@@ -868,17 +966,47 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        <View 
+          ref={collectionsButtonRef} 
+          collapsable={false}
+          style={
+            isWalkthroughActive && currentWalkthroughStepId === 'collections' 
+              ? styles.highlightedCollectionsButtonWrapper 
+              : undefined
+          }
+          pointerEvents={isWalkthroughActive && currentWalkthroughStepId !== 'collections' ? 'none' : 'auto'}
+        >
         <TouchableOpacity 
-          style={styles.deckButton} 
+            style={[
+              styles.deckButton,
+                  isWalkthroughActive && currentWalkthroughStepId === 'collections' && { backgroundColor: 'transparent' },
+                  // Keep full opacity during walkthrough; only dim when not in walkthrough and disabled
+                  (!isWalkthroughActive && (isCardTransitioning || isInitializing)) && styles.deckButtonDisabled
+            ]} 
           onPress={() => {
+              if (!isWalkthroughActive || currentWalkthroughStepId === 'collections') {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             setShowDeckSelector(true);
+              }
           }}
-          disabled={isCardTransitioning || isInitializing}
+            disabled={isCardTransitioning || isInitializing || (isWalkthroughActive && currentWalkthroughStepId !== 'collections')}
         >
-          <Ionicons name="albums-outline" size={20} color={COLORS.primary} />
-          <Text style={styles.deckButtonText}>{t('review.collections')}</Text>
+            <Ionicons 
+              name="albums-outline" 
+              size={20} 
+                  color={COLORS.primary} // Stay blue throughout walkthrough
+              style={{ zIndex: 1001 }} // Ensure icon is above yellow background
+            />
+            <Text 
+              style={[
+                styles.deckButtonText,
+                isWalkthroughActive && currentWalkthroughStepId !== 'collections' && styles.deckButtonDisabled
+              ]}
+            >
+              {t('review.collections')}
+            </Text>
         </TouchableOpacity>
+        </View>
         
         {/* Offline Indicator - compact square next to Collections button */}
         <OfflineBanner visible={!isConnected} />
@@ -1003,11 +1131,34 @@ const createStyles = (
     padding: 8,
     borderRadius: 8,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    zIndex: 1001, // Ensure button content is above wrapper background
+    position: 'relative', // Create stacking context for icon and text
+    elevation: 13, // Android elevation to ensure it's above wrapper
+  },
+  deckButtonDisabled: {
+    opacity: 0.5,
   },
   deckButtonText: {
     color: COLORS.primary,
     marginLeft: 4,
     fontWeight: '500',
+    zIndex: 1001, // Ensure text is above the yellow background
+  },
+  highlightedCollectionsButtonWrapper: {
+    borderRadius: 11, // Slightly larger to accommodate padding
+    padding: 3,
+    backgroundColor: '#FFFF00', // Bright yellow background like other buttons
+    shadowColor: '#FFFF00',
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0.8,
+    shadowRadius: 12,
+    elevation: 12,
+    zIndex: 1000, // Ensure it's above other elements
+    overflow: 'visible', // Ensure children are visible
+    position: 'relative', // Create stacking context for children
   },
   cardStage: {
     width: '100%',

@@ -12,6 +12,7 @@ import { COLORS } from './constants/colors';
 import { PRODUCT_IDS, PRODUCT_DETAILS } from './constants/config';
 import PokedexLayout from './components/shared/PokedexLayout';
 import { resetReviewPromptState, resetLifetimeCount, getReviewStatus } from './services/reviewPromptService';
+import { resetWalkthrough } from './hooks/useWalkthrough';
 
 import { logger } from './utils/logger';
 export default function SettingsScreen() {
@@ -166,6 +167,17 @@ export default function SettingsScreen() {
     } catch (error) {
       logger.error('Error resetting review prompt:', error);
       Alert.alert('Error', 'Failed to reset review prompt state. Please try again.');
+    }
+  };
+
+  // Function to replay walkthrough
+  const handleReplayWalkthrough = async () => {
+    try {
+      await resetWalkthrough();
+      router.replace('/');
+    } catch (error) {
+      logger.error('Error resetting walkthrough:', error);
+      Alert.alert('Error', 'Failed to reset walkthrough. Please try again.');
     }
   };
 
@@ -402,6 +414,21 @@ export default function SettingsScreen() {
               <Text style={styles.swapButtonText}>{t('settings.swapLanguages')}</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Replay Walkthrough Button */}
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={handleReplayWalkthrough}
+          >
+            <Ionicons name="help-circle-outline" size={24} color={COLORS.primary} style={styles.settingIcon} />
+            <View style={styles.settingTextContainer}>
+              <Text style={styles.settingLabel}>Show App Walkthrough</Text>
+              <Text style={styles.settingDescription}>
+                Replay the onboarding tutorial to learn about the app features
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={COLORS.darkGray} />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.section}>

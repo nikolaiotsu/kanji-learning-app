@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, ActivityIndicator, Dimensions, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -24,11 +24,81 @@ import RandomCardReviewer from '../flashcards/RandomCardReviewer';
 import { useFocusEffect } from 'expo-router';
 import * as ProcessImage from '../../services/ProcessImage';
 import PokedexButton from '../shared/PokedexButton';
+import WalkthroughTarget from '../shared/WalkthroughTarget';
 import { useSubscription } from '../../context/SubscriptionContext';
 import MemoryManager from '../../services/memoryManager';
 import * as FileSystem from 'expo-file-system';
+import WalkthroughOverlay from '../shared/WalkthroughOverlay';
+import { useWalkthrough, WalkthroughStep } from '../../hooks/useWalkthrough';
 
 import { logger } from '../../utils/logger';
+
+type MeasureTarget = { ref: React.RefObject<View>; stepId: string };
+
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+interface EnsureMeasureOptions {
+  targets: MeasureTarget[];
+  updateLayout: (stepId: string, layout: { x: number; y: number; width: number; height: number }) => void;
+  advance: () => void;
+  retries?: number;
+  retryDelayMs?: number;
+  settleDelayMs?: number;
+  cancelFlag: { cancelled: boolean };
+}
+
+async function ensureMeasuredThenAdvance({
+  targets,
+  updateLayout,
+  advance,
+  retries = 4,
+  retryDelayMs = 100,
+  settleDelayMs = 50,
+  cancelFlag,
+}: EnsureMeasureOptions): Promise<void> {
+  const measureTarget = (target: MeasureTarget) =>
+    new Promise<boolean>(resolve => {
+      const { ref, stepId } = target;
+      if (!ref.current) {
+        resolve(false);
+        return;
+      }
+
+      ref.current.measureInWindow((x, y, width, height) => {
+        if (cancelFlag.cancelled) {
+          resolve(false);
+          return;
+        }
+        if (width !== 0 && height !== 0) {
+          updateLayout(stepId, { x, y, width, height });
+          resolve(true);
+        } else {
+          resolve(false);
+        }
+      });
+    });
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    const results = await Promise.all(targets.map(measureTarget));
+    if (cancelFlag.cancelled) {
+      return;
+    }
+
+    const measured = results.some(Boolean);
+    if (measured || attempt === retries) {
+      await delay(settleDelayMs);
+      if (!cancelFlag.cancelled) {
+        advance();
+      }
+      return;
+    }
+
+    await delay(retryDelayMs);
+    if (cancelFlag.cancelled) {
+      return;
+    }
+  }
+}
 interface KanjiScannerProps {
   onCardSwipe?: () => void;
   onContentReady?: (isReady: boolean) => void;
@@ -63,6 +133,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
   const [showTextInputModal, setShowTextInputModal] = useState(false);
   const [inputText, setInputText] = useState('');
   const [hasHighlightSelection, setHasHighlightSelection] = useState(false);
+  const [hideWalkthroughOverlay, setHideWalkthroughOverlay] = useState(false);
   const [highlightRegion, setHighlightRegion] = useState<{
     x: number;
     y: number;
@@ -129,6 +200,269 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
   // Instead of setting initialRotation to rotation, we'll store a reference
   // to track rotation changes better
   const rotationRef = useRef<number>(0);
+
+  // Refs for walkthrough buttons (right to left: camera, gallery, flashcards, custom card)
+  const cameraButtonRef = useRef<View>(null);
+  const galleryButtonRef = useRef<View>(null);
+const flashcardsButtonRef = useRef<View>(null);
+const customCardButtonRef = useRef<View>(null);
+const reviewerContainerRef = useRef<View>(null);
+const collectionsButtonRef = useRef<View>(null);
+const settingsButtonRef = useRef<View>(null);
+const rotateButtonRef = useRef<View>(null);
+const cropButtonRef = useRef<View>(null);
+const highlightButtonRef = useRef<View>(null);
+const checkmarkButtonRef = useRef<View>(null);
+const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the second prompt
+
+  // Define walkthrough steps (starting from rightmost button: camera)
+  const walkthroughSteps: WalkthroughStep[] = [
+    {
+      id: 'camera',
+      title: 'Take Picture',
+      description: 'Tap here to take a photo of text you want to learn. The camera will scan and create flashcards from your photos.',
+    },
+    {
+      id: 'gallery',
+      title: 'Gallery',
+      description: 'Choose an existing photo from your gallery to create flashcards from. Great for images you\'ve saved previously.',
+    },
+    {
+      id: 'flashcards',
+      title: 'View your Collection',
+      description: 'Access your flashcard collection to organize, edit, and manage your saved cards.',
+    },
+    {
+      id: 'custom-card',
+      title: 'Add Custom Card',
+      description: 'Create a custom flashcard manually by entering text directly. Perfect for adding cards without taking a photo.',
+    },
+    {
+      id: 'review-cards',
+      title: 'Review Cards',
+      description: 'This area is the review session where your flashcards will appear for review. Swipe right to take cards out of the review session. Swipe left to review cards again in the review session.',
+    },
+    {
+      id: 'collections',
+      title: 'Collections',
+      description: 'Tap here to select which deck of flashcards you want to review.  Long press a deck to isolate it. You can choose multiple collections to review cards from all of them at once.',
+    },
+    {
+      id: 'settings',
+      title: 'Settings',
+      description: 'Manage translation languages, subscription plan, sign out, and other account settings here.',
+    },
+    {
+      id: 'gallery-confirm',
+      title: 'Upload from Gallery',
+      description: 'Let\'s try uploading an image from the gallery. After you choose one, we\'ll guide you through rotate, crop, and highlight.',
+    },
+    {
+      id: 'rotate',
+      title: 'Rotate Image',
+      description: 'Rotate your photo if you need before cropping or highlighting text.',
+    },
+    {
+      id: 'crop',
+      title: 'Crop Image',
+      description: 'Crop the photo to the important area so you only process the text you need.',
+    },
+    {
+      id: 'highlight',
+      title: 'Highlight Text',
+      description: 'Let\'s try highlighting some text in the image. Draw a box around the text you want to translate.',
+    },
+    {
+      id: 'confirm-highlight',
+      title: 'Confirm Selection',
+      description: 'Does the yellow highlight box neatly surround text that you want to translate? If so, press next, and then the checkmark, if not, press the retry button and try again.',
+    },
+  ];
+
+  // Initialize walkthrough hook
+  const {
+    isActive: isWalkthroughActive,
+    currentStep,
+    currentStepIndex,
+    totalSteps,
+    startWalkthrough,
+    nextStep,
+    previousStep,
+    skipWalkthrough,
+    completeWalkthrough,
+    shouldShowWalkthrough: shouldShowWalkthroughPrompt,
+    registerStep,
+    updateStepLayout,
+  } = useWalkthrough(walkthroughSteps);
+
+  // Register steps with the walkthrough hook
+  useEffect(() => {
+    walkthroughSteps.forEach(step => {
+      registerStep({
+        ...step,
+        targetRef: 
+          step.id === 'camera' ? cameraButtonRef :
+          step.id === 'gallery' ? galleryButtonRef :
+          step.id === 'gallery-confirm' ? galleryButtonRef :
+          step.id === 'flashcards' ? flashcardsButtonRef :
+          step.id === 'custom-card' ? customCardButtonRef :
+          step.id === 'rotate' ? rotateButtonRef :
+          step.id === 'crop' ? cropButtonRef :
+          step.id === 'highlight' ? highlightButtonRef :
+          step.id === 'confirm-highlight' ? checkmarkButtonRef :
+          step.id === 'review-cards' ? reviewerContainerRef :
+          step.id === 'collections' ? collectionsButtonRef :
+          step.id === 'settings' ? settingsButtonRef :
+          undefined,
+      });
+    });
+  }, []);
+
+  // Start walkthrough on first launch or after reset
+  useEffect(() => {
+    if (shouldShowWalkthroughPrompt && !capturedImage && !isWalkthroughActive) {
+      // Delay to ensure buttons are rendered and measured
+      const timer = setTimeout(() => {
+        startWalkthrough();
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [shouldShowWalkthroughPrompt, capturedImage, isWalkthroughActive]);
+
+  // Track if initial measurements have been done
+  const hasMeasuredRef = useRef<boolean>(false);
+  const hasAdvancedFromGalleryRef = useRef<boolean>(false);
+  const isEditorWalkthroughStep = currentStep?.id === 'rotate' || currentStep?.id === 'crop' || currentStep?.id === 'highlight' || currentStep?.id === 'back-button';
+  const galleryStepIdForHighlight = currentStep?.id === 'gallery-confirm' ? 'gallery' : currentStep?.id;
+
+  // Reset the gallery auto-advance guard when walkthrough is inactive
+  useEffect(() => {
+    if (!isWalkthroughActive) {
+      hasAdvancedFromGalleryRef.current = false;
+    }
+  }, [isWalkthroughActive]);
+
+  // Auto-advance from gallery step to rotate once an image is loaded, but ensure editor buttons are measured first to avoid overlay flicker
+  useEffect(() => {
+    if (!isWalkthroughActive || !capturedImage || currentStep?.id !== 'gallery-confirm' || hasAdvancedFromGalleryRef.current) {
+      return;
+    }
+
+    hasAdvancedFromGalleryRef.current = true;
+    const cancelFlag = { cancelled: false };
+
+    ensureMeasuredThenAdvance({
+      targets: [
+        { ref: rotateButtonRef, stepId: 'rotate' },
+        { ref: cropButtonRef, stepId: 'crop' },
+        { ref: highlightButtonRef, stepId: 'highlight' },
+      ],
+      updateLayout: updateStepLayout,
+      advance: nextStep,
+      retries: 4,
+      retryDelayMs: 100,
+      settleDelayMs: 50,
+      cancelFlag,
+    });
+
+    return () => {
+      cancelFlag.cancelled = true;
+    };
+  }, [isWalkthroughActive, capturedImage, currentStep?.id, nextStep, updateStepLayout]);
+
+  // Measure all button positions immediately when walkthrough becomes active
+  useEffect(() => {
+    if (!isWalkthroughActive) {
+      hasMeasuredRef.current = false;
+      return;
+    }
+
+    // Measure all buttons immediately when walkthrough starts to prevent flickering
+    if (!hasMeasuredRef.current) {
+      const measureButtons = () => {
+        const measureButton = (ref: React.RefObject<View>, stepId: string) => {
+          if (ref.current) {
+            ref.current.measureInWindow((x, y, width, height) => {
+              if (x !== 0 || y !== 0 || width !== 0 || height !== 0) {
+                updateStepLayout(stepId, { x, y, width, height });
+                logger.log(`[Walkthrough] Measured ${stepId}: x=${x}, y=${y}, width=${width}, height=${height}`);
+              } else {
+                logger.warn(`[Walkthrough] Failed to measure ${stepId} - got zero dimensions`);
+              }
+            });
+          } else {
+            logger.warn(`[Walkthrough] Ref is null for ${stepId}`);
+          }
+        };
+
+        // Measure all buttons to have layouts ready
+        measureButton(cameraButtonRef, 'camera');
+        measureButton(galleryButtonRef, 'gallery');
+        measureButton(galleryButtonRef, 'gallery-confirm');
+        measureButton(flashcardsButtonRef, 'flashcards');
+        measureButton(customCardButtonRef, 'custom-card');
+        if (capturedImage) {
+          measureButton(rotateButtonRef, 'rotate');
+          measureButton(cropButtonRef, 'crop');
+          measureButton(highlightButtonRef, 'highlight');
+        }
+        measureButton(reviewerContainerRef, 'review-cards');
+        measureButton(collectionsButtonRef, 'collections');
+        measureButton(settingsButtonRef, 'settings');
+      };
+
+      // Small delay to ensure layout is complete
+      setTimeout(() => {
+        measureButtons();
+        hasMeasuredRef.current = true;
+      }, 100);
+    }
+  }, [isWalkthroughActive, updateStepLayout]);
+
+  // Re-measure on step change in case positions shifted
+  useEffect(() => {
+    if (!isWalkthroughActive || !hasMeasuredRef.current) {
+      return;
+    }
+
+    const measureButtons = () => {
+      const measureButton = (ref: React.RefObject<View>, stepId: string) => {
+        if (ref.current) {
+          ref.current.measureInWindow((x, y, width, height) => {
+            if (x !== 0 || y !== 0 || width !== 0 || height !== 0) {
+              updateStepLayout(stepId, { x, y, width, height });
+            }
+          });
+        }
+      };
+
+      // Re-measure current step's button to ensure accurate positioning
+      const currentStepId = walkthroughSteps[currentStepIndex]?.id;
+      if (currentStepId) {
+        const refMap: Record<string, React.RefObject<View>> = {
+          'camera': cameraButtonRef,
+          'gallery': galleryButtonRef,
+          'gallery-confirm': galleryButtonRef,
+          'flashcards': flashcardsButtonRef,
+          'custom-card': customCardButtonRef,
+          'rotate': rotateButtonRef,
+          'crop': cropButtonRef,
+          'highlight': highlightButtonRef,
+          'review-cards': reviewerContainerRef,
+          'collections': collectionsButtonRef,
+          'settings': settingsButtonRef,
+        };
+        const ref = refMap[currentStepId];
+        if (ref) {
+          setTimeout(() => {
+            measureButton(ref, currentStepId);
+          }, 50);
+        }
+      }
+    };
+
+    measureButtons();
+  }, [currentStepIndex, isWalkthroughActive]);
 
   // Callback for ImageHighlighter to update rotation UI state
   const handleRotationStateChange = React.useCallback((newState: ImageHighlighterRotationState) => {
@@ -601,6 +935,78 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
     }
   };
 
+  const resetEditorStateForWalkthrough = useCallback(() => {
+    setCapturedImage(null);
+    setOriginalImage(null);
+    setImageHistory([]);
+    setForwardHistory([]);
+    setHighlightModeActive(false);
+    setCropModeActive(false);
+    setHasCropSelection(false);
+    setHasHighlightSelection(false);
+    setHighlightRegion(null);
+  }, []);
+
+  const handleWalkthroughPrevious = useCallback(() => {
+    const currentId = currentStep?.id;
+    const isRotateStep = currentId === 'rotate';
+    const isCropStep = currentId === 'crop';
+    const isHighlightStep = currentId === 'highlight';
+    const isConfirmHighlightStep = currentId === 'confirm-highlight';
+
+    if (isWalkthroughActive && isConfirmHighlightStep) {
+      // From confirm-highlight, just hide the overlay to allow user to adjust their highlight
+      // Don't change state or step back - user stays in highlight mode and can try again
+      setHideWalkthroughOverlay(true);
+      return;
+    }
+
+    if (isWalkthroughActive && (isHighlightStep || isConfirmHighlightStep)) {
+      // From highlight/confirm-highlight, go back to crop step and restore original image
+      logger.log('[KanjiScanner] Going back from highlight to crop step - restoring original image');
+
+      // Exit any active modes
+      if (highlightModeActive) {
+        setHighlightModeActive(false);
+        setHasHighlightSelection(false);
+        setHighlightRegion(null);
+        imageHighlighterRef.current?.clearHighlightBox?.();
+      }
+      if (cropModeActive) {
+        setCropModeActive(false);
+        imageHighlighterRef.current?.toggleCropMode();
+      }
+
+      // Restore original image if it exists and is different from current
+      if (originalImage && originalImage.uri !== capturedImage?.uri) {
+        logger.log('[KanjiScanner] Restoring original image for crop step:', originalImage.uri);
+        // Add current cropped image to forward history for potential redo
+        setForwardHistory(prev => [...prev, capturedImage!]);
+        setCapturedImage(originalImage);
+      }
+
+      // Go back to crop step
+      previousStep();
+      return;
+    }
+
+    if (isWalkthroughActive && isRotateStep) {
+      // From rotate, go back to gallery-confirm/home and exit editor
+      hasAdvancedFromGalleryRef.current = false;
+      resetEditorStateForWalkthrough();
+      previousStep();
+      return;
+    }
+
+    if (isWalkthroughActive && isCropStep) {
+      // From crop, stay in editor flow and step back one overlay
+      previousStep();
+      return;
+    }
+
+    previousStep();
+  }, [currentStep?.id, isWalkthroughActive, previousStep, resetEditorStateForWalkthrough, originalImage, capturedImage, highlightModeActive, cropModeActive]);
+
   const handleRegionSelected = async (region: {
     x: number;
     y: number;
@@ -629,6 +1035,12 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
         logger.log('[KanjiScanner] Highlight region selected (screen/IH coords):', region);
         setHighlightRegion(region); 
         setHasHighlightSelection(true);
+        
+        // If we're in walkthrough on confirm-highlight step and overlay was hidden, show it again
+        if (isWalkthroughActive && currentStep?.id === 'confirm-highlight' && hideWalkthroughOverlay) {
+          setHideWalkthroughOverlay(false);
+        }
+        
         return; 
       }
 
@@ -679,12 +1091,19 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
             width: imageInfo.width,
             height: imageInfo.height
           });
+
+          // If we're in walkthrough mode on the crop step, advance to highlight step
+          if (isWalkthroughActive && currentStep?.id === 'crop') {
+            logger.log('[KanjiScanner] Crop completed during walkthrough - advancing to highlight step');
+            nextStep(); // Advance to highlight step
+            setHideWalkthroughOverlay(false); // Show the walkthrough overlay again
+          }
         } else {
           logger.warn('[KanjiScanner] ProcessImage.processImage did not return a URI for crop operation.');
           // Potentially revert to previous image from history if capturedImage was pushed too early
           // or show an error. For now, localProcessing will be set to false.
         }
-        setCropModeActive(false); 
+        setCropModeActive(false);
         setLocalProcessing(false);
         return; 
       }
@@ -774,12 +1193,19 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
         imageHighlighterRef.current?.clearHighlightBox?.();
         
         // Navigate to flashcards with the detected text and the FULL original image URI
+        const params: any = {
+          text: detectedText,
+          imageUri: uri // Send the full original image for maximum context
+        };
+
+        // Add walkthrough flag if walkthrough is active
+        if (isWalkthroughActive) {
+          params.fromWalkthrough = 'true';
+        }
+
         router.push({
           pathname: "/flashcards",
-          params: { 
-            text: detectedText,
-            imageUri: uri // Send the full original image for maximum context
-          }
+          params
         });
       } else {
         // Get the current forced language name
@@ -930,13 +1356,13 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
       setCropModeActive(false);
       imageHighlighterRef.current?.toggleCropMode();
     }
-    
+
     // Then activate highlight mode
     logger.log('[KanjiScanner] Activating highlight mode');
     setHighlightModeActive(true);
     setHasHighlightSelection(false);
     setHighlightRegion(null);
-    
+
     // Make sure the ImageHighlighter component is ready for highlight selection
     if (imageHighlighterRef.current) {
       imageHighlighterRef.current.clearHighlightBox?.();
@@ -945,8 +1371,90 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
     }
   };
 
+  // Walkthrough Next handler: for gallery-confirm without an image, trigger pickImage instead of advancing
+  const handleWalkthroughNext = useCallback(() => {
+    if (currentStep?.id === 'gallery-confirm' && !capturedImage) {
+      if (canCreateFlashcard && isConnected && !localProcessing && !isImageProcessing) {
+        pickImage();
+      }
+      return;
+    }
+    if (currentStep?.id === 'highlight') {
+      activateHighlightMode();
+      // Advance to confirm-highlight step immediately
+      nextStep();
+      return;
+    }
+    // For confirm-highlight step, just hide the overlay and let user press the checkmark
+    if (currentStep?.id === 'confirm-highlight') {
+      setHideWalkthroughOverlay(true);
+      return;
+    }
+    if (currentStep?.id === 'crop') {
+      // Activate crop mode while staying on the crop walkthrough step
+      // (Inline logic from toggleCropMode but skip validation since we're in controlled walkthrough flow)
+      setCropModeActive(true);
+
+      // Exit highlight mode if it's active
+      if (highlightModeActive) {
+        setHighlightModeActive(false);
+      }
+
+      // Call the ImageHighlighter's toggleCropMode function
+      imageHighlighterRef.current?.toggleCropMode();
+
+      // Hide walkthrough overlay to let user interact with crop mode
+      setHideWalkthroughOverlay(true);
+      return;
+    }
+    nextStep();
+  }, [currentStep?.id, capturedImage, canCreateFlashcard, isConnected, localProcessing, isImageProcessing, pickImage, nextStep]);
+
+  // Helper function to actually skip the walkthrough (extracted for reuse)
+  const skipWalkthroughFromHighlight = async () => {
+    logger.log('[KanjiScanner] User confirmed walkthrough cancellation during highlight phase');
+    
+    // Reset walkthrough-related states first
+    setHideWalkthroughOverlay(false);
+    setHighlightModeActive(false);
+    setHasHighlightSelection(false);
+    setHighlightRegion(null);
+    hasRegisteredCheckmarkRef.current = false;
+    imageHighlighterRef.current?.clearHighlightBox?.();
+    
+    // Then skip the walkthrough (this sets isActive to false)
+    await skipWalkthrough();
+    
+    logger.log('[KanjiScanner] Walkthrough skip completed via cancelActiveMode');
+  };
+
   // Renamed from cancelHighlightMode and made more generic
-  const cancelActiveMode = () => {
+  const cancelActiveMode = async () => {
+    // If we're in walkthrough mode during highlight or crop phase, show confirmation dialog
+    // Note: We check for highlight, confirm-highlight, and crop steps, and don't require hideWalkthroughOverlay
+    // because the user might press X while the walkthrough overlay is still visible
+    if (isWalkthroughActive && (currentStep?.id === 'highlight' || currentStep?.id === 'confirm-highlight' || currentStep?.id === 'crop')) {
+      Alert.alert(
+        t('walkthrough.endWalkthroughTitle', 'End Walkthrough?'),
+        t('walkthrough.endWalkthroughMessage', 'Pressing x will take you out of the walkthrough. Are you sure?'),
+        [
+          {
+            text: t('walkthrough.continueWalkthrough', 'No, Continue Walkthrough'),
+            onPress: () => {
+              logger.log('[KanjiScanner] User chose to continue walkthrough');
+              // Do nothing - stay in current walkthrough mode
+            }
+          },
+          {
+            text: t('walkthrough.endWalkthrough', 'Yes, End Walkthrough'),
+            style: 'destructive',
+            onPress: skipWalkthroughFromHighlight
+          }
+        ]
+      );
+      return;
+    }
+
     if (highlightModeActive) {
       setHighlightModeActive(false);
       setHasHighlightSelection(false);
@@ -1061,6 +1569,31 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
 
   // Restore the handleCancel function which was accidentally removed
   const handleCancel = async () => {
+    // If we're in walkthrough mode during highlight phase, show confirmation dialog
+    // Note: We check for both 'highlight' and 'confirm-highlight' steps, and don't require hideWalkthroughOverlay
+    // because the user might press cancel while the walkthrough overlay is still visible
+    if (isWalkthroughActive && (currentStep?.id === 'highlight' || currentStep?.id === 'confirm-highlight')) {
+      Alert.alert(
+        t('walkthrough.endWalkthroughTitle', 'End Walkthrough?'),
+        t('walkthrough.endWalkthroughMessage', 'Pressing x or the back button will take you out of the walkthrough. Are you sure?'),
+        [
+          {
+            text: t('walkthrough.continueWalkthrough', 'No, Continue Walkthrough'),
+            onPress: () => {
+              logger.log('[KanjiScanner] User chose to continue walkthrough');
+              // Do nothing - stay in highlight walkthrough mode
+            }
+          },
+          {
+            text: t('walkthrough.endWalkthrough', 'Yes, End Walkthrough'),
+            style: 'destructive',
+            onPress: skipWalkthroughFromHighlight
+          }
+        ]
+      );
+      return;
+    }
+
     // Clean up memory when user cancels current session
     try {
       const memoryManager = MemoryManager.getInstance();
@@ -1069,7 +1602,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
     } catch (cleanupError) {
       logger.warn('[KanjiScanner] Memory cleanup failed after cancel:', cleanupError);
     }
-    
+
     // Clear all state after cleanup to ensure we don't reference deleted images
     setCapturedImage(null);
     setOriginalImage(null);
@@ -1449,6 +1982,27 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
     }, [capturedImage, originalImage, returningFromFlashcards, highlightModeActive, imageHistory])
   );
 
+  // Track if we've already measured the checkmark button for this walkthrough session
+  const hasRegisteredCheckmarkRef = React.useRef(false);
+
+  // Measure and update checkmark button layout when highlight selection is made
+  React.useEffect(() => {
+    if (isWalkthroughActive && currentStep?.id === 'confirm-highlight' && hasHighlightSelection) {
+      if (!hasRegisteredCheckmarkRef.current && checkmarkButtonRef.current) {
+        hasRegisteredCheckmarkRef.current = true;
+        // Measure the checkmark button and update the step layout
+        checkmarkButtonRef.current.measureInWindow((x, y, width, height) => {
+          if (width > 0 && height > 0) {
+            updateStepLayout('confirm-highlight', { x, y, width, height });
+          }
+        });
+      }
+    } else if (currentStep?.id !== 'confirm-highlight') {
+      // Reset the flag when leaving the confirm-highlight step
+      hasRegisteredCheckmarkRef.current = false;
+    }
+  }, [isWalkthroughActive, currentStep?.id, hasHighlightSelection, updateStepLayout]);
+
   // Toggle rotate mode
   const toggleRotateMode = async () => {
     // Validate image before entering rotate mode
@@ -1581,13 +2135,33 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
           {/* Settings Button */}
           {!capturedImage && (
             <>
-              <TouchableOpacity 
-                style={[styles.settingsButton, (localProcessing || isImageProcessing) ? styles.disabledButton : null]} 
-                onPress={toggleSettingsMenu}
-                disabled={localProcessing || isImageProcessing} // Disable during processing
+              <WalkthroughTarget
+                targetRef={settingsButtonRef}
+                stepId="settings"
+                currentStepId={currentStep?.id}
+                isWalkthroughActive={isWalkthroughActive}
+                style={styles.settingsButton}
+                highlightStyle={styles.highlightedSettingsButtonWrapper}
               >
-                <Ionicons name="menu-outline" size={30} color="grey" />
-              </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[
+                    styles.settingsButtonTouchable,
+                    (localProcessing || isImageProcessing) ? styles.disabledButton : null
+                  ]} 
+                  onPress={toggleSettingsMenu}
+                  disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'settings')}
+                >
+                  <Ionicons 
+                    name="menu-outline" 
+                    size={30} 
+                    color={
+                      isWalkthroughActive
+                        ? (currentStep?.id === 'settings' ? '#FFFF00' : '#CCCCCC')
+                        : 'grey'
+                    } 
+                  />
+                </TouchableOpacity>
+              </WalkthroughTarget>
               
               {settingsMenuVisible && (
                 <>
@@ -1618,58 +2192,146 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
           )}
           
           {/* Random Card Reviewer */}
-          <View style={styles.reviewerContainer}>
-            <RandomCardReviewer onCardSwipe={onCardSwipe} onContentReady={onContentReady} />
+          <View 
+            ref={reviewerContainerRef} 
+            collapsable={false} 
+            style={[
+              styles.reviewerContainer,
+              isWalkthroughActive && currentStep?.id === 'review-cards' && styles.highlightedReviewerContainer
+            ]}
+          >
+            <RandomCardReviewer 
+              onCardSwipe={onCardSwipe} 
+              onContentReady={onContentReady}
+              collectionsButtonRef={collectionsButtonRef}
+              isWalkthroughActive={isWalkthroughActive}
+              currentWalkthroughStepId={currentStep?.id}
+            />
           </View>
           
           {/* Button Row - moved below the reviewer */}
           <View style={styles.buttonRow}>
-            <PokedexButton
-              onPress={canCreateFlashcard && isConnected ? handleTextInput : showUpgradeAlert}
-              icon={(canCreateFlashcard && isConnected) ? "add" : "lock-closed"}
-              size="medium"
-              shape="square"
-              style={styles.rowButton}
-              disabled={!isConnected || localProcessing || isImageProcessing} // Disable when offline or processing
-              darkDisabled={!canCreateFlashcard || !isConnected || localProcessing || isImageProcessing} // Dark disabled when offline, limit reached or processing
-            />
-            <PokedexButton
-              onPress={handleNavigateToSavedFlashcards}
-              materialCommunityIcon="cards"
-              size="medium"
-              shape="square"
-              style={styles.rowButton}
-              disabled={localProcessing || isImageProcessing} // Disable during processing
-            />
-            <PokedexButton
-              onPress={canCreateFlashcard && isConnected ? pickImage : showUpgradeAlert}
-              icon={(!canCreateFlashcard || !isConnected || isImageProcessing || localProcessing) ? "lock-closed" : "images"}
-              size="medium"
-              shape="square"
-              style={styles.rowButton}
-              disabled={!isConnected || localProcessing || isImageProcessing} // Disable when offline or processing
-              darkDisabled={!canCreateFlashcard || !isConnected || localProcessing || isImageProcessing} // Dark disabled when offline, limit reached or processing
-            />
-            {isImageProcessing || localProcessing || !isConnected ? (
+            {/* Add Custom Card Button (leftmost) */}
+            <View 
+              ref={customCardButtonRef} 
+              collapsable={false} 
+              pointerEvents={isWalkthroughActive && currentStep?.id !== 'custom-card' ? 'none' : 'auto'}
+              style={isWalkthroughActive && currentStep?.id === 'custom-card' ? styles.highlightedButtonWrapper : null}
+            >
               <PokedexButton
-                onPress={() => {}} // No action when disabled
-                icon="lock-closed"
+                onPress={canCreateFlashcard && isConnected ? handleTextInput : showUpgradeAlert}
+                icon={isWalkthroughActive ? "add" : ((canCreateFlashcard && isConnected) ? "add" : "lock-closed")}
+                iconColor={
+                  isWalkthroughActive && currentStep?.id === 'custom-card' 
+                    ? '#FFFF00' // Bright yellow for highlighted
+                    : isWalkthroughActive 
+                    ? '#CCCCCC' // Light grey for non-highlighted during walkthrough
+                    : undefined
+                }
                 size="medium"
                 shape="square"
                 style={styles.rowButton}
-                disabled={true}
-                darkDisabled={true}
+                disabled={!isConnected || localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'custom-card')} // Disable when offline, processing, or walkthrough active (unless it's the current step)
+                darkDisabled={!canCreateFlashcard || !isConnected || localProcessing || isImageProcessing} // Dark disabled when offline, limit reached or processing
               />
-            ) : (
-              <CameraButton 
-                onPhotoCapture={handlePhotoCapture} 
+            </View>
+            {/* Check Flashcards Button */}
+            <View 
+              ref={flashcardsButtonRef} 
+              collapsable={false} 
+              pointerEvents={isWalkthroughActive && currentStep?.id !== 'flashcards' ? 'none' : 'auto'}
+              style={isWalkthroughActive && currentStep?.id === 'flashcards' ? styles.highlightedButtonWrapper : null}
+            >
+              <PokedexButton
+                onPress={handleNavigateToSavedFlashcards}
+                materialCommunityIcon="cards"
+                iconColor={
+                  isWalkthroughActive && currentStep?.id === 'flashcards' 
+                    ? '#FFFF00' // Bright yellow for highlighted
+                    : isWalkthroughActive 
+                    ? '#CCCCCC' // Light grey for non-highlighted during walkthrough
+                    : undefined
+                }
+                size="medium"
+                shape="square"
                 style={styles.rowButton}
-                onProcessingStateChange={setIsImageProcessing}
-                disabled={!canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
-                onDisabledPress={showUpgradeAlert}
-                darkDisabled={!canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
+                disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'flashcards')} // Disable during processing or walkthrough (unless it's the current step)
               />
-            )}
+            </View>
+            {/* Gallery Button */}
+            <WalkthroughTarget
+              targetRef={galleryButtonRef} 
+              stepId="gallery"
+              currentStepId={currentStep?.id}
+              activeIds={['gallery-confirm']}
+              isWalkthroughActive={isWalkthroughActive}
+              highlightStyle={styles.highlightedButtonWrapper}
+              dimStyle={styles.dimmedToolbarButton}
+              pointerEventsWhenInactive="none"
+            >
+              <PokedexButton
+                onPress={canCreateFlashcard && isConnected ? pickImage : showUpgradeAlert}
+                icon={isWalkthroughActive ? "images" : ((!canCreateFlashcard || !isConnected || isImageProcessing || localProcessing) ? "lock-closed" : "images")}
+                iconColor={
+                  isWalkthroughActive && (currentStep?.id === 'gallery' || currentStep?.id === 'gallery-confirm')
+                    ? '#FFFF00' // Bright yellow for highlighted
+                    : isWalkthroughActive 
+                    ? '#CCCCCC' // Light grey for non-highlighted during walkthrough
+                    : undefined
+                }
+                size="medium"
+                shape="square"
+                style={styles.rowButton}
+                disabled={
+                  !isConnected || localProcessing || isImageProcessing ||
+                  (isWalkthroughActive && currentStep?.id !== 'gallery' && currentStep?.id !== 'gallery-confirm')
+                } // Disable when offline, processing, or walkthrough active (unless gallery step)
+                darkDisabled={!canCreateFlashcard || !isConnected || localProcessing || isImageProcessing} // Dark disabled when offline, limit reached or processing
+              />
+            </WalkthroughTarget>
+            {/* Camera Button (rightmost) */}
+            <View 
+              ref={cameraButtonRef} 
+              collapsable={false} 
+              pointerEvents={isWalkthroughActive && currentStep?.id !== 'camera' ? 'none' : 'auto'}
+              style={isWalkthroughActive && currentStep?.id === 'camera' ? styles.highlightedButtonWrapper : null}
+            >
+              {isWalkthroughActive ? (
+                // During walkthrough, always show camera icon
+                <PokedexButton
+                  onPress={() => {}} // No action during walkthrough
+                  icon="camera"
+                  iconColor={
+                    currentStep?.id === 'camera' 
+                      ? '#FFFF00' // Bright yellow for highlighted
+                      : '#CCCCCC' // Light grey for non-highlighted during walkthrough
+                  }
+                  size="medium"
+                  shape="square"
+                  style={styles.rowButton}
+                  disabled={currentStep?.id !== 'camera'} // Only enabled when it's the current step
+                />
+              ) : isImageProcessing || localProcessing || !isConnected ? (
+                <PokedexButton
+                  onPress={() => {}} // No action when disabled
+                  icon="lock-closed"
+                  size="medium"
+                  shape="square"
+                  style={styles.rowButton}
+                  disabled={true}
+                  darkDisabled={true}
+                />
+              ) : (
+                <CameraButton 
+                  onPhotoCapture={handlePhotoCapture} 
+                  style={styles.rowButton}
+                  onProcessingStateChange={setIsImageProcessing}
+                  disabled={!canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
+                  onDisabledPress={showUpgradeAlert}
+                  darkDisabled={!canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
+                />
+              )}
+            </View>
           </View>
         </>
       ) : (
@@ -1685,17 +2347,18 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
             onRotationStateChange={handleRotationStateChange}
           />
           
-          <View style={styles.toolbar}>
-            {/* Back Button (far left) */}
-            <PokedexButton
-              onPress={handleCancel}
-              icon="arrow-back"
-              color={COLORS.secondary}
-              size="small"
-              shape="square"
-              style={styles.toolbarFarButton}
-              disabled={localProcessing || isImageProcessing} // Disable during processing
-            />
+      <View style={styles.toolbar}>
+        {/* Back Button (far left) */}
+        <PokedexButton
+          onPress={handleCancel}
+          icon="arrow-back"
+          iconColor={COLORS.text}
+          color={COLORS.secondary}
+          size="small"
+          shape="square"
+          style={styles.toolbarFarButton}
+          disabled={localProcessing || isImageProcessing}
+        />
 
             {/* Flexible spacer to push center controls to the right */}
             <View style={{ flex: 1 }} />
@@ -1729,27 +2392,69 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
                 {/* Mode Activation Buttons (Highlight, Crop, Rotate) */}
                 {!highlightModeActive && !cropModeActive && !rotateModeActive && !localProcessing && !isNavigating && (
                   <>
-                    <PokedexButton
-                      onPress={activateHighlightMode}
-                      icon="create-outline"
-                      size="small"
-                      shape="square"
-                      disabled={localProcessing || isImageProcessing}
-                    />
-                    <PokedexButton
-                      onPress={toggleCropMode}
-                      icon="crop"
-                      size="small"
-                      shape="square"
-                      disabled={localProcessing || isImageProcessing}
-                    />
-                    <PokedexButton
-                      onPress={toggleRotateMode}
-                      icon="refresh"
-                      size="small"
-                      shape="square"
-                      disabled={localProcessing || isImageProcessing}
-                    />
+                    <WalkthroughTarget
+                      targetRef={highlightButtonRef}
+                      stepId="highlight"
+                      currentStepId={currentStep?.id}
+                      isWalkthroughActive={isWalkthroughActive}
+                      highlightStyle={styles.highlightedToolbarButtonWrapper}
+                      dimStyle={styles.dimmedToolbarButton}
+                    >
+                      <PokedexButton
+                        onPress={activateHighlightMode}
+                        icon="create-outline"
+                        iconColor={
+                          isWalkthroughActive
+                            ? (currentStep?.id === 'highlight' ? '#FFFF00' : '#CCCCCC')
+                            : undefined
+                        }
+                        size="small"
+                        shape="square"
+                        disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'highlight')}
+                      />
+                    </WalkthroughTarget>
+                    <WalkthroughTarget
+                      targetRef={cropButtonRef}
+                      stepId="crop"
+                      currentStepId={currentStep?.id}
+                      isWalkthroughActive={isWalkthroughActive}
+                      highlightStyle={styles.highlightedToolbarButtonWrapper}
+                      dimStyle={styles.dimmedToolbarButton}
+                    >
+                      <PokedexButton
+                        onPress={toggleCropMode}
+                        icon="crop"
+                        iconColor={
+                          isWalkthroughActive
+                            ? (currentStep?.id === 'crop' ? '#FFFF00' : '#CCCCCC')
+                            : undefined
+                        }
+                        size="small"
+                        shape="square"
+                        disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'crop')}
+                      />
+                    </WalkthroughTarget>
+                    <WalkthroughTarget
+                      targetRef={rotateButtonRef}
+                      stepId="rotate"
+                      currentStepId={currentStep?.id}
+                      isWalkthroughActive={isWalkthroughActive}
+                      highlightStyle={styles.highlightedToolbarButtonWrapper}
+                      dimStyle={styles.dimmedToolbarButton}
+                    >
+                      <PokedexButton
+                        onPress={toggleRotateMode}
+                        icon="refresh"
+                        iconColor={
+                          isWalkthroughActive
+                            ? (currentStep?.id === 'rotate' ? '#FFFF00' : '#CCCCCC')
+                            : undefined
+                        }
+                        size="small"
+                        shape="square"
+                        disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'rotate')}
+                      />
+                    </WalkthroughTarget>
                   </>
                 )}
                 
@@ -1773,13 +2478,27 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
                           shape="square"
                           disabled={localProcessing || isImageProcessing}
                         />
-                        <PokedexButton
-                          onPress={confirmHighlightSelection}
-                          icon="checkmark"
-                          size="small"
-                          shape="square"
-                          disabled={localProcessing || isImageProcessing}
-                        />
+                        <WalkthroughTarget
+                          targetRef={checkmarkButtonRef}
+                          stepId="confirm-highlight"
+                          currentStepId={currentStep?.id}
+                          isWalkthroughActive={isWalkthroughActive}
+                          highlightStyle={styles.highlightedToolbarButtonWrapper}
+                          dimStyle={styles.dimmedToolbarButton}
+                        >
+                          <PokedexButton
+                            onPress={confirmHighlightSelection}
+                            icon="checkmark"
+                            iconColor={
+                              isWalkthroughActive
+                                ? (currentStep?.id === 'confirm-highlight' ? '#FFFF00' : '#CCCCCC')
+                                : undefined
+                            }
+                            size="small"
+                            shape="square"
+                            disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'confirm-highlight')}
+                          />
+                        </WalkthroughTarget>
                       </>
                     )}
   
@@ -1903,6 +2622,25 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
           </KeyboardAvoidingView>
         </TouchableWithoutFeedback>
       </Modal>
+
+      {/* Walkthrough Overlay */}
+      <WalkthroughOverlay
+        visible={isWalkthroughActive && !hideWalkthroughOverlay}
+        currentStep={currentStep}
+        currentStepIndex={currentStepIndex}
+        totalSteps={totalSteps}
+        onNext={handleWalkthroughNext}
+        onPrevious={handleWalkthroughPrevious}
+        onSkip={skipWalkthrough}
+        onDone={completeWalkthrough}
+        customNextLabel={
+          currentStep?.id === 'crop' ? 'Crop' :
+          currentStep?.id === 'highlight' ? 'Highlight' :
+          currentStep?.id === 'confirm-highlight' ? 'Next' :
+          undefined
+        }
+        treatAsNonFinal={currentStep?.id === 'confirm-highlight'}
+      />
     </View>
   );
 }
@@ -1944,6 +2682,34 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     top: 5, // Moved slightly higher from the edge
     right: 10,
     zIndex: 800, // Reduced z-index to be below the card reviewer
+  },
+  settingsButtonTouchable: {
+    padding: 6,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  highlightedSettingsButtonWrapper: {
+    padding: 4,
+    borderRadius: 14,
+    backgroundColor: '#FFFF00',
+    shadowColor: '#FFFF00',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 12,
+    elevation: 12,
+  },
+  highlightedToolbarButtonWrapper: {
+    borderRadius: 10,
+    padding: 0.5,
+    backgroundColor: '#FFFF00',
+    shadowColor: '#FFFF00',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  dimmedToolbarButton: {
+    opacity: 0.35,
   },
   settingsMenu: {
     position: 'absolute',
@@ -2161,6 +2927,34 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     marginHorizontal: 12, // Keep the spacing between buttons
     width: 65, // Keep the button size
     height: 65, // Keep the button size
+  },
+  highlightedButtonWrapper: {
+    borderRadius: 8,
+    padding: 0.5,
+    backgroundColor: '#FFFF00', // Bright yellow glow
+    shadowColor: '#FFFF00',
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0.4,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  highlightedReviewerContainer: {
+    borderRadius: 12,
+    borderWidth: 3,
+    borderColor: '#FFFF00', // Bright yellow border
+    shadowColor: '#FFFF00',
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0.9,
+    shadowRadius: 20, // Increased for larger glow
+    elevation: 20, // Increased to match shadowRadius
+    marginBottom: -10, // Extend glow below the container
+    paddingBottom: 10, // Compensate for negative margin to maintain layout
   },
   gridButton: {
     marginHorizontal: 0,

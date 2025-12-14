@@ -20,6 +20,7 @@ interface PokedexButtonProps {
   style?: ViewStyle;
   textStyle?: TextStyle;
   color?: string;
+  iconColor?: string;
   size?: 'small' | 'medium' | 'large';
   disabled?: boolean;
   darkDisabled?: boolean;
@@ -34,6 +35,7 @@ export default function PokedexButton({
   style,
   textStyle,
   color,
+  iconColor: customIconColor,
   size = 'medium',
   disabled = false,
   darkDisabled = false,
@@ -62,7 +64,8 @@ export default function PokedexButton({
   
   // The icon color for square grey buttons might need to be dark for better contrast if the grey is very light.
   // Assuming COLORS.text (white) is still okay for mediumSurface.
-  const iconColor = darkDisabled ? COLORS.darkGray : COLORS.text;
+  // Use custom icon color if provided, otherwise use default logic
+  const iconColor = customIconColor || (darkDisabled ? COLORS.darkGray : COLORS.text);
 
   const sizeStyles = {
     small: {
