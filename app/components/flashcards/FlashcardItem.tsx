@@ -635,10 +635,10 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
       <View style={styles.bottomRightActionsContainer}>
         {/* Add image toggle button */}
         {flashcard.imageUrl && (
-          <TouchableOpacity style={styles.bottomActionButton} onPress={toggleShowImage}>
+          <TouchableOpacity style={styles.imageButton} onPress={toggleShowImage}>
             <FontAwesome6 
               name="image" 
-              size={20} 
+              size={24} 
               color={COLORS.royalBlue} />
           </TouchableOpacity>
         )}
@@ -659,8 +659,8 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
         )}
         
         {/* Flip button */}
-        <TouchableOpacity style={styles.bottomActionButton} onPress={handleFlip}>
-          <MaterialIcons name="flip" size={22} color={COLORS.royalBlue} />
+        <TouchableOpacity style={styles.flipButton} onPress={handleFlip}>
+          <MaterialIcons name="flip" size={24} color={COLORS.royalBlue} />
         </TouchableOpacity>
       </View>
     </View>
@@ -788,7 +788,15 @@ const createStyles = (responsiveCardHeight: number) => StyleSheet.create({
   },
   flipButton: {
     marginHorizontal: 8,
-    padding: 6,
+    padding: 10,
+    backgroundColor: 'rgba(142, 68, 173, 0.5)', // Brighter translucent purple background
+    borderRadius: 10,
+  },
+  imageButton: {
+    marginHorizontal: 8,
+    padding: 10,
+    backgroundColor: 'rgba(128, 128, 128, 0.5)', // Translucent grey background
+    borderRadius: 10,
   },
   deleteButton: {
     marginHorizontal: 8,
@@ -804,10 +812,6 @@ const createStyles = (responsiveCardHeight: number) => StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.4,
-  },
-  imageButton: {
-    marginHorizontal: 8,
-    padding: 6,
   },
   imageContainer: {
     width: '100%',

@@ -30,75 +30,9 @@ import MemoryManager from '../../services/memoryManager';
 import * as FileSystem from 'expo-file-system';
 import WalkthroughOverlay from '../shared/WalkthroughOverlay';
 import { useWalkthrough, WalkthroughStep } from '../../hooks/useWalkthrough';
+import { ensureMeasuredThenAdvance, measureButton } from '../../utils/walkthroughUtils';
 
 import { logger } from '../../utils/logger';
-
-type MeasureTarget = { ref: React.RefObject<View>; stepId: string };
-
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-interface EnsureMeasureOptions {
-  targets: MeasureTarget[];
-  updateLayout: (stepId: string, layout: { x: number; y: number; width: number; height: number }) => void;
-  advance: () => void;
-  retries?: number;
-  retryDelayMs?: number;
-  settleDelayMs?: number;
-  cancelFlag: { cancelled: boolean };
-}
-
-async function ensureMeasuredThenAdvance({
-  targets,
-  updateLayout,
-  advance,
-  retries = 4,
-  retryDelayMs = 100,
-  settleDelayMs = 50,
-  cancelFlag,
-}: EnsureMeasureOptions): Promise<void> {
-  const measureTarget = (target: MeasureTarget) =>
-    new Promise<boolean>(resolve => {
-      const { ref, stepId } = target;
-      if (!ref.current) {
-        resolve(false);
-        return;
-      }
-
-      ref.current.measureInWindow((x, y, width, height) => {
-        if (cancelFlag.cancelled) {
-          resolve(false);
-          return;
-        }
-        if (width !== 0 && height !== 0) {
-          updateLayout(stepId, { x, y, width, height });
-          resolve(true);
-        } else {
-          resolve(false);
-        }
-      });
-    });
-
-  for (let attempt = 0; attempt <= retries; attempt += 1) {
-    const results = await Promise.all(targets.map(measureTarget));
-    if (cancelFlag.cancelled) {
-      return;
-    }
-
-    const measured = results.some(Boolean);
-    if (measured || attempt === retries) {
-      await delay(settleDelayMs);
-      if (!cancelFlag.cancelled) {
-        advance();
-      }
-      return;
-    }
-
-    await delay(retryDelayMs);
-    if (cancelFlag.cancelled) {
-      return;
-    }
-  }
-}
 interface KanjiScannerProps {
   onCardSwipe?: () => void;
   onContentReady?: (isReady: boolean) => void;
@@ -240,7 +174,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     {
       id: 'review-cards',
       title: 'Review Cards',
-      description: 'This area is the review session where your flashcards will appear for review. Swipe right to take cards out of the review session. Swipe left to review cards again in the review session.',
+      description: 'This area is where your captured flashcards will appear for review. Swipe right to take cards out of the review session. Swipe left to review cards again.  The flip flashcard and see image buttons will be on the bottom right of your flashcards.',
     },
     {
       id: 'collections',
@@ -275,7 +209,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     {
       id: 'confirm-highlight',
       title: 'Confirm Selection',
-      description: 'Does the yellow highlight box neatly surround text that you want to translate? If so, press next, and then the checkmark, if not, press the retry button and try again.',
+      description: 'Does the yellow highlight box neatly surround text that you want to translate? If so, press next, and then the checkmark, if not, press the back button and try again.',
     },
   ];
 
@@ -332,6 +266,11 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   // Track if initial measurements have been done
   const hasMeasuredRef = useRef<boolean>(false);
   const hasAdvancedFromGalleryRef = useRef<boolean>(false);
+  
+  // Track if we're navigating to flashcards - used to immediately hide walkthrough overlay
+  // Using BOTH ref AND state ensures the overlay is hidden before any other state changes
+  const isNavigatingToFlashcardsRef = useRef<boolean>(false);
+  const [isNavigatingToFlashcards, setIsNavigatingToFlashcards] = useState(false);
   const isEditorWalkthroughStep = currentStep?.id === 'rotate' || currentStep?.id === 'crop' || currentStep?.id === 'highlight' || currentStep?.id === 'back-button';
   const galleryStepIdForHighlight = currentStep?.id === 'gallery-confirm' ? 'gallery' : currentStep?.id;
 
@@ -341,6 +280,15 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       hasAdvancedFromGalleryRef.current = false;
     }
   }, [isWalkthroughActive]);
+
+  // Reset the navigation flag when screen is focused (user navigated back)
+  useFocusEffect(
+    React.useCallback(() => {
+      // Reset when screen gains focus
+      isNavigatingToFlashcardsRef.current = false;
+      setIsNavigatingToFlashcards(false);
+    }, [])
+  );
 
   // Auto-advance from gallery step to rotate once an image is loaded, but ensure editor buttons are measured first to avoid overlay flicker
   useEffect(() => {
@@ -380,35 +328,20 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     // Measure all buttons immediately when walkthrough starts to prevent flickering
     if (!hasMeasuredRef.current) {
       const measureButtons = () => {
-        const measureButton = (ref: React.RefObject<View>, stepId: string) => {
-          if (ref.current) {
-            ref.current.measureInWindow((x, y, width, height) => {
-              if (x !== 0 || y !== 0 || width !== 0 || height !== 0) {
-                updateStepLayout(stepId, { x, y, width, height });
-                logger.log(`[Walkthrough] Measured ${stepId}: x=${x}, y=${y}, width=${width}, height=${height}`);
-              } else {
-                logger.warn(`[Walkthrough] Failed to measure ${stepId} - got zero dimensions`);
-              }
-            });
-          } else {
-            logger.warn(`[Walkthrough] Ref is null for ${stepId}`);
-          }
-        };
-
         // Measure all buttons to have layouts ready
-        measureButton(cameraButtonRef, 'camera');
-        measureButton(galleryButtonRef, 'gallery');
-        measureButton(galleryButtonRef, 'gallery-confirm');
-        measureButton(flashcardsButtonRef, 'flashcards');
-        measureButton(customCardButtonRef, 'custom-card');
+        measureButton(cameraButtonRef, 'camera', updateStepLayout);
+        measureButton(galleryButtonRef, 'gallery', updateStepLayout);
+        measureButton(galleryButtonRef, 'gallery-confirm', updateStepLayout);
+        measureButton(flashcardsButtonRef, 'flashcards', updateStepLayout);
+        measureButton(customCardButtonRef, 'custom-card', updateStepLayout);
         if (capturedImage) {
-          measureButton(rotateButtonRef, 'rotate');
-          measureButton(cropButtonRef, 'crop');
-          measureButton(highlightButtonRef, 'highlight');
+          measureButton(rotateButtonRef, 'rotate', updateStepLayout);
+          measureButton(cropButtonRef, 'crop', updateStepLayout);
+          measureButton(highlightButtonRef, 'highlight', updateStepLayout);
         }
-        measureButton(reviewerContainerRef, 'review-cards');
-        measureButton(collectionsButtonRef, 'collections');
-        measureButton(settingsButtonRef, 'settings');
+        measureButton(reviewerContainerRef, 'review-cards', updateStepLayout);
+        measureButton(collectionsButtonRef, 'collections', updateStepLayout);
+        measureButton(settingsButtonRef, 'settings', updateStepLayout);
       };
 
       // Small delay to ensure layout is complete
@@ -426,16 +359,6 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     }
 
     const measureButtons = () => {
-      const measureButton = (ref: React.RefObject<View>, stepId: string) => {
-        if (ref.current) {
-          ref.current.measureInWindow((x, y, width, height) => {
-            if (x !== 0 || y !== 0 || width !== 0 || height !== 0) {
-              updateStepLayout(stepId, { x, y, width, height });
-            }
-          });
-        }
-      };
-
       // Re-measure current step's button to ensure accurate positioning
       const currentStepId = walkthroughSteps[currentStepIndex]?.id;
       if (currentStepId) {
@@ -455,7 +378,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
         const ref = refMap[currentStepId];
         if (ref) {
           setTimeout(() => {
-            measureButton(ref, currentStepId);
+            measureButton(ref, currentStepId, updateStepLayout);
           }, 50);
         }
       }
@@ -728,7 +651,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       return;
     }
 
-    // Navigate to flashcards with the input text
+    // Navigate to flashcards with the custom text
     router.push({
       pathname: "/flashcards",
       params: { text: inputText.trim() }
@@ -1198,11 +1121,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           imageUri: uri // Send the full original image for maximum context
         };
 
-        // Add walkthrough flag if walkthrough is active
-        if (isWalkthroughActive) {
-          params.fromWalkthrough = 'true';
-        }
-
+        // Navigation to flashcards - walkthrough is already completed at this point
         router.push({
           pathname: "/flashcards",
           params
@@ -1385,9 +1304,9 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       nextStep();
       return;
     }
-    // For confirm-highlight step, just hide the overlay and let user press the checkmark
+    // For confirm-highlight step, complete the walkthrough - user will press checkmark to continue
     if (currentStep?.id === 'confirm-highlight') {
-      setHideWalkthroughOverlay(true);
+      completeWalkthrough();
       return;
     }
     if (currentStep?.id === 'crop') {
@@ -1408,7 +1327,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       return;
     }
     nextStep();
-  }, [currentStep?.id, capturedImage, canCreateFlashcard, isConnected, localProcessing, isImageProcessing, pickImage, nextStep]);
+  }, [currentStep?.id, capturedImage, canCreateFlashcard, isConnected, localProcessing, isImageProcessing, pickImage, nextStep, completeWalkthrough]);
 
   // Helper function to actually skip the walkthrough (extracted for reuse)
   const skipWalkthroughFromHighlight = async () => {
@@ -2623,24 +2542,28 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* Walkthrough Overlay */}
-      <WalkthroughOverlay
-        visible={isWalkthroughActive && !hideWalkthroughOverlay}
-        currentStep={currentStep}
-        currentStepIndex={currentStepIndex}
-        totalSteps={totalSteps}
-        onNext={handleWalkthroughNext}
-        onPrevious={handleWalkthroughPrevious}
-        onSkip={skipWalkthrough}
-        onDone={completeWalkthrough}
-        customNextLabel={
-          currentStep?.id === 'crop' ? 'Crop' :
-          currentStep?.id === 'highlight' ? 'Highlight' :
-          currentStep?.id === 'confirm-highlight' ? 'Next' :
-          undefined
-        }
-        treatAsNonFinal={currentStep?.id === 'confirm-highlight'}
-      />
+      {/* Walkthrough Overlay - completely excluded from tree when navigating to prevent flash */}
+      {/* Debug log for walkthrough visibility */}
+      {(() => { console.log('[DEBUG KanjiScanner Walkthrough] visible check:', { isWalkthroughActive, hideWalkthroughOverlay, isNavigatingToFlashcards, isNavigatingRef: isNavigatingToFlashcardsRef.current, shouldRender: !isNavigatingToFlashcards && !isNavigatingToFlashcardsRef.current, currentStepId: currentStep?.id }); return null; })()}
+      {!isNavigatingToFlashcards && !isNavigatingToFlashcardsRef.current && (
+        <WalkthroughOverlay
+          visible={isWalkthroughActive && !hideWalkthroughOverlay}
+          currentStep={currentStep}
+          currentStepIndex={currentStepIndex}
+          totalSteps={totalSteps}
+          onNext={handleWalkthroughNext}
+          onPrevious={handleWalkthroughPrevious}
+          onSkip={skipWalkthrough}
+          onDone={completeWalkthrough}
+          customNextLabel={
+            currentStep?.id === 'crop' ? 'Crop' :
+            currentStep?.id === 'highlight' ? 'Highlight' :
+            currentStep?.id === 'confirm-highlight' ? 'Next' :
+            undefined
+          }
+          treatAsNonFinal={currentStep?.id === 'confirm-highlight'}
+        />
+      )}
     </View>
   );
 }

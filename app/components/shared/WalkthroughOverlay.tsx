@@ -36,6 +36,7 @@ interface WalkthroughOverlayProps {
   onDone: () => void;
   customNextLabel?: string;
   treatAsNonFinal?: boolean;
+  zIndex?: number; // Optional z-index for overlay priority (higher = on top)
 }
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -51,10 +52,27 @@ export default function WalkthroughOverlay({
   onDone,
   customNextLabel,
   treatAsNonFinal,
+  zIndex = 1000, // Default z-index, can be overridden
 }: WalkthroughOverlayProps) {
   // Animated opacity for cross-fade transitions between steps
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const isFirstRender = useRef(true);
+  
+  // #region agent log - Track visibility changes
+  useEffect(() => {
+    console.log('[DEBUG WalkthroughOverlay] VISIBILITY CHANGED:', { visible, stepId: currentStep?.id, stepTitle: currentStep?.title });
+  }, [visible, currentStep?.id]);
+  // #endregion
+
+  // #region agent log - Track ALL render attempts for debugging flash issue
+  console.log('[DEBUG WalkthroughOverlay] RENDER ATTEMPT:', { 
+    visible, 
+    stepId: currentStep?.id, 
+    stepTitle: currentStep?.title, 
+    currentStepIndex,
+    willRender: visible && !!currentStep
+  });
+  // #endregion
 
   // Trigger fade animation on step change
   useEffect(() => {
@@ -75,6 +93,9 @@ export default function WalkthroughOverlay({
   if (!visible || !currentStep) {
     return null;
   }
+
+  // Debug log when overlay is about to render
+  console.log('[DEBUG WalkthroughOverlay] WILL RENDER:', { visible, stepId: currentStep.id, stepTitle: currentStep.title, currentStepIndex });
 
   const targetLayout = currentStep.targetLayout;
   
@@ -139,10 +160,10 @@ export default function WalkthroughOverlay({
     <Modal
       visible={visible}
       transparent={true}
-      animationType="fade"
+      animationType="none"
       statusBarTranslucent={true}
     >
-      <View style={styles.container}>
+      <View style={[styles.container, { zIndex }]}>
         {/* Dimmed overlay background */}
         <Pressable style={styles.dimmedBackground} onPress={() => {}} />
 

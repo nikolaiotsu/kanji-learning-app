@@ -41,9 +41,6 @@ import * as Haptics from 'expo-haptics';
 import { useNetworkState } from './services/networkManager';
 import { incrementLifetimeCount, shouldShowReviewPrompt } from './services/reviewPromptService';
 import ReviewPromptModal from './components/shared/ReviewPromptModal';
-import { useWalkthrough } from './hooks/useWalkthrough';
-import WalkthroughOverlay from './components/shared/WalkthroughOverlay';
-import WalkthroughTarget from './components/shared/WalkthroughTarget';
 
 import { logger } from './utils/logger';
 export default function LanguageFlashcardsScreen() {
@@ -64,156 +61,6 @@ export default function LanguageFlashcardsScreen() {
       : '';
   
   const imageUri = typeof imageUriParam === 'string' ? imageUriParam : undefined;
-
-  // Check if coming from walkthrough
-  const fromWalkthrough = params.fromWalkthrough === 'true';
-
-  // Define walkthrough steps for flashcards page
-  const flashcardsWalkthroughSteps = [
-    {
-      id: 'translate-button',
-      title: 'Translate',
-      description: 'Press translate to see the translation and add it as a flashcard.'
-    },
-    {
-      id: 'edit-button',
-      title: 'Edit Text',
-      description: 'Use this to edit the detected text before translating if needed. Now let\'s try translating or editing your text.'
-    },
-    {
-      id: 'save-button',
-      title: 'Save Flashcard',
-      description: 'After translating, tap here to save your flashcard to a deck.'
-    },
-    {
-      id: 'view-saved-button',
-      title: 'View Saved',
-      description: 'Tap here to view all your saved flashcards and manage your collection.'
-    }
-  ];
-
-  // Refs for walkthrough buttons
-  const translateButtonRef = React.useRef<View>(null);
-  const editButtonRef = React.useRef<View>(null);
-  const saveButtonRef = React.useRef<View>(null);
-  const viewSavedButtonRef = React.useRef<View>(null);
-
-  // Initialize walkthrough hook
-  const {
-    isActive: isFlashcardsWalkthroughActive,
-    currentStep: flashcardsCurrentStep,
-    currentStepIndex: flashcardsCurrentStepIndex,
-    totalSteps: flashcardsTotalSteps,
-    startWalkthrough: startFlashcardsWalkthrough,
-    nextStep: nextFlashcardsStep,
-    skipWalkthrough: skipFlashcardsWalkthrough,
-    completeWalkthrough: completeFlashcardsWalkthrough,
-    registerStep: registerFlashcardsStep,
-    updateStepLayout: updateFlashcardsStepLayout
-  } = useWalkthrough(flashcardsWalkthroughSteps);
-
-  // Register walkthrough steps
-  React.useEffect(() => {
-    flashcardsWalkthroughSteps.forEach(step => {
-      registerFlashcardsStep({
-        ...step,
-        targetRef:
-          step.id === 'translate-button' ? translateButtonRef :
-          step.id === 'edit-button' ? editButtonRef :
-          step.id === 'save-button' ? saveButtonRef :
-          step.id === 'view-saved-button' ? viewSavedButtonRef :
-          undefined
-      });
-    });
-  }, [registerFlashcardsStep]);
-
-  // Handle walkthrough step progression based on UI state
-  React.useEffect(() => {
-    if (isFlashcardsWalkthroughActive && flashcardsCurrentStep) {
-      const currentStepId = flashcardsCurrentStep.id;
-      const isPreTranslationStep = ['translate-button', 'edit-button'].includes(currentStepId);
-      const isPostTranslationStep = ['save-button', 'view-saved-button'].includes(currentStepId);
-
-      // If we're on a post-translation step but translation hasn't happened yet,
-      // wait for translation to complete
-      if (isPostTranslationStep && !textProcessed) {
-        // Don't advance - just wait
-        return;
-      }
-
-      // If we're on translate-button step and translation completes, advance to save-button
-      if (currentStepId === 'translate-button' && textProcessed && translatedText) {
-        // Advance to save button step (index 2)
-        setTimeout(() => nextFlashcardsStep(), 300);
-      }
-    }
-  }, [isFlashcardsWalkthroughActive, flashcardsCurrentStep, flashcardsCurrentStepIndex, textProcessed, translatedText, nextFlashcardsStep]);
-
-  // Start walkthrough if coming from walkthrough
-  React.useEffect(() => {
-    if (fromWalkthrough && !isFlashcardsWalkthroughActive) {
-      // Small delay to ensure button is rendered
-      setTimeout(() => {
-        startFlashcardsWalkthrough();
-      }, 500);
-    }
-  }, [fromWalkthrough, isFlashcardsWalkthroughActive, startFlashcardsWalkthrough]);
-
-  // Measure button layouts when walkthrough becomes active
-  React.useEffect(() => {
-    if (isFlashcardsWalkthroughActive) {
-      // Small delay to ensure buttons are fully rendered
-      const measureTimeout = setTimeout(() => {
-        // Measure translate button
-        if (translateButtonRef.current) {
-          translateButtonRef.current.measureInWindow((x, y, width, height) => {
-            if (width > 0 && height > 0) {
-              updateFlashcardsStepLayout('translate-button', { x, y, width, height });
-            }
-          });
-        }
-
-        // Measure edit button
-        if (editButtonRef.current) {
-          editButtonRef.current.measureInWindow((x, y, width, height) => {
-            if (width > 0 && height > 0) {
-              updateFlashcardsStepLayout('edit-button', { x, y, width, height });
-            }
-          });
-        }
-      }, 200);
-
-      return () => clearTimeout(measureTimeout);
-    }
-  }, [isFlashcardsWalkthroughActive, updateFlashcardsStepLayout]);
-
-  // Measure post-translation buttons when they become visible
-  React.useEffect(() => {
-    if (isFlashcardsWalkthroughActive && textProcessed && translatedText) {
-      // Small delay to ensure post-translation buttons are fully rendered
-      const measureTimeout = setTimeout(() => {
-        // Measure save button
-        if (saveButtonRef.current) {
-          saveButtonRef.current.measureInWindow((x, y, width, height) => {
-            if (width > 0 && height > 0) {
-              updateFlashcardsStepLayout('save-button', { x, y, width, height });
-            }
-          });
-        }
-
-        // Measure view saved button
-        if (viewSavedButtonRef.current) {
-          viewSavedButtonRef.current.measureInWindow((x, y, width, height) => {
-            if (width > 0 && height > 0) {
-              updateFlashcardsStepLayout('view-saved-button', { x, y, width, height });
-            }
-          });
-        }
-      }, 200);
-
-      return () => clearTimeout(measureTimeout);
-    }
-  }, [isFlashcardsWalkthroughActive, textProcessed, translatedText, updateFlashcardsStepLayout]);
 
   // Clean the detected text, preserving spaces for languages that need them
   const cleanedText = cleanText(displayText);
@@ -257,7 +104,7 @@ export default function LanguageFlashcardsScreen() {
   
   // State for review prompt modal
   const [showReviewPrompt, setShowReviewPrompt] = useState(false);
-  
+
   // Debug: Log state changes
   useEffect(() => {
     logger.log('🔍 [DEBUG] showEditModal changed to:', showEditModal);
@@ -589,11 +436,6 @@ export default function LanguageFlashcardsScreen() {
   const handleEditText = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowEditModal(true);
-    
-    // If in walkthrough, advance to next step after opening modal
-    if (isFlashcardsWalkthroughActive && flashcardsCurrentStep?.id === 'edit-button') {
-      setTimeout(() => nextFlashcardsStep(), 300);
-    }
   };
 
   // Function to handle translate button
@@ -768,71 +610,35 @@ export default function LanguageFlashcardsScreen() {
           {/* Edit and Translate buttons */}
           {!isLoading && !textProcessed && (
             <View style={styles.actionButtonsContainer}>
-              <WalkthroughTarget
-                targetRef={editButtonRef}
-                stepId="edit-button"
-                currentStepId={flashcardsCurrentStep?.id}
-                isWalkthroughActive={isFlashcardsWalkthroughActive}
-                highlightStyle={styles.highlightedButtonWrapper}
-                pointerEventsWhenInactive="auto"
+              <TouchableOpacity
+                style={styles.editButton}
+                onPress={handleEditText}
               >
-                <TouchableOpacity
-                  style={styles.editButton}
-                  onPress={handleEditText}
-                >
-                  <Ionicons 
-                    name="pencil" 
-                    size={20} 
-                    color={
-                      isFlashcardsWalkthroughActive && flashcardsCurrentStep?.id === 'edit-button'
-                        ? '#FFFF00' // Bright yellow for highlighted
-                        : '#ffffff'
-                    } 
-                    style={styles.buttonIcon} 
-                  />
-                  <Text 
-                    style={[
-                      styles.buttonText,
-                      isFlashcardsWalkthroughActive && flashcardsCurrentStep?.id === 'edit-button' && styles.highlightedButtonText
-                    ]}
-                  >
-                    Edit Text
-                  </Text>
-                </TouchableOpacity>
-              </WalkthroughTarget>
+                <Ionicons 
+                  name="pencil" 
+                  size={20} 
+                  color="#ffffff" 
+                  style={styles.buttonIcon} 
+                />
+                <Text style={styles.buttonText}>
+                  Edit Text
+                </Text>
+              </TouchableOpacity>
               
-              <WalkthroughTarget
-                targetRef={translateButtonRef}
-                stepId="translate-button"
-                currentStepId={flashcardsCurrentStep?.id}
-                isWalkthroughActive={isFlashcardsWalkthroughActive}
-                highlightStyle={styles.highlightedButtonWrapper}
-                pointerEventsWhenInactive="auto"
+              <TouchableOpacity
+                style={styles.translateButton}
+                onPress={handleTranslate}
               >
-                <TouchableOpacity
-                  style={styles.translateButton}
-                  onPress={handleTranslate}
-                >
-                  <Ionicons 
-                    name="language" 
-                    size={20} 
-                    color={
-                      isFlashcardsWalkthroughActive && flashcardsCurrentStep?.id === 'translate-button'
-                        ? '#FFFF00' // Bright yellow for highlighted
-                        : '#ffffff'
-                    } 
-                    style={styles.buttonIcon} 
-                  />
-                  <Text 
-                    style={[
-                      styles.buttonText,
-                      isFlashcardsWalkthroughActive && flashcardsCurrentStep?.id === 'translate-button' && styles.highlightedButtonText
-                    ]}
-                  >
-                    Translate
-                  </Text>
-                </TouchableOpacity>
-              </WalkthroughTarget>
+                <Ionicons 
+                  name="language" 
+                  size={20} 
+                  color="#ffffff" 
+                  style={styles.buttonIcon} 
+                />
+                <Text style={styles.buttonText}>
+                  Translate
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -930,65 +736,50 @@ export default function LanguageFlashcardsScreen() {
                     <View style={styles.buttonContainer}>
                       {/* Top Row */}
                       <View style={styles.gridRow}>
-                        <View ref={viewSavedButtonRef} collapsable={false}>
-                          <TouchableOpacity
-                            style={styles.gridButton}
-                            onPress={handleViewSavedFlashcards}
-                          >
-                            <Ionicons name="albums-outline" size={20} color="#ffffff" style={styles.buttonIcon} />
-                            <Text style={styles.gridButtonText}>{t('flashcard.save.viewSaved')}</Text>
-                          </TouchableOpacity>
-                        </View>
-
-                        <WalkthroughTarget
-                          targetRef={saveButtonRef}
-                          stepId="save-button"
-                          currentStepId={flashcardsCurrentStep?.id}
-                          isWalkthroughActive={isFlashcardsWalkthroughActive}
-                          highlightStyle={styles.highlightedButtonWrapper}
+                        <TouchableOpacity
+                          style={[styles.gridButton, { flex: 1 }]}
+                          onPress={handleViewSavedFlashcards}
                         >
-                          <TouchableOpacity
-                            style={[
-                              styles.gridButton,
-                              styles.saveGridButton,
-                              isSaved ? styles.savedButton : null,
-                              (isSaving || !canCreateFlashcard) ? styles.disabledButton : null,
-                              !canCreateFlashcard ? styles.darkDisabledButton : null,
-                            ]}
-                            onPress={handleShowDeckSelector}
-                            disabled={isSaving || isSaved}
-                          >
-                          {isSaving ? (
-                            <ActivityIndicator size="small" color="#ffffff" />
-                          ) : (
-                            <>
-                              <Ionicons 
-                                name={
-                                  isSaved ? "checkmark-circle" : 
-                                  !canCreateFlashcard ? "lock-closed" : 
-                                  "bookmark-outline"
-                                } 
-                                size={20} 
-                                color={
-                                  isFlashcardsWalkthroughActive && flashcardsCurrentStep?.id === 'save-button'
-                                    ? '#FFFF00' // Bright yellow for highlighted
-                                    : !canCreateFlashcard ? COLORS.darkGray : "#ffffff"
-                                }
-                                style={styles.buttonIcon} 
-                              />
-                              <Text style={[
-                                styles.gridButtonText,
-                                !canCreateFlashcard ? { color: COLORS.darkGray } : null,
-                                isFlashcardsWalkthroughActive && flashcardsCurrentStep?.id === 'save-button' && styles.highlightedButtonText
-                              ]}>
-                                {isSaved ? t('flashcard.save.savedAsFlashcard') : 
-                                 !canCreateFlashcard ? `Limit reached (${remainingFlashcards} left)` :
-                                 t('flashcard.save.saveAsFlashcard')}
-                              </Text>
-                            </>
-                          )}
-                          </TouchableOpacity>
-                        </WalkthroughTarget>
+                          <Ionicons name="albums-outline" size={20} color="#ffffff" style={styles.buttonIcon} />
+                          <Text style={styles.gridButtonText}>{t('flashcard.save.viewSaved')}</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[
+                            styles.gridButton,
+                            styles.saveGridButton,
+                            isSaved ? styles.savedButton : null,
+                            (isSaving || !canCreateFlashcard) ? styles.disabledButton : null,
+                            !canCreateFlashcard ? styles.darkDisabledButton : null,
+                          ]}
+                          onPress={handleShowDeckSelector}
+                          disabled={isSaving || isSaved}
+                        >
+                        {isSaving ? (
+                          <ActivityIndicator size="small" color="#ffffff" />
+                        ) : (
+                          <>
+                            <Ionicons 
+                              name={
+                                isSaved ? "checkmark-circle" : 
+                                !canCreateFlashcard ? "lock-closed" : 
+                                "bookmark-outline"
+                              } 
+                              size={20} 
+                              color={!canCreateFlashcard ? COLORS.darkGray : "#ffffff"}
+                              style={styles.buttonIcon} 
+                            />
+                            <Text style={[
+                              styles.gridButtonText,
+                              !canCreateFlashcard ? { color: COLORS.darkGray } : null
+                            ]}>
+                              {isSaved ? t('flashcard.save.savedAsFlashcard') : 
+                               !canCreateFlashcard ? `Limit reached (${remainingFlashcards} left)` :
+                               t('flashcard.save.saveAsFlashcard')}
+                            </Text>
+                          </>
+                        )}
+                        </TouchableOpacity>
                     </View>
 
                       {/* Bottom Row */}
@@ -1231,18 +1022,6 @@ export default function LanguageFlashcardsScreen() {
         <ReviewPromptModal
           visible={showReviewPrompt}
           onClose={() => setShowReviewPrompt(false)}
-        />
-
-        {/* Walkthrough Overlay */}
-        <WalkthroughOverlay
-          visible={isFlashcardsWalkthroughActive}
-          currentStep={flashcardsCurrentStep}
-          currentStepIndex={flashcardsCurrentStepIndex}
-          totalSteps={flashcardsTotalSteps}
-          onNext={nextFlashcardsStep}
-          onPrevious={() => {}} // No previous for single step
-          onSkip={skipFlashcardsWalkthrough}
-          onDone={completeFlashcardsWalkthrough}
         />
 
       </SafeAreaView>

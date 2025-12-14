@@ -120,17 +120,21 @@ export function useWalkthrough(steps: WalkthroughStep[]): UseWalkthroughReturn {
 
   // Complete walkthrough
   const completeWalkthrough = useCallback(async () => {
+    // IMPORTANT: Set state FIRST before async operations to prevent timing issues
+    // This ensures the overlay is hidden immediately before any navigation happens
+    setIsActive(false);
+    setShouldShowWalkthrough(false);
+    
+    // Update global flags to prevent walkthrough from showing again
+    globalShouldShowWalkthrough = false;
+    
+    logger.log('Walkthrough completed');
+    
+    // Persist to storage (non-blocking)
     try {
       await AsyncStorage.setItem(WALKTHROUGH_COMPLETED_KEY, 'true');
-      setIsActive(false);
-      setShouldShowWalkthrough(false);
-      
-      // Update global flags to prevent walkthrough from showing again
-      globalShouldShowWalkthrough = false;
-      
-      logger.log('Walkthrough completed');
     } catch (error) {
-      logger.error('Error completing walkthrough:', error);
+      logger.error('Error persisting walkthrough completion:', error);
     }
   }, []);
 
@@ -152,17 +156,21 @@ export function useWalkthrough(steps: WalkthroughStep[]): UseWalkthroughReturn {
 
   // Skip walkthrough
   const skipWalkthrough = useCallback(async () => {
+    // IMPORTANT: Set state FIRST before async operations to prevent timing issues
+    // This ensures the overlay is hidden immediately before any navigation happens
+    setIsActive(false);
+    setShouldShowWalkthrough(false);
+
+    // Update global flags to prevent walkthrough from showing again
+    globalShouldShowWalkthrough = false;
+
+    logger.log('Walkthrough skipped');
+    
+    // Persist to storage (non-blocking)
     try {
       await AsyncStorage.setItem(WALKTHROUGH_SKIPPED_KEY, 'true');
-      setIsActive(false);
-      setShouldShowWalkthrough(false);
-      
-      // Update global flags to prevent walkthrough from showing again
-      globalShouldShowWalkthrough = false;
-      
-      logger.log('Walkthrough skipped');
     } catch (error) {
-      logger.error('Error skipping walkthrough:', error);
+      logger.error('Error persisting walkthrough skip:', error);
     }
   }, []);
 
