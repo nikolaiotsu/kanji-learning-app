@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Platform, ActivityIndicator, ScrollView, Toucha
 import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { processWithClaude } from './services/claudeApi';
+import { processWithClaude, processWithClaudeAndScope } from './services/claudeApi';
 import { 
   cleanText, 
   containsJapanese, 
@@ -23,7 +23,7 @@ import {
 } from './utils/textFormatting';
 import { saveFlashcard, uploadImageToStorage } from './services/supabaseStorage';
 import { Flashcard } from './types/Flashcard';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import * as Crypto from 'expo-crypto';
 import * as FileSystem from 'expo-file-system';
 import DeckSelector from './components/flashcards/DeckSelector';
@@ -69,6 +69,7 @@ export default function LanguageFlashcardsScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [furiganaText, setFuriganaText] = useState('');
   const [translatedText, setTranslatedText] = useState('');
+  const [scopeAnalysis, setScopeAnalysis] = useState('');
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -358,6 +359,7 @@ export default function LanguageFlashcardsScreen() {
         createdAt: Date.now(),
         deckId: deckId,
         imageUrl: storedImageUrl, // Include the image URL if available
+        scopeAnalysis: scopeAnalysis || undefined, // Include scope analysis if available
       };
 
       // Save flashcard
@@ -449,6 +451,110 @@ export default function LanguageFlashcardsScreen() {
     
     // Walkthrough will automatically advance to save-button step after translation completes
     // via the useEffect that monitors textProcessed state
+  };
+
+  // Function to handle scope and translate button
+  const handleScopeAndTranslate = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (!editedText) {
+      Alert.alert(t('common.error'), t('flashcard.edit.enterText'));
+      return;
+    }
+    
+    logger.log('🌟 [Flashcards] Starting Scope and Translate with Claude API');
+    setIsLoading(true);
+    setError('');
+    setTextProcessed(false);
+    setProcessingProgress(0);
+    setProcessingFailed(false);
+    
+    try {
+      // Check if the text contains Japanese, Chinese, Korean, Russian, Arabic, Hindi, Esperanto characters
+      const hasJapanese = containsJapanese(editedText);
+      const hasChinese = containsChinese(editedText);
+      const hasKorean = containsKoreanText(editedText);
+      const hasRussian = containsRussianText(editedText);
+      const hasArabic = containsArabicText(editedText);
+      const hasHindi = containsHindiText(editedText);
+      const hasEsperanto = containsEsperantoText(editedText);
+      
+      const needsRomanization = (
+        hasJapanese || 
+        hasChinese || 
+        hasKorean || 
+        hasRussian || 
+        hasArabic ||
+        hasHindi
+      );
+      setNeedsRomanization(needsRomanization);
+      
+      // Determine language label
+      let language = 'unknown';
+      switch (forcedDetectionLanguage) {
+        case 'en': language = 'English'; break;
+        case 'zh': language = 'Chinese'; break;
+        case 'ja': language = 'Japanese'; break;
+        case 'ko': language = 'Korean'; break;
+        case 'ru': language = 'Russian'; break;
+        case 'ar': language = 'Arabic'; break;
+        case 'hi': language = 'Hindi'; break;
+        case 'eo': language = 'Esperanto'; break;
+        case 'it': language = 'Italian'; break;
+        case 'es': language = 'Spanish'; break;
+        case 'fr': language = 'French'; break;
+        case 'tl': language = 'Tagalog'; break;
+        case 'pt': language = 'Portuguese'; break;
+        case 'de': language = 'German'; break;
+        default: language = 'unknown';
+      }
+      setDetectedLanguage(language);
+      
+      // Progress callback
+      const progressCallback = (checkpoint: number) => {
+        setProcessingProgress(checkpoint);
+      };
+      
+      // Call the new function that includes scope analysis
+      const result = await processWithClaudeAndScope(editedText, targetLanguage, forcedDetectionLanguage, progressCallback);
+      
+      // Check if we got valid results back
+      if (result.translatedText) {
+        setTranslatedText(result.translatedText);
+        setScopeAnalysis(result.scopeAnalysis || '');
+        
+        if (needsRomanization) {
+          setFuriganaText(result.furiganaText);
+          if (!result.furiganaText && targetLanguage !== 'ja' && targetLanguage !== 'zh') {
+            if (hasJapanese && containsKanji(editedText)) {
+              setError('Failed to generate furigana for kanji characters. This may affect readability. The translation is still available.');
+            } else {
+              setError('Failed to get proper romanization for this text. The translation is still available.');
+            }
+          }
+        }
+        
+        setTextProcessed(true);
+        
+        // Delay before hiding loading
+        setTimeout(() => {
+          setIsLoading(false);
+          setIsManualOperation(false);
+        }, 1500);
+        
+      } else {
+        setError(result.translatedText || 'Failed to process text with Claude API. Please try again later.');
+        setProcessingFailed(true);
+        setIsLoading(false);
+        setIsManualOperation(false);
+      }
+    } catch (err) {
+      logger.error('Error processing with Claude Scope:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to process text with Claude API. Please try again later.';
+      setError(errorMessage);
+      setProcessingFailed(true);
+      setIsLoading(false);
+      setIsManualOperation(false);
+    }
   };
 
   // Function to handle retry with validation for forced language settings
@@ -590,7 +696,7 @@ export default function LanguageFlashcardsScreen() {
                   <FontAwesome6 
                     name="image" 
                     size={24} 
-                    color="#ffffff" 
+                    color="black" 
                   />
                 </TouchableOpacity>
               
@@ -607,7 +713,7 @@ export default function LanguageFlashcardsScreen() {
             )}
           </View>
 
-          {/* Edit and Translate buttons */}
+          {/* Edit, Scope and Translate, and Translate buttons */}
           {!isLoading && !textProcessed && (
             <View style={styles.actionButtonsContainer}>
               <TouchableOpacity
@@ -622,6 +728,27 @@ export default function LanguageFlashcardsScreen() {
                 />
                 <Text style={styles.buttonText}>
                   Edit Text
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.scopeAndTranslateButton}
+                onPress={handleScopeAndTranslate}
+              >
+                <View style={styles.dualIconContainer}>
+                  <FontAwesome5 
+                    name="magic" 
+                    size={16} 
+                    color="#ffffff" 
+                  />
+                  <Ionicons 
+                    name="language" 
+                    size={16} 
+                    color="#ffffff" 
+                  />
+                </View>
+                <Text style={styles.buttonText}>
+                  Scope & Translate
                 </Text>
               </TouchableOpacity>
               
@@ -728,6 +855,15 @@ export default function LanguageFlashcardsScreen() {
                     <View style={styles.resultContainer}>
                       <Text style={styles.sectionTitle}>{t('flashcard.sectionTitles.translation', { language: translatedLanguageName })}</Text>
                       <Text style={styles.translatedText} numberOfLines={0}>{translatedText}</Text>
+                    </View>
+                  )}
+                  
+                  {scopeAnalysis && (
+                    <View style={styles.resultContainer}>
+                      <Text style={styles.sectionTitle}>
+                        {editedText && editedText.split(/[.!?。！？]/).length <= 1 ? 'Etymology & Context' : 'Grammar Analysis'}
+                      </Text>
+                      <Text style={styles.scopeAnalysisText} numberOfLines={0}>{scopeAnalysis}</Text>
                     </View>
                   )}
 
@@ -1097,6 +1233,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 2,
   },
+  scopeAndTranslateButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.mediumSurface,
+    borderRadius: 8,
+    width: 90,
+    height: 90,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+  },
+  dualIconContainer: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 4,
+  },
   translateButton: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -1177,6 +1331,13 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     flexWrap: 'wrap',
     color: COLORS.text,
+  },
+  scopeAnalysisText: {
+    fontSize: 16,
+    lineHeight: 22,
+    flexWrap: 'wrap',
+    color: COLORS.text,
+    fontStyle: 'italic',
   },
   buttonContainer: {
     marginTop: 24,
@@ -1338,11 +1499,12 @@ const styles = StyleSheet.create({
   previewButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFD166',
-    padding: 8,
-    borderRadius: 4,
+    backgroundColor: 'rgba(128, 128, 128, 0.5)', // Translucent grey background
+    padding: 10,
+    borderRadius: 10,
     alignSelf: 'flex-start',
     marginBottom: 10,
+    justifyContent: 'center',
   },
   previewImage: {
     width: '100%',

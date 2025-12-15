@@ -28,6 +28,7 @@ import {
 interface ClaudeResponse {
   furiganaText: string;
   translatedText: string;
+  scopeAnalysis?: string; // Optional scope analysis field
 }
 
 // Map for language code to name for prompts
@@ -792,13 +793,16 @@ Be precise and return ONLY the JSON with no additional explanation.`;
  * @param text The text to be processed
  * @param targetLanguage The language to translate into (default: 'en' for English)
  * @param forcedLanguage Optional code to force a specific source language detection
- * @returns Object containing text with furigana/romanization and translation
+ * @param onProgress Optional callback for progress updates
+ * @param includeScope Whether to include scope analysis (etymology/grammar)
+ * @returns Object containing text with furigana/romanization, translation, and optional scope analysis
  */
 export async function processWithClaude(
   text: string, 
   targetLanguage: string = 'en',
   forcedLanguage: string = 'ja',
-  onProgress?: (checkpoint: number) => void
+  onProgress?: (checkpoint: number) => void,
+  includeScope: boolean = false
 ): Promise<ClaudeResponse> {
   // CRITICAL: Normalize quotation marks and special characters BEFORE processing
   // This prevents JSON parsing issues when Claude includes quotes in translations
@@ -2844,7 +2848,7 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
                     const retryResponse = await axios.post(
                       'https://api.anthropic.com/v1/messages',
                       {
-                        model: "claude-3-5-sonnet-20241022",
+                        model: "claude-3-haiku-20240307",
                         max_tokens: 4000,
                         temperature: 0.1,
                         messages: [{
@@ -2854,7 +2858,7 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
                       },
                       {
                         headers: {
-                          'Authorization': `Bearer ${apiKey}`,
+                          'x-api-key': apiKey,
                           'Content-Type': 'application/json',
                           'anthropic-version': '2023-06-01'
                         },
@@ -3641,9 +3645,103 @@ Format your response as valid JSON with these exact keys:
   };
 }
 
+/**
+ * Process text with Claude API and generate scope analysis (etymology/grammar)
+ * This is a simple wrapper that first gets translation, then adds scope analysis
+ * 
+ * @param text The text to process
+ * @param targetLanguage Target language code (e.g., 'en', 'ja', 'fr')
+ * @param forcedLanguage Forced source language detection code
+ * @param onProgress Optional callback for progress updates
+ * @returns Promise with furiganaText, translatedText, and scopeAnalysis
+ */
+export async function processWithClaudeAndScope(
+  text: string,
+  targetLanguage: string = 'en',
+  forcedLanguage: string = 'ja',
+  onProgress?: (checkpoint: number) => void
+): Promise<ClaudeResponse> {
+  // First, get the normal translation
+  logger.log('[Scope] Step 1: Getting translation...');
+  const translationResult = await processWithClaude(text, targetLanguage, forcedLanguage, onProgress);
+  
+  // Now get scope analysis with a simpler, focused prompt
+  logger.log('[Scope] Step 2: Getting scope analysis...');
+  
+  try {
+    const apiKey = Constants.expoConfig?.extra?.EXPO_PUBLIC_CLAUDE_API_KEY;
+    if (!apiKey) {
+      throw new Error('Claude API key not configured');
+    }
+    
+    // Check if input is likely a word/idiom vs a sentence
+    const isWord = !(/[.!?。！？]/.test(text)) && text.trim().length < 50;
+    const targetLangName = LANGUAGE_NAMES_MAP[targetLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'English';
+    const sourceLangName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'the source language';
+    
+    const scopePrompt = isWord 
+      ? `You are a language expert. Analyze this ${sourceLangName} word/idiom and provide etymology and context.
+
+Text to analyze: "${text}"
+
+Provide (in ${targetLangName} language):
+1. Etymology: Origin and historical development of this ${sourceLangName} word/idiom
+2. How the meaning evolved over time
+3. Cultural context and interesting usage notes
+4. Be factual - only include information you're confident about, but you don't need to mention this factualness to the user
+
+Write your analysis in ${targetLangName}. Maximum 200 words. Focus on helping language learners understand the ${sourceLangName} word/idiom better.`
+      : `You are a language expert. Analyze this ${sourceLangName} sentence and explain its grammar structure.
+
+Text to analyze: "${text}"
+
+Provide (in ${targetLangName} language):
+1. Parts of speech: Identify key words and their grammatical roles
+2. Sentence structure: How the sentence is constructed
+3. Verb forms: Tense, mood, aspect (if applicable)
+4. Key grammar points: Important grammatical features for language learners
+5. Keep it accessible - avoid overwhelming technical jargon
+
+Write your analysis in ${targetLangName}. Maximum 200 words. Focus on helping learners understand how this ${sourceLangName} sentence works grammatically.`;
+    
+    const response = await axios.post(
+      'https://api.anthropic.com/v1/messages',
+      {
+        model: 'claude-3-haiku-20240307',
+        max_tokens: 512,
+        temperature: 0.3,
+        messages: [{ role: 'user', content: scopePrompt }]
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01'
+        },
+        timeout: 15000
+      }
+    );
+    
+    const content = response.data.content as ClaudeContentItem[];
+    const scopeAnalysis = content.find((item) => item.type === 'text')?.text || '';
+    
+    logger.log('[Scope] Successfully got scope analysis');
+    
+    return {
+      ...translationResult,
+      scopeAnalysis
+    };
+  } catch (error) {
+    logger.error('[Scope] Failed to get scope analysis, returning translation only:', error);
+    // If scope analysis fails, just return the translation
+    return translationResult;
+  }
+}
+
 // Add default export to satisfy Expo Router's requirement
 export default {
-  processWithClaude
+  processWithClaude,
+  processWithClaudeAndScope
 };
 
 /**

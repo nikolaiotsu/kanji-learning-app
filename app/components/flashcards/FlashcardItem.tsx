@@ -535,6 +535,20 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
                 {flashcard.translatedText}
               </Text>
               
+              {/* Scope Analysis Section */}
+              {flashcard.scopeAnalysis && (
+                <>
+                  <Text style={styles.sectionTitle}>
+                    {flashcard.originalText && flashcard.originalText.split(/[.!?。！？]/).filter(s => s.trim()).length <= 1 
+                      ? 'Etymology & Context' 
+                      : 'Grammar Analysis'}
+                  </Text>
+                  <Text style={styles.scopeAnalysisText}>
+                    {flashcard.scopeAnalysis}
+                  </Text>
+                </>
+              )}
+              
               {/* Always render the image on back side too but conditionally show it */}
               {flashcard.imageUrl && (
                 <View 
@@ -639,7 +653,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
             <FontAwesome6 
               name="image" 
               size={24} 
-              color={COLORS.royalBlue} />
+              color="black" />
           </TouchableOpacity>
         )}
         
@@ -652,15 +666,15 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
           >
             <Ionicons 
               name="refresh" 
-              size={20} 
-              color={imageRetryCount >= MAX_RETRY_COUNT ? COLORS.darkGray : COLORS.royalBlue} 
+              size={24} 
+              color={imageRetryCount >= MAX_RETRY_COUNT ? COLORS.darkGray : 'black'} 
             />
           </TouchableOpacity>
         )}
         
         {/* Flip button */}
         <TouchableOpacity style={styles.flipButton} onPress={handleFlip}>
-          <MaterialIcons name="flip" size={24} color={COLORS.royalBlue} />
+          <MaterialIcons name="flip" size={24} color="black" />
         </TouchableOpacity>
       </View>
     </View>
@@ -762,6 +776,14 @@ const createStyles = (responsiveCardHeight: number) => StyleSheet.create({
     color: COLORS.text,
     lineHeight: 30, // Increased proportionally
   },
+  scopeAnalysisText: {
+    fontSize: 16,
+    textAlign: 'center',
+    color: COLORS.text,
+    lineHeight: 24,
+    fontStyle: 'italic',
+    marginTop: 10,
+  },
   actionButtonsContainer: {
     position: 'absolute',
     top: 12,
@@ -784,12 +806,16 @@ const createStyles = (responsiveCardHeight: number) => StyleSheet.create({
   },
   bottomActionButton: {
     marginHorizontal: 8,
-    padding: 6,
+    padding: 10,
+    backgroundColor: 'rgba(128, 128, 128, 0.5)', // Translucent grey background
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   flipButton: {
     marginHorizontal: 8,
     padding: 10,
-    backgroundColor: 'rgba(142, 68, 173, 0.5)', // Brighter translucent purple background
+    backgroundColor: 'rgba(128, 128, 128, 0.5)', // Translucent grey background
     borderRadius: 10,
   },
   imageButton: {
