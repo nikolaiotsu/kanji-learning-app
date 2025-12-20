@@ -3738,10 +3738,90 @@ Write your analysis in ${targetLangName}. Maximum 200 words. Focus on helping le
   }
 }
 
+/**
+ * Fetch a single type of scope analysis (etymology or grammar) without translation
+ * Used for appending alternate analysis to existing scope analysis
+ * 
+ * @param text The text to analyze
+ * @param analysisType Type of analysis: 'etymology' or 'grammar'
+ * @param targetLanguage Target language code for the analysis
+ * @param forcedLanguage Source language code
+ * @returns Promise with just the analysis text
+ */
+export async function fetchSingleScopeAnalysis(
+  text: string,
+  analysisType: 'etymology' | 'grammar',
+  targetLanguage: string = 'en',
+  forcedLanguage: string = 'ja'
+): Promise<string> {
+  try {
+    const apiKey = Constants.expoConfig?.extra?.EXPO_PUBLIC_CLAUDE_API_KEY;
+    if (!apiKey) {
+      throw new Error('Claude API key not configured');
+    }
+    
+    const targetLangName = LANGUAGE_NAMES_MAP[targetLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'English';
+    const sourceLangName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'the source language';
+    
+    const scopePrompt = analysisType === 'etymology'
+      ? `You are a language expert. Analyze this ${sourceLangName} word/idiom and provide etymology and context.
+
+Text to analyze: "${text}"
+
+Provide (in ${targetLangName} language):
+1. Etymology: Origin and historical development of this ${sourceLangName} word/idiom
+2. How the meaning evolved over time
+3. Cultural context and interesting usage notes
+4. Be factual - only include information you're confident about, but you don't need to mention this factualness to the user
+
+Write your analysis in ${targetLangName}. Maximum 200 words. Focus on helping language learners understand the ${sourceLangName} word/idiom better.`
+      : `You are a language expert. Analyze this ${sourceLangName} sentence and explain its grammar structure.
+
+Text to analyze: "${text}"
+
+Provide (in ${targetLangName} language):
+1. Parts of speech: Identify key words and their grammatical roles
+2. Sentence structure: How the sentence is constructed
+3. Verb forms: Tense, mood, aspect (if applicable)
+4. Key grammar points: Important grammatical features for language learners but keep it accessible
+
+Write your analysis in ${targetLangName}. Maximum 200 words. Focus on helping learners understand how this ${sourceLangName} sentence works grammatically.`;
+    
+    const response = await axios.post(
+      'https://api.anthropic.com/v1/messages',
+      {
+        model: 'claude-3-haiku-20240307',
+        max_tokens: 512,
+        temperature: 0.3,
+        messages: [{ role: 'user', content: scopePrompt }]
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01'
+        },
+        timeout: 15000
+      }
+    );
+    
+    const content = response.data.content as ClaudeContentItem[];
+    const analysis = content.find((item) => item.type === 'text')?.text || '';
+    
+    logger.log(`[Scope] Successfully fetched ${analysisType} analysis`);
+    
+    return analysis;
+  } catch (error) {
+    logger.error(`[Scope] Failed to fetch ${analysisType} analysis:`, error);
+    throw error;
+  }
+}
+
 // Add default export to satisfy Expo Router's requirement
 export default {
   processWithClaude,
-  processWithClaudeAndScope
+  processWithClaudeAndScope,
+  fetchSingleScopeAnalysis
 };
 
 /**

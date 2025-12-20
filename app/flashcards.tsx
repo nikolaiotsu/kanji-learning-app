@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Platform, ActivityIndicator, ScrollView, Toucha
 import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { processWithClaude, processWithClaudeAndScope } from './services/claudeApi';
+import { processWithClaude, processWithClaudeAndScope, fetchSingleScopeAnalysis } from './services/claudeApi';
 import { 
   cleanText, 
   containsJapanese, 
@@ -96,6 +96,9 @@ export default function LanguageFlashcardsScreen() {
   // State for progressive loading
   const [processingProgress, setProcessingProgress] = useState(0);
   const [processingFailed, setProcessingFailed] = useState(false);
+  
+  // State for appending alternate analysis
+  const [isAppendingAnalysis, setIsAppendingAnalysis] = useState(false);
   
   // State for the image display
   const [showImagePreview, setShowImagePreview] = useState(false);
@@ -650,6 +653,49 @@ export default function LanguageFlashcardsScreen() {
     setShowEditTranslationModal(true);
   };
 
+  // Function to handle appending alternate analysis (etymology or grammar)
+  const handleAppendAlternateAnalysis = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    if (!editedText || !scopeAnalysis) {
+      return;
+    }
+    
+    logger.log('🔬 [Scope] Appending alternate analysis');
+    setIsAppendingAnalysis(true);
+    
+    try {
+      // Determine current analysis type based on text
+      const isWord = !(/[.!?。！？]/.test(editedText)) && editedText.trim().length < 50;
+      const currentType = isWord ? 'etymology' : 'grammar';
+      const alternateType = currentType === 'etymology' ? 'grammar' : 'etymology';
+      
+      // Fetch the alternate analysis
+      const alternateAnalysis = await fetchSingleScopeAnalysis(
+        editedText,
+        alternateType,
+        targetLanguage,
+        forcedDetectionLanguage
+      );
+      
+      if (alternateAnalysis) {
+        // Append with clear separator
+        const separator = `\n\n--- ${alternateType === 'etymology' ? 'Etymology & Context' : 'Grammar Analysis'} ---\n\n`;
+        const updatedAnalysis = scopeAnalysis + separator + alternateAnalysis;
+        setScopeAnalysis(updatedAnalysis);
+        logger.log('🔬 [Scope] Successfully appended alternate analysis');
+      }
+    } catch (error) {
+      logger.error('🔬 [Scope] Failed to append alternate analysis:', error);
+      Alert.alert(
+        t('common.error'),
+        'Failed to fetch additional analysis. Please try again.'
+      );
+    } finally {
+      setIsAppendingAnalysis(false);
+    }
+  };
+
   return (
     <PokedexLayout 
       variant="flashcards"
@@ -848,14 +894,44 @@ export default function LanguageFlashcardsScreen() {
                     </View>
                   )}
                   
-                  {scopeAnalysis && (
+                  {scopeAnalysis && (() => {
+                    // Match the same logic used by the API to determine word vs sentence
+                    const isWordInput = editedText && !(/[.!?。！？]/.test(editedText)) && editedText.trim().length < 50;
+                    return (
                     <View style={styles.resultContainer}>
                       <Text style={styles.sectionTitle}>
-                        {editedText && editedText.split(/[.!?。！？]/).length <= 1 ? 'Etymology & Context' : 'Grammar Analysis'}
+                        {isWordInput ? 'Etymology & Context' : 'Grammar Analysis'}
                       </Text>
                       <Text style={styles.scopeAnalysisText} numberOfLines={0}>{scopeAnalysis}</Text>
+                      
+                      {/* Append Alternate Analysis Button */}
+                      {!scopeAnalysis.includes('--- Etymology & Context ---') && 
+                       !scopeAnalysis.includes('--- Grammar Analysis ---') && (
+                        <TouchableOpacity
+                          style={styles.appendAnalysisButton}
+                          onPress={handleAppendAlternateAnalysis}
+                          disabled={isAppendingAnalysis}
+                        >
+                          {isAppendingAnalysis ? (
+                            <ActivityIndicator size="small" color="#ffffff" />
+                          ) : (
+                            <>
+                              <View style={styles.dualIconContainer}>
+                                <FontAwesome5 name="microscope" size={16} color="#ffffff" />
+                                <Ionicons name="add-circle-outline" size={16} color="#ffffff" />
+                              </View>
+                              <Text style={styles.appendAnalysisButtonText}>
+                                {isWordInput 
+                                  ? 'Add Grammar' 
+                                  : 'Add Etymology & Context'}
+                              </Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      )}
                     </View>
-                  )}
+                    );
+                  })()}
 
                   {/* 2x2 Button Grid */}
                   {textProcessed && translatedText && (
@@ -1328,6 +1404,22 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     color: COLORS.text,
     fontStyle: 'italic',
+  },
+  appendAnalysisButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.royalBlue,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginTop: 12,
+    gap: 8,
+  },
+  appendAnalysisButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   buttonContainer: {
     marginTop: 24,

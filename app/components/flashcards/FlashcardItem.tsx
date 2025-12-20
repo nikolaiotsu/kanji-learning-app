@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, Dimensions, Animated, ScrollView, LayoutChangeEvent, Image, ActivityIndicator } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Flashcard } from '../../types/Flashcard';
-import { Ionicons, MaterialIcons, FontAwesome6 } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons, FontAwesome5, FontAwesome6 } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { useSettings, AVAILABLE_LANGUAGES } from '../../context/SettingsContext';
 import FuriganaText from '../shared/FuriganaText';
@@ -22,6 +22,7 @@ interface FlashcardItemProps {
   onSend?: (id: string) => void;
   onEdit?: (id: string) => void;
   onImageToggle?: (showImage: boolean) => void;
+  onAppendAnalysis?: (flashcardId: string, newAnalysis: string) => Promise<void>;
   deckName?: string; // Optional deck name to display
   disableTouchHandling?: boolean; // If true, the card won't be flippable via touch
   cardHeight?: number; // Optional responsive card height (defaults to 300 if not provided)
@@ -35,6 +36,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   onSend, 
   onEdit,
   onImageToggle,
+  onAppendAnalysis,
   deckName,
   disableTouchHandling = false,
   cardHeight = 300, // Sensible default for saved-flashcards page
@@ -72,6 +74,9 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   const [imageUrlWithCacheBust, setImageUrlWithCacheBust] = useState(flashcard.imageUrl);
   const [imageUriToUse, setImageUriToUse] = useState<string | undefined>(flashcard.imageUrl);
   const MAX_RETRY_COUNT = 5;
+  
+  // State for appending alternate analysis
+  const [isAppendingAnalysis, setIsAppendingAnalysis] = useState(false);
   
   // Load cached image URI on mount or when image URL changes
   useEffect(() => {
@@ -220,6 +225,63 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
     // Call the onImageToggle callback if provided
     if (onImageToggle) {
       onImageToggle(newState);
+    }
+  };
+
+  // Handle appending alternate analysis
+  const handleAppendAnalysis = async () => {
+    if (!isOnline) {
+      const { Alert } = require('react-native');
+      Alert.alert(
+        t('offline.title') || 'Offline',
+        t('offline.editDisabled') || 'Editing flashcards requires an internet connection.',
+        [{ text: t('common.ok') || 'OK' }]
+      );
+      return;
+    }
+    
+    if (!onAppendAnalysis || !flashcard.scopeAnalysis || !flashcard.originalText) {
+      return;
+    }
+    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setIsAppendingAnalysis(true);
+    
+    try {
+      // Import the API function
+      const { fetchSingleScopeAnalysis } = require('../../services/claudeApi');
+      
+      // Determine current analysis type
+      const isWord = !(/[.!?。！？]/.test(flashcard.originalText)) && flashcard.originalText.trim().length < 50;
+      const currentType = isWord ? 'etymology' : 'grammar';
+      const alternateType = currentType === 'etymology' ? 'grammar' : 'etymology';
+      
+      // Fetch alternate analysis
+      const alternateAnalysis = await fetchSingleScopeAnalysis(
+        flashcard.originalText,
+        alternateType,
+        flashcard.targetLanguage,
+        flashcard.sourceLanguage || 'ja'
+      );
+      
+      if (alternateAnalysis) {
+        // Append with separator
+        const separator = `\n\n--- ${alternateType === 'etymology' ? 'Etymology & Context' : 'Grammar Analysis'} ---\n\n`;
+        const updatedAnalysis = flashcard.scopeAnalysis + separator + alternateAnalysis;
+        
+        // Call parent handler to update the flashcard
+        await onAppendAnalysis(flashcard.id, updatedAnalysis);
+        logger.log('🔬 [FlashcardItem] Successfully appended alternate analysis');
+      }
+    } catch (error) {
+      logger.error('🔬 [FlashcardItem] Failed to append alternate analysis:', error);
+      const { Alert } = require('react-native');
+      Alert.alert(
+        t('common.error') || 'Error',
+        'Failed to fetch additional analysis. Please try again.'
+      );
+    } finally {
+      setIsAppendingAnalysis(false);
     }
   };
 
@@ -540,18 +602,47 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
               </Text>
               
               {/* Scope Analysis Section */}
-              {flashcard.scopeAnalysis && (
+              {flashcard.scopeAnalysis && (() => {
+                // Match the same logic used by the API to determine word vs sentence
+                const isWordInput = flashcard.originalText && !(/[.!?。！？]/.test(flashcard.originalText)) && flashcard.originalText.trim().length < 50;
+                return (
                 <>
                   <Text style={styles.sectionTitle}>
-                    {flashcard.originalText && flashcard.originalText.split(/[.!?。！？]/).filter(s => s.trim()).length <= 1 
-                      ? 'Etymology & Context' 
-                      : 'Grammar Analysis'}
+                    {isWordInput ? 'Etymology & Context' : 'Grammar Analysis'}
                   </Text>
                   <Text style={styles.scopeAnalysisText}>
                     {flashcard.scopeAnalysis}
                   </Text>
+                  
+                  {/* Append Alternate Analysis Button */}
+                  {onAppendAnalysis && 
+                   !flashcard.scopeAnalysis.includes('--- Etymology & Context ---') && 
+                   !flashcard.scopeAnalysis.includes('--- Grammar Analysis ---') && (
+                    <TouchableOpacity
+                      style={styles.appendAnalysisButton}
+                      onPress={handleAppendAnalysis}
+                      disabled={isAppendingAnalysis || !isOnline}
+                    >
+                      {isAppendingAnalysis ? (
+                        <ActivityIndicator size="small" color="#ffffff" />
+                      ) : (
+                        <>
+                          <View style={styles.dualIconContainer}>
+                            <FontAwesome5 name="microscope" size={16} color="#ffffff" />
+                            <Ionicons name="add-circle-outline" size={16} color="#ffffff" />
+                          </View>
+                          <Text style={styles.appendAnalysisButtonText}>
+                            {isWordInput 
+                              ? 'Add Grammar' 
+                              : 'Add Etymology & Context'}
+                          </Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  )}
                 </>
-              )}
+                );
+              })()}
               
               {/* Always render the image on back side too but conditionally show it */}
               {flashcard.imageUrl && (
@@ -787,6 +878,26 @@ const createStyles = (responsiveCardHeight: number) => StyleSheet.create({
     lineHeight: 24,
     fontStyle: 'italic',
     marginTop: 10,
+  },
+  appendAnalysisButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.royalBlue,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginTop: 12,
+    gap: 8,
+  },
+  appendAnalysisButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  dualIconContainer: {
+    flexDirection: 'row',
+    gap: 6,
   },
   actionButtonsContainer: {
     position: 'absolute',
