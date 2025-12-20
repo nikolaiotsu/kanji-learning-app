@@ -10,7 +10,10 @@ import {
   Text,
   GestureResponderEvent,
   PanResponderGestureState,
+  Animated,
+  Easing,
 } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { useTranslation } from 'react-i18next';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { detectJapaneseText } from '../../services/visionApi';
@@ -20,6 +23,9 @@ import { Ionicons, FontAwesome6 } from '@expo/vector-icons';
 import { processImage } from '../../services/ProcessImage';
 
 import { logger } from '../../utils/logger';
+
+// Create animated SVG components
+const AnimatedPath = Animated.createAnimatedComponent(Path);
 // Define the type for the forwarded ref handle
 export interface ImageHighlighterRef {
   getView: () => View | null;
@@ -83,11 +89,19 @@ interface CropBox {
   height: number;
 }
 
+// Define Point interface for stroke-based highlighting
+interface Point {
+  x: number;
+  y: number;
+}
+
 // Constants for layout calculations
 const CROP_HANDLE_SIZE = 30;
 const CROP_HANDLE_TOUCH_AREA = 40;
 const ROTATION_SMOOTHING_FACTOR = 0.4; // New, for smoothing rotation during drag
 const EDGE_TOLERANCE = 50; // pixels outside image boundary for starting highlights/crops
+const STROKE_WIDTH = 20; // Width of the highlighter stroke
+const POINT_THROTTLE_MS = 16; // ~60fps for point collection
 
 // Ref for the PanResponder View - MOVED INSIDE COMPONENT
 // const panResponderViewRef = React.useRef<View>(null); // REMOVE FROM HERE
@@ -106,12 +120,11 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   const [measuredLayout, setMeasuredLayout] = useState<{width: number, height: number} | null>(null);
   const [containerScreenOffset, setContainerScreenOffset] = useState<{x: number, y: number} | null>(null);
 
-  const [highlightBox, setHighlightBox] = useState({
-    startX: 0,
-    startY: 0,
-    endX: 0,
-    endY: 0,
-  });
+  // Stroke-based highlighting state (replaces highlightBox)
+  const [strokes, setStrokes] = useState<Point[][]>([]);
+  const [currentStroke, setCurrentStroke] = useState<Point[]>([]);
+  const lastPointTimeRef = useRef<number>(0);
+  
   const [isDrawing, setIsDrawing] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [detectedRegions, setDetectedRegions] = useState<Array<{
@@ -156,6 +169,94 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   
   // Previous imageUri ref to detect changes
   const prevImageUriRef = useRef<string | null>(null);
+  
+  // Rainbow animation for highlight and crop box borders
+  const rainbowAnim = useRef(new Animated.Value(0)).current;
+  const animationLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+  
+  useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageHighlighter.tsx:165',message:'Animation loop setup - starting',data:{rainbowAnimValue:rainbowAnim},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    const loop = Animated.loop(
+      Animated.timing(rainbowAnim, {
+        toValue: 1,
+        duration: 2000,
+        easing: Easing.linear,
+        useNativeDriver: false,
+      })
+    );
+    animationLoopRef.current = loop;
+    const listenerId = rainbowAnim.addListener(({ value }) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageHighlighter.tsx:179',message:'Animation value update',data:{value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+    });
+    loop.start((finished) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageHighlighter.tsx:183',message:'Animation loop finished callback',data:{finished},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+    });
+    
+    return () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageHighlighter.tsx:187',message:'Animation effect cleanup',data:{hasLoop:!!animationLoopRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      rainbowAnim.removeListener(listenerId);
+      if (animationLoopRef.current) {
+        animationLoopRef.current.stop();
+        animationLoopRef.current = null;
+      }
+    };
+  }, []);
+  
+  const rainbowColor = rainbowAnim.interpolate({
+    inputRange: [0, 0.17, 0.33, 0.5, 0.67, 0.83, 1],
+    outputRange: ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#8B00FF', '#FF0000'],
+  });
+  
+  // Helper function to restart animation loop
+  const restartAnimationLoop = () => {
+    if (animationLoopRef.current) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageHighlighter.tsx:207',message:'Restarting animation loop',data:{hasAnimationLoop:!!animationLoopRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
+      // #endregion
+      // Stop existing loop and restart to ensure it's running
+      animationLoopRef.current.stop();
+      const newLoop = Animated.loop(
+        Animated.timing(rainbowAnim, {
+          toValue: 1,
+          duration: 2000,
+          easing: Easing.linear,
+          useNativeDriver: false,
+        })
+      );
+      animationLoopRef.current = newLoop;
+      newLoop.start();
+    }
+  };
+
+  // Effect to track highlightModeActive changes and ensure animation is running
+  useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageHighlighter.tsx:225',message:'highlightModeActive changed',data:{highlightModeActive,hasAnimationLoop:!!animationLoopRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
+    // #endregion
+    // Restart animation when highlight mode becomes active to ensure rainbow effect works
+    if (highlightModeActive) {
+      restartAnimationLoop();
+    }
+  }, [highlightModeActive, rainbowAnim]);
+
+  // Effect to track cropMode changes and ensure animation is running
+  useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageHighlighter.tsx:234',message:'cropMode changed',data:{cropMode,hasAnimationLoop:!!animationLoopRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+    // #endregion
+    // Restart animation when crop mode becomes active to ensure rainbow effect works
+    if (cropMode) {
+      restartAnimationLoop();
+    }
+  }, [cropMode, rainbowAnim]);
   
   // Effect to track image changes and reset processing state
   useEffect(() => {
@@ -424,8 +525,12 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
              Math.abs(cropBox.width) > 10 && Math.abs(cropBox.height) > 10;
     },
     clearHighlightBox: () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageHighlighter.tsx:447',message:'clearHighlightBox called',data:{isDrawing,strokes,hasAnimationLoop:!!animationLoopRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
       setIsDrawing(false);
-      setHighlightBox({ startX: 0, startY: 0, endX: 0, endY: 0 });
+      setStrokes([]);
+      setCurrentStroke([]);
       // Also reset any detected regions that might be displayed
       setDetectedRegions([]);
     },
@@ -680,21 +785,9 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         }
       } 
       else if (highlightModeActive) {
-        // logger.log('[ImageHighlighter] Highlight mode starting with locationX/Y:', { currentX, currentY }); // Removed
-        /* // Removed
-        logger.log('[ImageHighlighter] Highlight mode - Touch vs Image bounds:', {
-          touchX: currentX,
-          touchY: currentY,
-          imageLeft: displayImageOffsetX,
-          imageTop: displayImageOffsetY,
-          imageRight: displayImageOffsetX + scaledContainerWidth,
-          imageBottom: displayImageOffsetY + scaledContainerHeight,
-          isOutsideLeft: currentX < displayImageOffsetX,
-          isOutsideRight: currentX > displayImageOffsetX + scaledContainerWidth,
-          isOutsideTop: currentY < displayImageOffsetY,
-          isOutsideBottom: currentY > displayImageOffsetY + scaledContainerHeight
-        });
-        */
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageHighlighter.tsx:703',message:'Highlight mode onPanResponderGrant',data:{currentX,currentY,hasAnimationLoop:!!animationLoopRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
+        // #endregion
         
         // Use the exact touch coordinates relative to the container for precise positioning
         const preciseX = pageX - containerScreenOffset.x;
@@ -709,26 +802,10 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         const clampedX = Math.max(containerMinX, Math.min(containerMaxX, preciseX));
         const clampedY = Math.max(containerMinY, Math.min(containerMaxY, preciseY));
         
-        /* // Removed
-        logger.log('[ImageHighlighter] Coordinate clamping (to container):', {
-          pageX, pageY,
-          containerScreenOffsetX: containerScreenOffset.x,
-          containerScreenOffsetY: containerScreenOffset.y,
-          preciseX, preciseY,
-          clampedX, clampedY,
-          containerMaxX, containerMaxY,
-          displayImageOffsetX, displayImageOffsetY,
-          scaledContainerWidth, scaledContainerHeight
-        });
-        */
-        
+        // Start a new stroke
         setIsDrawing(true);
-        setHighlightBox({
-          startX: clampedX,
-          startY: clampedY,
-          endX: clampedX,
-          endY: clampedY,
-        });
+        setCurrentStroke([{ x: clampedX, y: clampedY }]);
+        lastPointTimeRef.current = Date.now();
       }
     },
     onPanResponderMove: (evt, gestureState: PanResponderGestureState) => {
@@ -831,6 +908,13 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         gestureState.dy = 0;
       }
       else if (isDrawing && highlightModeActive) {
+        // Throttle point collection for performance
+        const now = Date.now();
+        if (now - lastPointTimeRef.current < POINT_THROTTLE_MS) {
+          return;
+        }
+        lastPointTimeRef.current = now;
+        
         // Use precise coordinates for consistent positioning
         const preciseX = pageX - containerScreenOffset.x;
         const preciseY = pageY - containerScreenOffset.y;
@@ -844,25 +928,8 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         const clampedX = Math.max(containerMinX, Math.min(containerMaxX, preciseX));
         const clampedY = Math.max(containerMinY, Math.min(containerMaxY, preciseY));
         
-        /* // Removed
-        logger.log('[ImageHighlighter] MOVE - Updating highlight box (clamped to container):', {
-          currentX, currentY,
-          preciseX, preciseY,
-          clampedX, clampedY,
-          containerMaxX, containerMaxY,
-          previousEndX: highlightBox.endX,
-          previousEndY: highlightBox.endY,
-          isOutsideLeft: preciseX < displayImageOffsetX,
-          isOutsideRight: preciseX > displayImageOffsetX + scaledContainerWidth,
-          isOutsideTop: preciseY < displayImageOffsetY,
-          isOutsideBottom: preciseY > displayImageOffsetY + scaledContainerHeight
-        });
-        */
-        setHighlightBox(prev => ({
-          ...prev,
-          endX: clampedX,
-          endY: clampedY,
-        }));
+        // Add point to current stroke
+        setCurrentStroke(prev => [...prev, { x: clampedX, y: clampedY }]);
       }
     },
     onPanResponderRelease: async (evt, gestureState: PanResponderGestureState) => {
@@ -908,11 +975,10 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       if (isDrawing && highlightModeActive) {
         setIsDrawing(false);
         
-        // Use precise coordinates for the final position
+        // Add final point to current stroke
         const finalPreciseX = pageX - containerScreenOffset.x;
         const finalPreciseY = pageY - containerScreenOffset.y;
         
-        // Clamp final coordinates to CONTAINER bounds
         const containerMinX = 0;
         const containerMaxX = (measuredLayout?.width || 0) - 1;
         const containerMinY = 0;
@@ -921,118 +987,150 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         const finalClampedX = Math.max(containerMinX, Math.min(containerMaxX, finalPreciseX));
         const finalClampedY = Math.max(containerMinY, Math.min(containerMaxY, finalPreciseY));
         
-        const finalHighlightBox = {
-            ...highlightBox,
-            endX: finalClampedX,
-            endY: finalClampedY,
-        };
-        setHighlightBox(finalHighlightBox); 
-        
-        /* // Removed
-        logger.log('[ImageHighlighter] RELEASE - Final highlight box (clamped to container):', {
-          finalCurrentX, finalCurrentY,
-          finalPreciseX, finalPreciseY,
-          finalClampedX, finalClampedY,
-          containerMaxX, containerMaxY,
-          finalHighlightBox
-        });
-        */
+        // Finalize the stroke
+        const finalStroke = [...currentStroke, { x: finalClampedX, y: finalClampedY }];
+        setStrokes(prev => [...prev, finalStroke]);
+        setCurrentStroke([]);
 
-        if (onRegionSelected) {
-          const minX = Math.min(finalHighlightBox.startX, finalHighlightBox.endX);
-          const maxX = Math.max(finalHighlightBox.startX, finalHighlightBox.endX);
-          const minY = Math.min(finalHighlightBox.startY, finalHighlightBox.endY);
-          const maxY = Math.max(finalHighlightBox.startY, finalHighlightBox.endY);
+        if (onRegionSelected && finalStroke.length > 1) {
+          // Calculate bounding box from all strokes (including the one we just added)
+          const allStrokes = [...strokes, finalStroke];
+          const allPoints = allStrokes.flat();
           
-          /* // Removed debug log
-          logger.log('[ImageHighlighter] RELEASE - Highlight Box (clamped to container):', {
-            minX,
-            minY,
-            maxX,
-            maxY
-          });
-          */
+          if (allPoints.length > 0) {
+            // Find min/max coordinates across all points
+            const minX = Math.min(...allPoints.map(p => p.x));
+            const maxX = Math.max(...allPoints.map(p => p.x));
+            const minY = Math.min(...allPoints.map(p => p.y));
+            const maxY = Math.max(...allPoints.map(p => p.y));
+            
+            // Use minimal padding - just enough to account for the stroke rendering
+            // This makes OCR more accurate by not picking up nearby text
+            const padding = 2; // Minimal padding instead of STROKE_WIDTH / 2
+            const paddedMinX = Math.max(0, minX - padding);
+            const paddedMaxX = Math.min(measuredLayout?.width || 0, maxX + padding);
+            const paddedMinY = Math.max(0, minY - padding);
+            const paddedMaxY = Math.min(measuredLayout?.height || 0, maxY + padding);
 
-          // Calculate the region relative to the *image*
-          const imageRelativeMinX = Math.max(0, minX - displayImageOffsetX);
-          const imageRelativeMinY = Math.max(0, minY - displayImageOffsetY);
+            // Calculate the region relative to the *image*
+            const imageRelativeMinX = Math.max(0, paddedMinX - displayImageOffsetX);
+            const imageRelativeMinY = Math.max(0, paddedMinY - displayImageOffsetY);
 
-          const imageRelativeMaxX = Math.max(0, maxX - displayImageOffsetX);
-          const imageRelativeMaxY = Math.max(0, maxY - displayImageOffsetY);
+            const imageRelativeMaxX = Math.max(0, paddedMaxX - displayImageOffsetX);
+            const imageRelativeMaxY = Math.max(0, paddedMaxY - displayImageOffsetY);
 
-          // Ensure the reported width/height does not exceed the image dimensions from the image's origin
-          const reportedWidth = Math.min(imageRelativeMaxX, scaledContainerWidth) - imageRelativeMinX;
-          const reportedHeight = Math.min(imageRelativeMaxY, scaledContainerHeight) - imageRelativeMinY;
-          
-          const regionForParent = {
-            x: imageRelativeMinX,
-            y: imageRelativeMinY,
-            width: Math.max(0, reportedWidth), // Ensure width is not negative
-            height: Math.max(0, reportedHeight), // Ensure height is not negative
-            detectedText: [], // OCR will populate this later
-            rotation: rotation, // Include current rotation
-          };
+            // Ensure the reported width/height does not exceed the image dimensions
+            const reportedWidth = Math.min(imageRelativeMaxX, scaledContainerWidth) - imageRelativeMinX;
+            const reportedHeight = Math.min(imageRelativeMaxY, scaledContainerHeight) - imageRelativeMinY;
+            
+            const regionForParent = {
+              x: imageRelativeMinX,
+              y: imageRelativeMinY,
+              width: Math.max(0, reportedWidth),
+              height: Math.max(0, reportedHeight),
+              detectedText: [],
+              rotation: rotation,
+            };
 
-          // logger.log('[ImageHighlighter] Final OCR region (image container relative, adjusted for image bounds):', regionForParent); // Removed debug log
-          onRegionSelected(regionForParent);
+            onRegionSelected(regionForParent);
+          }
         }
       }
     },
   });
 
-  // Function to render the highlight box
-  const renderHighlightBox = () => {
-    // We want to show the highlight box when drawing OR when there's a finished selection (not drawing but has a selection)
-    if (!isDrawing && highlightBox.startX === 0 && highlightBox.endX === 0) return null;
+  // Helper function to convert points array to smooth SVG path using quadratic bezier curves
+  const pointsToSVGPath = (points: Point[]): string => {
+    if (points.length === 0) return '';
+    if (points.length === 1) {
+      // Single point - draw a small circle
+      return `M ${points[0].x} ${points[0].y} L ${points[0].x + 1} ${points[0].y}`;
+    }
     
-    // Use the exact touch coordinates - no padding adjustments
-    const system_minX = Math.min(highlightBox.startX, highlightBox.endX);
-    const system_maxX = Math.max(highlightBox.startX, highlightBox.endX);
-    const system_minY = Math.min(highlightBox.startY, highlightBox.endY);
-    const system_maxY = Math.max(highlightBox.startY, highlightBox.endY);
+    let path = `M ${points[0].x} ${points[0].y}`;
+    
+    // For just 2 points, draw a straight line
+    if (points.length === 2) {
+      path += ` L ${points[1].x} ${points[1].y}`;
+      return path;
+    }
+    
+    // For 3+ points, use quadratic bezier curves for smoothing
+    for (let i = 1; i < points.length - 1; i++) {
+      const current = points[i];
+      const next = points[i + 1];
+      
+      // Control point is the current point
+      // End point is midway to the next point for smoother curves
+      const midX = (current.x + next.x) / 2;
+      const midY = (current.y + next.y) / 2;
+      
+      path += ` Q ${current.x} ${current.y}, ${midX} ${midY}`;
+    }
+    
+    // Connect to the last point
+    const last = points[points.length - 1];
+    path += ` L ${last.x} ${last.y}`;
+    
+    return path;
+  };
 
-    // Render the box exactly where the user touched
-    const render_left = system_minX;
-    const render_top = system_minY;
-    const render_width = system_maxX - system_minX;
-    const render_height = system_maxY - system_minY;
-
-    // logger.log('[ImageHighlighter] Rendering highlight box. System minX:', system_minX, 'Rendered left:', render_left); // Removed debug log
-    /* // Removed debug log
-    logger.log('[ImageHighlighter] Render details:', {
-      highlightBox,
-      system_minX, system_maxX, system_minY, system_maxY,
-      render_left, render_top, render_width, render_height,
-      displayImageOffsetX, displayImageOffsetY,
-      scaledContainerWidth, scaledContainerHeight,
-      isOutsideImageLeft: system_minX < displayImageOffsetX,
-      isOutsideImageRight: system_maxX > displayImageOffsetX + scaledContainerWidth,
-      isOutsideImageTop: system_minY < displayImageOffsetY,
-      isOutsideImageBottom: system_maxY > displayImageOffsetY + scaledContainerHeight
-    });
-    */
+  // Function to render highlight strokes
+  const renderHighlightStrokes = () => {
+    // Show strokes when drawing or when there are completed strokes
+    if (!isDrawing && strokes.length === 0 && currentStroke.length === 0) {
+      return null;
+    }
 
     return (
-      <>
-        {/* Main highlight box */}
-        <View
-          style={[
-            styles.highlight,
-            {
-              position: 'absolute',
-              left: render_left,
-              top: render_top,
-              width: render_width,
-              height: render_height,
-            }
-          ]}
-        />
-      </>
+      <Svg
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: measuredLayout?.width || 0,
+          height: measuredLayout?.height || 0,
+        }}
+        pointerEvents="none"
+      >
+        {/* Render all completed strokes with rainbow animation */}
+        {strokes.map((stroke, index) => {
+          const pathData = pointsToSVGPath(stroke);
+          return (
+            <AnimatedPath
+              key={`stroke-${index}`}
+              d={pathData}
+              stroke={rainbowColor}
+              strokeWidth={STROKE_WIDTH}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              fill="none"
+              opacity={0.7}
+            />
+          );
+        })}
+        
+        {/* Render current stroke being drawn with rainbow animation */}
+        {isDrawing && currentStroke.length > 0 && (
+          <AnimatedPath
+            d={pointsToSVGPath(currentStroke)}
+            stroke={rainbowColor}
+            strokeWidth={STROKE_WIDTH}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+            opacity={0.7}
+          />
+        )}
+      </Svg>
     );
   };
 
   // Function to render crop box and handles
   const renderCropBox = () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageHighlighter.tsx:1057',message:'renderCropBox called',data:{cropMode,cropBox,isCropDrawing,hasAnimationLoop:!!animationLoopRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+    // #endregion
     if (!cropMode) return null;
     
     const { x, y, width, height } = cropBox;
@@ -1048,10 +1146,13 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
     const normalizedWidth = Math.abs(width);
     const normalizedHeight = Math.abs(height);
     
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageHighlighter.tsx:1073',message:'renderCropBox rendering Animated.View',data:{normalizedX,normalizedY,normalizedWidth,normalizedHeight,hasAnimationLoop:!!animationLoopRef.current,rainbowColorType:typeof rainbowColor},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+    // #endregion
     return (
       <>
         {/* Crop box outline */}
-        <View
+        <Animated.View
           style={[
             styles.cropBox,
             {
@@ -1059,6 +1160,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
               top: normalizedY,
               width: normalizedWidth,
               height: normalizedHeight,
+              borderColor: rainbowColor,
             }
           ]}
         />
@@ -1254,8 +1356,20 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         ))}
       </View>
 
+      {/* Hidden view to keep rainbow animation running even when no boxes are visible */}
+      <Animated.View
+        style={{
+          position: 'absolute',
+          width: 0,
+          height: 0,
+          opacity: 0,
+          borderColor: rainbowColor,
+        }}
+        pointerEvents="none"
+      />
+
       {/* Highlights and Crop Box are direct children of styles.container, positioned absolutely */}
-      {renderHighlightBox()}
+      {renderHighlightStrokes()}
       {renderCropBox()}
 
       {/* Rotate mode instructions could be inside or outside, positioned absolutely */}
@@ -1309,8 +1423,7 @@ const styles = StyleSheet.create({
   },
   highlight: {
     position: 'absolute',
-    borderWidth: 2,
-    borderColor: COLORS.pokedexYellow,
+    borderWidth: 3,
     backgroundColor: 'transparent',
     pointerEvents: 'none',
   },
@@ -1323,8 +1436,7 @@ const styles = StyleSheet.create({
   },
   cropBox: {
     position: 'absolute',
-    borderWidth: 2,
-    borderColor: '#B0B0B0',
+    borderWidth: 3,
     borderStyle: 'dashed',
     backgroundColor: 'rgba(200, 200, 200, 0.2)',
     pointerEvents: 'none',

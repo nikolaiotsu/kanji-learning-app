@@ -151,6 +151,8 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   const handleFlip = () => {
     if (disableTouchHandling) return;
     
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
     // Animate the flip
     Animated.timing(flipAnim, {
       toValue: isFlipped ? 0 : 1,
@@ -211,6 +213,8 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
 
   // Toggle showing the image
   const toggleShowImage = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
     const newState = !showImage;
     setShowImage(newState);
     // Call the onImageToggle callback if provided

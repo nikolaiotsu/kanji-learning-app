@@ -207,7 +207,13 @@
     "cannotSwapLanguages": "Cannot Swap Languages",
     "setLanguageError": "Failed to set language. Please try again.",
     "invalidLanguageSelection": "Invalid Language Selection",
-    "setDetectionLanguageError": "Failed to set detection language. Please try again."
+    "setDetectionLanguageError": "Failed to set detection language. Please try again.",
+    "resetSwipeCounter": "Reset Best Practice Counter",
+    "resetSwipeCounterDescription": "Reset your daily swipe counter for left and right swipes",
+    "resetSwipeCounterTitle": "Reset Counter?",
+    "resetSwipeCounterMessage": "This will reset your best practice swipe counter to zero. Are you sure?",
+    "resetSwipeCounterConfirm": "Reset",
+    "resetSwipeCounterSuccess": "Swipe counter has been reset successfully!"
   },
   "review": {
     "remaining": "{{count}} remaining - swipe ← to review again - swipe → to dismiss",

@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from './context/AuthContext';
 import { useSettings, AVAILABLE_LANGUAGES, DETECTABLE_LANGUAGES } from './context/SettingsContext';
 import { useFlashcardCounter } from './context/FlashcardCounterContext';
+import { useSwipeCounter } from './context/SwipeCounterContext';
 import { useSubscription } from './context/SubscriptionContext';
 import { useRouter } from 'expo-router';
 import { COLORS } from './constants/colors';
@@ -28,6 +29,7 @@ export default function SettingsScreen() {
     detectableLanguages 
   } = useSettings();
   const { resetFlashcardCount } = useFlashcardCounter();
+  const { resetSwipeCounts } = useSwipeCounter();
   const { 
     subscription, 
     setTestingSubscriptionPlan, 
@@ -428,6 +430,36 @@ export default function SettingsScreen() {
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.darkGray} />
+          </TouchableOpacity>
+
+          {/* Reset Best Practice Counter Button */}
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => {
+              Alert.alert(
+                t('settings.resetSwipeCounterTitle'),
+                t('settings.resetSwipeCounterMessage'),
+                [
+                  { text: t('common.cancel'), style: 'cancel' },
+                  { 
+                    text: t('settings.resetSwipeCounterConfirm'), 
+                    style: 'destructive',
+                    onPress: async () => {
+                      await resetSwipeCounts();
+                      Alert.alert(t('common.success'), t('settings.resetSwipeCounterSuccess'));
+                    }
+                  }
+                ]
+              );
+            }}
+          >
+            <Ionicons name="refresh-outline" size={24} color={COLORS.primary} style={styles.settingIcon} />
+            <View style={styles.settingTextContainer}>
+              <Text style={styles.settingLabel}>{t('settings.resetSwipeCounter')}</Text>
+              <Text style={styles.settingDescription}>
+                {t('settings.resetSwipeCounterDescription')}
+              </Text>
+            </View>
           </TouchableOpacity>
         </View>
 

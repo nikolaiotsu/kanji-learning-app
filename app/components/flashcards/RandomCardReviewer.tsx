@@ -12,6 +12,7 @@ import { COLORS } from '../../constants/colors';
 import MultiDeckSelector from './MultiDeckSelector';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../context/AuthContext';
+import { useSwipeCounter } from '../../context/SwipeCounterContext';
 import { useNetworkState } from '../../services/networkManager';
 import OfflineBanner from '../shared/OfflineBanner';
 import { registerSyncCallback, unregisterSyncCallback } from '../../services/syncManager';
@@ -38,6 +39,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { incrementRightSwipe, incrementLeftSwipe } = useSwipeCounter();
   const { isConnected } = useNetworkState();
   const {
     currentCard,
@@ -505,6 +507,15 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     }
     setIsProcessing(true);
     
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    // Increment swipe counters
+    if (direction === 'left') {
+      incrementLeftSwipe();
+    } else {
+      incrementRightSwipe();
+    }
+    
     // Trigger the light animation if a callback was provided
     if (onCardSwipe) {
       onCardSwipe();
@@ -556,6 +567,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
 
   // Manual button handler to restart review without double initialization
   const onReviewAgain = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     // Restart review session using currently filtered cards to avoid duplicate random selections
     startReviewWithCards(filteredCards);
   };

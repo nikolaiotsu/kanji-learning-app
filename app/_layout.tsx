@@ -7,6 +7,7 @@ import SettingsProvider from './context/SettingsContext';
 import { SubscriptionProvider } from './context/SubscriptionContext';
 import { OCRCounterProvider } from './context/OCRCounterContext';
 import { FlashcardCounterProvider } from './context/FlashcardCounterContext';
+import { SwipeCounterProvider } from './context/SwipeCounterContext';
 import AuthGuard from './components/auth/AuthGuard';
 import { StyleSheet, View, Text, ActivityIndicator, LogBox } from 'react-native';
 import { COLORS } from './constants/colors';
@@ -110,7 +111,8 @@ export default function RootLayout() {
             <SubscriptionProvider>
               <OCRCounterProvider>
                 <FlashcardCounterProvider>
-                  <AuthGuard>
+                  <SwipeCounterProvider>
+                    <AuthGuard>
                 <Stack 
                   screenOptions={{
                     headerShown: true,
@@ -150,7 +152,8 @@ export default function RootLayout() {
                   <Stack.Screen name="signup" options={{ title: 'Sign Up', headerShown: false }} />
                   <Stack.Screen name="reset-password" options={{ title: 'Reset Password' }} />
                 </Stack>
-                  </AuthGuard>
+                    </AuthGuard>
+                  </SwipeCounterProvider>
                 </FlashcardCounterProvider>
               </OCRCounterProvider>
             </SubscriptionProvider>

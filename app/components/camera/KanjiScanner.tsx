@@ -11,6 +11,7 @@ import { useKanjiRecognition } from '../../hooks/useKanjiRecognition';
 import { useAuth } from '../../context/AuthContext';
 import { useOCRCounter } from '../../context/OCRCounterContext';
 import { useFlashcardCounter } from '../../context/FlashcardCounterContext';
+import { useSwipeCounter } from '../../context/SwipeCounterContext';
 import { useSettings, DETECTABLE_LANGUAGES } from '../../context/SettingsContext';
 import { useNetworkState } from '../../services/networkManager';
 import { COLORS } from '../../constants/colors';
@@ -33,6 +34,7 @@ import { useWalkthrough, WalkthroughStep } from '../../hooks/useWalkthrough';
 import { ensureMeasuredThenAdvance, measureButton } from '../../utils/walkthroughUtils';
 
 import { logger } from '../../utils/logger';
+import * as Haptics from 'expo-haptics';
 interface KanjiScannerProps {
   onCardSwipe?: () => void;
   onContentReady?: (isReady: boolean) => void;
@@ -124,6 +126,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
   const { recognizeKanji, isProcessing, error } = useKanjiRecognition();
   const { incrementOCRCount, canPerformOCR, remainingScans } = useOCRCounter();
   const { canCreateFlashcard, remainingFlashcards } = useFlashcardCounter();
+  const { rightSwipeCount, leftSwipeCount } = useSwipeCounter();
   const { purchaseSubscription } = useSubscription();
   const { forcedDetectionLanguage } = useSettings();
   const { isConnected } = useNetworkState();
@@ -502,6 +505,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   };
 
   const toggleSettingsMenu = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSettingsMenuVisible(!settingsMenuVisible);
   };
 
@@ -2082,6 +2086,21 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 </TouchableOpacity>
               </WalkthroughTarget>
               
+              {/* Swipe Counter Badges */}
+              {!capturedImage && (
+                <View style={styles.swipeCounterContainer}>
+                  {/* Left Swipe Counter (Orange) */}
+                  <View style={[styles.swipeCounter, styles.swipeCounterLeft]}>
+                    <Text style={styles.swipeCounterText}>{leftSwipeCount}</Text>
+                  </View>
+                  
+                  {/* Right Swipe Counter (Green) */}
+                  <View style={[styles.swipeCounter, styles.swipeCounterRight]}>
+                    <Text style={styles.swipeCounterText}>{rightSwipeCount}</Text>
+                  </View>
+                </View>
+              )}
+              
               {settingsMenuVisible && (
                 <>
                   <TouchableOpacity 
@@ -2145,8 +2164,9 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                     ? '#FFFF00' // Bright yellow for highlighted
                     : isWalkthroughActive 
                     ? '#CCCCCC' // Light grey for non-highlighted during walkthrough
-                    : undefined
+                    : 'black' // Black icon color
                 }
+                color="rgba(128, 128, 128, 0.5)" // Translucent grey background
                 size="medium"
                 shape="square"
                 style={styles.rowButton}
@@ -2169,8 +2189,9 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                     ? '#FFFF00' // Bright yellow for highlighted
                     : isWalkthroughActive 
                     ? '#CCCCCC' // Light grey for non-highlighted during walkthrough
-                    : undefined
+                    : 'black' // Black icon color
                 }
+                color="rgba(128, 128, 128, 0.5)" // Translucent grey background
                 size="medium"
                 shape="square"
                 style={styles.rowButton}
@@ -2196,8 +2217,9 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                     ? '#FFFF00' // Bright yellow for highlighted
                     : isWalkthroughActive 
                     ? '#CCCCCC' // Light grey for non-highlighted during walkthrough
-                    : undefined
+                    : 'black' // Black icon color
                 }
+                color="rgba(128, 128, 128, 0.5)" // Translucent grey background
                 size="medium"
                 shape="square"
                 style={styles.rowButton}
@@ -2225,6 +2247,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                       ? '#FFFF00' // Bright yellow for highlighted
                       : '#CCCCCC' // Light grey for non-highlighted during walkthrough
                   }
+                  color="rgba(128, 128, 128, 0.5)" // Translucent grey background
                   size="medium"
                   shape="square"
                   style={styles.rowButton}
@@ -2234,6 +2257,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 <PokedexButton
                   onPress={() => {}} // No action when disabled
                   icon="lock-closed"
+                  color="rgba(128, 128, 128, 0.5)" // Translucent grey background
+                  iconColor="black" // Black icon color
                   size="medium"
                   shape="square"
                   style={styles.rowButton}
@@ -2271,8 +2296,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
         <PokedexButton
           onPress={handleCancel}
           icon="arrow-back"
-          iconColor={COLORS.text}
-          color={COLORS.secondary}
+          iconColor="white" // White icon color
+          color="rgba(255, 149, 0, 0.5)" // Translucent orange background
           size="small"
           shape="square"
           style={styles.toolbarFarButton}
@@ -2292,16 +2317,22 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                   <PokedexButton
                     onPress={handleBackToPreviousImage}
                     icon="arrow-undo"
+                    iconColor={(imageHistory.length === 0 || localProcessing || isImageProcessing) ? '#888888' : 'black'}
+                    color="rgba(128, 128, 128, 0.5)"
                     size="small"
                     shape="square"
                     disabled={imageHistory.length === 0 || localProcessing || isImageProcessing}
+                    darkDisabled={imageHistory.length === 0 || localProcessing || isImageProcessing}
                   />
                   <PokedexButton
                     onPress={handleForwardToNextImage}
                     icon="arrow-redo"
+                    iconColor={(forwardHistory.length === 0 || localProcessing || isImageProcessing) ? '#888888' : 'black'}
+                    color="rgba(128, 128, 128, 0.5)"
                     size="small"
                     shape="square"
                     disabled={forwardHistory.length === 0 || localProcessing || isImageProcessing}
+                    darkDisabled={forwardHistory.length === 0 || localProcessing || isImageProcessing}
                   />
                 </View>
               )}
@@ -2325,8 +2356,9 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                         iconColor={
                           isWalkthroughActive
                             ? (currentStep?.id === 'highlight' ? '#FFFF00' : '#CCCCCC')
-                            : undefined
+                            : 'black' // Black icon color
                         }
+                        color="rgba(128, 128, 128, 0.5)" // Translucent grey background
                         size="small"
                         shape="square"
                         disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'highlight')}
@@ -2346,8 +2378,9 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                         iconColor={
                           isWalkthroughActive
                             ? (currentStep?.id === 'crop' ? '#FFFF00' : '#CCCCCC')
-                            : undefined
+                            : 'black' // Black icon color
                         }
+                        color="rgba(128, 128, 128, 0.5)" // Translucent grey background
                         size="small"
                         shape="square"
                         disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'crop')}
@@ -2367,8 +2400,9 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                         iconColor={
                           isWalkthroughActive
                             ? (currentStep?.id === 'rotate' ? '#FFFF00' : '#CCCCCC')
-                            : undefined
+                            : 'black' // Black icon color
                         }
+                        color="rgba(128, 128, 128, 0.5)" // Translucent grey background
                         size="small"
                         shape="square"
                         disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'rotate')}
@@ -2383,6 +2417,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                     <PokedexButton
                       onPress={cancelActiveMode} 
                       icon="close"
+                      iconColor="black"
+                      color="rgba(128, 128, 128, 0.5)"
                       size="small"
                       shape="square"
                       disabled={localProcessing || isImageProcessing}
@@ -2393,6 +2429,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                         <PokedexButton
                           onPress={discardHighlightSelection} 
                           icon="refresh-outline" 
+                          iconColor="black"
+                          color="rgba(128, 128, 128, 0.5)"
                           size="small"
                           shape="square"
                           disabled={localProcessing || isImageProcessing}
@@ -2411,8 +2449,9 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                             iconColor={
                               isWalkthroughActive
                                 ? (currentStep?.id === 'confirm-highlight' ? '#FFFF00' : '#CCCCCC')
-                                : undefined
+                                : 'black'
                             }
+                            color="rgba(128, 128, 128, 0.5)"
                             size="small"
                             shape="square"
                             disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'confirm-highlight')}
@@ -2426,6 +2465,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                         <PokedexButton
                           onPress={discardCropSelection}
                           icon="refresh-outline" 
+                          iconColor="black"
+                          color="rgba(128, 128, 128, 0.5)"
                           size="small"
                           shape="square"
                           disabled={localProcessing || isImageProcessing}
@@ -2433,6 +2474,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                         <PokedexButton
                           onPress={confirmCrop}
                           icon="checkmark"
+                          iconColor="black"
+                          color="rgba(128, 128, 128, 0.5)"
                           size="small"
                           shape="square"
                           disabled={localProcessing || isImageProcessing}
@@ -2447,6 +2490,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                           <PokedexButton
                             onPress={handleUndoRotation}
                             icon="arrow-undo"
+                            iconColor="black"
+                            color="rgba(128, 128, 128, 0.5)"
                             size="small"
                             shape="square"
                           disabled={localProcessing || isImageProcessing}
@@ -2456,6 +2501,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                           <PokedexButton
                             onPress={handleRedoRotation}
                             icon="arrow-redo"
+                            iconColor="black"
+                            color="rgba(128, 128, 128, 0.5)"
                             size="small"
                             shape="square"
                           disabled={localProcessing || isImageProcessing}
@@ -2465,6 +2512,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                           <PokedexButton
                             onPress={handleConfirmRotation}
                             icon="checkmark"
+                            iconColor="black"
+                            color="rgba(128, 128, 128, 0.5)"
                             size="small"
                             shape="square"
                             disabled={localProcessing || isImageProcessing}
@@ -2663,6 +2712,34 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     color: 'white',
     marginLeft: 8,
     fontWeight: '500',
+  },
+  swipeCounterContainer: {
+    position: 'absolute',
+    top: reviewerTopOffset + 10, // Align with header (50px + 10px containerPaddingTop)
+    right: 27, // Align with flip and image buttons (15px padding + 12px button right)
+    flexDirection: 'row',
+    gap: 8,
+    zIndex: 900, // Above reviewer container (900 vs 800)
+    alignItems: 'center',
+    height: 45, // Match header height (45px) to center vertically with collections button
+  },
+  swipeCounter: {
+    padding: 10,
+    borderRadius: 10,
+    minWidth: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  swipeCounterLeft: {
+    backgroundColor: 'rgba(255, 149, 0, 0.5)', // Translucent orange
+  },
+  swipeCounterRight: {
+    backgroundColor: 'rgba(76, 217, 100, 0.5)', // Translucent green
+  },
+  swipeCounterText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   buttonIcon: {
     marginRight: 8,

@@ -573,18 +573,8 @@ export default function LanguageFlashcardsScreen() {
   const handleSaveEdit = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowEditModal(false);
-    setIsManualOperation(false); // Reset manual operation flag
-    
-    // Clear the temporary state since user is committing to the new text
-    setPreviousTranslatedText('');
-    setPreviousFuriganaText('');
-    setPreviousTextProcessed(false);
-    
-    // Now process the edited text with Claude
-    processTextWithClaude(editedText);
-    
-    // Walkthrough will automatically advance to save-button step after translation completes
-    // via the useEffect that monitors textProcessed state
+    // Text is already updated via setEditedText in the TextInput onChange
+    // User can now choose to translate manually with one of the buttons
   };
 
   // Function to handle editing input and retranslating
@@ -737,7 +727,7 @@ export default function LanguageFlashcardsScreen() {
               >
                 <View style={styles.dualIconContainer}>
                   <FontAwesome5 
-                    name="magic" 
+                    name="microscope" 
                     size={16} 
                     color="#ffffff" 
                   />
