@@ -432,7 +432,7 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={20} color={COLORS.darkGray} />
           </TouchableOpacity>
 
-          {/* Reset Best Practice Counter Button */}
+          {/* Reset Cards Remembered Counter Button */}
           <TouchableOpacity
             style={styles.settingItem}
             onPress={() => {

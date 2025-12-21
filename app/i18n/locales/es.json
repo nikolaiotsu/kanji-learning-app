@@ -211,10 +211,12 @@
   },
   "review": {
     "remaining": "{{count}} restantes - desliza ← para revisar de nuevo - desliza → para descartar",
+    "reviewMode": "Revisar",
+    "browseCount": "{{count}} tarjetas",
     "nothingToReview": "Nada que revisar",
     "scanText": "¡Escanea texto para agregar a tu colección!",
     "finishedReview": "¡Has terminado tu revisión!",
-    "reviewAgain": "Revisar de nuevo",
+    "reviewAgain": "Actualizar mazo",
     "selectCollections": "Colecciones",
     "collections": "Colecciones",
     "selectCollectionsToReview": "Seleccionar colecciones para revisar",

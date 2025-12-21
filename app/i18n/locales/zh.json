@@ -207,10 +207,12 @@
   },
   "review": {
     "remaining": "剩余{{count}}张 - ← 滑动再次复习 - → 滑动继续",
+    "reviewMode": "复习",
+    "browseCount": "{{count}}张卡片",
     "nothingToReview": "没有需要复习的内容",
     "scanText": "去扫描一些文本添加到您的收藏集！",
     "finishedReview": "您已完成复习！",
-    "reviewAgain": "再次复习",
+    "reviewAgain": "刷新牌组",
     "selectCollections": "收藏集",
     "collections": "收藏集",
     "selectCollectionsToReview": "选择要复习的收藏集",

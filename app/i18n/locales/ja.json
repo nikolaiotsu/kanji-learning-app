@@ -210,10 +210,12 @@
   },
   "review": {
     "remaining": "残り{{count}}枚 - 左スワイプでもう一度復習 - 右スワイプで進む",
+    "reviewMode": "復習",
+    "browseCount": "{{count}}枚のカード",
     "nothingToReview": "復習するものがありません",
     "scanText": "テキストをスキャンしてコレクションに追加してください！",
     "finishedReview": "復習が完了しました！",
-    "reviewAgain": "再度復習",
+    "reviewAgain": "デッキを更新",
     "selectCollections": "コレクション",
     "collections": "コレクション",
     "selectCollectionsToReview": "復習するコレクションを選択",

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, Dimensions, Animated, ScrollView, LayoutChangeEvent, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, Dimensions, Animated, ScrollView, LayoutChangeEvent, Image, ActivityIndicator, Easing } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Flashcard } from '../../types/Flashcard';
 import { Ionicons, MaterialIcons, FontAwesome5, FontAwesome6 } from '@expo/vector-icons';
@@ -28,6 +28,7 @@ interface FlashcardItemProps {
   cardHeight?: number; // Optional responsive card height (defaults to 300 if not provided)
   showRefreshButton?: boolean; // Show refresh button next to image toggle in saved flashcards mode
   isOnline?: boolean; // Whether the app is online (disables write operations when offline)
+  isReviewModeActive?: boolean; // Whether review mode is active (for rainbow border effect)
 }
 
 const FlashcardItem: React.FC<FlashcardItemProps> = ({ 
@@ -41,13 +42,50 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   disableTouchHandling = false,
   cardHeight = 300, // Sensible default for saved-flashcards page
   showRefreshButton = false,
-  isOnline = true // Default to true for backward compatibility
+  isOnline = true, // Default to true for backward compatibility
+  isReviewModeActive = false, // Default to false
 }) => {
   const { t } = useTranslation();
   const { targetLanguage } = useSettings();
   const { user } = useAuth();
   const [isFlipped, setIsFlipped] = useState(false);
   const flipAnim = useRef(new Animated.Value(0)).current;
+  
+  // Rainbow border animation
+  const rainbowAnim = useRef(new Animated.Value(0)).current;
+  
+  useEffect(() => {
+    if (isReviewModeActive) {
+      // Start rainbow animation
+      const loop = Animated.loop(
+        Animated.timing(rainbowAnim, {
+          toValue: 1,
+          duration: 2000,
+          easing: Easing.linear,
+          useNativeDriver: false,
+        })
+      );
+      loop.start();
+      return () => {
+        loop.stop();
+        rainbowAnim.setValue(0);
+      };
+    }
+  }, [isReviewModeActive, rainbowAnim]);
+  
+  // Interpolate rainbow colors
+  const rainbowColor = rainbowAnim.interpolate({
+    inputRange: [0, 0.17, 0.33, 0.5, 0.67, 0.83, 1],
+    outputRange: [
+      '#FF0000', // Red
+      '#FF7F00', // Orange
+      '#FFFF00', // Yellow
+      '#00FF00', // Green
+      '#0000FF', // Blue
+      '#4B0082', // Indigo
+      '#FF0000', // Back to Red (loop)
+    ],
+  });
   
   // Create styles with responsive card height
   const styles = React.useMemo(() => createStyles(cardHeight), [cardHeight]);
@@ -450,12 +488,17 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
         />
       )}
       
-      <View style={[
+      <Animated.View style={[
         styles.cardWrapper,
-        showImage && flashcard.imageUrl ? styles.expandedCardWrapper : null
+        showImage && flashcard.imageUrl ? styles.expandedCardWrapper : null,
+        isReviewModeActive && { borderColor: rainbowColor, borderWidth: 1, borderRadius: 16 }
       ]}>
         {/* Front of the card */}
-        <Animated.View style={[styles.cardContent, styles.cardSide, frontAnimatedStyle]}>
+        <Animated.View style={[
+          styles.cardContent, 
+          styles.cardSide, 
+          frontAnimatedStyle
+        ]}>
           <View style={styles.cardFront}>
             <ScrollView 
               ref={frontScrollViewRef}
@@ -537,7 +580,11 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
         </Animated.View>
 
         {/* Back of the card */}
-        <Animated.View style={[styles.cardContent, styles.cardSide, backAnimatedStyle]}>
+        <Animated.View style={[
+          styles.cardContent, 
+          styles.cardSide, 
+          backAnimatedStyle
+        ]}>
           <View style={styles.cardBack}>
             <ScrollView 
               ref={backScrollViewRef}
@@ -696,7 +743,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
             </ScrollView>
           </View>
         </Animated.View>
-      </View>
+      </Animated.View>
       
       {/* Card Actions */}
       <View style={styles.actionButtonsContainer}>
@@ -797,6 +844,8 @@ const createStyles = (responsiveCardHeight: number) => StyleSheet.create({
     backgroundColor: COLORS.darkSurface,
     position: 'relative',
     zIndex: 2, // Above the backdrop overlay (zIndex: 1)
+    borderWidth: 1,
+    borderColor: COLORS.royalBlue,
   },
   expandedCardWrapper: {
     minHeight: Math.min(responsiveCardHeight * 1.8, 650), // Scale expanded height proportionally
@@ -811,8 +860,6 @@ const createStyles = (responsiveCardHeight: number) => StyleSheet.create({
     overflow: 'hidden',
     backfaceVisibility: 'hidden',
     backgroundColor: COLORS.darkSurface,
-    borderWidth: 1,
-    borderColor: COLORS.royalBlue,
   },
   cardSide: {
     width: '100%',

@@ -39,7 +39,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { incrementRightSwipe, incrementLeftSwipe } = useSwipeCounter();
+  const { incrementRightSwipe, incrementLeftSwipe, setDeckCardIds } = useSwipeCounter();
   const { isConnected } = useNetworkState();
   const {
     currentCard,
@@ -110,6 +110,16 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     onContentReadyRef.current = onContentReady;
   }, [onContentReady]);
   
+  // Track the currently displayed card ID in a ref for swipe tracking
+  useEffect(() => {
+    if (currentCard?.id) {
+      currentDisplayedCardIdRef.current = currentCard.id;
+    } else {
+      // Clear the ref when there's no current card
+      currentDisplayedCardIdRef.current = null;
+    }
+  }, [currentCard]);
+  
   // Fade animation for smooth transitions
   const fadeAnim = useRef(new Animated.Value(0)).current;
   
@@ -127,6 +137,16 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const [isImageExpanded, setIsImageExpanded] = useState(false);
   // Track the last card ID to prevent duplicate transitions
   const [lastCardId, setLastCardId] = useState<string | null>(null);
+  // Track current displayed card ID for swipe tracking
+  const currentDisplayedCardIdRef = useRef<string | null>(null);
+  // Review Mode state - false = Browse Mode (default), true = Review Mode
+  const [isReviewModeActive, setIsReviewModeActive] = useState(false);
+  const isReviewModeActiveRef = useRef(isReviewModeActive);
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    isReviewModeActiveRef.current = isReviewModeActive;
+  }, [isReviewModeActive]);
   
   // Animation values - Initialize with proper starting values
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -218,6 +238,15 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       logger.log('🔍 [Component] Filtering cards for operation:', currentOpId, 'selectedDecks:', selectedDeckIds.length);
       
       if (selectedDeckIds.length > 0) {
+        // COLD START PROTECTION: On initial load, wait briefly for cache to initialize
+        // This prevents the race condition where deck IDs load before cache is populated
+        if (isInitializing && allFlashcards.length === 0 && loadingState === LoadingState.CONTENT_READY) {
+          logger.log('🔄 [Component] Cold start detected, waiting for cache initialization...');
+          // Give cache a brief moment to populate (100ms should be enough)
+          await new Promise(resolve => setTimeout(resolve, 100));
+          // Continue regardless - if still empty, user might genuinely have 0 cards
+        }
+        
         // Fetch cards for selected decks
         try {
           const cards = await getFlashcardsByDecks(selectedDeckIds);
@@ -267,6 +296,32 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
 
     filterCards();
   }, [selectedDeckIds, allFlashcards, deckIdsLoaded, user?.id, isConnected]);
+
+  // Create stable card IDs string that only changes when actual IDs change
+  const cardIdsString = useMemo(() => {
+    // Handle edge case: empty or undefined
+    if (!filteredCards || filteredCards.length === 0) {
+      return '';
+    }
+    
+    // Create sorted, deduplicated array of IDs
+    const uniqueIds = Array.from(new Set(filteredCards.map(card => card.id)));
+    return uniqueIds.sort().join(',');
+  }, [filteredCards]);
+
+  // Track previous value to prevent unnecessary updates
+  const prevCardIdsStringRef = useRef<string>('');
+
+  // Only update context when card IDs actually change
+  useEffect(() => {
+    if (cardIdsString !== prevCardIdsStringRef.current) {
+      prevCardIdsStringRef.current = cardIdsString;
+      
+      // Extract card IDs from filteredCards (handles empty case)
+      const cardIds = filteredCards?.map(card => card.id) || [];
+      setDeckCardIds(cardIds);
+    }
+  }, [cardIdsString, filteredCards, setDeckCardIds]);
 
   // Update selected deck IDs (user-specific)
   const updateSelectedDeckIds = async (deckIds: string[]) => {
@@ -507,13 +562,21 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     }
     setIsProcessing(true);
     
+    // Capture the current card ID from the ref (which is updated immediately when card changes)
+    const cardIdToTrack = currentDisplayedCardIdRef.current;
+    
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
-    // Increment swipe counters
-    if (direction === 'left') {
-      incrementLeftSwipe();
-    } else {
-      incrementRightSwipe();
+    // Increment swipe counters only in Review Mode
+    if (isReviewModeActiveRef.current) {
+      if (direction === 'left') {
+        incrementLeftSwipe();
+      } else {
+        // Pass the current card ID to track unique right swipes
+        if (cardIdToTrack) {
+          incrementRightSwipe(cardIdToTrack);
+        }
+      }
     }
     
     // Trigger the light animation if a callback was provided
@@ -596,6 +659,13 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         return;
       }
       
+      // CRITICAL FIX: Don't initialize with 0 cards if we're still loading
+      // Only proceed if hook is truly ready with CONTENT_READY state
+      if (filteredCards.length === 0 && loadingState !== LoadingState.CONTENT_READY) {
+        logger.log('🔄 [Component] Waiting for cards to load (filtered: 0, loadingState:', loadingState, ')');
+        return;
+      }
+      
       // If hook is ready but we have no flashcards at all, mark initialization as complete
       if (loadingState === LoadingState.CONTENT_READY && allFlashcards.length === 0 && filteredCards.length === 0 && isInitializing) {
         logger.log('🔄 [Component] Hook ready with 0 cards, completing initialization');
@@ -606,7 +676,10 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       
       // Prevent multiple initialization calls for the same cards
       const cardsHash = filteredCards.map(card => card.id).sort().join(',');
-      if (initializationInProgressRef.current || cardsHash === lastFilteredCardsHashRef.current) {
+      // CRITICAL FIX: Don't treat empty hash as a "duplicate" - it means we're waiting for cards to load
+      // Only skip if we actually have cards and they're the same as before
+      const isEmptyHash = cardsHash === '';
+      if (initializationInProgressRef.current || (!isEmptyHash && cardsHash === lastFilteredCardsHashRef.current)) {
         logger.log('🔄 [Component] Skipping duplicate initialization - inProgress:', initializationInProgressRef.current, 'sameCards:', cardsHash === lastFilteredCardsHashRef.current, 'Op:', currentDeckSelectionRef.current);
         return;
       }
@@ -654,6 +727,14 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     
     initializeReviewSession();
   }, [filteredCards, deckIdsLoaded, startReviewWithCards, loadingState, allFlashcards.length, isInitializing]);
+
+  // Automatically disable review mode when session finishes
+  useEffect(() => {
+    if (isSessionFinished && isReviewModeActive) {
+      logger.log('🔄 [Component] Session finished, disabling review mode');
+      setIsReviewModeActive(false);
+    }
+  }, [isSessionFinished, isReviewModeActive]);
 
   // Handle deck selection with cancellation-based approach for rapid selections
   const handleDeckSelection = useCallback(async (deckIds: string[]) => {
@@ -798,6 +879,33 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               </Text>
           </TouchableOpacity>
           </View>
+          
+          {/* Review Mode Toggle */}
+          <TouchableOpacity
+            style={[
+              styles.reviewModeButton,
+              isReviewModeActive && styles.reviewModeButtonActive,
+              styles.deckButtonDisabled
+            ]}
+            disabled={true}
+          >
+            <Ionicons 
+              name={isReviewModeActive ? "school" : "school-outline"} 
+              size={18} 
+              color={isReviewModeActive ? COLORS.text : COLORS.primary}
+            />
+            <Text 
+              style={[
+                styles.reviewModeButtonText,
+                isReviewModeActive && styles.reviewModeButtonTextActive
+              ]}
+            >
+              {t('review.reviewMode')}
+            </Text>
+          </TouchableOpacity>
+          
+          {/* Offline Indicator */}
+          <OfflineBanner visible={!isConnected} />
         </View>
         <LoadingCard />
         <View style={styles.controlsContainer}>
@@ -867,6 +975,35 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 </Text>
             </TouchableOpacity>
             </View>
+            
+            {/* Review Mode Toggle */}
+            <TouchableOpacity
+              style={[
+                styles.reviewModeButton,
+                isReviewModeActive && styles.reviewModeButtonActive,
+              ]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setIsReviewModeActive(!isReviewModeActive);
+              }}
+            >
+              <Ionicons 
+                name={isReviewModeActive ? "school" : "school-outline"} 
+                size={18} 
+                color={isReviewModeActive ? COLORS.text : COLORS.primary}
+              />
+              <Text 
+                style={[
+                  styles.reviewModeButtonText,
+                  isReviewModeActive && styles.reviewModeButtonTextActive
+                ]}
+              >
+                {t('review.reviewMode')}
+              </Text>
+            </TouchableOpacity>
+            
+            {/* Offline Indicator */}
+            <OfflineBanner visible={!isConnected} />
           </View>
           <View style={styles.cardStage}>
             <View style={styles.noCardsContainer}>
@@ -954,6 +1091,35 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 </Text>
             </TouchableOpacity>
             </View>
+            
+            {/* Review Mode Toggle */}
+            <TouchableOpacity
+              style={[
+                styles.reviewModeButton,
+                isReviewModeActive && styles.reviewModeButtonActive,
+              ]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setIsReviewModeActive(!isReviewModeActive);
+              }}
+            >
+              <Ionicons 
+                name={isReviewModeActive ? "school" : "school-outline"} 
+                size={18} 
+                color={isReviewModeActive ? COLORS.text : COLORS.primary}
+              />
+              <Text 
+                style={[
+                  styles.reviewModeButtonText,
+                  isReviewModeActive && styles.reviewModeButtonTextActive
+                ]}
+              >
+                {t('review.reviewMode')}
+              </Text>
+            </TouchableOpacity>
+            
+            {/* Offline Indicator */}
+            <OfflineBanner visible={!isConnected} />
           </View>
           <View style={styles.cardStage}>
             <View style={styles.noCardsContainer}>
@@ -1020,6 +1186,34 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         </TouchableOpacity>
         </View>
         
+        {/* Review Mode Toggle */}
+        <TouchableOpacity
+          style={[
+            styles.reviewModeButton,
+            isReviewModeActive && styles.reviewModeButtonActive,
+            (!isWalkthroughActive && (isCardTransitioning || isInitializing)) && styles.deckButtonDisabled
+          ]}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setIsReviewModeActive(!isReviewModeActive);
+          }}
+          disabled={isCardTransitioning || isInitializing}
+        >
+          <Ionicons 
+            name={isReviewModeActive ? "school" : "school-outline"} 
+            size={18} 
+            color={isReviewModeActive ? COLORS.text : COLORS.primary}
+          />
+          <Text 
+            style={[
+              styles.reviewModeButtonText,
+              isReviewModeActive && styles.reviewModeButtonTextActive
+            ]}
+          >
+            {t('review.reviewMode')}
+          </Text>
+        </TouchableOpacity>
+        
         {/* Offline Indicator - compact square next to Collections button */}
         <OfflineBanner visible={!isConnected} />
       </View>
@@ -1054,29 +1248,34 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 onImageToggle={(showImage) => {
                   setIsImageExpanded(showImage);
                 }}
+                isReviewModeActive={isReviewModeActive}
               />
-              {/* Right swipe overlay - Green with checkmark */}
-              <Animated.View 
-                style={[
-                  styles.swipeOverlay,
-                  styles.swipeOverlayRight,
-                  { opacity: rightSwipeOpacity }
-                ]}
-                pointerEvents="none"
-              >
-                <Ionicons name="checkmark-circle" size={80} color={COLORS.text} />
-              </Animated.View>
-              {/* Left swipe overlay - Orange with loop/replay */}
-              <Animated.View 
-                style={[
-                  styles.swipeOverlay,
-                  styles.swipeOverlayLeft,
-                  { opacity: leftSwipeOpacity }
-                ]}
-                pointerEvents="none"
-              >
-                <Ionicons name="refresh" size={80} color={COLORS.text} />
-              </Animated.View>
+              {/* Right swipe overlay - Green with checkmark - Only show in Review Mode */}
+              {isReviewModeActive && (
+                <Animated.View 
+                  style={[
+                    styles.swipeOverlay,
+                    styles.swipeOverlayRight,
+                    { opacity: rightSwipeOpacity }
+                  ]}
+                  pointerEvents="none"
+                >
+                  <Ionicons name="checkmark-circle" size={80} color={COLORS.text} />
+                </Animated.View>
+              )}
+              {/* Left swipe overlay - Orange with loop/replay - Only show in Review Mode */}
+              {isReviewModeActive && (
+                <Animated.View 
+                  style={[
+                    styles.swipeOverlay,
+                    styles.swipeOverlayLeft,
+                    { opacity: leftSwipeOpacity }
+                  ]}
+                  pointerEvents="none"
+                >
+                  <Ionicons name="refresh" size={80} color={COLORS.text} />
+                </Animated.View>
+              )}
             </View>
           </Animated.View>
         ) : isInitializing ? (
@@ -1155,6 +1354,29 @@ const createStyles = (
     marginLeft: 4,
     fontWeight: '500',
     zIndex: 1001, // Ensure text is above the yellow background
+  },
+  reviewModeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    marginLeft: 8, // Space between Collections button and Review Mode button
+    zIndex: 1001,
+    position: 'relative',
+    elevation: 13,
+  },
+  reviewModeButtonActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  reviewModeButtonText: {
+    color: COLORS.primary,
+    marginLeft: 4,
+    fontWeight: '500',
+    zIndex: 1001,
+  },
+  reviewModeButtonTextActive: {
+    color: COLORS.text,
   },
   highlightedCollectionsButtonWrapper: {
     borderRadius: 11, // Slightly larger to accommodate padding

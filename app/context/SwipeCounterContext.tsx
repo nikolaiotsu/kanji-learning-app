@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { logger } from '../utils/logger';
@@ -6,15 +6,19 @@ import { logger } from '../utils/logger';
 interface SwipeCounterData {
   rightSwipeCount: number;
   leftSwipeCount: number;
+  swipedRightCardIds: string[]; // Track unique card IDs swiped right today
   date: string; // Store as YYYY-MM-DD format for daily reset
 }
 
 interface SwipeCounterContextType {
   rightSwipeCount: number;
   leftSwipeCount: number;
-  incrementRightSwipe: () => Promise<void>;
+  incrementRightSwipe: (cardId: string) => Promise<void>;
   incrementLeftSwipe: () => Promise<void>;
   resetSwipeCounts: () => Promise<void>;
+  deckTotalCards: number;
+  currentDeckSwipedCount: number;
+  setDeckCardIds: (cardIds: string[]) => void;
 }
 
 const SwipeCounterContext = createContext<SwipeCounterContextType | undefined>(undefined);
@@ -31,6 +35,10 @@ const getCurrentDate = (): string => {
 export const SwipeCounterProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [rightSwipeCount, setRightSwipeCount] = useState<number>(0);
   const [leftSwipeCount, setLeftSwipeCount] = useState<number>(0);
+  const [swipedRightCardIds, setSwipedRightCardIds] = useState<string[]>([]);
+  const [currentDeckCardIds, setCurrentDeckCardIds] = useState<string[]>([]);
+  const [deckTotalCards, setDeckTotalCards] = useState<number>(0);
+  const [currentDeckSwipedCount, setCurrentDeckSwipedCount] = useState<number>(0);
 
   // Load swipe counter from AsyncStorage on mount
   useEffect(() => {
@@ -45,10 +53,12 @@ export const SwipeCounterProvider: React.FC<{ children: React.ReactNode }> = ({ 
           if (data.date === currentDate) {
             setRightSwipeCount(data.rightSwipeCount);
             setLeftSwipeCount(data.leftSwipeCount);
+            setSwipedRightCardIds(data.swipedRightCardIds || []);
           } else {
             // Reset counter if it's a new day
             setRightSwipeCount(0);
             setLeftSwipeCount(0);
+            setSwipedRightCardIds([]);
             await AsyncStorage.removeItem(SWIPE_COUNTER_STORAGE_KEY);
           }
         }
@@ -61,19 +71,42 @@ export const SwipeCounterProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, []);
 
   // Function to increment right swipe count
-  const incrementRightSwipe = async () => {
+  const incrementRightSwipe = async (cardId: string) => {
     try {
       const currentDate = getCurrentDate();
-      const newRightCount = rightSwipeCount + 1;
       
-      const counterData: SwipeCounterData = {
-        rightSwipeCount: newRightCount,
-        leftSwipeCount: leftSwipeCount,
-        date: currentDate
-      };
-      
-      await AsyncStorage.setItem(SWIPE_COUNTER_STORAGE_KEY, JSON.stringify(counterData));
-      setRightSwipeCount(newRightCount);
+      // Check if this card has already been swiped right today
+      setSwipedRightCardIds((prevSwipedIds) => {
+        if (prevSwipedIds.includes(cardId)) {
+          // Card already swiped right today, don't increment counter
+          logger.info('Card already swiped right today, skipping increment:', cardId);
+          return prevSwipedIds;
+        }
+        
+        // New card swiped right, add to tracking array
+        const newSwipedIds = [...prevSwipedIds, cardId];
+        
+        // Increment the counter
+        setRightSwipeCount((prevCount) => {
+          const newRightCount = prevCount + 1;
+          
+          // Save to AsyncStorage with updated card IDs and count
+          const counterData: SwipeCounterData = {
+            rightSwipeCount: newRightCount,
+            leftSwipeCount: leftSwipeCount,
+            swipedRightCardIds: newSwipedIds,
+            date: currentDate
+          };
+          
+          AsyncStorage.setItem(SWIPE_COUNTER_STORAGE_KEY, JSON.stringify(counterData)).catch((error) => {
+            logger.error('Error saving right swipe counter to storage:', error);
+          });
+          
+          return newRightCount;
+        });
+        
+        return newSwipedIds;
+      });
     } catch (error) {
       logger.error('Error incrementing right swipe counter:', error);
     }
@@ -83,16 +116,25 @@ export const SwipeCounterProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const incrementLeftSwipe = async () => {
     try {
       const currentDate = getCurrentDate();
-      const newLeftCount = leftSwipeCount + 1;
       
-      const counterData: SwipeCounterData = {
-        rightSwipeCount: rightSwipeCount,
-        leftSwipeCount: newLeftCount,
-        date: currentDate
-      };
-      
-      await AsyncStorage.setItem(SWIPE_COUNTER_STORAGE_KEY, JSON.stringify(counterData));
-      setLeftSwipeCount(newLeftCount);
+      // Use functional setState to get the current value
+      setLeftSwipeCount((prevCount) => {
+        const newLeftCount = prevCount + 1;
+        
+        // Save to AsyncStorage using rightSwipeCount and swipedRightCardIds from closure
+        const counterData: SwipeCounterData = {
+          rightSwipeCount: rightSwipeCount,
+          leftSwipeCount: newLeftCount,
+          swipedRightCardIds: swipedRightCardIds,
+          date: currentDate
+        };
+        
+        AsyncStorage.setItem(SWIPE_COUNTER_STORAGE_KEY, JSON.stringify(counterData)).catch((error) => {
+          logger.error('Error saving left swipe counter to storage:', error);
+        });
+        
+        return newLeftCount;
+      });
     } catch (error) {
       logger.error('Error incrementing left swipe counter:', error);
     }
@@ -104,10 +146,42 @@ export const SwipeCounterProvider: React.FC<{ children: React.ReactNode }> = ({ 
       await AsyncStorage.removeItem(SWIPE_COUNTER_STORAGE_KEY);
       setRightSwipeCount(0);
       setLeftSwipeCount(0);
+      setSwipedRightCardIds([]);
+      setCurrentDeckSwipedCount(0);
     } catch (error) {
       logger.error('Error resetting swipe counters:', error);
     }
   };
+
+  // Function to set current deck card IDs and calculate stats
+  const setDeckCardIds = useCallback((cardIds: string[]) => {
+    // Handle edge case: null/undefined safety
+    const safeCardIds = cardIds || [];
+    setCurrentDeckCardIds(safeCardIds);
+    setDeckTotalCards(safeCardIds.length);
+  }, []);
+
+  // Recalculate current deck swiped count when swipedRightCardIds or currentDeckCardIds changes
+  useEffect(() => {
+    if (currentDeckCardIds.length === 0) {
+      setCurrentDeckSwipedCount(0);
+      return;
+    }
+
+    // O(1) lookup performance with Set instead of O(n*m) with includes()
+    const deckCardIdsSet = new Set(currentDeckCardIds);
+    const deckSwipedCount = swipedRightCardIds.filter(swipedId => 
+      deckCardIdsSet.has(swipedId)
+    ).length;
+    
+    setCurrentDeckSwipedCount(deckSwipedCount);
+    
+    logger.log('[SwipeCounter] Deck stats updated:', {
+      totalCards: currentDeckCardIds.length,
+      swipedInDeck: deckSwipedCount,
+      totalSwipedToday: swipedRightCardIds.length
+    });
+  }, [swipedRightCardIds, currentDeckCardIds]);
 
   return (
     <SwipeCounterContext.Provider
@@ -117,6 +191,9 @@ export const SwipeCounterProvider: React.FC<{ children: React.ReactNode }> = ({ 
         incrementRightSwipe,
         incrementLeftSwipe,
         resetSwipeCounts,
+        deckTotalCards,
+        currentDeckSwipedCount,
+        setDeckCardIds,
       }}
     >
       {children}

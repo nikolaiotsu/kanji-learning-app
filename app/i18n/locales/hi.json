@@ -207,10 +207,12 @@
   },
   "review": {
     "remaining": "{{count}} शेष - फिर से समीक्षा करने के लिए ← स्वाइप करें - आगे बढ़ने के लिए → स्वाइप करें",
+    "reviewMode": "समीक्षा",
+    "browseCount": "{{count}} कार्ड",
     "nothingToReview": "समीक्षा के लिए कुछ नहीं",
     "scanText": "अपने संग्रह में जोड़ने के लिए कुछ पाठ स्कैन करें!",
     "finishedReview": "आपने अपनी समीक्षा पूरी की है!",
-    "reviewAgain": "फिर से समीक्षा करें",
+    "reviewAgain": "डेक ताज़ा करें",
     "selectCollections": "संग्रह",
     "collections": "संग्रह",
     "selectCollectionsToReview": "समीक्षा के लिए संग्रह चुनें",

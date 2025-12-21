@@ -126,7 +126,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
   const { recognizeKanji, isProcessing, error } = useKanjiRecognition();
   const { incrementOCRCount, canPerformOCR, remainingScans } = useOCRCounter();
   const { canCreateFlashcard, remainingFlashcards } = useFlashcardCounter();
-  const { rightSwipeCount, leftSwipeCount } = useSwipeCounter();
+  const { rightSwipeCount, currentDeckSwipedCount, deckTotalCards, resetSwipeCounts } = useSwipeCounter();
   const { purchaseSubscription } = useSubscription();
   const { forcedDetectionLanguage } = useSettings();
   const { isConnected } = useNetworkState();
@@ -497,6 +497,24 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       logger.error('Error logging out:', error);
       Alert.alert(t('common.error'), t('camera.logoutError'));
     }
+  };
+
+  const handleResetCounter = () => {
+    Alert.alert(
+      t('settings.resetSwipeCounterTitle'),
+      t('settings.resetSwipeCounterMessage'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        { 
+          text: t('settings.resetSwipeCounterConfirm'), 
+          style: 'destructive',
+          onPress: async () => {
+            await resetSwipeCounts();
+            Alert.alert(t('common.success'), t('settings.resetSwipeCounterSuccess'));
+          }
+        }
+      ]
+    );
   };
 
   const handleOpenSettings = () => {
@@ -2087,17 +2105,38 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
               </WalkthroughTarget>
               
               {/* Swipe Counter Badges */}
-              {!capturedImage && (
+              {!capturedImage && !settingsMenuVisible && (
                 <View style={styles.swipeCounterContainer}>
-                  {/* Left Swipe Counter (Orange) */}
-                  <View style={[styles.swipeCounter, styles.swipeCounterLeft]}>
-                    <Text style={styles.swipeCounterText}>{leftSwipeCount}</Text>
-                  </View>
-                  
                   {/* Right Swipe Counter (Green) */}
-                  <View style={[styles.swipeCounter, styles.swipeCounterRight]}>
-                    <Text style={styles.swipeCounterText}>{rightSwipeCount}</Text>
-                  </View>
+                  <TouchableOpacity
+                    onLongPress={handleResetCounter}
+                    activeOpacity={0.7}
+                    style={[
+                      styles.swipeCounter, 
+                      {
+                        backgroundColor: 'rgba(52, 199, 89, 0.5)', // 50% transparent green
+                        padding: 10,
+                        borderRadius: 10,
+                        minWidth: 80,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        overflow: 'hidden',
+                      }
+                    ]}
+                  >
+                    <Text 
+                      allowFontScaling={false}
+                      suppressHighlighting={true}
+                      onLayout={() => console.log('[COUNTER-DEBUG] Text rendered with count:', currentDeckSwipedCount, '/', deckTotalCards)}
+                      style={{
+                        color: '#FFFFFF',
+                        fontSize: 16, // Smaller text size
+                        fontWeight: '900',
+                        opacity: 0.7,
+                        textAlign: 'center',
+                      }}
+                    >{currentDeckSwipedCount}/{deckTotalCards}</Text>
+                  </TouchableOpacity>
                 </View>
               )}
               
@@ -2719,27 +2758,25 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     right: 27, // Align with flip and image buttons (15px padding + 12px button right)
     flexDirection: 'row',
     gap: 8,
-    zIndex: 900, // Above reviewer container (900 vs 800)
+    zIndex: 1600, // Above loading overlay (1500)
     alignItems: 'center',
     height: 45, // Match header height (45px) to center vertically with collections button
   },
   swipeCounter: {
     padding: 10,
     borderRadius: 10,
-    minWidth: 40,
+    minWidth: 80, // Doubled from 40
     alignItems: 'center',
     justifyContent: 'center',
   },
-  swipeCounterLeft: {
-    backgroundColor: 'rgba(255, 149, 0, 0.5)', // Translucent orange
-  },
   swipeCounterRight: {
-    backgroundColor: 'rgba(76, 217, 100, 0.5)', // Translucent green
+    backgroundColor: 'rgba(52, 199, 89, 1.0)', // Fully opaque green
   },
   swipeCounterText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: '#FFFFFF', // Pure white
+    fontSize: 18, // Slightly larger for better visibility
+    fontWeight: '900', // Extra bold
+    opacity: 1, // Explicitly set opacity to 1
   },
   buttonIcon: {
     marginRight: 8,

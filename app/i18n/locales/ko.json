@@ -211,10 +211,12 @@
   },
   "review": {
     "remaining": "{{count}}개 남음 - ← 스와이프하여 다시 복습 - → 스와이프하여 진행",
+    "reviewMode": "복습",
+    "browseCount": "{{count}}개 카드",
     "nothingToReview": "복습할 내용 없음",
     "scanText": "텍스트를 스캔하여 컬렉션에 추가하세요!",
     "finishedReview": "복습을 완료했습니다!",
-    "reviewAgain": "다시 복습",
+    "reviewAgain": "덱 새로고침",
     "selectCollections": "컬렉션",
     "collections": "컬렉션",
     "selectCollectionsToReview": "복습할 컬렉션 선택",

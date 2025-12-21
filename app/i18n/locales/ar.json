@@ -211,10 +211,12 @@
   },
   "review": {
     "remaining": "{{count}} متبقية - اسحب ← للمراجعة مرة أخرى - اسحب → للمتابعة",
+    "reviewMode": "مراجعة",
+    "browseCount": "{{count}} بطاقة",
     "nothingToReview": "لا شيء للمراجعة",
     "scanText": "امسح بعض النصوص لإضافتها إلى مجموعتك!",
     "finishedReview": "لقد أنهيت مراجعتك!",
-    "reviewAgain": "مراجعة مرة أخرى",
+    "reviewAgain": "تحديث المجموعة",
     "selectCollections": "المجموعات",
     "collections": "المجموعات",
     "selectCollectionsToReview": "اختر المجموعات للمراجعة",
