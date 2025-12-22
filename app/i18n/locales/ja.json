@@ -210,7 +210,10 @@
   },
   "review": {
     "remaining": "残り{{count}}枚 - 左スワイプでもう一度復習 - 右スワイプで進む",
+    "srsCounter": "{{reviewed}}/{{due}}({{total}})",
     "reviewMode": "復習",
+    "noCardsDue": "今日復習するカードはありません",
+    "nextReviewDate": "次の復習: {{date}}",
     "browseCount": "{{count}}枚のカード",
     "nothingToReview": "復習するものがありません",
     "scanText": "テキストをスキャンしてコレクションに追加してください！",

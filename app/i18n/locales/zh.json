@@ -207,7 +207,10 @@
   },
   "review": {
     "remaining": "剩余{{count}}张 - ← 滑动再次复习 - → 滑动继续",
+    "srsCounter": "{{reviewed}}/{{due}}({{total}})",
     "reviewMode": "复习",
+    "noCardsDue": "今天没有需要复习的卡片",
+    "nextReviewDate": "下次复习：{{date}}",
     "browseCount": "{{count}}张卡片",
     "nothingToReview": "没有需要复习的内容",
     "scanText": "去扫描一些文本添加到您的收藏集！",

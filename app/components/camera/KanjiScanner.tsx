@@ -2104,42 +2104,6 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 </TouchableOpacity>
               </WalkthroughTarget>
               
-              {/* Swipe Counter Badges */}
-              {!capturedImage && !settingsMenuVisible && (
-                <View style={styles.swipeCounterContainer}>
-                  {/* Right Swipe Counter (Green) */}
-                  <TouchableOpacity
-                    onLongPress={handleResetCounter}
-                    activeOpacity={0.7}
-                    style={[
-                      styles.swipeCounter, 
-                      {
-                        backgroundColor: 'rgba(52, 199, 89, 0.5)', // 50% transparent green
-                        padding: 10,
-                        borderRadius: 10,
-                        minWidth: 80,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        overflow: 'hidden',
-                      }
-                    ]}
-                  >
-                    <Text 
-                      allowFontScaling={false}
-                      suppressHighlighting={true}
-                      onLayout={() => console.log('[COUNTER-DEBUG] Text rendered with count:', currentDeckSwipedCount, '/', deckTotalCards)}
-                      style={{
-                        color: '#FFFFFF',
-                        fontSize: 16, // Smaller text size
-                        fontWeight: '900',
-                        opacity: 0.7,
-                        textAlign: 'center',
-                      }}
-                    >{currentDeckSwipedCount}/{deckTotalCards}</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-              
               {settingsMenuVisible && (
                 <>
                   <TouchableOpacity 
@@ -2755,7 +2719,7 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
   swipeCounterContainer: {
     position: 'absolute',
     top: reviewerTopOffset + 10, // Align with header (50px + 10px containerPaddingTop)
-    right: 27, // Align with flip and image buttons (15px padding + 12px button right)
+    left: 15 + 80 + 8 + 80 + 8 + 20, // Position right after Review button: header padding (15) + Collections button (~80) + margin (8) + Review button (~80) + spacing (8)
     flexDirection: 'row',
     gap: 8,
     zIndex: 1600, // Above loading overlay (1500)

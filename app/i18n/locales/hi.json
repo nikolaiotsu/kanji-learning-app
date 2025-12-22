@@ -207,7 +207,10 @@
   },
   "review": {
     "remaining": "{{count}} शेष - फिर से समीक्षा करने के लिए ← स्वाइप करें - आगे बढ़ने के लिए → स्वाइप करें",
+    "srsCounter": "{{reviewed}}/{{due}}({{total}})",
     "reviewMode": "समीक्षा",
+    "noCardsDue": "आज समीक्षा के लिए कोई कार्ड नहीं",
+    "nextReviewDate": "अगली समीक्षा: {{date}}",
     "browseCount": "{{count}} कार्ड",
     "nothingToReview": "समीक्षा के लिए कुछ नहीं",
     "scanText": "अपने संग्रह में जोड़ने के लिए कुछ पाठ स्कैन करें!",

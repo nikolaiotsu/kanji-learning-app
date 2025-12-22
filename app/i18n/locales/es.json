@@ -211,7 +211,10 @@
   },
   "review": {
     "remaining": "{{count}} restantes - desliza ← para revisar de nuevo - desliza → para descartar",
+    "srsCounter": "{{reviewed}}/{{due}}({{total}})",
     "reviewMode": "Revisar",
+    "noCardsDue": "No hay tarjetas para revisar hoy",
+    "nextReviewDate": "Próxima revisión: {{date}}",
     "browseCount": "{{count}} tarjetas",
     "nothingToReview": "Nada que revisar",
     "scanText": "¡Escanea texto para agregar a tu colección!",

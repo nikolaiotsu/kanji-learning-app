@@ -211,7 +211,10 @@
   },
   "review": {
     "remaining": "{{count}} متبقية - اسحب ← للمراجعة مرة أخرى - اسحب → للمتابعة",
+    "srsCounter": "{{reviewed}}/{{due}}({{total}})",
     "reviewMode": "مراجعة",
+    "noCardsDue": "لا توجد بطاقات للمراجعة اليوم",
+    "nextReviewDate": "المراجعة التالية: {{date}}",
     "browseCount": "{{count}} بطاقة",
     "nothingToReview": "لا شيء للمراجعة",
     "scanText": "امسح بعض النصوص لإضافتها إلى مجموعتك!",

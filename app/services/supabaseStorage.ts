@@ -20,6 +20,7 @@ import { getUserIdOffline } from './offlineAuth';
 import { generatePrivacySafeImageId, sanitizeForLogging } from './privacyService';
 
 import { logger } from '../utils/logger';
+import { calculateNextReviewDate } from '../constants/leitner';
 // Simple UUID generator that doesn't rely on crypto.getRandomValues()
 const generateUUID = (): string => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -71,6 +72,8 @@ const transformFlashcard = (card: any): Flashcard => ({
   deckId: card.deck_id,
   imageUrl: card.image_url || undefined, // Include image URL if available
   scopeAnalysis: card.scope_analysis || undefined, // Include scope analysis if available
+  box: card.box ?? 1, // Default to box 1 if not set (backward compatibility)
+  nextReviewDate: card.next_review_date ? new Date(card.next_review_date) : new Date(), // Default to today if not set
 });
 
 /**
@@ -632,6 +635,12 @@ export const deleteImageFromStorage = async (imageUrl: string): Promise<boolean>
  */
 export const saveFlashcard = async (flashcard: Flashcard, deckId: string): Promise<void> => {
   try {
+    // Use provided box and nextReviewDate, or default to box 1 with today's date
+    const box = flashcard.box ?? 1;
+    const nextReviewDate = flashcard.nextReviewDate 
+      ? flashcard.nextReviewDate.toISOString().split('T')[0] // Convert Date to YYYY-MM-DD format
+      : new Date().toISOString().split('T')[0]; // New cards should be reviewable today
+    
     const newFlashcard = {
       // Let Supabase generate the UUID automatically
       original_text: flashcard.originalText,
@@ -642,6 +651,8 @@ export const saveFlashcard = async (flashcard: Flashcard, deckId: string): Promi
       deck_id: deckId,
       image_url: flashcard.imageUrl || null, // Include image URL if available
       scope_analysis: flashcard.scopeAnalysis || null, // Include scope analysis if available
+      box: box, // Leitner box (defaults to 1)
+      next_review_date: nextReviewDate, // Next review date (defaults to today + box interval)
     };
     
     const { error } = await supabase
@@ -1476,16 +1487,29 @@ export const moveFlashcardToDeck = async (flashcardId: string, targetDeckId: str
  */
 export const updateFlashcard = async (flashcard: Flashcard): Promise<boolean> => {
   try {
+    // Build update object with only defined fields
+    const updateData: any = {
+      original_text: flashcard.originalText,
+      furigana_text: flashcard.furiganaText,
+      translated_text: flashcard.translatedText,
+      target_language: flashcard.targetLanguage,
+      image_url: flashcard.imageUrl || null, // Include image URL in update
+      scope_analysis: flashcard.scopeAnalysis || null, // Include scope analysis in update
+    };
+    
+    // Only include SRS fields if they are defined
+    if (flashcard.box !== undefined) {
+      updateData.box = flashcard.box;
+    }
+    
+    if (flashcard.nextReviewDate !== undefined) {
+      // Convert nextReviewDate to YYYY-MM-DD format
+      updateData.next_review_date = flashcard.nextReviewDate.toISOString().split('T')[0];
+    }
+    
     const { error } = await supabase
       .from('flashcards')
-      .update({
-        original_text: flashcard.originalText,
-        furigana_text: flashcard.furiganaText,
-        translated_text: flashcard.translatedText,
-        target_language: flashcard.targetLanguage,
-        image_url: flashcard.imageUrl || null, // Include image URL in update
-        scope_analysis: flashcard.scopeAnalysis || null, // Include scope analysis in update
-      })
+      .update(updateData)
       .eq('id', flashcard.id);
     
     if (error) {
@@ -1497,6 +1521,60 @@ export const updateFlashcard = async (flashcard: Flashcard): Promise<boolean> =>
   } catch (error) {
     logger.error('Error updating flashcard:', error);
     return false;
+  }
+};
+
+/**
+ * Reset SRS progress for all flashcards in specified decks
+ * Sets box=1 and nextReviewDate=today for testing purposes
+ * @param deckIds Array of deck IDs to reset cards for
+ * @returns Number of cards reset, or -1 on error
+ */
+export const resetSRSProgress = async (deckIds: string[]): Promise<number> => {
+  try {
+    if (!deckIds || deckIds.length === 0) {
+      logger.log('No deck IDs provided for SRS reset');
+      return 0;
+    }
+
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+
+    // Update all cards in the specified decks
+    const { data, error } = await supabase
+      .from('flashcards')
+      .update({
+        box: 1,
+        next_review_date: today,
+      })
+      .in('deck_id', deckIds)
+      .select('id');
+
+    if (error) {
+      logger.error('Error resetting SRS progress:', error.message);
+      return -1;
+    }
+
+    const resetCount = data?.length || 0;
+    logger.log(`✅ [SRS Reset] Reset ${resetCount} cards to box 1 with review date today`);
+
+    // Refresh cache for affected decks
+    try {
+      const userId = await getUserIdOffline();
+      if (userId) {
+        for (const deckId of deckIds) {
+          await fetchAndCacheFlashcardsByDeck(userId, deckId).catch(err =>
+            logger.error(`Failed to refresh cache for deck ${deckId}:`, err)
+          );
+        }
+      }
+    } catch (cacheErr) {
+      logger.error('Error refreshing cache after SRS reset:', cacheErr);
+    }
+
+    return resetCount;
+  } catch (error) {
+    logger.error('Error resetting SRS progress:', error);
+    return -1;
   }
 };
 

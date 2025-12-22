@@ -18,7 +18,7 @@ export enum LoadingState {
  * Custom hook for managing random flashcard review
  * @returns Object containing various state and handlers for random card review
  */
-export const useRandomCardReview = () => {
+export const useRandomCardReview = (onSessionFinishing?: () => void) => {
   const [allFlashcards, setAllFlashcards] = useState<Flashcard[]>([]);
   const [currentCard, setCurrentCard] = useState<Flashcard | null>(null);
   const [reviewSessionCards, setReviewSessionCards] = useState<Flashcard[]>([]);
@@ -36,6 +36,12 @@ export const useRandomCardReview = () => {
   const currentCardRef = useRef<Flashcard | null>(null);
   const reviewSessionCardsRef = useRef<Flashcard[]>([]);
   const allFlashcardsRef = useRef<Flashcard[]>([]);
+  const onSessionFinishingRef = useRef<(() => void) | undefined>(onSessionFinishing);
+  
+  // Keep the callback ref up to date
+  useEffect(() => {
+    onSessionFinishingRef.current = onSessionFinishing;
+  }, [onSessionFinishing]);
   
   const { user } = useAuth();
   const { isConnected } = useNetworkState();
@@ -139,7 +145,9 @@ export const useRandomCardReview = () => {
             return prevCards;
           });
           
-          // Update current card if needed
+          // Update current card if needed - ONLY if current card was deleted
+          // Do NOT auto-select a card just because currentCard is null - 
+          // the component's initializeReviewSession handles initial card selection
           if (currentCard && !cards.some(c => c.id === currentCard.id)) {
             // Current card was deleted, select a new one
             const validReviewCards = reviewSessionCards.filter(card => 
@@ -147,11 +155,9 @@ export const useRandomCardReview = () => {
             );
             logger.log('📥 [Hook] Current card was deleted, selecting new one from', validReviewCards.length, 'cards');
             selectRandomCard(validReviewCards);
-          } else if (cards.length > 0 && !currentCard) {
-            // No current card but we have cards, select one
-            logger.log('📥 [Hook] No current card but we have cards, selecting one');
-            selectRandomCard(cards);
           }
+          // REMOVED: Auto-selection when !currentCard - this caused flash issue
+          // The component's initializeReviewSession effect handles card selection
         }
         
         setIsLoading(false);
@@ -328,7 +334,13 @@ export const useRandomCardReview = () => {
     if (remainingCards.length === 0) {
       logger.log('👉 [Hook] No cards left, exiting review mode');
       setCurrentCard(null);
+      const wasInReviewMode = isInReviewMode; // Capture state before changing it
       setIsInReviewMode(false);
+      // CRITICAL: Only call onSessionFinishing callback if we were actually in review mode
+      // In browse mode, we don't want to delay showing the refresh screen
+      if (wasInReviewMode && onSessionFinishingRef.current) {
+        onSessionFinishingRef.current();
+      }
       setIsSessionFinished(true); // Mark session as finished
     } else {
       // Otherwise select a new random card

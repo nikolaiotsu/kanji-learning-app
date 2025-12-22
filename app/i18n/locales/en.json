@@ -217,7 +217,10 @@
   },
   "review": {
     "remaining": "{{count}} remaining - swipe ← to review again - swipe → to dismiss",
+    "srsCounter": "{{reviewed}}/{{due}}({{total}})",
     "reviewMode": "Review",
+    "noCardsDue": "No cards due today",
+    "nextReviewDate": "Next review: {{date}}",
     "browseCount": "{{count}} cards",
     "nothingToReview": "Nothing to review",
     "scanText": "Go scan some text to add to your collection!",

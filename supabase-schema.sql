@@ -20,7 +20,9 @@ CREATE TABLE flashcards (
   target_language TEXT NOT NULL DEFAULT 'en',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   deck_id UUID REFERENCES decks(id) ON DELETE CASCADE,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  box INTEGER DEFAULT 1 CHECK (box >= 1 AND box <= 5), -- Leitner box for spaced repetition (1-5)
+  next_review_date DATE DEFAULT CURRENT_DATE -- Next scheduled review date
 );
 
 -- Migration for existing flashcards (run this if you have existing data)
