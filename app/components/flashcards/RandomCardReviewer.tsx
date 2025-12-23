@@ -387,6 +387,13 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     const filterCards = async () => {
       if (!deckIdsLoaded) return;
       
+      // BEST PRACTICE: Don't filter until hook has finished loading initial data
+      // This prevents the race condition where filtering runs before data is available
+      if (loadingState !== LoadingState.CONTENT_READY) {
+        logger.log('🔄 [Component] Waiting for hook to reach CONTENT_READY before filtering...');
+        return;
+      }
+      
       // Start fade-out animation for deck changes after initial load
       if (!isInitializing) {
         setIsCardTransitioning(true);
@@ -402,15 +409,6 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       logger.log('🔍 [Component] Filtering cards for operation:', currentOpId, 'selectedDecks:', selectedDeckIds.length);
       
       if (selectedDeckIds.length > 0) {
-        // COLD START PROTECTION: On initial load, wait briefly for cache to initialize
-        // This prevents the race condition where deck IDs load before cache is populated
-        if (isInitializing && allFlashcards.length === 0 && loadingState === LoadingState.CONTENT_READY) {
-          logger.log('🔄 [Component] Cold start detected, waiting for cache initialization...');
-          // Give cache a brief moment to populate (100ms should be enough)
-          await new Promise(resolve => setTimeout(resolve, 100));
-          // Continue regardless - if still empty, user might genuinely have 0 cards
-        }
-        
         // Fetch cards for selected decks
         try {
           const cards = await getFlashcardsByDecks(selectedDeckIds);
@@ -459,7 +457,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     };
 
     filterCards();
-  }, [selectedDeckIds, allFlashcards, deckIdsLoaded, user?.id, isConnected]);
+  }, [selectedDeckIds, allFlashcards, deckIdsLoaded, user?.id, isConnected, loadingState]);
 
   // Create stable card IDs string that only changes when actual IDs change
   const cardIdsString = useMemo(() => {
@@ -922,6 +920,13 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         }, 10);
       } else {
         // Handle case where no cards are available
+        // CRITICAL FIX: Don't mark initialization complete if filtering is likely still pending
+        // If allFlashcards has data but filteredCards is empty with selected decks,
+        // the async getFlashcardsByDecks() call is probably still in progress
+        if (allFlashcards.length > 0 && selectedDeckIds.length > 0) {
+          logger.log('🔄 [Component] Waiting for deck filtering to complete (allFlashcards:', allFlashcards.length, ', selectedDecks:', selectedDeckIds.length, ')');
+          return; // Don't mark as initialized - wait for filtering
+        }
         logger.log('🔄 [Component] No cards available after filtering');
         setIsInitializing(false);
         lastFilteredCardsHashRef.current = '';
@@ -929,7 +934,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     };
     
     initializeReviewSession();
-  }, [filteredCards, deckIdsLoaded, startReviewWithCards, loadingState, allFlashcards.length, isInitializing]);
+  }, [filteredCards, deckIdsLoaded, startReviewWithCards, loadingState, allFlashcards.length, isInitializing, selectedDeckIds.length]);
 
   // Reset delay states when session finishes in browse mode (no animation needed)
   useEffect(() => {
