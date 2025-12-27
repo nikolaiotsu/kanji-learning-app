@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Platform, ActivityIndicator, ScrollView, Toucha
 import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { processWithClaude, processWithClaudeAndScope, fetchSingleScopeAnalysis } from './services/claudeApi';
+import { processWithClaude, processWithClaudeAndScope, fetchSingleScopeAnalysis, LanguageMismatchInfo } from './services/claudeApi';
 import { 
   cleanText, 
   containsJapanese, 
@@ -29,6 +29,14 @@ import * as FileSystem from 'expo-file-system';
 import DeckSelector from './components/flashcards/DeckSelector';
 import { useAuth } from './context/AuthContext';
 import { useSettings, AVAILABLE_LANGUAGES } from './context/SettingsContext';
+
+const LANGUAGE_NAME_TO_CODE: Record<string, string> = Object.entries(AVAILABLE_LANGUAGES).reduce<Record<string, string>>(
+  (acc, [code, name]) => {
+    acc[name] = code;
+    return acc;
+  },
+  {}
+);
 import { COLORS } from './constants/colors';
 import { FontAwesome6 } from '@expo/vector-icons';
 import PokedexLayout from './components/shared/PokedexLayout';
@@ -46,7 +54,7 @@ import { logger } from './utils/logger';
 export default function LanguageFlashcardsScreen() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const { targetLanguage, forcedDetectionLanguage } = useSettings();
+const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage } = useSettings();
   const { incrementFlashcardCount, canCreateFlashcard, remainingFlashcards } = useFlashcardCounter();
   const { purchaseSubscription } = useSubscription();
   const { isConnected } = useNetworkState();
@@ -133,6 +141,53 @@ export default function LanguageFlashcardsScreen() {
     }
   }, [cleanedText, textProcessed, isLoading, isManualOperation, imageUri]);
 
+  const progressCallback = (checkpoint: number) => {
+    logger.log('🚀 [Flashcards] Progress callback triggered:', checkpoint);
+    setProcessingProgress(checkpoint);
+    logger.log('📊 [Flashcards] Processing progress set to:', checkpoint);
+  };
+
+  const handleLanguageMismatchRetry = async (
+    mismatch: LanguageMismatchInfo,
+    includeScope: boolean,
+    attempt: (sourceLang: string, targetLang: string) => Promise<ClaudeResponse>
+  ): Promise<ClaudeResponse | null> => {
+    const detectedCode = mismatch.detectedLanguageCode || LANGUAGE_NAME_TO_CODE[mismatch.detectedLanguageName];
+    if (!detectedCode) {
+      return null;
+    }
+
+    const resolvedTarget = detectedCode === targetLanguage ? forcedDetectionLanguage : targetLanguage;
+    await setForcedDetectionLanguage(detectedCode);
+    const detectedLabel =
+      mismatch.detectedLanguageName ||
+      AVAILABLE_LANGUAGES[detectedCode as keyof typeof AVAILABLE_LANGUAGES] ||
+      'unknown';
+
+    setDetectedLanguage(detectedLabel);
+    return attempt(detectedCode, resolvedTarget);
+  };
+
+  const runTranslationWithAutoSwitch = async (includeScope: boolean): Promise<ClaudeResponse> => {
+    const attempt = async (sourceLang: string, targetLang: string) => {
+      if (includeScope) {
+        return processWithClaudeAndScope(editedText, targetLang, sourceLang, progressCallback);
+      }
+      return processWithClaude(editedText, targetLang, sourceLang, progressCallback);
+    };
+
+    let result = await attempt(forcedDetectionLanguage, targetLanguage);
+    if (result.languageMismatch) {
+      const rerun = await handleLanguageMismatchRetry(result.languageMismatch, includeScope, attempt);
+      if (!rerun) {
+        throw new Error('Failed to auto-switch languages for this text.');
+      }
+      result = rerun;
+    }
+
+    return result;
+  };
+
   // Function to process text with Claude API
   const processTextWithClaude = async (text: string) => {
     logger.log('🌟 [Flashcards] Starting text processing with Claude API');
@@ -142,38 +197,33 @@ export default function LanguageFlashcardsScreen() {
     setProcessingProgress(0);
     setProcessingFailed(false);
     logger.log('🔄 [Flashcards] State set - isLoading: true, processingProgress: 0, processingFailed: false');
-    
-          try {
-        // Check if the text contains Japanese, Chinese, Korean, Russian, Arabic, Hindi, Esperanto characters
-        // These are the languages that need romanization
-        const hasJapanese = containsJapanese(text);
-        const hasChinese = containsChinese(text);
-        const hasKorean = containsKoreanText(text);
-        const hasRussian = containsRussianText(text);
-        const hasArabic = containsArabicText(text);
-        const hasHindi = containsHindiText(text);
-        const hasEsperanto = containsEsperantoText(text);
-        const hasItalian = containsItalianText(text);
-        const hasTagalog = containsTagalogText(text);
+
+    try {
+      const hasJapanese = containsJapanese(text);
+      const hasChinese = containsChinese(text);
+      const hasKorean = containsKoreanText(text);
+      const hasRussian = containsRussianText(text);
+      const hasArabic = containsArabicText(text);
+      const hasHindi = containsHindiText(text);
+      const hasEsperanto = containsEsperantoText(text);
+      const hasItalian = containsItalianText(text);
+      const hasTagalog = containsTagalogText(text);
       const hasFrench = containsFrenchText(text);
       const hasSpanish = containsSpanishText(text);
       const hasPortuguese = containsPortugueseText(text);
       const hasGerman = containsGermanText(text);
-      
-      // All these languages need some form of romanization/furigana
+
       const needsRomanization = (
-        hasJapanese || 
-        hasChinese || 
-        hasKorean || 
-        hasRussian || 
+        hasJapanese ||
+        hasChinese ||
+        hasKorean ||
+        hasRussian ||
         hasArabic ||
         hasHindi
       );
       setNeedsRomanization(needsRomanization);
-      
-      // Determine language label for display purposes only
+
       let language = 'unknown';
-      // Use the forced language setting
       switch (forcedDetectionLanguage) {
         case 'en': language = 'English'; break;
         case 'zh': language = 'Chinese'; break;
@@ -192,20 +242,9 @@ export default function LanguageFlashcardsScreen() {
         default: language = 'unknown';
       }
       logger.log(`Using forced language detection: ${language}`);
-      
-      // Language validation now handled by hybrid AI/pattern validation in processWithClaude
-      // No need for pre-validation here - let the hybrid system handle it
-      
       setDetectedLanguage(language);
-      
-      // Progress callback to update loading lights
-      const progressCallback = (checkpoint: number) => {
-        logger.log('🚀 [Flashcards] Progress callback triggered:', checkpoint);
-        setProcessingProgress(checkpoint);
-        logger.log('📊 [Flashcards] Processing progress set to:', checkpoint);
-      };
-      
-      const result = await processWithClaude(text, targetLanguage, forcedDetectionLanguage, progressCallback);
+
+      const result = await runTranslationWithAutoSwitch(false);
       
       // Check if we got valid results back
       if (result.translatedText) {
@@ -513,12 +552,7 @@ export default function LanguageFlashcardsScreen() {
       setDetectedLanguage(language);
       
       // Progress callback
-      const progressCallback = (checkpoint: number) => {
-        setProcessingProgress(checkpoint);
-      };
-      
-      // Call the new function that includes scope analysis
-      const result = await processWithClaudeAndScope(editedText, targetLanguage, forcedDetectionLanguage, progressCallback);
+      const result = await runTranslationWithAutoSwitch(true);
       
       // Check if we got valid results back
       if (result.translatedText) {

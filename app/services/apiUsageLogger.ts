@@ -304,12 +304,29 @@ export const logClaudeAPI = async (
   success: boolean,
   responseText?: string,
   error?: Error,
-  metadata?: Record<string, any>
+  metadata?: Record<string, any>,
+  inputTokens?: number,
+  outputTokens?: number
 ) => {
   if (success) {
+    const totalTokens = (inputTokens || 0) + (outputTokens || 0);
+    
+    // Log token usage in development mode
+    if (__DEV__ && (inputTokens !== undefined || outputTokens !== undefined)) {
+      const model = metadata?.model || 'unknown';
+      const operation = metadata?.operationType || 'claude_api';
+      logger.log(`[Token Usage] ${operation} (${model}) - Input: ${inputTokens || 0}, Output: ${outputTokens || 0}, Total: ${totalTokens}`);
+    }
+    
     await apiLogger.logSuccess('claude_api', metrics, responseText?.length, {
       ...metadata,
-      tokens: responseText ? Math.ceil(responseText.length / 4) : 0 // Rough token estimate
+      inputTokens: inputTokens || 0,
+      outputTokens: outputTokens || 0,
+      tokens: totalTokens, // Total tokens for backward compatibility
+      // Fallback to estimate if actual tokens not provided
+      estimatedTokens: inputTokens === undefined && outputTokens === undefined 
+        ? (responseText ? Math.ceil(responseText.length / 4) : 0)
+        : undefined
     });
   } else {
     await apiLogger.logError('claude_api', metrics, error || 'Unknown error', metadata);

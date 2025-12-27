@@ -834,11 +834,12 @@ const createStyles = (responsiveCardHeight: number) => StyleSheet.create({
     overflow: 'visible',
   },
   expandedCardContainer: {
-    marginVertical: 20,
+    marginVertical: 0, // Keep layout height consistent even when image is expanded
   },
   cardWrapper: {
     width: '100%',
-    minHeight: responsiveCardHeight, // Responsive height
+    height: responsiveCardHeight,
+    maxHeight: responsiveCardHeight,
     borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: COLORS.darkSurface,
@@ -848,7 +849,7 @@ const createStyles = (responsiveCardHeight: number) => StyleSheet.create({
     borderColor: COLORS.royalBlue,
   },
   expandedCardWrapper: {
-    minHeight: Math.min(responsiveCardHeight * 1.8, 650), // Scale expanded height proportionally
+    paddingBottom: 12, // Add breathing room around the image without growing the layout
   },
   cardContent: {
     position: 'absolute',

@@ -1805,15 +1805,16 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         ) : null}
       </View>
 
-      {!isImageExpanded && (
-        <View style={styles.controlsContainer}>
-          <Text style={styles.countText}>
-            {!isInitializing && !isCardTransitioning 
-              ? t('review.remaining', { count: remainingCount })
-              : '•••'}
-          </Text>
-        </View>
-      )}
+      <View style={[
+        styles.controlsContainer,
+        isImageExpanded && styles.controlsContainerExpanded
+      ]}>
+        <Text style={styles.countText}>
+          {!isInitializing && !isCardTransitioning 
+            ? t('review.remaining', { count: remainingCount })
+            : '•••'}
+        </Text>
+      </View>
       
       {deckSelector}
     </View>
@@ -1921,12 +1922,14 @@ const createStyles = (
   cardStage: {
     width: '100%',
     minHeight: cardStageHeight, // Minimum height for readability
+    maxHeight: cardStageHeight,
     flex: 1, // Expand to fill available space
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 15,
     marginBottom: cardToControlsSpacing, // Proper spacing between card and controls
+    overflow: 'hidden',
   },
   cardContainer: {
     width: '100%',
@@ -1947,6 +1950,12 @@ const createStyles = (
     height: controlsHeight,
     paddingTop: 0, // Spacing handled by cardStage marginBottom (12pt)
     paddingHorizontal: 16, // Add horizontal padding to prevent edge overflow
+  },
+  controlsContainerExpanded: {
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    borderRadius: 12,
+    // Keep full width so the text does not wrap unexpectedly
+    width: '100%',
   },
   countText: {
     color: '#b3b3b3',

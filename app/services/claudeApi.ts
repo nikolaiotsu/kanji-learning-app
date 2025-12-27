@@ -25,10 +25,18 @@ import {
 } from '../utils/textFormatting';
 
 // Define response structure
-interface ClaudeResponse {
+export interface LanguageMismatchInfo {
+  expectedLanguageCode: string;
+  detectedLanguageName: string;
+  detectedLanguageCode?: string;
+  confidence?: string;
+}
+
+export interface ClaudeResponse {
   furiganaText: string;
   translatedText: string;
   scopeAnalysis?: string; // Optional scope analysis field
+  languageMismatch?: LanguageMismatchInfo;
 }
 
 // Map for language code to name for prompts
@@ -48,6 +56,30 @@ const LANGUAGE_NAMES_MAP = {
   hi: 'Hindi',
   eo: 'Esperanto'
 };
+
+const LANGUAGE_NAME_TO_CODE: Record<string, string> = Object.entries(LANGUAGE_NAMES_MAP)
+  .reduce<Record<string, string>>((acc, [code, name]) => {
+    acc[name] = code;
+    return acc;
+  }, {});
+
+function getLanguageCodeFromName(name?: string): string | undefined {
+  if (!name) {
+    return undefined;
+  }
+
+  return LANGUAGE_NAME_TO_CODE[name];
+}
+
+function buildLanguageMismatchInfo(expectedCode: string, detectedName?: string, confidence?: string): LanguageMismatchInfo {
+  const normalizedName = detectedName || 'Unknown';
+  return {
+    expectedLanguageCode: expectedCode,
+    detectedLanguageName: normalizedName,
+    detectedLanguageCode: getLanguageCodeFromName(normalizedName),
+    confidence
+  };
+}
 
 // Define Claude API response content structure
 interface ClaudeContentItem {
@@ -452,18 +484,19 @@ function detectPrimaryLanguage(text: string, forcedLanguage: string = 'ja'): str
  * Validates if the text contains the specified forced language
  * @param text The text to validate
  * @param forcedLanguage The language code to validate against
- * @returns True if the text matches the forced language, false otherwise
+ * @returns Object containing the validation result and the detected language name
  */
-export function validateTextMatchesLanguage(text: string, forcedLanguage: string = 'ja'): boolean {
+export function validateTextMatchesLanguage(text: string, forcedLanguage: string = 'ja'): { isValid: boolean; detectedLanguage: string } {
+  const detectedLang = detectPrimaryLanguage(text, 'auto'); // Force auto-detection for validation
+
   // If text is too short, don't validate (prevent false rejections for very short inputs)
   if (text.trim().length < 2) {
     logger.log('[validateTextMatchesLanguage] Text too short, returning true');
-    return true;
+    return { isValid: true, detectedLanguage: detectedLang };
   }
 
-  // Detect the actual language in the text
-  const detectedLang = detectPrimaryLanguage(text, 'auto'); // Force auto-detection for validation
-  
+  const buildResult = (isValid: boolean) => ({ isValid, detectedLanguage: detectedLang });
+
   // Map the forced language code to the language name format used in detection
   let expectedLanguage: string;
   switch (forcedLanguage) {
@@ -483,90 +516,77 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
     case 'eo': expectedLanguage = 'Esperanto'; break;
     default: expectedLanguage = forcedLanguage;
   }
-  
+
   logger.log(`[validateTextMatchesLanguage] Validating language: Expected ${expectedLanguage}, Detected ${detectedLang}`);
   logger.log(`[validateTextMatchesLanguage] Text sample: "${text.substring(0, 50)}..."`);
-  
+
   // Special handling for similar languages or scripts that might be confused
-  
-  // Case 1: CJK languages (Chinese, Japanese, Korean) 
-  // These can sometimes be confused due to shared characters
+
   const cjkLanguages = ['Chinese', 'Japanese', 'Korean'];
   if (cjkLanguages.includes(expectedLanguage) && cjkLanguages.includes(detectedLang)) {
     logger.log('[validateTextMatchesLanguage] Handling CJK language validation');
     logger.log(`[validateTextMatchesLanguage] Expected: ${expectedLanguage}, Detected: ${detectedLang}`);
-    
-    // For Japanese forced mode, require some Japanese-specific characters or CJK characters
+
     if (expectedLanguage === 'Japanese') {
       const hasJapaneseSpecific = /[\u3040-\u30ff]/.test(text); // hiragana/katakana
       const hasCJKChars = /[\u4e00-\u9fff]/.test(text); // kanji/CJK
       logger.log(`[validateTextMatchesLanguage] Japanese force mode: hasJapaneseSpecific=${hasJapaneseSpecific}, hasCJKChars=${hasCJKChars}`);
-      
+
       if (!hasJapaneseSpecific && !hasCJKChars) {
         logger.log('[validateTextMatchesLanguage] Japanese forced but no Japanese characters or CJK characters found');
-        return false;
+        return buildResult(false);
       }
-      // In force mode, allow mixed content - let Claude API handle extraction and translation
       logger.log('[validateTextMatchesLanguage] Japanese force mode validation passed - allowing mixed content');
-      return true;
+      return buildResult(true);
     }
-    
-    // Add additional debugging for Japanese validation
+
     if (expectedLanguage === 'Japanese') {
       logger.log(`[validateTextMatchesLanguage] Japanese validation: containsJapanese=${containsJapanese(text)}`);
       logger.log(`[validateTextMatchesLanguage] Japanese validation: containsChinese=${containsChinese(text)}`);
       logger.log(`[validateTextMatchesLanguage] Text sample: "${text.substring(0, 50)}..."`);
     }
-    // For Korean forced mode, require Hangul presence
+
     if (expectedLanguage === 'Korean') {
       const hasKorean = containsKoreanText(text);
       logger.log(`[validateTextMatchesLanguage] Korean force mode: hasKorean=${hasKorean}`);
-      
+
       if (!hasKorean) {
         logger.log('[validateTextMatchesLanguage] Korean forced but no Korean characters found');
-        return false;
+        return buildResult(false);
       }
-      // In force mode, allow mixed content - let Claude API handle extraction and translation
       logger.log('[validateTextMatchesLanguage] Korean force mode validation passed - allowing mixed content');
-      return true;
+      return buildResult(true);
     }
-    // For Chinese forced mode, only require that some Chinese characters are present
-    // Allow mixed content (Chinese + English, Chinese + Japanese, etc.) since Claude can handle it
+
     if (expectedLanguage === 'Chinese') {
-      // Check if text contains any CJK characters that could be Chinese
       const hasCJKChars = /[\u4e00-\u9fff]/.test(text);
       logger.log(`[validateTextMatchesLanguage] Chinese force mode: hasCJKChars=${hasCJKChars}`);
       logger.log(`[validateTextMatchesLanguage] Text sample for Chinese validation: "${text.substring(0, 50)}..."`);
-      
+
       if (!hasCJKChars) {
         logger.log('[validateTextMatchesLanguage] Chinese forced but no CJK characters found - cannot process as Chinese');
-        return false;
+        return buildResult(false);
       }
-      // In force mode, allow mixed content - let Claude API handle extraction and translation
       logger.log('[validateTextMatchesLanguage] Chinese force mode validation passed - found CJK characters, allowing mixed content');
-      return true;
+      return buildResult(true);
     }
   }
-  
-  // Case 2: Latin-based languages (English, Italian, Spanish, etc.)
-  // In force mode, validate that the text is actually in the expected language
+
   const latinLanguages = ['English', 'Italian', 'Spanish', 'French', 'Portuguese', 'German', 'Tagalog', 'Esperanto'];
   if (latinLanguages.includes(expectedLanguage)) {
     logger.log('[validateTextMatchesLanguage] Handling Latin language force mode validation');
     logger.log(`[validateTextMatchesLanguage] Expected: ${expectedLanguage}, Detected: ${detectedLang}`);
-    
-    // Check if text contains basic Latin characters (most European languages use these)
+
     const hasLatinChars = /[a-zA-ZÀ-ÿĀ-žñÑ]/.test(text);
     logger.log(`[validateTextMatchesLanguage] Latin force mode: hasLatinChars=${hasLatinChars}`);
-    
+
     if (!hasLatinChars) {
       logger.log('[validateTextMatchesLanguage] Latin language forced but no Latin characters found');
-      return false;
+      return buildResult(false);
     }
-    
-    // In force mode, check for specific language patterns when available
+
     let hasSpecificPatterns = false;
-    
+
     if (expectedLanguage === 'Italian' && containsItalianText(text)) {
       logger.log('[validateTextMatchesLanguage] Italian patterns found');
       hasSpecificPatterns = true;
@@ -592,65 +612,60 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
       logger.log('[validateTextMatchesLanguage] Esperanto patterns found');
       hasSpecificPatterns = true;
     }
-    
-    // In force mode, validate the detected language matches OR specific patterns are found
+
     if (hasSpecificPatterns) {
       logger.log('[validateTextMatchesLanguage] Force mode: specific language patterns found, validation passed');
-      return true;
+      return buildResult(true);
     }
-    
-    // If no specific patterns found, check if detected language matches expected language
+
     if (detectedLang === expectedLanguage) {
       logger.log('[validateTextMatchesLanguage] Force mode: detected language matches expected language, validation passed');
-      return true;
+      return buildResult(true);
     }
-    
-    // Otherwise, validation fails - the text doesn't match the forced language
+
     logger.log(`[validateTextMatchesLanguage] Force mode validation failed: Expected ${expectedLanguage} but detected ${detectedLang}, and no specific patterns found`);
-    return false;
+    return buildResult(false);
   }
-  
-  // Case 3: Other languages (Russian, Arabic, etc.) - handle force mode permissively
+
   if (expectedLanguage === 'Russian') {
     const hasRussian = containsRussianText(text);
     logger.log(`[validateTextMatchesLanguage] Russian force mode: hasRussian=${hasRussian}`);
-    
+
     if (!hasRussian) {
       logger.log('[validateTextMatchesLanguage] Russian forced but no Cyrillic characters found');
-      return false;
+      return buildResult(false);
     }
     logger.log('[validateTextMatchesLanguage] Russian force mode validation passed');
-    return true;
+    return buildResult(true);
   }
-  
+
   if (expectedLanguage === 'Arabic') {
     const hasArabic = containsArabicText(text);
     logger.log(`[validateTextMatchesLanguage] Arabic force mode: hasArabic=${hasArabic}`);
-    
+
     if (!hasArabic) {
       logger.log('[validateTextMatchesLanguage] Arabic forced but no Arabic characters found');
-      return false;
+      return buildResult(false);
     }
     logger.log('[validateTextMatchesLanguage] Arabic force mode validation passed');
-    return true;
+    return buildResult(true);
   }
-  
+
   if (expectedLanguage === 'Hindi') {
     const hasHindi = containsHindiText(text);
     logger.log(`[validateTextMatchesLanguage] Hindi force mode: hasHindi=${hasHindi}`);
-    
+
     if (!hasHindi) {
       logger.log('[validateTextMatchesLanguage] Hindi forced but no Devanagari characters found');
-      return false;
+      return buildResult(false);
     }
     logger.log('[validateTextMatchesLanguage] Hindi force mode validation passed');
-    return true;
+    return buildResult(true);
   }
-  
-  // Standard comparison for any remaining languages (fallback)
+
   const result = detectedLang === expectedLanguage;
   logger.log(`[validateTextMatchesLanguage] Standard comparison: ${detectedLang} === ${expectedLanguage} = ${result}`);
-  return result;
+  return buildResult(result);
 }
 
 /**
@@ -667,6 +682,13 @@ async function validateLanguageWithClaude(
   apiKey: string
 ): Promise<{ isValid: boolean; detectedLanguage: string; confidence: string }> {
   logger.log(`[Claude Language Validation] Starting AI-based language detection for forced language: ${forcedLanguage}`);
+  
+  // Start metrics for language validation call
+  const validationMetrics = apiLogger.startAPICall('https://api.anthropic.com/v1/messages', {
+    text: text.substring(0, 100),
+    forcedLanguage,
+    operationType: 'language_validation'
+  });
   
   // Map language code to full name for the prompt
   const expectedLanguageName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || forcedLanguage;
@@ -726,6 +748,11 @@ Be precise and return ONLY the JSON with no additional explanation.`;
         }
       );
 
+      // Extract token usage from validation response
+      const validationUsage = response.data?.usage;
+      const validationInputTokens = validationUsage?.input_tokens;
+      const validationOutputTokens = validationUsage?.output_tokens;
+
       // Extract JSON from response
       if (response.data && response.data.content && Array.isArray(response.data.content)) {
         const textContent = response.data.content.find((item: ClaudeContentItem) => item.type === "text");
@@ -736,6 +763,16 @@ Be precise and return ONLY the JSON with no additional explanation.`;
             const result = JSON.parse(jsonMatch[0]);
             
             logger.log(`[Claude Language Validation] Detected: ${result.detectedLanguage}, Confidence: ${result.confidence}, Matches: ${result.matches}`);
+            
+            // Log language validation API call with token usage
+            await logClaudeAPI(validationMetrics, true, textContent.text, undefined, {
+              model: 'claude-3-haiku-20240307',
+              forcedLanguage,
+              textLength: text.length,
+              detectedLanguage: result.detectedLanguage,
+              confidence: result.confidence,
+              operationType: 'language_validation'
+            }, validationInputTokens, validationOutputTokens);
             
             return {
               isValid: result.matches === true,
@@ -860,15 +897,24 @@ export async function processWithClaude(
       try {
         const aiValidation = await validateLanguageWithClaude(text, forcedLanguage, apiKey);
         
-        if (!aiValidation.isValid) {
-          const expectedLanguageName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || forcedLanguage;
-          const errorMessage = `Language mismatch: Expected ${expectedLanguageName} but detected ${aiValidation.detectedLanguage} (confidence: ${aiValidation.confidence})`;
-          
-          logger.log(`[Claude API] ${errorMessage}`);
-          logger.log(`[Claude API] Text sample: "${text.substring(0, 100)}..."`);
-          
-          throw new Error(errorMessage);
-        }
+      if (!aiValidation.isValid) {
+        const mismatchInfo = buildLanguageMismatchInfo(
+          forcedLanguage,
+          aiValidation.detectedLanguage,
+          aiValidation.confidence
+        );
+        const expectedLanguageName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || forcedLanguage;
+        const detectedName = aiValidation.detectedLanguage || 'Unknown';
+        
+        logger.log(`[Claude API] Language mismatch detected: Expected ${expectedLanguageName} but detected ${detectedName} (confidence: ${aiValidation.confidence})`);
+        logger.log(`[Claude API] Text sample: "${text.substring(0, 100)}..."`);
+
+        return {
+          furiganaText: '',
+          translatedText: '',
+          languageMismatch: mismatchInfo
+        };
+      }
         
         logger.log(`[Claude API] AI language validation passed: ${aiValidation.detectedLanguage} matches expected ${forcedLanguage}`);
       } catch (error) {
@@ -882,11 +928,21 @@ export async function processWithClaude(
         
         // Fallback to pattern-based validation
         const validationResult = validateTextMatchesLanguage(text, forcedLanguage);
-        if (!validationResult) {
+        if (!validationResult.isValid) {
           const expectedLanguageName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || forcedLanguage;
-          const errorMessage = `Language mismatch: Could not detect ${expectedLanguageName} in the provided text`;
+          const mismatchInfo = buildLanguageMismatchInfo(
+            forcedLanguage,
+            validationResult.detectedLanguage
+          );
+          const detectedName = validationResult.detectedLanguage || 'Unknown';
+          const errorMessage = `Language mismatch: Unable to confirm ${expectedLanguageName} in the provided text (detected ${detectedName})`;
           logger.log(`[Claude API] ${errorMessage}`);
-          throw new Error(errorMessage);
+
+          return {
+            furiganaText: '',
+            translatedText: '',
+            languageMismatch: mismatchInfo
+          };
         }
       }
     } else if (usePatternValidation) {
@@ -894,14 +950,23 @@ export async function processWithClaude(
       logger.log(`[Claude API] Performing pattern-based language validation for non-Latin language: ${forcedLanguage}`);
       
       const validationResult = validateTextMatchesLanguage(text, forcedLanguage);
-      if (!validationResult) {
+      if (!validationResult.isValid) {
         const expectedLanguageName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || forcedLanguage;
-        const errorMessage = `Language mismatch: Could not detect ${expectedLanguageName} in the provided text`;
+        const mismatchInfo = buildLanguageMismatchInfo(
+          forcedLanguage,
+          validationResult.detectedLanguage
+        );
+        const detectedName = validationResult.detectedLanguage || 'Unknown';
+        const errorMessage = `Language mismatch: Could not detect ${expectedLanguageName} in the provided text (detected ${detectedName})`;
         
         logger.log(`[Claude API] ${errorMessage}`);
         logger.log(`[Claude API] Text sample: "${text.substring(0, 100)}..."`);
-        
-        throw new Error(errorMessage);
+
+        return {
+          furiganaText: '',
+          translatedText: '',
+          languageMismatch: mismatchInfo
+        };
       }
       
       logger.log(`[Claude API] Pattern-based language validation passed for ${forcedLanguage}`);
@@ -909,11 +974,21 @@ export async function processWithClaude(
       // Unknown language code - use pattern matching as fallback
       logger.log(`[Claude API] Using pattern-based validation for unknown language code: ${forcedLanguage}`);
       const validationResult = validateTextMatchesLanguage(text, forcedLanguage);
-      if (!validationResult) {
+      if (!validationResult.isValid) {
         const expectedLanguageName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || forcedLanguage;
-        const errorMessage = `Language mismatch: Could not detect ${expectedLanguageName} in the provided text`;
+        const mismatchInfo = buildLanguageMismatchInfo(
+          forcedLanguage,
+          validationResult.detectedLanguage
+        );
+        const detectedName = validationResult.detectedLanguage || 'Unknown';
+        const errorMessage = `Language mismatch: Could not detect ${expectedLanguageName} in the provided text (detected ${detectedName})`;
         logger.log(`[Claude API] ${errorMessage}`);
-        throw new Error(errorMessage);
+
+        return {
+          furiganaText: '',
+          translatedText: '',
+          languageMismatch: mismatchInfo
+        };
       }
     }
   }
@@ -2253,6 +2328,10 @@ Format your response as valid JSON with these exact keys:
 
       logger.log("Claude API response received");
       
+      // Extract token usage from API response
+      const usage = response.data?.usage;
+      const inputTokens = usage?.input_tokens;
+      const outputTokens = usage?.output_tokens;
 
       
       // Extract and parse the content from Claude's response
@@ -3474,8 +3553,9 @@ Format your response as valid JSON with these exact keys:
               forcedLanguage,
               textLength: text.length,
               hasJapanese: result.furiganaText ? true : false,
-              parseMethod: 'direct'
-            });
+              parseMethod: 'direct',
+              operationType: 'translation'
+            }, inputTokens, outputTokens);
 
             return result;
           } catch (parseError) {
@@ -3505,8 +3585,9 @@ Format your response as valid JSON with these exact keys:
                   forcedLanguage,
                   textLength: text.length,
                   hasJapanese: result.furiganaText ? true : false,
-                  parseMethod: 'block'
-                });
+                  parseMethod: 'block',
+                  operationType: 'translation'
+                }, inputTokens, outputTokens);
 
                 return result;
               }
@@ -3530,8 +3611,9 @@ Format your response as valid JSON with these exact keys:
                   forcedLanguage,
                   textLength: text.length,
                   hasJapanese: result.furiganaText ? true : false,
-                  parseMethod: 'flexible'
-                });
+                  parseMethod: 'flexible',
+                  operationType: 'translation'
+                }, inputTokens, outputTokens);
 
                 return result;
               }
@@ -3560,8 +3642,9 @@ Format your response as valid JSON with these exact keys:
                   forcedLanguage,
                   textLength: text.length,
                   hasJapanese: result.furiganaText ? true : false,
-                  parseMethod: 'manual'
-                });
+                  parseMethod: 'manual',
+                  operationType: 'translation'
+                }, inputTokens, outputTokens);
 
                 return result;
               }
@@ -3636,7 +3719,8 @@ Format your response as valid JSON with these exact keys:
     forcedLanguage,
     textLength: text.length,
     retryCount,
-    maxRetries: MAX_RETRIES
+    maxRetries: MAX_RETRIES,
+    operationType: 'translation'
   });
   
   return {
@@ -3665,6 +3749,11 @@ export async function processWithClaudeAndScope(
   logger.log('[Scope] Step 1: Getting translation...');
   const translationResult = await processWithClaude(text, targetLanguage, forcedLanguage, onProgress);
   
+  if (translationResult.languageMismatch) {
+    logger.log('[Scope] Language mismatch detected during translation, skipping scope analysis');
+    return translationResult;
+  }
+
   // Now get scope analysis with a simpler, focused prompt
   logger.log('[Scope] Step 2: Getting scope analysis...');
   
@@ -3704,6 +3793,14 @@ Provide (in ${targetLangName} language):
 
 Write your analysis in ${targetLangName}. Maximum 200 words. Focus on helping learners understand how this ${sourceLangName} sentence works grammatically.`;
     
+    // Start metrics for scope analysis call
+    const scopeMetrics = apiLogger.startAPICall('https://api.anthropic.com/v1/messages', {
+      text: text.substring(0, 100),
+      targetLanguage,
+      forcedLanguage,
+      analysisType: isWord ? 'etymology' : 'grammar'
+    });
+    
     const response = await axios.post(
       'https://api.anthropic.com/v1/messages',
       {
@@ -3722,10 +3819,25 @@ Write your analysis in ${targetLangName}. Maximum 200 words. Focus on helping le
       }
     );
     
+    // Extract token usage from scope analysis response
+    const scopeUsage = response.data?.usage;
+    const scopeInputTokens = scopeUsage?.input_tokens;
+    const scopeOutputTokens = scopeUsage?.output_tokens;
+    
     const content = response.data.content as ClaudeContentItem[];
     const scopeAnalysis = content.find((item) => item.type === 'text')?.text || '';
     
     logger.log('[Scope] Successfully got scope analysis');
+    
+    // Log scope analysis API call with token usage
+    await logClaudeAPI(scopeMetrics, true, scopeAnalysis, undefined, {
+      model: 'claude-3-haiku-20240307',
+      targetLanguage,
+      forcedLanguage,
+      textLength: text.length,
+      analysisType: isWord ? 'etymology' : 'grammar',
+      operationType: 'scope_analysis'
+    }, scopeInputTokens, scopeOutputTokens);
     
     return {
       ...translationResult,
@@ -3754,6 +3866,14 @@ export async function fetchSingleScopeAnalysis(
   targetLanguage: string = 'en',
   forcedLanguage: string = 'ja'
 ): Promise<string> {
+  // Start metrics for single scope analysis call
+  const scopeMetrics = apiLogger.startAPICall('https://api.anthropic.com/v1/messages', {
+    text: text.substring(0, 100),
+    targetLanguage,
+    forcedLanguage,
+    analysisType
+  });
+  
   try {
     const apiKey = Constants.expoConfig?.extra?.EXPO_PUBLIC_CLAUDE_API_KEY;
     if (!apiKey) {
@@ -3805,10 +3925,25 @@ Write your analysis in ${targetLangName}. Maximum 200 words. Focus on helping le
       }
     );
     
+    // Extract token usage from response
+    const scopeUsage = response.data?.usage;
+    const scopeInputTokens = scopeUsage?.input_tokens;
+    const scopeOutputTokens = scopeUsage?.output_tokens;
+    
     const content = response.data.content as ClaudeContentItem[];
     const analysis = content.find((item) => item.type === 'text')?.text || '';
     
     logger.log(`[Scope] Successfully fetched ${analysisType} analysis`);
+    
+    // Log single scope analysis API call with token usage
+    await logClaudeAPI(scopeMetrics, true, analysis, undefined, {
+      model: 'claude-3-haiku-20240307',
+      targetLanguage,
+      forcedLanguage,
+      textLength: text.length,
+      analysisType,
+      operationType: 'single_scope_analysis'
+    }, scopeInputTokens, scopeOutputTokens);
     
     return analysis;
   } catch (error) {
