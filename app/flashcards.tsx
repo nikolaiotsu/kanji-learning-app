@@ -152,20 +152,55 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage } = 
     includeScope: boolean,
     attempt: (sourceLang: string, targetLang: string) => Promise<ClaudeResponse>
   ): Promise<ClaudeResponse | null> => {
-    const detectedCode = mismatch.detectedLanguageCode || LANGUAGE_NAME_TO_CODE[mismatch.detectedLanguageName];
-    if (!detectedCode) {
-      return null;
+    let detectedCode = mismatch.detectedLanguageCode || LANGUAGE_NAME_TO_CODE[mismatch.detectedLanguageName];
+    
+    // Smart swap: If the detected language matches the target language,
+    // swap source and target (user scanned text in their learning language)
+    // This is the most common case - e.g., Japanese→English user scans English text
+    if (detectedCode === targetLanguage) {
+      logger.log(`🔄 [Flashcards] Smart swap: Detected ${detectedCode} matches target, swapping to ${detectedCode} → ${forcedDetectionLanguage}`);
+      await setForcedDetectionLanguage(detectedCode);
+      const detectedLabel = AVAILABLE_LANGUAGES[detectedCode as keyof typeof AVAILABLE_LANGUAGES] || mismatch.detectedLanguageName || 'unknown';
+      setDetectedLanguage(detectedLabel);
+      return attempt(detectedCode, forcedDetectionLanguage);
+    }
+    
+    // If pattern detection gave a wrong guess but we know the target language,
+    // try the target language first as the source (most likely case)
+    if (!detectedCode || detectedCode === forcedDetectionLanguage) {
+      // Pattern detection failed or guessed the same language - try target as source
+      logger.log(`🔄 [Flashcards] Detection unclear, trying target language ${targetLanguage} as source`);
+      await setForcedDetectionLanguage(targetLanguage);
+      const targetLabel = AVAILABLE_LANGUAGES[targetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'unknown';
+      setDetectedLanguage(targetLabel);
+      return attempt(targetLanguage, forcedDetectionLanguage);
     }
 
-    const resolvedTarget = detectedCode === targetLanguage ? forcedDetectionLanguage : targetLanguage;
+    // Standard case: detected language differs from both source and target
+    // First try the target language as source (common user error),
+    // then fall back to the detected language if that fails
+    logger.log(`🔄 [Flashcards] Trying target language ${targetLanguage} as source first (common case)`);
+    await setForcedDetectionLanguage(targetLanguage);
+    const targetLabel = AVAILABLE_LANGUAGES[targetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'unknown';
+    setDetectedLanguage(targetLabel);
+    
+    const targetAttempt = await attempt(targetLanguage, forcedDetectionLanguage);
+    
+    // If target language worked, return it
+    if (targetAttempt.translatedText && !targetAttempt.languageMismatch) {
+      logger.log(`✅ [Flashcards] Target language ${targetLanguage} was correct`);
+      return targetAttempt;
+    }
+    
+    // If target language didn't work, try the detected language
+    logger.log(`🔄 [Flashcards] Target didn't match, trying detected ${detectedCode} → ${targetLanguage}`);
     await setForcedDetectionLanguage(detectedCode);
     const detectedLabel =
       mismatch.detectedLanguageName ||
       AVAILABLE_LANGUAGES[detectedCode as keyof typeof AVAILABLE_LANGUAGES] ||
       'unknown';
-
     setDetectedLanguage(detectedLabel);
-    return attempt(detectedCode, resolvedTarget);
+    return attempt(detectedCode, targetLanguage);
   };
 
   const runTranslationWithAutoSwitch = async (includeScope: boolean): Promise<ClaudeResponse> => {
@@ -177,12 +212,23 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage } = 
     };
 
     let result = await attempt(forcedDetectionLanguage, targetLanguage);
+    
+    // First retry if language mismatch
     if (result.languageMismatch) {
+      logger.log(`🔄 [Flashcards] Language mismatch detected: expected ${forcedDetectionLanguage}, got ${result.languageMismatch.detectedLanguageName}`);
       const rerun = await handleLanguageMismatchRetry(result.languageMismatch, includeScope, attempt);
       if (!rerun) {
         throw new Error('Failed to auto-switch languages for this text.');
       }
       result = rerun;
+      
+      // If retry also failed with mismatch, try one more time with simple swap
+      if (result.languageMismatch && result.languageMismatch.detectedLanguageCode !== forcedDetectionLanguage) {
+        logger.log(`🔄 [Flashcards] Second mismatch, trying simple swap: ${targetLanguage} → ${forcedDetectionLanguage}`);
+        await setForcedDetectionLanguage(targetLanguage);
+        setDetectedLanguage(AVAILABLE_LANGUAGES[targetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'unknown');
+        result = await attempt(targetLanguage, forcedDetectionLanguage);
+      }
     }
 
     return result;
@@ -1275,7 +1321,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 6, // Reduced for tighter layout
     borderBottomWidth: 1,
     borderBottomColor: COLORS.darkGray,
     backgroundColor: COLORS.pokedexBlack,
@@ -1289,8 +1335,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    padding: 20,
-    paddingTop: 8, // Reduced padding at top since we have the header
+    padding: 12, // Reduced for tighter layout
+    paddingTop: 4, // Reduced for tighter layout
     paddingBottom: 60, // Add extra padding at the bottom for better scrolling experience
   },
   title: {

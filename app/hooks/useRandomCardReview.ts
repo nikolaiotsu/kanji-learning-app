@@ -377,8 +377,8 @@ export const useRandomCardReview = (onSessionFinishing?: () => void) => {
   };
 
   // Start a review session with specific cards (for deck filtering) - ATOMIC OPERATION
-  const startReviewWithCards = useCallback((cards: Flashcard[]) => {
-    logger.log('🚀 [Hook] startReviewWithCards called with', cards.length, 'cards');
+  const startReviewWithCards = useCallback((cards: Flashcard[], enableReviewMode: boolean = true) => {
+    logger.log('🚀 [Hook] startReviewWithCards called with', cards.length, 'cards', 'enableReviewMode:', enableReviewMode);
     logger.log('🚀 [Hook] Current isInReviewMode:', isInReviewMode);
     logger.log('🚀 [Hook] Current reviewSessionCards.length:', reviewSessionCards.length);
     
@@ -393,11 +393,11 @@ export const useRandomCardReview = (onSessionFinishing?: () => void) => {
       // Set all states atomically to prevent intermediate renders
       setReviewSessionCards(cards);
       setCurrentCard(selectedCard);
-      setIsInReviewMode(true);
+      setIsInReviewMode(enableReviewMode); // Use the enableReviewMode parameter
       setIsSessionFinished(false);
       setLoadingState(LoadingState.CONTENT_READY);
       
-      logger.log('🚀 [Hook] Review session started successfully');
+      logger.log('🚀 [Hook] Session started successfully, review mode:', enableReviewMode);
     } else {
       logger.log('🚀 [Hook] No cards provided, clearing session');
       setReviewSessionCards([]);

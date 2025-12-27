@@ -503,6 +503,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 4, // Reduced for tighter layout
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.5,
@@ -603,6 +604,7 @@ const styles = StyleSheet.create({
   },
   flashcardsScreen: {
     backgroundColor: '#1A1A1A',
+    padding: 4, // Reduced for tighter layout
   },
   cornerDecoration: {
     position: 'absolute',

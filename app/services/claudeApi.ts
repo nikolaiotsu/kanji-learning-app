@@ -303,11 +303,83 @@ function cleanJsonString(jsonString: string): string {
       .replace(/\s+/g, ' ')          // Normalize multiple spaces
       .trim();
     
+    // Extract optional verification fields (isComplete, analysis) if present
+    // These are needed for translation/reading verification to work correctly
+    let isCompleteValue: boolean | undefined;
+    let analysisValue: string | undefined;
+    
+    const isCompleteStart = cleaned.indexOf('"isComplete"');
+    if (isCompleteStart !== -1) {
+      const isCompleteColonIndex = cleaned.indexOf(':', isCompleteStart);
+      // Extract the boolean value (true or false)
+      const afterColon = cleaned.substring(isCompleteColonIndex + 1).trim();
+      if (afterColon.startsWith('true')) {
+        isCompleteValue = true;
+      } else if (afterColon.startsWith('false')) {
+        isCompleteValue = false;
+      }
+    }
+    
+    const analysisStart = cleaned.indexOf('"analysis"');
+    if (analysisStart !== -1) {
+      const analysisColonIndex = cleaned.indexOf(':', analysisStart);
+      const analysisQuoteStart = cleaned.indexOf('"', analysisColonIndex) + 1;
+      
+      let analysisQuoteEnd = analysisQuoteStart;
+      let inEscapeAnalysis = false;
+      
+      while (analysisQuoteEnd < cleaned.length) {
+        const char = cleaned[analysisQuoteEnd];
+        
+        if (inEscapeAnalysis) {
+          inEscapeAnalysis = false;
+          analysisQuoteEnd++;
+          continue;
+        }
+        
+        if (char === '\\') {
+          inEscapeAnalysis = true;
+          analysisQuoteEnd++;
+          continue;
+        }
+        
+        if (char === '"') {
+          let nextNonWhitespace = analysisQuoteEnd + 1;
+          while (nextNonWhitespace < cleaned.length && /\s/.test(cleaned[nextNonWhitespace])) {
+            nextNonWhitespace++;
+          }
+          const nextChar = cleaned[nextNonWhitespace];
+          if (nextChar === ',' || nextChar === '}' || nextNonWhitespace >= cleaned.length) {
+            break;
+          }
+        }
+        
+        analysisQuoteEnd++;
+      }
+      
+      analysisValue = cleaned.substring(analysisQuoteStart, analysisQuoteEnd)
+        .replace(/\\"/g, '"')
+        .replace(/\\\\/g, '\\')
+        .replace(/\\n/g, '\n')
+        .trim();
+    }
+    
     // Build clean JSON from scratch with properly escaped values
-    const cleanJson = JSON.stringify({
+    // Include optional verification fields if they were present in the original
+    const resultObj: Record<string, unknown> = {
       furiganaText: furiganaValue,
       translatedText: translationValue
-    });
+    };
+    
+    // Preserve verification fields if they exist
+    if (isCompleteValue !== undefined) {
+      resultObj.isComplete = isCompleteValue;
+    }
+    if (analysisValue !== undefined) {
+      resultObj.analysis = analysisValue;
+    }
+    
+    const cleanJson = JSON.stringify(resultObj);
     
     logger.log('✅ Successfully rebuilt JSON:', cleanJson.substring(0, 150) + '...');
     return cleanJson;
@@ -2523,6 +2595,12 @@ Format your response as valid JSON with these exact keys:
   "translatedText": "Complete and accurate translation in ${targetLangName} - either the original if it was complete, or a new complete translation if it wasn't"
 }`;
 
+              // Start logging metrics for verification
+              const verificationMetrics: APIUsageMetrics = apiLogger.startAPICall('https://api.anthropic.com/v1/messages', {
+                operation: 'translation_verification',
+                textLength: text.length
+              });
+
               // Make verification request
               const verificationResponse = await axios.post(
                 'https://api.anthropic.com/v1/messages',
@@ -2546,6 +2624,11 @@ Format your response as valid JSON with these exact keys:
                 }
               );
               
+              // Extract token usage from verification response
+              const verificationUsage = verificationResponse.data?.usage;
+              const verificationInputTokens = verificationUsage?.input_tokens;
+              const verificationOutputTokens = verificationUsage?.output_tokens;
+              
               // Process verification response
               if (verificationResponse.data && verificationResponse.data.content && Array.isArray(verificationResponse.data.content)) {
                 const verificationTextContent = verificationResponse.data.content.find((item: ClaudeContentItem) => item.type === "text");
@@ -2567,6 +2650,15 @@ Format your response as valid JSON with these exact keys:
                     const analysis = verificationParsedContent.analysis || "";
                     const verifiedTranslatedText = verificationParsedContent.translatedText || "";
                     
+                    // Log token usage for verification
+                    await logClaudeAPI(verificationMetrics, true, verificationTextContent.text, undefined, {
+                      model: 'claude-3-haiku-20240307',
+                      operationType: 'translation_verification',
+                      targetLanguage,
+                      forcedLanguage,
+                      textLength: text.length
+                    }, verificationInputTokens, verificationOutputTokens);
+                    
                     if (!isComplete && verifiedTranslatedText.length > translatedText.length) {
                       logger.log(`Translation was incomplete. Analysis: ${analysis}`);
                       logger.log("Using improved translation from verification");
@@ -2585,9 +2677,32 @@ Format your response as valid JSON with these exact keys:
                     }
                   } catch (verificationParseError) {
                     logger.error("Error parsing verification response:", verificationParseError);
+                    // Log error for verification
+                    await logClaudeAPI(verificationMetrics, false, undefined, verificationParseError instanceof Error ? verificationParseError : new Error(String(verificationParseError)), {
+                      model: 'claude-3-haiku-20240307',
+                      operationType: 'translation_verification',
+                      targetLanguage,
+                      forcedLanguage
+                    }, verificationInputTokens, verificationOutputTokens);
                     // Continue with original result
                   }
+                } else {
+                  // Log error if no text content found
+                  await logClaudeAPI(verificationMetrics, false, undefined, new Error('No text content in verification response'), {
+                    model: 'claude-3-haiku-20240307',
+                    operationType: 'translation_verification',
+                    targetLanguage,
+                    forcedLanguage
+                  }, verificationInputTokens, verificationOutputTokens);
                 }
+              } else {
+                // Log error if response structure is invalid
+                await logClaudeAPI(verificationMetrics, false, undefined, new Error('Invalid verification response structure'), {
+                  model: 'claude-3-haiku-20240307',
+                  operationType: 'translation_verification',
+                  targetLanguage,
+                  forcedLanguage
+                }, verificationInputTokens, verificationOutputTokens);
               }
             }
             
@@ -2679,6 +2794,12 @@ Format as JSON:
   "translatedText": "Translation in ${targetLangName}"
 }`;
 
+                  // Start logging metrics for retry
+                  const retryMetrics: APIUsageMetrics = apiLogger.startAPICall('https://api.anthropic.com/v1/messages', {
+                    operation: 'furigana_retry',
+                    textLength: text.length
+                  });
+
                   // Make retry request
                   const retryResponse = await axios.post(
                     'https://api.anthropic.com/v1/messages',
@@ -2701,6 +2822,11 @@ Format as JSON:
                       }
                     }
                   );
+
+                  // Extract token usage from retry response
+                  const retryUsage = retryResponse.data?.usage;
+                  const retryInputTokens = retryUsage?.input_tokens;
+                  const retryOutputTokens = retryUsage?.output_tokens;
 
                   // Process retry response
                   if (retryResponse.data && retryResponse.data.content && Array.isArray(retryResponse.data.content)) {
@@ -2727,6 +2853,15 @@ Format as JSON:
                         
                         logger.log(`Retry furigana validation: ${retryValidation.details}`);
                         
+                        // Log token usage for retry
+                        await logClaudeAPI(retryMetrics, true, retryTextContent.text, undefined, {
+                          model: 'claude-3-haiku-20240307',
+                          operationType: 'furigana_retry',
+                          targetLanguage,
+                          forcedLanguage,
+                          textLength: text.length
+                        }, retryInputTokens, retryOutputTokens);
+                        
                         if (retryValidation.isValid || 
                             retryValidation.missingKanjiCount < validation.missingKanjiCount || 
                             (!retryValidation.details.includes("incorrect readings") && validation.details.includes("incorrect readings"))) {
@@ -2738,9 +2873,32 @@ Format as JSON:
                         }
                       } catch (retryParseError) {
                         logger.error("Error parsing retry response:", retryParseError);
+                        // Log error for retry
+                        await logClaudeAPI(retryMetrics, false, undefined, retryParseError instanceof Error ? retryParseError : new Error(String(retryParseError)), {
+                          model: 'claude-3-haiku-20240307',
+                          operationType: 'furigana_retry',
+                          targetLanguage,
+                          forcedLanguage
+                        }, retryInputTokens, retryOutputTokens);
                         // Continue with original result
                       }
+                    } else {
+                      // Log error if no text content found
+                      await logClaudeAPI(retryMetrics, false, undefined, new Error('No text content in retry response'), {
+                        model: 'claude-3-haiku-20240307',
+                        operationType: 'furigana_retry',
+                        targetLanguage,
+                        forcedLanguage
+                      }, retryInputTokens, retryOutputTokens);
                     }
+                  } else {
+                    // Log error if response structure is invalid
+                    await logClaudeAPI(retryMetrics, false, undefined, new Error('Invalid retry response structure'), {
+                      model: 'claude-3-haiku-20240307',
+                      operationType: 'furigana_retry',
+                      targetLanguage,
+                      forcedLanguage
+                    }, retryInputTokens, retryOutputTokens);
                   }
                 }
               }
@@ -3474,6 +3632,13 @@ Format your response as valid JSON with these exact keys:
   "translatedText": "${parsedContent.translatedText || ""}"
 }`;
 
+              // Start logging metrics for reading verification
+              const readingVerificationMetrics: APIUsageMetrics = apiLogger.startAPICall('https://api.anthropic.com/v1/messages', {
+                operation: 'reading_verification',
+                textLength: text.length,
+                readingType
+              });
+
               // Make reading verification request
               const readingVerificationResponse = await axios.post(
                 'https://api.anthropic.com/v1/messages',
@@ -3497,6 +3662,11 @@ Format your response as valid JSON with these exact keys:
                 }
               );
               
+              // Extract token usage from reading verification response
+              const readingVerificationUsage = readingVerificationResponse.data?.usage;
+              const readingVerificationInputTokens = readingVerificationUsage?.input_tokens;
+              const readingVerificationOutputTokens = readingVerificationUsage?.output_tokens;
+              
               // Process reading verification response
               if (readingVerificationResponse.data && readingVerificationResponse.data.content && Array.isArray(readingVerificationResponse.data.content)) {
                 const readingVerificationTextContent = readingVerificationResponse.data.content.find((item: ClaudeContentItem) => item.type === "text");
@@ -3518,6 +3688,16 @@ Format your response as valid JSON with these exact keys:
                     const readingAnalysis = readingVerificationParsedContent.analysis || "";
                     const verifiedFuriganaText = readingVerificationParsedContent.furiganaText || "";
                     
+                    // Log token usage for reading verification
+                    await logClaudeAPI(readingVerificationMetrics, true, readingVerificationTextContent.text, undefined, {
+                      model: 'claude-3-haiku-20240307',
+                      operationType: 'reading_verification',
+                      targetLanguage,
+                      forcedLanguage,
+                      textLength: text.length,
+                      readingType
+                    }, readingVerificationInputTokens, readingVerificationOutputTokens);
+                    
                     if (!isReadingComplete && verifiedFuriganaText.length > furiganaText.length) {
                       logger.log(`${readingType} were incomplete. Analysis: ${readingAnalysis}`);
                       logger.log(`Using improved ${readingType} from verification`);
@@ -3531,9 +3711,35 @@ Format your response as valid JSON with these exact keys:
                     }
                   } catch (readingVerificationParseError) {
                     logger.error("Error parsing reading verification response:", readingVerificationParseError);
+                    // Log error for reading verification
+                    await logClaudeAPI(readingVerificationMetrics, false, undefined, readingVerificationParseError instanceof Error ? readingVerificationParseError : new Error(String(readingVerificationParseError)), {
+                      model: 'claude-3-haiku-20240307',
+                      operationType: 'reading_verification',
+                      targetLanguage,
+                      forcedLanguage,
+                      readingType
+                    }, readingVerificationInputTokens, readingVerificationOutputTokens);
                     // Continue with original result
                   }
+                } else {
+                  // Log error if no text content found
+                  await logClaudeAPI(readingVerificationMetrics, false, undefined, new Error('No text content in reading verification response'), {
+                    model: 'claude-3-haiku-20240307',
+                    operationType: 'reading_verification',
+                    targetLanguage,
+                    forcedLanguage,
+                    readingType
+                  }, readingVerificationInputTokens, readingVerificationOutputTokens);
                 }
+              } else {
+                // Log error if response structure is invalid
+                await logClaudeAPI(readingVerificationMetrics, false, undefined, new Error('Invalid reading verification response structure'), {
+                  model: 'claude-3-haiku-20240307',
+                  operationType: 'reading_verification',
+                  targetLanguage,
+                  forcedLanguage,
+                  readingType
+                }, readingVerificationInputTokens, readingVerificationOutputTokens);
               }
             }
             

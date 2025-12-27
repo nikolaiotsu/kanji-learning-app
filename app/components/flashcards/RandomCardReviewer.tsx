@@ -394,19 +394,12 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         return;
       }
       
-      // Start fade-out animation for deck changes after initial load
-      if (!isInitializing) {
-        setIsCardTransitioning(true);
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }).start();
-      }
-      
       // Get the current operation ID to ensure we're processing the latest request
       const currentOpId = currentDeckSelectionRef.current;
       logger.log('🔍 [Component] Filtering cards for operation:', currentOpId, 'selectedDecks:', selectedDeckIds.length);
+      
+      // Helper to compute cards hash for comparison
+      const computeCardsHash = (cards: Flashcard[]) => cards.map(c => c.id).sort().join(',');
       
       if (selectedDeckIds.length > 0) {
         // Fetch cards for selected decks
@@ -431,6 +424,21 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               return;
             }
 
+            // Check if cards actually changed before triggering transitions
+            const newCardsHash = computeCardsHash(cards);
+            const currentCardsHash = computeCardsHash(filteredCards);
+            const cardsActuallyChanged = newCardsHash !== currentCardsHash;
+            
+            // Only trigger visual transition if cards changed AND we're past initial load
+            if (cardsActuallyChanged && !isInitializing) {
+              setIsCardTransitioning(true);
+              Animated.timing(fadeAnim, {
+                toValue: 0,
+                duration: 200,
+                useNativeDriver: true,
+              }).start();
+            }
+            
             // Preserve user's selection even if it yields 0 cards (empty state handled elsewhere)
             setFilteredCards(cards);
           } else {
@@ -451,6 +459,22 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         // Use all cards if no specific decks selected
         if (currentDeckSelectionRef.current === currentOpId) {
           logger.log('✅ [Component] Using all cards for operation:', currentOpId, 'cards:', allFlashcards.length);
+          
+          // Check if cards actually changed before triggering transitions
+          const newCardsHash = computeCardsHash(allFlashcards);
+          const currentCardsHash = computeCardsHash(filteredCards);
+          const cardsActuallyChanged = newCardsHash !== currentCardsHash;
+          
+          // Only trigger visual transition if cards changed AND we're past initial load
+          if (cardsActuallyChanged && !isInitializing) {
+            setIsCardTransitioning(true);
+            Animated.timing(fadeAnim, {
+              toValue: 0,
+              duration: 200,
+              useNativeDriver: true,
+            }).start();
+          }
+          
           setFilteredCards(allFlashcards);
         }
       }
@@ -587,10 +611,12 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   }, [currentCard, lastCardId, isProcessing, isInitializing]);
 
   // Reset card visibility when transitioning to prevent flashes
+  // NOTE: Don't reset lastCardId here as it triggers unnecessary re-renders
   useEffect(() => {
     if (isCardTransitioning) {
       opacityAnim.setValue(0);
-      setLastCardId(null);
+      // Removed setLastCardId(null) - this was causing race conditions
+      // The lastCardId should only be updated when we actually display a new card
     }
   }, [isCardTransitioning]);
 
@@ -826,14 +852,16 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     });
   };
 
-  // Manual button handler to restart review without double initialization
-  const onReviewAgain = () => {
+  // Manual button handler to refresh deck in browse mode (not restart review mode)
+  const onRefreshDeck = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Reset delay states when starting a new session
+    // Reset delay states when refreshing
     setDelaySessionFinish(false);
     setIsTransitionLoading(false);
-    // Restart review session using currently filtered cards to avoid duplicate random selections
-    startReviewWithCards(filteredCards);
+    // Clear session finished state to allow new session
+    // Stay in browse mode - don't enable review mode
+    // Start browse session with all filtered cards (not review mode)
+    startReviewWithCards(filteredCards, false);
   };
 
   const onKeepCard = () => {
@@ -849,6 +877,12 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     if (!deckIdsLoaded) return;
     
     const initializeReviewSession = async () => {
+      // CRITICAL: Don't restart session if we're showing the session finished view
+      if (isSessionFinished) {
+        logger.log('🔄 [Component] Session finished, skipping initialization to keep finished view visible');
+        return;
+      }
+      
       // Wait for hook to reach a stable state, but allow CONTENT_READY to proceed immediately
       if (loadingState === LoadingState.SKELETON_LOADING && allFlashcards.length === 0) {
         logger.log('🔄 [Component] Waiting for hook to load initial data...');
@@ -895,8 +929,8 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         // Capture the current operation ID to ensure we're still processing the right request
         const initOpId = currentDeckSelectionRef.current;
         
-        // Start review session atomically
-        startReviewWithCards(filteredCards);
+        // Start session atomically - respect current review mode state
+        startReviewWithCards(filteredCards, isReviewModeActive);
         
         // Wait for next tick to ensure hook state is fully updated
         setTimeout(() => {
@@ -934,7 +968,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     };
     
     initializeReviewSession();
-  }, [filteredCards, deckIdsLoaded, startReviewWithCards, loadingState, allFlashcards.length, isInitializing, selectedDeckIds.length]);
+  }, [filteredCards, deckIdsLoaded, startReviewWithCards, loadingState, allFlashcards.length, isInitializing, selectedDeckIds.length, isSessionFinished, isReviewModeActive]);
 
   // Reset delay states when session finishes in browse mode (no animation needed)
   useEffect(() => {
@@ -963,6 +997,9 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       
       // Wait a moment for the card animation to complete before fading counter
       setTimeout(() => {
+        // Change button color at the same time as counter fades out
+        setButtonDisplayActive(false);
+        
         // Start fade-out animation
         Animated.timing(srsCounterOpacity, {
           toValue: 0,
@@ -972,8 +1009,8 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         }).start(() => {
           // After fade-out completes, hide counter
           setShouldShowCounter(false);
-          // Don't disable review mode - keep it active so session finished view shows correctly
-          // The user can manually toggle it off if they want to browse
+          // Exit review mode to return to browse mode when all cards are finished
+          setIsReviewModeActive(false);
           setDelaySessionFinish(false); // Allow "session finished" view to show
           
           // Smoothly fade out loading overlay
@@ -986,7 +1023,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           });
           
           isFadingOutRef.current = false;
-          logger.log('🔄 [Component] Fade-out complete, showing session finished view');
+          logger.log('🔄 [Component] Fade-out complete, exiting to browse mode');
         });
       }, 100); // Small delay to let card finish animating
     }
@@ -1021,7 +1058,8 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     
     // CRITICAL: Don't change cards during transition loading to prevent flashing
     // Wait until loading overlay is fully visible before changing cards
-    if (modeActuallyChanged && !isTransitionLoading) {
+    // CRITICAL: Don't restart session if session is finished - keep showing finished view
+    if (modeActuallyChanged && !isTransitionLoading && !isSessionFinished) {
       logger.log('📚 [Review Mode] Mode changed to:', isReviewModeActive ? 'Review' : 'Browse');
       
       if (isReviewModeActive) {
@@ -1032,8 +1070,8 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           startReviewWithCards([]);
         }
       } else {
-        // Entering Browse Mode: Show all cards
-        startReviewWithCards(filteredCards);
+        // Entering Browse Mode: Show all cards (but don't enable review mode)
+        startReviewWithCards(filteredCards, false);
       }
       
       // Reset reviewed count when mode changes
@@ -1043,7 +1081,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     
     // Update the ref for next comparison
     prevIsReviewModeActiveRef.current = isReviewModeActive;
-  }, [isReviewModeActive, filteredCards, startReviewWithCards, isTransitionLoading]);
+  }, [isReviewModeActive, filteredCards, startReviewWithCards, isTransitionLoading, isSessionFinished]);
 
   // Handle deck selection with cancellation-based approach for rapid selections
   const handleDeckSelection = useCallback(async (deckIds: string[]) => {
@@ -1521,7 +1559,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               {!isEmptyReviewMode && (
                 <TouchableOpacity 
                   style={styles.reviewAgainButton} 
-                  onPress={onReviewAgain}
+                  onPress={onRefreshDeck}
                 >
                   <Text style={styles.reviewAgainText}>{t('review.reviewAgain')}</Text>
                 </TouchableOpacity>
