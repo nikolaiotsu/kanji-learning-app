@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import Constants from 'expo-constants';
 import { View, Text, StyleSheet, Platform, ActivityIndicator, ScrollView, TouchableOpacity, Alert, TextInput, Modal, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { processWithClaude, processWithClaudeAndScope, fetchSingleScopeAnalysis, LanguageMismatchInfo, ClaudeResponse } from './services/claudeApi';
+import { processWithClaude, processWithClaudeAndScope, fetchSingleScopeAnalysis, validateLanguageWithClaude, LanguageMismatchInfo, ClaudeResponse } from './services/claudeApi';
 import { 
   cleanText, 
   containsJapanese, 
@@ -151,6 +152,32 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     logger.log('📊 [Flashcards] Processing progress set to:', checkpoint);
   };
 
+  // Lazy AI validation helper - returns detected language regardless of expectation
+  const performLazyAIValidation = async (text: string, expectedLanguage: string): Promise<string | null> => {
+    try {
+      logger.log(`🔍 [Flashcards] Performing lazy AI validation for expected language: ${expectedLanguage}`);
+      const apiKey = Constants.expoConfig?.extra?.EXPO_PUBLIC_CLAUDE_API_KEY;
+      if (!apiKey) {
+        logger.warn(`🔍 [Flashcards] No API key available for lazy validation`);
+        return null;
+      }
+
+      const aiValidation = await validateLanguageWithClaude(text, expectedLanguage, apiKey);
+      if (aiValidation.detectedLanguage) {
+        const result = aiValidation.detectedLanguage;
+        const isMatch = aiValidation.isValid;
+
+        logger.log(`🔍 [Flashcards] AI validation result: detected ${result}, matches expected ${expectedLanguage}: ${isMatch}`);
+        return result; // Always return detected language, regardless of whether it matches expectation
+      }
+      logger.log(`❌ [Flashcards] Lazy AI validation failed: no language detected`);
+      return null;
+    } catch (error) {
+      logger.warn(`🔍 [Flashcards] Lazy AI validation error:`, error);
+      return null;
+    }
+  };
+
   // Result type for language mismatch retry - includes successful languages used
   type RetryResult = {
     response: ClaudeResponse;
@@ -172,6 +199,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       const response = await attempt(sourceLang, targetLang);
       return { response, usedSourceLang: sourceLang, usedTargetLang: targetLang };
     };
+
     
     // RULE: Always preserve the user's original target language unless the detected
     // language IS the target language (meaning user scanned text in their learning language)
@@ -241,7 +269,33 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
         return tryAttempt(aiDetectedCode, originalTargetLanguage);
       }
     }
-    
+
+    // Final fallback: Use lazy AI validation for better language detection
+    // This only triggers when all pattern-based approaches have failed
+    logger.log(`🔍 [Flashcards] All pattern-based retries failed, attempting lazy AI validation`);
+    try {
+      // Get the original text that was being processed
+      const originalText = editedText || displayText;
+
+      // Try AI validation with the original source language
+      const aiDetectedLanguage = await performLazyAIValidation(originalText, originalSourceLanguage);
+      if (aiDetectedLanguage && aiDetectedLanguage !== originalSourceLanguage) {
+        // Convert detected language name back to code
+        const detectedCode = Object.keys(AVAILABLE_LANGUAGES).find(
+          key => AVAILABLE_LANGUAGES[key as keyof typeof AVAILABLE_LANGUAGES] === aiDetectedLanguage
+        );
+
+        if (detectedCode && detectedCode !== originalTargetLanguage) {
+          logger.log(`🎯 [Flashcards] Lazy AI validation found better language: ${detectedCode} → ${originalTargetLanguage}`);
+          const aiLabel = aiDetectedLanguage;
+          setDetectedLanguage(aiLabel);
+          return tryAttempt(detectedCode, originalTargetLanguage);
+        }
+      }
+    } catch (error) {
+      logger.warn(`🔍 [Flashcards] Lazy AI validation failed:`, error);
+    }
+
     return swapResult;
   };
 
@@ -262,34 +316,87 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     };
 
     let result = await attempt(originalSourceLanguage, originalTargetLanguage);
-    
-    // First retry if language mismatch
+
+    // SMART RETRY: Use detected language code from mismatch
     if (result.languageMismatch) {
-      logger.log(`🔄 [Flashcards] Language mismatch detected: expected ${originalSourceLanguage}, got ${result.languageMismatch.detectedLanguageName}`);
-      const retryResult = await handleLanguageMismatchRetry(result.languageMismatch, includeScope, attempt, originalTargetLanguage);
-      if (!retryResult) {
-        throw new Error('Failed to auto-switch languages for this text.');
+      const detectedCode = result.languageMismatch.detectedLanguageCode;
+      logger.log(`🔄 [Flashcards] Language mismatch detected: expected ${originalSourceLanguage}, got ${result.languageMismatch.detectedLanguageName} (code: ${detectedCode})`);
+
+      // Case 1: Detected language is a THIRD language (not source, not target)
+      // This means the user scanned text in a completely different language
+      // Try: detected → originalTarget (preserve user's target language)
+      if (detectedCode && detectedCode !== originalSourceLanguage && detectedCode !== originalTargetLanguage) {
+        logger.log(`🔄 [Flashcards] Detected third language, trying: ${detectedCode} → ${originalTargetLanguage}`);
+        setDetectedLanguage(AVAILABLE_LANGUAGES[detectedCode as keyof typeof AVAILABLE_LANGUAGES] || result.languageMismatch.detectedLanguageName || 'unknown');
+        result = await attempt(detectedCode, originalTargetLanguage);
+        usedSourceLang = detectedCode;
+        usedTargetLang = originalTargetLanguage;
       }
-      result = retryResult.response;
-      usedSourceLang = retryResult.usedSourceLang;
-      usedTargetLang = retryResult.usedTargetLang;
-      
-      // If retry also failed with mismatch, try one more time with simple swap
-      if (result.languageMismatch && result.languageMismatch.detectedLanguageCode !== originalSourceLanguage) {
-        logger.log(`🔄 [Flashcards] Second mismatch, trying simple swap: ${originalTargetLanguage} → ${originalSourceLanguage}`);
+      // Case 2: Detected language matches target (user scanned text in their learning language)
+      // Simple swap: target → source
+      else if (detectedCode === originalTargetLanguage) {
+        logger.log(`🔄 [Flashcards] Text is in target language, swapping: ${originalTargetLanguage} → ${originalSourceLanguage}`);
         setDetectedLanguage(AVAILABLE_LANGUAGES[originalTargetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'unknown');
         result = await attempt(originalTargetLanguage, originalSourceLanguage);
         usedSourceLang = originalTargetLanguage;
         usedTargetLang = originalSourceLanguage;
       }
+      // Case 3: No detected code available - fall back to simple swap
+      else {
+        logger.log(`🔄 [Flashcards] No detected code, trying simple swap: ${originalTargetLanguage} → ${originalSourceLanguage}`);
+        setDetectedLanguage(AVAILABLE_LANGUAGES[originalTargetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'unknown');
+        result = await attempt(originalTargetLanguage, originalSourceLanguage);
+        usedSourceLang = originalTargetLanguage;
+        usedTargetLang = originalSourceLanguage;
+      }
+
+      // If retry still failed, stop to save costs
+      if (result.languageMismatch) {
+        logger.log(`💰 [Flashcards] Retry failed, stopping to save API costs`);
+        // Keep the result as-is, user will see the error
+      }
     }
 
-    // After successful translation, update settings ONLY if they changed
-    // This preserves the correct target language
+    // After successful translation, update settings and UI
     if (result.translatedText && !result.languageMismatch) {
+      // Update actualTargetLanguage for UI display
+      setActualTargetLanguage(usedTargetLang);
+      
+      // If we used different languages than original (from retry), update settings
       if (usedSourceLang !== originalSourceLanguage || usedTargetLang !== originalTargetLanguage) {
-        logger.log(`✅ [Flashcards] Translation successful, updating settings: ${usedSourceLang} → ${usedTargetLang}`);
+        logger.log(`✅ [Flashcards] Translation successful with auto-switch, updating settings: ${usedSourceLang} → ${usedTargetLang}`);
         await setBothLanguages(usedSourceLang, usedTargetLang);
+        // Skip post-translation validation since we already know the correct languages from retry
+      } else {
+        // Only run post-translation validation if NO retry happened
+        // This catches cases where pattern detection missed a mismatch but translation still worked
+        if (editedText && editedText.length > 5) {
+          try {
+            logger.log(`🔍 [Flashcards] Performing post-translation validation for: ${usedSourceLang}`);
+            const detectedLanguageName = await performLazyAIValidation(editedText, usedSourceLang);
+
+            if (detectedLanguageName) {
+              logger.log(`🔍 [Flashcards] Detected language: ${detectedLanguageName}, Expected: ${AVAILABLE_LANGUAGES[usedSourceLang as keyof typeof AVAILABLE_LANGUAGES]}`);
+
+              // Check if detected language differs from what we used
+              const expectedLanguageName = AVAILABLE_LANGUAGES[usedSourceLang as keyof typeof AVAILABLE_LANGUAGES];
+              if (detectedLanguageName !== expectedLanguageName) {
+                // Convert detected language name to code
+                const detectedCode = Object.keys(AVAILABLE_LANGUAGES).find(
+                  key => AVAILABLE_LANGUAGES[key as keyof typeof AVAILABLE_LANGUAGES] === detectedLanguageName
+                );
+
+                // Only update if detected language is different from both source and target
+                if (detectedCode && detectedCode !== usedSourceLang && detectedCode !== usedTargetLang) {
+                  logger.log(`🎯 [Flashcards] Post-validation found mismatch, updating settings: ${detectedCode} → ${usedTargetLang}`);
+                  await setBothLanguages(detectedCode, usedTargetLang);
+                }
+              }
+            }
+          } catch (error) {
+            logger.warn(`🔍 [Flashcards] Post-translation validation error:`, error);
+          }
+        }
       }
     }
 

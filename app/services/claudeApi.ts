@@ -5,6 +5,158 @@ import { apiLogger, logClaudeAPI, APIUsageMetrics } from './apiUsageLogger';
 import { validateTextLength } from '../utils/inputValidation';
 import { logger } from '../utils/logger';
 import { sanitizeKoreanRomanization, analyzeKoreanRomanization } from './koreanRomanizationGuards';
+
+// Language validation caching system to reduce API costs
+interface CachedValidationResult {
+  result: { isValid: boolean; detectedLanguage: string; confidence: string };
+  timestamp: number;
+}
+
+const validationCache = new Map<string, CachedValidationResult>();
+const VALIDATION_CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+
+function getCachedValidation(text: string, forcedLanguage: string): CachedValidationResult['result'] | null {
+  const key = `${forcedLanguage}:${text.substring(0, 200)}`; // Use first 200 chars as key
+  const cached = validationCache.get(key);
+
+  logger.log(`[Cache Debug] Looking for key: ${key.substring(0, 50)}...`);
+  logger.log(`[Cache Debug] Cache has ${validationCache.size} entries`);
+
+  if (cached) {
+    const age = Date.now() - cached.timestamp;
+    logger.log(`[Cache Debug] Found cached entry, age: ${Math.round(age/1000)}s (${cached.result.isValid ? 'valid' : 'invalid'})`);
+    if (age < VALIDATION_CACHE_DURATION) {
+      logger.log(`[Cache Debug] ✅ Using cached result for ${forcedLanguage}!`);
+      return cached.result;
+    } else {
+      logger.log(`[Cache Debug] ❌ Cache expired (${Math.round(VALIDATION_CACHE_DURATION/60000)}min limit), removing`);
+      validationCache.delete(key);
+    }
+  } else {
+    logger.log(`[Cache Debug] No cached entry found for this text`);
+  }
+
+  return null;
+}
+
+function setCachedValidation(text: string, forcedLanguage: string, result: CachedValidationResult['result']) {
+  const key = `${forcedLanguage}:${text.substring(0, 200)}`;
+  validationCache.set(key, { result, timestamp: Date.now() });
+  logger.log(`[Validation Cache] Cached result for ${forcedLanguage}`);
+}
+
+// Quality assessment interface
+interface QualityAssessment {
+  score: number; // 0-100
+  needsVerification: boolean;
+  reasons: string[];
+}
+
+// Smart verification quality assessment function
+function assessTranslationQuality(
+  translatedText: string,
+  targetLanguage: string,
+  originalTextLength: number
+): QualityAssessment {
+  let score = 100;
+  const reasons: string[] = [];
+
+  // Length check - suspiciously short translations
+  const minExpectedLength = Math.max(3, Math.floor(originalTextLength * 0.3));
+  if (translatedText.length < minExpectedLength) {
+    const lengthPenalty = Math.min(50, (minExpectedLength - translatedText.length) * 5);
+    score -= lengthPenalty;
+    reasons.push(`Too short (${translatedText.length} chars, expected >${minExpectedLength})`);
+  }
+
+  // Language pattern check - should contain expected character sets
+  const hasExpectedChars = checkLanguageCharacterPatterns(translatedText, targetLanguage);
+  if (!hasExpectedChars) {
+    score -= 30;
+    reasons.push(`Missing expected ${targetLanguage} characters`);
+  }
+
+  // Error pattern check - contains API errors or failure messages
+  if (containsErrorPatterns(translatedText)) {
+    score -= 60;
+    reasons.push('Contains error messages or API failures');
+  }
+
+  // JSON structure check - should not contain raw JSON artifacts
+  if (containsJsonArtifacts(translatedText)) {
+    score -= 40;
+    reasons.push('Contains JSON parsing artifacts');
+  }
+
+  // Cap score at 0
+  score = Math.max(0, score);
+
+  return {
+    score,
+    needsVerification: score < 70, // Conservative threshold
+    reasons
+  };
+}
+
+// Check if translation contains expected language character patterns
+function checkLanguageCharacterPatterns(text: string, language: string): boolean {
+  const patterns = {
+    'ja': /[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/, // Hiragana, Katakana, Kanji
+    'zh': /[\u4e00-\u9fff]/,                            // Chinese characters
+    'ko': /[\uac00-\ud7af\u1100-\u11ff]/,              // Korean
+    'ru': /[\u0400-\u04ff]/,                            // Cyrillic
+    'ar': /[\u0600-\u06ff]/,                            // Arabic
+    'hi': /[\u0900-\u097f]/                             // Devanagari
+  };
+
+  // For languages with specific character sets, check for presence
+  if (patterns[language as keyof typeof patterns]) {
+    return patterns[language as keyof typeof patterns].test(text);
+  }
+
+  // For Latin languages (en, fr, es, etc.), absence of CJK chars is good
+  // and presence of Latin chars is expected
+  const isLatinLanguage = ['en', 'fr', 'es', 'it', 'pt', 'de', 'tl', 'eo'].includes(language);
+  if (isLatinLanguage) {
+    const hasLatinChars = /[a-zA-Z]/.test(text);
+    const hasUnexpectedCJK = /[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf\uac00-\ud7af]/.test(text);
+    return hasLatinChars && !hasUnexpectedCJK;
+  }
+
+  // For other languages, be permissive
+  return text.length > 0;
+}
+
+// Check for error patterns in translation
+function containsErrorPatterns(text: string): boolean {
+  const errorPatterns = [
+    /error/i,
+    /failed/i,
+    /exception/i,
+    /timeout/i,
+    /rate limit/i,
+    /invalid/i,
+    /malformed/i,
+    /parsing error/i,
+    /api error/i,
+    /token limit/i
+  ];
+
+  return errorPatterns.some(pattern => pattern.test(text));
+}
+
+// Check for JSON parsing artifacts that shouldn't be in final translation
+function containsJsonArtifacts(text: string): boolean {
+  const jsonArtifacts = [
+    /"furiganaText"\s*:/,
+    /"translatedText"\s*:/,
+    /"isComplete"\s*:/,
+    /\{[\s\S]*\}/,  // JSON objects
+    /,[\s\S]*\}/    // Trailing commas
+  ];
+
+  return jsonArtifacts.some(pattern => pattern.test(text));
+}
 import { 
   containsJapanese, 
   containsChinese, 
@@ -748,13 +900,19 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
  * @param apiKey The Claude API key
  * @returns Object with validation result and detected language
  */
-async function validateLanguageWithClaude(
+export async function validateLanguageWithClaude(
   text: string,
   forcedLanguage: string,
   apiKey: string
 ): Promise<{ isValid: boolean; detectedLanguage: string; confidence: string }> {
   logger.log(`[Claude Language Validation] Starting AI-based language detection for forced language: ${forcedLanguage}`);
-  
+
+  // Check cache first to avoid expensive API calls
+  const cachedResult = getCachedValidation(text, forcedLanguage);
+  if (cachedResult) {
+    return cachedResult;
+  }
+
   // Start metrics for language validation call
   const validationMetrics = apiLogger.startAPICall('https://api.anthropic.com/v1/messages', {
     text: text.substring(0, 100),
@@ -846,11 +1004,16 @@ Be precise and return ONLY the JSON with no additional explanation.`;
               operationType: 'language_validation'
             }, validationInputTokens, validationOutputTokens);
             
-            return {
+            const validationResult = {
               isValid: result.matches === true,
               detectedLanguage: result.detectedLanguage || 'Unknown',
               confidence: result.confidence || 'low'
             };
+
+            // Cache successful validation results
+            setCachedValidation(text, forcedLanguage, validationResult);
+
+            return validationResult;
           }
         }
       }
@@ -951,76 +1114,19 @@ export async function processWithClaude(
   logger.log('🎯 [Claude API] Checkpoint 1: Initial validation complete, starting language detection');
   onProgress?.(1);
 
-  // HYBRID LANGUAGE VALIDATION STRATEGY (for forced language modes)
-  // - Latin languages (en, fr, es, it, pt, de, tl, eo): Use AI validation (overlapping patterns)
+  // OPTIMIZED LANGUAGE VALIDATION STRATEGY (cost-conscious approach)
+  // - Latin languages (en, fr, es, it, pt, de, tl, eo): Skip upfront validation, rely on Claude's built-in detection
   // - Non-Latin languages (ja, zh, ko, ru, ar, hi): Use pattern matching (unique character sets)
   if (forcedLanguage) {
     // Define which languages use which validation method
     const latinLanguages = ['en', 'fr', 'es', 'it', 'pt', 'de', 'tl', 'eo'];
     const nonLatinLanguages = ['ja', 'zh', 'ko', 'ru', 'ar', 'hi'];
-    
-    const useAIValidation = latinLanguages.includes(forcedLanguage);
+
     const usePatternValidation = nonLatinLanguages.includes(forcedLanguage);
-    
-    if (useAIValidation) {
-      // AI-POWERED VALIDATION for Latin languages (similar scripts, pattern matching unreliable)
-      logger.log(`[Claude API] Performing AI-based language validation for Latin language: ${forcedLanguage}`);
-      
-      try {
-        const aiValidation = await validateLanguageWithClaude(text, forcedLanguage, apiKey);
-        
-      if (!aiValidation.isValid) {
-        const mismatchInfo = buildLanguageMismatchInfo(
-          forcedLanguage,
-          aiValidation.detectedLanguage,
-          aiValidation.confidence
-        );
-        const expectedLanguageName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || forcedLanguage;
-        const detectedName = aiValidation.detectedLanguage || 'Unknown';
-        
-        logger.log(`[Claude API] Language mismatch detected: Expected ${expectedLanguageName} but detected ${detectedName} (confidence: ${aiValidation.confidence})`);
-        logger.log(`[Claude API] Text sample: "${text.substring(0, 100)}..."`);
 
-        return {
-          furiganaText: '',
-          translatedText: '',
-          languageMismatch: mismatchInfo
-        };
-      }
-        
-        logger.log(`[Claude API] AI language validation passed: ${aiValidation.detectedLanguage} matches expected ${forcedLanguage}`);
-      } catch (error) {
-        // If the error is already a language mismatch, re-throw it
-        if (error instanceof Error && error.message.includes('Language mismatch')) {
-          throw error;
-        }
-        
-        // For other errors during AI validation, log but continue (fallback behavior)
-        logger.warn('[Claude API] AI language validation encountered an error, falling back to pattern matching');
-        
-        // Fallback to pattern-based validation
-        const validationResult = validateTextMatchesLanguage(text, forcedLanguage);
-        if (!validationResult.isValid) {
-          const expectedLanguageName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || forcedLanguage;
-          const mismatchInfo = buildLanguageMismatchInfo(
-            forcedLanguage,
-            validationResult.detectedLanguage
-          );
-          const detectedName = validationResult.detectedLanguage || 'Unknown';
-          const errorMessage = `Language mismatch: Unable to confirm ${expectedLanguageName} in the provided text (detected ${detectedName})`;
-          logger.log(`[Claude API] ${errorMessage}`);
-
-          return {
-            furiganaText: '',
-            translatedText: '',
-            languageMismatch: mismatchInfo
-          };
-        }
-      }
-    } else if (usePatternValidation) {
-      // PATTERN-BASED VALIDATION for non-Latin languages (unique scripts, pattern matching works perfectly)
+    if (usePatternValidation) {
+      // Keep pattern-based validation for non-Latin languages (works reliably)
       logger.log(`[Claude API] Performing pattern-based language validation for non-Latin language: ${forcedLanguage}`);
-      
       const validationResult = validateTextMatchesLanguage(text, forcedLanguage);
       if (!validationResult.isValid) {
         const expectedLanguageName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || forcedLanguage;
@@ -1029,10 +1135,8 @@ export async function processWithClaude(
           validationResult.detectedLanguage
         );
         const detectedName = validationResult.detectedLanguage || 'Unknown';
-        const errorMessage = `Language mismatch: Could not detect ${expectedLanguageName} in the provided text (detected ${detectedName})`;
-        
+        const errorMessage = `Language mismatch: Unable to confirm ${expectedLanguageName} in the provided text (detected ${detectedName})`;
         logger.log(`[Claude API] ${errorMessage}`);
-        logger.log(`[Claude API] Text sample: "${text.substring(0, 100)}..."`);
 
         return {
           furiganaText: '',
@@ -1040,28 +1144,45 @@ export async function processWithClaude(
           languageMismatch: mismatchInfo
         };
       }
-      
+
       logger.log(`[Claude API] Pattern-based language validation passed for ${forcedLanguage}`);
     } else {
-      // Unknown language code - use pattern matching as fallback
-      logger.log(`[Claude API] Using pattern-based validation for unknown language code: ${forcedLanguage}`);
-      const validationResult = validateTextMatchesLanguage(text, forcedLanguage);
-      if (!validationResult.isValid) {
-        const expectedLanguageName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || forcedLanguage;
+      // Latin languages: Check if text contains non-Latin characters that indicate a different language
+      // This catches cases like EN source but text is actually Japanese
+      logger.log(`[Claude API] Checking for non-Latin characters in text with Latin source: ${forcedLanguage}`);
+      
+      // Check for Japanese, Chinese, Korean characters
+      const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(text);
+      const hasChinese = /[\u4E00-\u9FFF]/.test(text) && !/[\u3040-\u309F\u30A0-\u30FF]/.test(text);
+      const hasKorean = /[\uAC00-\uD7AF\u1100-\u11FF]/.test(text);
+      const hasRussian = /[\u0400-\u04FF]/.test(text);
+      const hasArabic = /[\u0600-\u06FF]/.test(text);
+      const hasHindi = /[\u0900-\u097F]/.test(text);
+      
+      let detectedNonLatinLanguage: string | null = null;
+      if (hasJapanese) detectedNonLatinLanguage = 'Japanese';
+      else if (hasChinese) detectedNonLatinLanguage = 'Chinese';
+      else if (hasKorean) detectedNonLatinLanguage = 'Korean';
+      else if (hasRussian) detectedNonLatinLanguage = 'Russian';
+      else if (hasArabic) detectedNonLatinLanguage = 'Arabic';
+      else if (hasHindi) detectedNonLatinLanguage = 'Hindi';
+      
+      if (detectedNonLatinLanguage) {
+        logger.log(`[Claude API] Non-Latin text detected: ${detectedNonLatinLanguage} (expected ${forcedLanguage})`);
         const mismatchInfo = buildLanguageMismatchInfo(
           forcedLanguage,
-          validationResult.detectedLanguage
+          detectedNonLatinLanguage
         );
-        const detectedName = validationResult.detectedLanguage || 'Unknown';
-        const errorMessage = `Language mismatch: Could not detect ${expectedLanguageName} in the provided text (detected ${detectedName})`;
-        logger.log(`[Claude API] ${errorMessage}`);
-
+        logger.log(`[Claude API] Language mismatch: Text contains ${detectedNonLatinLanguage} characters but source is set to ${forcedLanguage}`);
+        
         return {
           furiganaText: '',
           translatedText: '',
           languageMismatch: mismatchInfo
         };
       }
+      
+      logger.log(`[Claude API] No non-Latin characters detected, proceeding with ${forcedLanguage} as source`);
     }
   }
 
@@ -2563,9 +2684,24 @@ Format your response as valid JSON with these exact keys:
             const translatedPreview = translatedText.substring(0, 60) + (translatedText.length > 60 ? "..." : "");
             logger.log(`Translation complete: "${translatedPreview}"`);
             
-            // Always verify translation completeness regardless of length
-            if (retryCount < MAX_RETRIES - 1) {
-              logger.log("Verifying translation completeness...");
+            // SMART VERIFICATION: Assess translation quality before expensive verification
+            const qualityAssessment = assessTranslationQuality(translatedText, targetLanguage, text.length);
+            logger.log(`🎯 [Smart Verification] Quality assessment: ${qualityAssessment.score}/100 (${qualityAssessment.reasons.join(', ') || 'no issues'})`);
+
+            if (qualityAssessment.needsVerification && retryCount < MAX_RETRIES - 1) {
+              logger.log("⚠️ [Smart Verification] Low quality detected, running verification...");
+            } else if (!qualityAssessment.needsVerification) {
+              logger.log("✅ [Smart Verification] High quality confirmed, skipping verification");
+              // Return early - no verification needed
+              return {
+                furiganaText: parsedContent.furiganaText || "",
+                translatedText: sanitizeTranslatedText(translatedText, targetLanguage)
+              };
+            }
+
+            // Only run verification if quality assessment indicates it's needed
+            if (qualityAssessment.needsVerification && retryCount < MAX_RETRIES - 1) {
+              logger.log("🔍 [Smart Verification] Running verification to ensure completeness...");
               
               // Increment retry counter
               retryCount++;
@@ -3951,25 +4087,204 @@ export async function processWithClaudeAndScope(
   forcedLanguage: string = 'ja',
   onProgress?: (checkpoint: number) => void
 ): Promise<ClaudeResponse> {
-  // First, get the normal translation
-  logger.log('[Scope] Step 1: Getting translation...');
-  const translationResult = await processWithClaude(text, targetLanguage, forcedLanguage, onProgress);
+  // OPTIMIZED: Combined single API call for translation + scope analysis
+  // This saves ~40-50% of API costs compared to making two separate calls
+  logger.log('[WordScope Combined] Starting combined translation + scope analysis...');
   
-  if (translationResult.languageMismatch) {
-    logger.log('[Scope] Language mismatch detected during translation, skipping scope analysis');
-    return translationResult;
-  }
+  // Normalize text for safe JSON processing
+  const normalizedText = normalizeQuotationMarks(text);
+  
+  // Start metrics for combined call
+  const metrics = apiLogger.startAPICall('https://api.anthropic.com/v1/messages', {
+    text: normalizedText.substring(0, 100),
+    targetLanguage,
+    forcedLanguage,
+    operationType: 'wordscope_combined'
+  });
 
-  // Now get scope analysis with a simpler, focused prompt
-  logger.log('[Scope] Step 2: Getting scope analysis...');
-  
   try {
     const apiKey = Constants.expoConfig?.extra?.EXPO_PUBLIC_CLAUDE_API_KEY;
     if (!apiKey) {
       throw new Error('Claude API key not configured');
     }
     
-    // Check if input is likely a word/idiom vs a sentence
+    // Determine analysis type: etymology for words/idioms, grammar for sentences
+    const isWord = !(/[.!?。！？]/.test(normalizedText)) && normalizedText.trim().length < 50;
+    const analysisType = isWord ? 'etymology' : 'grammar';
+    const targetLangName = LANGUAGE_NAMES_MAP[targetLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'English';
+    const sourceLangName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'the source language';
+    
+    logger.log(`[WordScope Combined] Analysis type: ${analysisType} (isWord: ${isWord})`);
+    
+    // Build the scope analysis instructions based on analysis type
+    const scopeInstructions = analysisType === 'etymology'
+      ? `SCOPE ANALYSIS (Etymology):
+Provide etymology and context for this ${sourceLangName} word/idiom:
+1. Etymology: Origin and historical development of this ${sourceLangName} word/idiom
+2. How the meaning evolved over time
+3. Cultural context and interesting usage notes
+4. Be factual - only include information you're confident about, but you don't need to mention this factualness to the user
+Maximum 200 words. Focus on helping language learners understand the ${sourceLangName} word/idiom better.`
+      : `SCOPE ANALYSIS (Grammar):
+Explain the grammar structure of this ${sourceLangName} sentence:
+1. Parts of speech: Identify key words and their grammatical roles
+2. Sentence structure: How the sentence is constructed
+3. Verb forms: Tense, mood, aspect (if applicable)
+4. Key grammar points: Important grammatical features for language learners
+5. Keep it accessible - avoid overwhelming technical jargon
+Maximum 200 words. Focus on helping learners understand how this ${sourceLangName} sentence works grammatically.`;
+
+    // Combined prompt for translation + scope analysis
+    const combinedPrompt = `You are a language expert. I need you to BOTH translate AND analyze the following ${sourceLangName} text.
+
+TEXT TO PROCESS: "${normalizedText}"
+
+=== TASK 1: TRANSLATION ===
+Translate the text into natural, fluent ${targetLangName}.
+- Preserve the original meaning and tone
+- Use natural expressions in ${targetLangName}
+- Do NOT add any readings, romanization, or furigana
+
+=== TASK 2: ${analysisType.toUpperCase()} ANALYSIS ===
+${scopeInstructions}
+
+=== RESPONSE FORMAT ===
+You MUST respond with valid JSON in this exact format:
+{
+  "translatedText": "Your ${targetLangName} translation here",
+  "scopeAnalysis": "Your ${analysisType} analysis here (in ${targetLangName})"
+}
+
+CRITICAL: 
+- Both fields are required
+- Write ALL content in ${targetLangName}
+- Do not include any text outside the JSON object
+- Ensure proper JSON escaping for quotes and special characters`;
+
+    // Progress callback
+    onProgress?.(1);
+    
+    const response = await axios.post(
+      'https://api.anthropic.com/v1/messages',
+      {
+        model: 'claude-3-haiku-20240307',
+        max_tokens: 1024, // Increased for combined response
+        temperature: 0.3,
+        messages: [{ role: 'user', content: combinedPrompt }]
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01'
+        },
+        timeout: 30000 // Increased timeout for combined call
+      }
+    );
+    
+    onProgress?.(2);
+    
+    // Extract token usage
+    const usage = response.data?.usage;
+    const inputTokens = usage?.input_tokens;
+    const outputTokens = usage?.output_tokens;
+    
+    logger.log(`[WordScope Combined] Token usage - Input: ${inputTokens}, Output: ${outputTokens}`);
+    
+    // Parse the combined response
+    const content = response.data.content as ClaudeContentItem[];
+    const rawResponse = content.find((item) => item.type === 'text')?.text || '';
+    
+    logger.log(`[WordScope Combined] Raw response length: ${rawResponse.length}`);
+    
+    // Try to parse the JSON response
+    let parsedResult: { translatedText: string; scopeAnalysis: string } | null = null;
+    
+    try {
+      // First, try direct JSON parse
+      const cleanedResponse = rawResponse.trim();
+      
+      // Find JSON object in response (in case there's extra text)
+      const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        parsedResult = JSON.parse(jsonMatch[0]);
+      }
+    } catch (parseError) {
+      logger.warn('[WordScope Combined] JSON parse failed, attempting manual extraction');
+      
+      // Manual extraction fallback
+      const translatedMatch = rawResponse.match(/"translatedText"\s*:\s*"([^"]+)"/);
+      const scopeMatch = rawResponse.match(/"scopeAnalysis"\s*:\s*"([^"]+)"/);
+      
+      if (translatedMatch && scopeMatch) {
+        parsedResult = {
+          translatedText: translatedMatch[1],
+          scopeAnalysis: scopeMatch[1]
+        };
+      }
+    }
+    
+    if (!parsedResult || !parsedResult.translatedText) {
+      logger.error('[WordScope Combined] Failed to parse combined response, falling back to separate calls');
+      // Fall back to the original two-call approach
+      return await processWithClaudeAndScopeFallback(text, targetLanguage, forcedLanguage, onProgress);
+    }
+    
+    onProgress?.(3);
+    
+    // Log successful combined API call
+    await logClaudeAPI(metrics, true, rawResponse, undefined, {
+      model: 'claude-3-haiku-20240307',
+      targetLanguage,
+      forcedLanguage,
+      textLength: normalizedText.length,
+      analysisType,
+      operationType: 'wordscope_combined'
+    }, inputTokens, outputTokens);
+    
+    logger.log('[WordScope Combined] Successfully completed combined translation + scope analysis');
+    
+    return {
+      furiganaText: '', // WordScope doesn't need furigana
+      translatedText: parsedResult.translatedText,
+      scopeAnalysis: parsedResult.scopeAnalysis,
+      languageMismatch: undefined
+    };
+    
+  } catch (error) {
+    logger.error('[WordScope Combined] Combined call failed, falling back to separate calls:', error);
+    // Fall back to the original two-call approach if combined fails
+    return await processWithClaudeAndScopeFallback(text, targetLanguage, forcedLanguage, onProgress);
+  }
+}
+
+/**
+ * Fallback function that uses the original two-call approach
+ * Used when the combined approach fails for any reason
+ */
+async function processWithClaudeAndScopeFallback(
+  text: string,
+  targetLanguage: string = 'en',
+  forcedLanguage: string = 'ja',
+  onProgress?: (checkpoint: number) => void
+): Promise<ClaudeResponse> {
+  logger.log('[WordScope Fallback] Using separate calls approach...');
+  
+  // First, get the normal translation
+  const translationResult = await processWithClaude(text, targetLanguage, forcedLanguage, onProgress);
+  
+  if (translationResult.languageMismatch) {
+    logger.log('[WordScope Fallback] Language mismatch detected, skipping scope analysis');
+    return translationResult;
+  }
+
+  // Now get scope analysis with a separate call
+  try {
+    const apiKey = Constants.expoConfig?.extra?.EXPO_PUBLIC_CLAUDE_API_KEY;
+    if (!apiKey) {
+      throw new Error('Claude API key not configured');
+    }
+    
     const isWord = !(/[.!?。！？]/.test(text)) && text.trim().length < 50;
     const targetLangName = LANGUAGE_NAMES_MAP[targetLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'English';
     const sourceLangName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'the source language';
@@ -3983,9 +4298,9 @@ Provide (in ${targetLangName} language):
 1. Etymology: Origin and historical development of this ${sourceLangName} word/idiom
 2. How the meaning evolved over time
 3. Cultural context and interesting usage notes
-4. Be factual - only include information you're confident about, but you don't need to mention this factualness to the user
+4. Be factual - only include information you're confident about
 
-Write your analysis in ${targetLangName}. Maximum 200 words. Focus on helping language learners understand the ${sourceLangName} word/idiom better.`
+Write your analysis in ${targetLangName}. Maximum 200 words.`
       : `You are a language expert. Analyze this ${sourceLangName} sentence and explain its grammar structure.
 
 Text to analyze: "${text}"
@@ -3997,9 +4312,8 @@ Provide (in ${targetLangName} language):
 4. Key grammar points: Important grammatical features for language learners
 5. Keep it accessible - avoid overwhelming technical jargon
 
-Write your analysis in ${targetLangName}. Maximum 200 words. Focus on helping learners understand how this ${sourceLangName} sentence works grammatically.`;
+Write your analysis in ${targetLangName}. Maximum 200 words.`;
     
-    // Start metrics for scope analysis call
     const scopeMetrics = apiLogger.startAPICall('https://api.anthropic.com/v1/messages', {
       text: text.substring(0, 100),
       targetLanguage,
@@ -4025,7 +4339,6 @@ Write your analysis in ${targetLangName}. Maximum 200 words. Focus on helping le
       }
     );
     
-    // Extract token usage from scope analysis response
     const scopeUsage = response.data?.usage;
     const scopeInputTokens = scopeUsage?.input_tokens;
     const scopeOutputTokens = scopeUsage?.output_tokens;
@@ -4033,16 +4346,13 @@ Write your analysis in ${targetLangName}. Maximum 200 words. Focus on helping le
     const content = response.data.content as ClaudeContentItem[];
     const scopeAnalysis = content.find((item) => item.type === 'text')?.text || '';
     
-    logger.log('[Scope] Successfully got scope analysis');
-    
-    // Log scope analysis API call with token usage
     await logClaudeAPI(scopeMetrics, true, scopeAnalysis, undefined, {
       model: 'claude-3-haiku-20240307',
       targetLanguage,
       forcedLanguage,
       textLength: text.length,
       analysisType: isWord ? 'etymology' : 'grammar',
-      operationType: 'scope_analysis'
+      operationType: 'scope_analysis_fallback'
     }, scopeInputTokens, scopeOutputTokens);
     
     return {
@@ -4050,8 +4360,7 @@ Write your analysis in ${targetLangName}. Maximum 200 words. Focus on helping le
       scopeAnalysis
     };
   } catch (error) {
-    logger.error('[Scope] Failed to get scope analysis, returning translation only:', error);
-    // If scope analysis fails, just return the translation
+    logger.error('[WordScope Fallback] Scope analysis failed, returning translation only:', error);
     return translationResult;
   }
 }
