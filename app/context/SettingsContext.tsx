@@ -44,6 +44,7 @@ interface SettingsContextType {
   setTargetLanguage: (lang: string) => Promise<void>;
   forcedDetectionLanguage: string;
   setForcedDetectionLanguage: (lang: string) => Promise<void>;
+  setBothLanguages: (sourceLang: string, targetLang: string) => Promise<void>;
   swapLanguages: () => Promise<void>;
   availableLanguages: typeof AVAILABLE_LANGUAGES;
   detectableLanguages: typeof DETECTABLE_LANGUAGES;
@@ -55,6 +56,7 @@ const SettingsContext = createContext<SettingsContextType>({
   setTargetLanguage: async () => {},
   forcedDetectionLanguage: 'ja',
   setForcedDetectionLanguage: async () => {},
+  setBothLanguages: async () => {},
   swapLanguages: async () => {},
   availableLanguages: AVAILABLE_LANGUAGES,
   detectableLanguages: DETECTABLE_LANGUAGES
@@ -161,6 +163,25 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  // Function to update both languages atomically (NO auto-swap)
+  // Use this after successful translation to preserve the correct target language
+  const setBothLanguages = async (sourceLang: string, targetLang: string) => {
+    try {
+      logger.log(`[SettingsContext] Setting both languages atomically: ${sourceLang} → ${targetLang}`);
+      
+      setForcedDetectionLanguageState(sourceLang);
+      setTargetLanguageState(targetLang);
+      
+      const settings = await getSettings();
+      settings.forcedDetectionLanguage = sourceLang;
+      settings.targetLanguage = targetLang;
+      await AsyncStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    } catch (error) {
+      logger.log('Error saving both languages to storage:', error);
+      throw error;
+    }
+  };
+
   // Function to swap languages
   const swapLanguages = async () => {
     try {
@@ -212,6 +233,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setTargetLanguage,
         forcedDetectionLanguage,
         setForcedDetectionLanguage,
+        setBothLanguages,
         swapLanguages,
         availableLanguages: AVAILABLE_LANGUAGES,
         detectableLanguages: DETECTABLE_LANGUAGES

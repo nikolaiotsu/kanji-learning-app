@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Platform, ActivityIndicator, ScrollView, Toucha
 import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { processWithClaude, processWithClaudeAndScope, fetchSingleScopeAnalysis, LanguageMismatchInfo } from './services/claudeApi';
+import { processWithClaude, processWithClaudeAndScope, fetchSingleScopeAnalysis, LanguageMismatchInfo, ClaudeResponse } from './services/claudeApi';
 import { 
   cleanText, 
   containsJapanese, 
@@ -19,7 +19,7 @@ import {
   containsSpanishText,
   containsPortugueseText,
   containsGermanText,
-  containsKanji 
+  containsKanji
 } from './utils/textFormatting';
 import { saveFlashcard, uploadImageToStorage } from './services/supabaseStorage';
 import { Flashcard } from './types/Flashcard';
@@ -54,7 +54,7 @@ import { logger } from './utils/logger';
 export default function LanguageFlashcardsScreen() {
   const { t } = useTranslation();
   const { user } = useAuth();
-const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage } = useSettings();
+const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, setBothLanguages } = useSettings();
   const { incrementFlashcardCount, canCreateFlashcard, remainingFlashcards } = useFlashcardCounter();
   const { purchaseSubscription } = useSubscription();
   const { isConnected } = useNetworkState();
@@ -81,6 +81,10 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage } = 
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  
+  // Track the actual target language used for the current translation
+  // This preserves the original target language even if settings get swapped during retries
+  const [actualTargetLanguage, setActualTargetLanguage] = useState<string>(targetLanguage);
   
   // State for deck selection
   const [showDeckSelector, setShowDeckSelector] = useState(false);
@@ -147,63 +151,109 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage } = 
     logger.log('📊 [Flashcards] Processing progress set to:', checkpoint);
   };
 
+  // Result type for language mismatch retry - includes successful languages used
+  type RetryResult = {
+    response: ClaudeResponse;
+    usedSourceLang: string;
+    usedTargetLang: string;
+  };
+
   const handleLanguageMismatchRetry = async (
     mismatch: LanguageMismatchInfo,
     includeScope: boolean,
-    attempt: (sourceLang: string, targetLang: string) => Promise<ClaudeResponse>
-  ): Promise<ClaudeResponse | null> => {
+    attempt: (sourceLang: string, targetLang: string) => Promise<ClaudeResponse>,
+    originalTargetLanguage: string
+  ): Promise<RetryResult | null> => {
     let detectedCode = mismatch.detectedLanguageCode || LANGUAGE_NAME_TO_CODE[mismatch.detectedLanguageName];
+    const originalSourceLanguage = forcedDetectionLanguage;
     
-    // Smart swap: If the detected language matches the target language,
-    // swap source and target (user scanned text in their learning language)
-    // This is the most common case - e.g., Japanese→English user scans English text
-    if (detectedCode === targetLanguage) {
-      logger.log(`🔄 [Flashcards] Smart swap: Detected ${detectedCode} matches target, swapping to ${detectedCode} → ${forcedDetectionLanguage}`);
-      await setForcedDetectionLanguage(detectedCode);
+    // Helper to make attempt and return with language info
+    const tryAttempt = async (sourceLang: string, targetLang: string): Promise<RetryResult> => {
+      const response = await attempt(sourceLang, targetLang);
+      return { response, usedSourceLang: sourceLang, usedTargetLang: targetLang };
+    };
+    
+    // RULE: Always preserve the user's original target language unless the detected
+    // language IS the target language (meaning user scanned text in their learning language)
+    
+    // Case 1: Detected language matches the target language
+    // This means user scanned text in their learning language - swap source and target
+    // e.g., Settings: JA→EN, user scans English text → swap to EN→JA
+    if (detectedCode === originalTargetLanguage) {
+      logger.log(`🔄 [Flashcards] Smart swap: Detected ${detectedCode} matches target, swapping to ${detectedCode} → ${originalSourceLanguage}`);
       const detectedLabel = AVAILABLE_LANGUAGES[detectedCode as keyof typeof AVAILABLE_LANGUAGES] || mismatch.detectedLanguageName || 'unknown';
       setDetectedLanguage(detectedLabel);
-      return attempt(detectedCode, forcedDetectionLanguage);
+      return tryAttempt(detectedCode, originalSourceLanguage);
     }
     
-    // If pattern detection gave a wrong guess but we know the target language,
-    // try the target language first as the source (most likely case)
-    if (!detectedCode || detectedCode === forcedDetectionLanguage) {
-      // Pattern detection failed or guessed the same language - try target as source
-      logger.log(`🔄 [Flashcards] Detection unclear, trying target language ${targetLanguage} as source`);
-      await setForcedDetectionLanguage(targetLanguage);
-      const targetLabel = AVAILABLE_LANGUAGES[targetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'unknown';
-      setDetectedLanguage(targetLabel);
-      return attempt(targetLanguage, forcedDetectionLanguage);
+    // Case 2: Standard case - detected language differs from both source and target
+    // Keep the original target, try to find the correct source language
+    // e.g., Settings: JA→FR, user scans English text → translate EN→FR (keep FR as target!)
+    
+    // First, try the pattern-detected language as source (if available and different)
+    if (detectedCode && detectedCode !== originalSourceLanguage && detectedCode !== originalTargetLanguage) {
+      logger.log(`🔄 [Flashcards] Trying detected language ${detectedCode} → ${originalTargetLanguage} (keeping original target)`);
+      const detectedLabel = AVAILABLE_LANGUAGES[detectedCode as keyof typeof AVAILABLE_LANGUAGES] || mismatch.detectedLanguageName || 'unknown';
+      setDetectedLanguage(detectedLabel);
+      const detectedResult = await tryAttempt(detectedCode, originalTargetLanguage);
+      
+      // If it worked, return it
+      if (detectedResult.response.translatedText && !detectedResult.response.languageMismatch) {
+        logger.log(`✅ [Flashcards] Detected language ${detectedCode} was correct`);
+        return detectedResult;
+      }
+      
+      // If it failed with AI-detected language, try that
+      if (detectedResult.response.languageMismatch && detectedResult.response.languageMismatch.detectedLanguageCode) {
+        const aiDetectedCode = detectedResult.response.languageMismatch.detectedLanguageCode;
+        if (aiDetectedCode !== detectedCode && aiDetectedCode !== originalTargetLanguage) {
+          logger.log(`🔄 [Flashcards] Using AI-detected language: ${aiDetectedCode} → ${originalTargetLanguage}`);
+          const aiDetectedLabel = AVAILABLE_LANGUAGES[aiDetectedCode as keyof typeof AVAILABLE_LANGUAGES] || detectedResult.response.languageMismatch.detectedLanguageName || 'unknown';
+          setDetectedLanguage(aiDetectedLabel);
+          return tryAttempt(aiDetectedCode, originalTargetLanguage);
+        }
+      }
+      
+      return detectedResult;
     }
-
-    // Standard case: detected language differs from both source and target
-    // First try the target language as source (common user error),
-    // then fall back to the detected language if that fails
-    logger.log(`🔄 [Flashcards] Trying target language ${targetLanguage} as source first (common case)`);
-    await setForcedDetectionLanguage(targetLanguage);
-    const targetLabel = AVAILABLE_LANGUAGES[targetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'unknown';
+    
+    // Case 3: Pattern detection failed or gave same as source
+    // Try the target language as source (user may have scanned text in target language)
+    // BUT keep original target - only swap if this specific attempt fails
+    logger.log(`🔄 [Flashcards] Detection unclear, trying ${originalTargetLanguage} as source → ${originalSourceLanguage}`);
+    const targetLabel = AVAILABLE_LANGUAGES[originalTargetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'unknown';
     setDetectedLanguage(targetLabel);
+    const swapResult = await tryAttempt(originalTargetLanguage, originalSourceLanguage);
     
-    const targetAttempt = await attempt(targetLanguage, forcedDetectionLanguage);
-    
-    // If target language worked, return it
-    if (targetAttempt.translatedText && !targetAttempt.languageMismatch) {
-      logger.log(`✅ [Flashcards] Target language ${targetLanguage} was correct`);
-      return targetAttempt;
+    // If swap worked, return it
+    if (swapResult.response.translatedText && !swapResult.response.languageMismatch) {
+      logger.log(`✅ [Flashcards] Swap worked: ${originalTargetLanguage} → ${originalSourceLanguage}`);
+      return swapResult;
     }
     
-    // If target language didn't work, try the detected language
-    logger.log(`🔄 [Flashcards] Target didn't match, trying detected ${detectedCode} → ${targetLanguage}`);
-    await setForcedDetectionLanguage(detectedCode);
-    const detectedLabel =
-      mismatch.detectedLanguageName ||
-      AVAILABLE_LANGUAGES[detectedCode as keyof typeof AVAILABLE_LANGUAGES] ||
-      'unknown';
-    setDetectedLanguage(detectedLabel);
-    return attempt(detectedCode, targetLanguage);
+    // If swap failed with AI-detected language, try that with ORIGINAL target
+    if (swapResult.response.languageMismatch && swapResult.response.languageMismatch.detectedLanguageCode) {
+      const aiDetectedCode = swapResult.response.languageMismatch.detectedLanguageCode;
+      if (aiDetectedCode !== originalTargetLanguage && aiDetectedCode !== originalSourceLanguage) {
+        logger.log(`🔄 [Flashcards] Using AI-detected language: ${aiDetectedCode} → ${originalTargetLanguage} (restoring original target)`);
+        const aiDetectedLabel = AVAILABLE_LANGUAGES[aiDetectedCode as keyof typeof AVAILABLE_LANGUAGES] || swapResult.response.languageMismatch.detectedLanguageName || 'unknown';
+        setDetectedLanguage(aiDetectedLabel);
+        return tryAttempt(aiDetectedCode, originalTargetLanguage);
+      }
+    }
+    
+    return swapResult;
   };
 
   const runTranslationWithAutoSwitch = async (includeScope: boolean): Promise<ClaudeResponse> => {
+    // Preserve the original target language to prevent accidental swaps during retries
+    const originalTargetLanguage = targetLanguage;
+    const originalSourceLanguage = forcedDetectionLanguage;
+    
+    // Track what source/target were actually used for successful translation
+    let usedSourceLang = originalSourceLanguage;
+    let usedTargetLang = originalTargetLanguage;
+    
     const attempt = async (sourceLang: string, targetLang: string) => {
       if (includeScope) {
         return processWithClaudeAndScope(editedText, targetLang, sourceLang, progressCallback);
@@ -211,23 +261,35 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage } = 
       return processWithClaude(editedText, targetLang, sourceLang, progressCallback);
     };
 
-    let result = await attempt(forcedDetectionLanguage, targetLanguage);
+    let result = await attempt(originalSourceLanguage, originalTargetLanguage);
     
     // First retry if language mismatch
     if (result.languageMismatch) {
-      logger.log(`🔄 [Flashcards] Language mismatch detected: expected ${forcedDetectionLanguage}, got ${result.languageMismatch.detectedLanguageName}`);
-      const rerun = await handleLanguageMismatchRetry(result.languageMismatch, includeScope, attempt);
-      if (!rerun) {
+      logger.log(`🔄 [Flashcards] Language mismatch detected: expected ${originalSourceLanguage}, got ${result.languageMismatch.detectedLanguageName}`);
+      const retryResult = await handleLanguageMismatchRetry(result.languageMismatch, includeScope, attempt, originalTargetLanguage);
+      if (!retryResult) {
         throw new Error('Failed to auto-switch languages for this text.');
       }
-      result = rerun;
+      result = retryResult.response;
+      usedSourceLang = retryResult.usedSourceLang;
+      usedTargetLang = retryResult.usedTargetLang;
       
       // If retry also failed with mismatch, try one more time with simple swap
-      if (result.languageMismatch && result.languageMismatch.detectedLanguageCode !== forcedDetectionLanguage) {
-        logger.log(`🔄 [Flashcards] Second mismatch, trying simple swap: ${targetLanguage} → ${forcedDetectionLanguage}`);
-        await setForcedDetectionLanguage(targetLanguage);
-        setDetectedLanguage(AVAILABLE_LANGUAGES[targetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'unknown');
-        result = await attempt(targetLanguage, forcedDetectionLanguage);
+      if (result.languageMismatch && result.languageMismatch.detectedLanguageCode !== originalSourceLanguage) {
+        logger.log(`🔄 [Flashcards] Second mismatch, trying simple swap: ${originalTargetLanguage} → ${originalSourceLanguage}`);
+        setDetectedLanguage(AVAILABLE_LANGUAGES[originalTargetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'unknown');
+        result = await attempt(originalTargetLanguage, originalSourceLanguage);
+        usedSourceLang = originalTargetLanguage;
+        usedTargetLang = originalSourceLanguage;
+      }
+    }
+
+    // After successful translation, update settings ONLY if they changed
+    // This preserves the correct target language
+    if (result.translatedText && !result.languageMismatch) {
+      if (usedSourceLang !== originalSourceLanguage || usedTargetLang !== originalTargetLanguage) {
+        logger.log(`✅ [Flashcards] Translation successful, updating settings: ${usedSourceLang} → ${usedTargetLang}`);
+        await setBothLanguages(usedSourceLang, usedTargetLang);
       }
     }
 
@@ -290,6 +352,9 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage } = 
       logger.log(`Using forced language detection: ${language}`);
       setDetectedLanguage(language);
 
+      // Store the original target language before processing (in case it gets swapped)
+      setActualTargetLanguage(targetLanguage);
+      
       const result = await runTranslationWithAutoSwitch(false);
       
       // Check if we got valid results back
@@ -597,6 +662,9 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage } = 
       }
       setDetectedLanguage(language);
       
+      // Store the original target language before processing (in case it gets swapped)
+      setActualTargetLanguage(targetLanguage);
+      
       // Progress callback
       const result = await runTranslationWithAutoSwitch(true);
       
@@ -720,7 +788,21 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage } = 
   };
 
   // Get translated language name for display
-  const translatedLanguageName = AVAILABLE_LANGUAGES[targetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'English';
+  // Use actualTargetLanguage instead of targetLanguage to preserve the original target
+  // even if languages get swapped during retry attempts
+  const translatedLanguageName = React.useMemo(() => {
+    const langName = AVAILABLE_LANGUAGES[actualTargetLanguage as keyof typeof AVAILABLE_LANGUAGES];
+    logger.log(`🏷️ [Flashcards] Translation title - actualTargetLanguage: ${actualTargetLanguage}, translatedLanguageName: ${langName}`);
+    return langName || 'English';
+  }, [actualTargetLanguage]);
+  
+  // Update actualTargetLanguage when targetLanguage changes (but preserve it during processing)
+  React.useEffect(() => {
+    if (!isLoading && !textProcessed) {
+      // Only update if we're not currently processing, to preserve the language used for translation
+      setActualTargetLanguage(targetLanguage);
+    }
+  }, [targetLanguage, isLoading, textProcessed]);
 
   // Function to handle editing translation
   const handleEditTranslation = () => {

@@ -14,6 +14,10 @@ export enum LoadingState {
   ERROR = 'error'
 }
 
+// Data version counter - increments each time fresh data is fetched
+// This helps consumers detect when they should re-process data
+let dataVersionCounter = 0;
+
 /**
  * Custom hook for managing random flashcard review
  * @returns Object containing various state and handlers for random card review
@@ -28,9 +32,13 @@ export const useRandomCardReview = (onSessionFinishing?: () => void) => {
   const [error, setError] = useState<string | null>(null);
   const [isSessionFinished, setIsSessionFinished] = useState(false);
   
+  // Data version - increments when fresh data arrives, allowing consumers to detect updates
+  const [dataVersion, setDataVersion] = useState(0);
+  
   // Use refs to track the last data state to prevent unnecessary updates
   const lastFetchedCardsRef = useRef<string>("");
   const isInitialLoadRef = useRef<boolean>(true); // Track if this is the first load
+  const isFetchingRef = useRef<boolean>(false); // Prevent concurrent fetches
   
   // Add refs to track current state values (keeping minimal refs from old implementation)
   const currentCardRef = useRef<Flashcard | null>(null);
@@ -58,7 +66,13 @@ export const useRandomCardReview = (onSessionFinishing?: () => void) => {
 
   // Fetch all flashcards with enhanced loading states
   const fetchAllFlashcards = useCallback(async (forceUpdate = false) => {
-    if (isLoading) return; // Prevent concurrent fetches
+    // Prevent concurrent fetches using ref (more reliable than state)
+    if (isFetchingRef.current) {
+      logger.log('⏳ [Hook] Fetch already in progress, skipping');
+      return;
+    }
+    
+    isFetchingRef.current = true;
     
     try {
       // Set skeleton loading state for initial loads or force updates
@@ -71,6 +85,7 @@ export const useRandomCardReview = (onSessionFinishing?: () => void) => {
         logger.log('📶 [Hook] Offline with existing cards, skipping fetch');
         setIsLoading(false);
         setLoadingState(LoadingState.CONTENT_READY);
+        isFetchingRef.current = false;
         return;
       }
       
@@ -83,6 +98,7 @@ export const useRandomCardReview = (onSessionFinishing?: () => void) => {
         logger.log('📶 [Hook] Offline with empty fetch result, preserving existing', allFlashcardsRef.current.length, 'cards');
         setIsLoading(false);
         setLoadingState(LoadingState.CONTENT_READY);
+        isFetchingRef.current = false;
         return;
       }
       
@@ -99,6 +115,12 @@ export const useRandomCardReview = (onSessionFinishing?: () => void) => {
         
         // Update all flashcards state
         setAllFlashcards(cards);
+        
+        // CRITICAL: Increment data version to signal consumers that fresh data arrived
+        // This allows RandomCardReviewer to re-filter cards when background fetch completes
+        dataVersionCounter++;
+        setDataVersion(dataVersionCounter);
+        logger.log('📊 [Hook] Data version incremented to:', dataVersionCounter, 'cards:', cards.length);
         
         // Update review session cards
         if (!isInReviewMode || forceUpdate) {
@@ -118,10 +140,15 @@ export const useRandomCardReview = (onSessionFinishing?: () => void) => {
             } else {
               setCurrentCard(null);
             }
-          } else {
-            // Ensure we start with a clean state until the session begins
+          } else if (isInitialLoadRef.current) {
+            // ONLY clear currentCard during initial load
+            // Don't clear on subsequent background fetches - the card may have been
+            // set by startReviewWithCards and we need to preserve it
+            logger.log('🔄 [Hook] Initial load - clearing currentCard for clean state');
             setCurrentCard(null);
           }
+          // If !isInReviewMode && !isInitialLoadRef.current, preserve existing currentCard
+          // (it was set by startReviewWithCards)
         } else {
           // If we're in review mode, just remove cards that no longer exist
           // BUT DO NOT ADD CARDS BACK TO THE REVIEW SESSION
@@ -169,6 +196,10 @@ export const useRandomCardReview = (onSessionFinishing?: () => void) => {
         
         // Set content ready state only after all data is loaded
         setLoadingState(LoadingState.CONTENT_READY);
+      } else {
+        // No changes detected but we should still mark as ready
+        setIsLoading(false);
+        setLoadingState(LoadingState.CONTENT_READY);
       }
     } catch (err) {
       logger.error('Error fetching flashcards:', err);
@@ -179,6 +210,7 @@ export const useRandomCardReview = (onSessionFinishing?: () => void) => {
         setIsLoading(false);
         setLoadingState(LoadingState.CONTENT_READY);
         // Don't set error state - user should see existing cards without error message
+        isFetchingRef.current = false;
         return;
       }
       
@@ -186,6 +218,8 @@ export const useRandomCardReview = (onSessionFinishing?: () => void) => {
       setError('Failed to load flashcards. Please try again.');
       setIsLoading(false);
       setLoadingState(LoadingState.ERROR);
+    } finally {
+      isFetchingRef.current = false;
     }
   }, [isInReviewMode, currentCard, reviewSessionCards, isConnected]);
 
@@ -417,6 +451,7 @@ export const useRandomCardReview = (onSessionFinishing?: () => void) => {
     isLoading,
     loadingState,
     error,
+    dataVersion, // Increments when fresh data arrives - use this to trigger re-filtering
     handleSwipeLeft,
     handleSwipeRight,
     resetReviewSession,
