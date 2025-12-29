@@ -92,6 +92,7 @@
       "withTagalogAlphabet": "With Tagalog Alphabet",
       "withHindiRomanization": "With Hindi Romanization",
       "withEsperantoRomanization": "With Esperanto Text",
+      "withThaiRomanization": "With RTGS Romanization",
       "originalText": "Original Text",
       "withPronunciationGuide": "With Pronunciation Guide",
       "translation": "{{language}} Translation",

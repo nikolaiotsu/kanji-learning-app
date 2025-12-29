@@ -7,13 +7,14 @@ import { logFlashcardCreation } from './apiUsageLogger';
 import { validateImageFile, validateDeckName, VALIDATION_LIMITS } from '../utils/inputValidation';
 import { isOnline, isNetworkError } from './networkManager';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { 
-  cacheFlashcards, 
-  getCachedFlashcards, 
-  cacheDecks, 
+import {
+  cacheFlashcards,
+  getCachedFlashcards,
+  cacheDecks,
   getCachedDecks,
   removeDeckFromCache,
-  removeFlashcardFromCache
+  removeFlashcardFromCache,
+  clearDeckCache
 } from './offlineStorage';
 import { batchCacheImages, deleteCachedImage, deleteCachedImages } from './imageCache';
 import { getUserIdOffline } from './offlineAuth';
@@ -1497,12 +1498,12 @@ export const updateFlashcard = async (flashcard: Flashcard): Promise<boolean> =>
       scope_analysis: flashcard.scopeAnalysis || null, // Include scope analysis in update
     };
     
-    // Only include SRS fields if they are defined
-    if (flashcard.box !== undefined) {
+    // Only include SRS fields if they are defined and valid
+    if (flashcard.box !== undefined && flashcard.box !== null) {
       updateData.box = flashcard.box;
     }
-    
-    if (flashcard.nextReviewDate !== undefined) {
+
+    if (flashcard.nextReviewDate !== undefined && flashcard.nextReviewDate !== null && flashcard.nextReviewDate instanceof Date) {
       // Convert nextReviewDate to YYYY-MM-DD format
       updateData.next_review_date = flashcard.nextReviewDate.toISOString().split('T')[0];
     }
@@ -1516,7 +1517,20 @@ export const updateFlashcard = async (flashcard: Flashcard): Promise<boolean> =>
       logger.error('Error updating flashcard:', error.message);
       return false;
     }
-    
+
+    // Invalidate cache for the deck containing this flashcard
+    try {
+      const userId = await getUserIdOffline();
+      if (userId) {
+        await clearDeckCache(userId, flashcard.deckId);
+        logger.log(`💾 [Cache] Invalidated cache for deck: ${flashcard.deckId} after flashcard update`);
+      }
+    } catch (cacheError) {
+      logger.warn('Failed to invalidate cache after flashcard update:', cacheError);
+      // Don't fail the update if cache invalidation fails
+    }
+
+    logger.log('✅ [Flashcard] Updated successfully');
     return true;
   } catch (error) {
     logger.error('Error updating flashcard:', error);

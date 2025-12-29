@@ -441,7 +441,9 @@ export async function detectJapaneseText(
             'ru',
             'ar',
             'hi',
-            'it'
+            'it',
+            'th',
+            'vi'
           ],
           textDetectionParams: {
             enableTextDetectionConfidenceScore: true,
@@ -601,7 +603,7 @@ export async function analyzeImage(imageUri: string, region?: Region) {
               // You might want to adjust model settings here if needed
             }],
             imageContext: {
-              languageHints: ['ja', 'en', 'es', 'fr', 'de', 'zh', 'ko', 'pt', 'ru', 'ar', 'hi'],
+              languageHints: ['ja', 'en', 'es', 'fr', 'de', 'zh', 'ko', 'pt', 'ru', 'ar', 'hi', 'th', 'vi'],
             },
           }],
         }),

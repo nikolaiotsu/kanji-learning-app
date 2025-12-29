@@ -20,6 +20,8 @@ import {
   containsSpanishText,
   containsPortugueseText,
   containsGermanText,
+  containsThaiText,
+  containsVietnameseText,
   containsKanji
 } from './utils/textFormatting';
 import { saveFlashcard, uploadImageToStorage } from './services/supabaseStorage';
@@ -427,6 +429,8 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       const hasSpanish = containsSpanishText(text);
       const hasPortuguese = containsPortugueseText(text);
       const hasGerman = containsGermanText(text);
+      const hasThai = containsThaiText(text);
+      const hasVietnamese = containsVietnameseText(text);
 
       const needsRomanization = (
         hasJapanese ||
@@ -434,7 +438,8 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
         hasKorean ||
         hasRussian ||
         hasArabic ||
-        hasHindi
+        hasHindi ||
+        hasThai
       );
       setNeedsRomanization(needsRomanization);
 
@@ -454,7 +459,11 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
         case 'tl': language = 'Tagalog'; break;
         case 'pt': language = 'Portuguese'; break;
         case 'de': language = 'German'; break;
+        case 'th': language = 'Thai'; break;
         default: language = 'unknown';
+      }
+      if (hasVietnamese) {
+        language = 'Vietnamese';
       }
       logger.log(`Using forced language detection: ${language}`);
       setDetectedLanguage(language);
@@ -729,7 +738,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     setProcessingFailed(false);
     
     try {
-      // Check if the text contains Japanese, Chinese, Korean, Russian, Arabic, Hindi, Esperanto characters
+      // Check if the text contains Japanese, Chinese, Korean, Russian, Arabic, Hindi, Esperanto, Thai characters
       const hasJapanese = containsJapanese(editedText);
       const hasChinese = containsChinese(editedText);
       const hasKorean = containsKoreanText(editedText);
@@ -737,6 +746,8 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       const hasArabic = containsArabicText(editedText);
       const hasHindi = containsHindiText(editedText);
       const hasEsperanto = containsEsperantoText(editedText);
+      const hasThai = containsThaiText(editedText);
+      const hasVietnamese = containsVietnameseText(editedText);
       
       const needsRomanization = (
         hasJapanese || 
@@ -744,7 +755,8 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
         hasKorean || 
         hasRussian || 
         hasArabic ||
-        hasHindi
+        hasHindi ||
+        hasThai
       );
       setNeedsRomanization(needsRomanization);
       
@@ -765,7 +777,11 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
         case 'tl': language = 'Tagalog'; break;
         case 'pt': language = 'Portuguese'; break;
         case 'de': language = 'German'; break;
+        case 'th': language = 'Thai'; break;
         default: language = 'unknown';
+      }
+      if (hasVietnamese) {
+        language = 'Vietnamese';
       }
       setDetectedLanguage(language);
       
@@ -1137,11 +1153,12 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                          detectedLanguage === 'Russian' ? t('flashcard.sectionTitles.withPracticalRomanization') :
                          detectedLanguage === 'Arabic' ? t('flashcard.sectionTitles.withArabicChatAlphabet') :
                          detectedLanguage === 'Hindi' ? t('flashcard.sectionTitles.withHindiRomanization') :
+                         detectedLanguage === 'Thai' ? t('flashcard.sectionTitles.withThaiRomanization') :
                          detectedLanguage === 'Italian' ? t('flashcard.sectionTitles.originalText') :
                          detectedLanguage === 'Tagalog' ? t('flashcard.sectionTitles.originalText') :
                          t('flashcard.sectionTitles.withPronunciationGuide')}
                       </Text>
-                      {(detectedLanguage === 'Japanese' || detectedLanguage === 'Chinese' || detectedLanguage === 'Korean' || detectedLanguage === 'Russian' || detectedLanguage === 'Arabic' || detectedLanguage === 'Hindi') ? (
+                      {(detectedLanguage === 'Japanese' || detectedLanguage === 'Chinese' || detectedLanguage === 'Korean' || detectedLanguage === 'Russian' || detectedLanguage === 'Arabic' || detectedLanguage === 'Hindi' || detectedLanguage === 'Thai') ? (
                         <FuriganaText
                           text={furiganaText}
                           fontSize={20}

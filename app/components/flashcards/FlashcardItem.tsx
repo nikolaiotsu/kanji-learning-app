@@ -28,7 +28,7 @@ interface FlashcardItemProps {
   cardHeight?: number; // Optional responsive card height (defaults to 300 if not provided)
   showRefreshButton?: boolean; // Show refresh button next to image toggle in saved flashcards mode
   isOnline?: boolean; // Whether the app is online (disables write operations when offline)
-  isReviewModeActive?: boolean; // Whether review mode is active (for rainbow border effect)
+  isSrsModeActive?: boolean; // Whether review mode is active (for rainbow border effect)
 }
 
 const FlashcardItem: React.FC<FlashcardItemProps> = ({ 
@@ -43,7 +43,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   cardHeight = 300, // Sensible default for saved-flashcards page
   showRefreshButton = false,
   isOnline = true, // Default to true for backward compatibility
-  isReviewModeActive = false, // Default to false
+  isSrsModeActive = false, // Default to false
 }) => {
   const { t } = useTranslation();
   const { targetLanguage } = useSettings();
@@ -55,7 +55,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   const rainbowAnim = useRef(new Animated.Value(0)).current;
   
   useEffect(() => {
-    if (isReviewModeActive) {
+    if (isSrsModeActive) {
       // Start rainbow animation
       const loop = Animated.loop(
         Animated.timing(rainbowAnim, {
@@ -71,7 +71,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
         rainbowAnim.setValue(0);
       };
     }
-  }, [isReviewModeActive, rainbowAnim]);
+  }, [isSrsModeActive, rainbowAnim]);
   
   // Interpolate rainbow colors
   const rainbowColor = rainbowAnim.interpolate({
@@ -153,13 +153,15 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
     const containsHangul = /[\uAC00-\uD7AF]/.test(furiganaText); // Korean
     const containsCyrillic = /[\u0400-\u04FF]/.test(furiganaText); // Russian
     const containsArabicScript = /[\u0600-\u06FF]/.test(furiganaText); // Arabic
-    const containsLatinInParentheses = /\([a-zA-Zāēīōūǎěǐǒǔàèìòùáéíóúǘǜɑ\s]+\)/.test(furiganaText); // Chinese pinyin or other romanization
+    const containsThaiScript = /[\u0E00-\u0E7F]/.test(furiganaText); // Thai
+    const containsDevanagari = /[\u0900-\u097F]/.test(furiganaText); // Hindi
+    const containsLatinInParentheses = /\([a-zA-Zāēīōūǎěǐǒǔàèìòùáéíóúǘǜɑ\s\.\-]+\)/.test(furiganaText); // Chinese pinyin or other romanization (includes periods for Thai RTGS)
 
     let language = 'unknown';
     if (containsHiragana) {
       language = 'Japanese';
     } else if (containsLatinInParentheses) {
-      // Could be Chinese pinyin, Korean romanization, Russian romanization, etc.
+      // Could be Chinese pinyin, Korean romanization, Russian romanization, Thai RTGS, etc.
       // Check for specific patterns to distinguish
       if (containsHangul) {
         language = 'Korean';
@@ -167,6 +169,10 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
         language = 'Russian';
       } else if (containsArabicScript) {
         language = 'Arabic';
+      } else if (containsThaiScript) {
+        language = 'Thai';
+      } else if (containsDevanagari) {
+        language = 'Hindi';
       } else {
         // Default to Chinese for Latin characters in parentheses
         language = 'Chinese';
@@ -177,6 +183,10 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
       language = 'Russian';
     } else if (containsArabicScript) {
       language = 'Arabic';
+    } else if (containsThaiScript) {
+      language = 'Thai';
+    } else if (containsDevanagari) {
+      language = 'Hindi';
     } else {
       // Fallback: check original text for basic language patterns
       const originalText = flashcard.originalText;
@@ -491,7 +501,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
       <Animated.View style={[
         styles.cardWrapper,
         showImage && flashcard.imageUrl ? styles.expandedCardWrapper : null,
-        isReviewModeActive && { borderColor: rainbowColor, borderWidth: 1, borderRadius: 16 }
+        isSrsModeActive && { borderColor: rainbowColor, borderWidth: 1, borderRadius: 16 }
       ]}>
         {/* Front of the card */}
         <Animated.View style={[
@@ -624,9 +634,10 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
                      detectedLanguage === 'Esperanto' ? t('flashcard.sectionTitles.withEsperantoRomanization') :
                      detectedLanguage === 'Italian' ? t('flashcard.sectionTitles.withItalianAlphabet') :
                      detectedLanguage === 'Tagalog' ? t('flashcard.sectionTitles.withTagalogAlphabet') :
+                     detectedLanguage === 'Thai' ? t('flashcard.sectionTitles.withThaiRomanization') :
                      t('flashcard.sectionTitles.withPronunciationGuide')}
                   </Text>
-                  {(detectedLanguage === 'Japanese' || detectedLanguage === 'Chinese' || detectedLanguage === 'Korean' || detectedLanguage === 'Russian' || detectedLanguage === 'Arabic' || detectedLanguage === 'Hindi') ? (
+                  {(detectedLanguage === 'Japanese' || detectedLanguage === 'Chinese' || detectedLanguage === 'Korean' || detectedLanguage === 'Russian' || detectedLanguage === 'Arabic' || detectedLanguage === 'Hindi' || detectedLanguage === 'Thai') ? (
                     <FuriganaText
                       text={flashcard.furiganaText}
                       fontSize={20}

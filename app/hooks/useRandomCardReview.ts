@@ -122,34 +122,33 @@ export const useRandomCardReview = (onSessionFinishing?: () => void) => {
         setDataVersion(dataVersionCounter);
         logger.log('📊 [Hook] Data version incremented to:', dataVersionCounter, 'cards:', cards.length);
         
-        // Update review session cards
-        if (!isInReviewMode || forceUpdate) {
-          setReviewSessionCards(cards);
-
-          /*
-           * CRITICAL: Do not select a card here during initial load!
-           * This prevents the flicker issue. Card selection should only happen
-           * when explicitly starting a review session via startReviewWithCards.
-           */
-          if (isInReviewMode && !isInitialLoadRef.current) {
-            // Only select a card if we're already in an active review session
-            // and this isn't the initial load
-            if (cards.length > 0) {
-              const randomIndex = Math.floor(Math.random() * cards.length);
-              setCurrentCard(cards[randomIndex]);
-            } else {
-              setCurrentCard(null);
-            }
-          } else if (isInitialLoadRef.current) {
-            // ONLY clear currentCard during initial load
-            // Don't clear on subsequent background fetches - the card may have been
-            // set by startReviewWithCards and we need to preserve it
-            logger.log('🔄 [Hook] Initial load - clearing currentCard for clean state');
+        /*
+         * CRITICAL: Do NOT automatically set reviewSessionCards during background fetches!
+         * The component manages deck filtering and calls startReviewWithCards with the correct cards.
+         * Only handle card selection logic here.
+         */
+        if (isInReviewMode && !isInitialLoadRef.current) {
+          // Only select a card if we're already in an active review session
+          // and this isn't the initial load
+          if (cards.length > 0) {
+            const randomIndex = Math.floor(Math.random() * cards.length);
+            setCurrentCard(cards[randomIndex]);
+          } else {
             setCurrentCard(null);
           }
-          // If !isInReviewMode && !isInitialLoadRef.current, preserve existing currentCard
-          // (it was set by startReviewWithCards)
-        } else {
+        } else if (isInitialLoadRef.current) {
+          // ONLY clear currentCard during initial load
+          // Don't clear on subsequent background fetches - the card may have been
+          // set by startReviewWithCards and we need to preserve it
+          logger.log('🔄 [Hook] Initial load - clearing currentCard for clean state');
+          setCurrentCard(null);
+        }
+        // If !isInReviewMode && !isInitialLoadRef.current, preserve existing currentCard
+        // (it was set by startReviewWithCards)
+
+        // In review mode, just remove cards that no longer exist
+        // BUT DO NOT ADD CARDS BACK TO THE REVIEW SESSION
+        if (isInReviewMode) {
           // If we're in review mode, just remove cards that no longer exist
           // BUT DO NOT ADD CARDS BACK TO THE REVIEW SESSION
           logger.log('📥 [Hook] In review mode - checking for removed cards');
@@ -340,11 +339,6 @@ export const useRandomCardReview = (onSessionFinishing?: () => void) => {
     logger.log('👉 [Hook] reviewSessionCards.length:', reviewSessionCards.length);
     logger.log('👉 [Hook] reviewSessionCardsRef.current.length:', reviewSessionCardsRef.current.length);
     
-    // Always ensure we're in review mode
-    if (!isInReviewMode) {
-      setIsInReviewMode(true);
-    }
-    
     const currentCardValue = currentCardRef.current;
     const reviewSessionCardsValue = reviewSessionCardsRef.current;
     
@@ -364,7 +358,7 @@ export const useRandomCardReview = (onSessionFinishing?: () => void) => {
     // Remove the card from session
     setReviewSessionCards(remainingCards);
     
-    // If there are no more cards, set current card to null and exit review mode
+    // If there are no more cards, set current card to null
     if (remainingCards.length === 0) {
       logger.log('👉 [Hook] No cards left, exiting review mode');
       setCurrentCard(null);

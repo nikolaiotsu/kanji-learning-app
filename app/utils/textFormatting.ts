@@ -213,6 +213,16 @@ export function containsPortugueseText(text: string): boolean {
 }
 
 /**
+ * Checks if text contains Vietnamese characters or common words
+ */
+export function containsVietnameseText(text: string): boolean {
+  const vietnameseDiacritics = /[àáảãạăắằẳẵặâấầẩẫậđếềểễệêốồổỗộôớờởỡợưứừửữựỀỀỂỄỆỐỒỔỖỘƠỚỜỞỠỢƯ]+/i;
+  const vietnamesePatterns = /\b(việt|nam|người|không|có|tôi|anh|chị|ông|bà|đang|đã|sẽ|là|với|một|hai|ba)\b/i;
+
+  return vietnameseDiacritics.test(text) || vietnamesePatterns.test(text);
+}
+
+/**
  * Checks if text contains German characters and patterns
  */
 export function containsGermanText(text: string): boolean {
@@ -245,6 +255,15 @@ export function containsHindiText(text: string): boolean {
   // Unicode range U+0900-U+097F covers Devanagari characters
   const hindiRegex = /[\u0900-\u097F]/;
   return hindiRegex.test(text);
+}
+
+/**
+ * Checks if text contains Thai characters
+ */
+export function containsThaiText(text: string): boolean {
+  // Unicode range for Thai script
+  const thaiRegex = /[\u0E00-\u0E7F]/;
+  return thaiRegex.test(text);
 }
 
 /**
@@ -284,6 +303,8 @@ const TextFormatting = {
   containsGermanText,
   containsEnglishText,
   containsHindiText,
+  containsThaiText,
+  containsVietnameseText,
   containsEsperantoText,
   containsKanji,
   countKanji

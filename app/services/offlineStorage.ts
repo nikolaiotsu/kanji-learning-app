@@ -234,6 +234,24 @@ export const clearCache = async (userId: string): Promise<void> => {
 };
 
 /**
+ * Clear cached flashcards for a specific deck
+ */
+export const clearDeckCache = async (userId: string, deckId: string): Promise<void> => {
+  try {
+    const key = getCardsKey(userId, deckId);
+    await AsyncStorage.removeItem(key);
+
+    // Update metadata to remove this deck from cached decks
+    await updateCacheMetadata(userId, deckId, 0);
+
+    logger.log(`💾 [OfflineStorage] Cleared cache for deck: ${deckId}`);
+  } catch (error) {
+    logger.error('Error clearing deck cache:', error);
+    throw error;
+  }
+};
+
+/**
  * Get approximate cache size (in bytes)
  * Note: This is an estimate based on string length
  */

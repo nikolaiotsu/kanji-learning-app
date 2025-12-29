@@ -106,7 +106,8 @@ function checkLanguageCharacterPatterns(text: string, language: string): boolean
     'ko': /[\uac00-\ud7af\u1100-\u11ff]/,              // Korean
     'ru': /[\u0400-\u04ff]/,                            // Cyrillic
     'ar': /[\u0600-\u06ff]/,                            // Arabic
-    'hi': /[\u0900-\u097f]/                             // Devanagari
+    'hi': /[\u0900-\u097f]/,                            // Devanagari
+    'th': /[\u0E00-\u0E7F]/                             // Thai
   };
 
   // For languages with specific character sets, check for presence
@@ -116,7 +117,7 @@ function checkLanguageCharacterPatterns(text: string, language: string): boolean
 
   // For Latin languages (en, fr, es, etc.), absence of CJK chars is good
   // and presence of Latin chars is expected
-  const isLatinLanguage = ['en', 'fr', 'es', 'it', 'pt', 'de', 'tl', 'eo'].includes(language);
+  const isLatinLanguage = ['en', 'fr', 'es', 'it', 'pt', 'de', 'tl', 'eo', 'vi'].includes(language);
   if (isLatinLanguage) {
     const hasLatinChars = /[a-zA-Z]/.test(text);
     const hasUnexpectedCJK = /[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf\uac00-\ud7af]/.test(text);
@@ -171,6 +172,8 @@ import {
   containsRussianText,
   containsArabicText,
   containsHindiText,
+  containsThaiText,
+  containsVietnameseText,
   containsEsperantoText,
   containsKanji,
   normalizeQuotationMarks
@@ -206,7 +209,9 @@ const LANGUAGE_NAMES_MAP = {
   pt: 'Portuguese',
   de: 'German',
   hi: 'Hindi',
-  eo: 'Esperanto'
+  eo: 'Esperanto',
+  th: 'Thai',
+  vi: 'Vietnamese'
 };
 
 const LANGUAGE_NAME_TO_CODE: Record<string, string> = Object.entries(LANGUAGE_NAMES_MAP)
@@ -581,6 +586,8 @@ function detectPrimaryLanguage(text: string, forcedLanguage: string = 'ja'): str
       case 'de': return "German";
       case 'hi': return "Hindi";
       case 'eo': return "Esperanto";
+      case 'th': return "Thai";
+      case 'vi': return "Vietnamese";
       default: return forcedLanguage; // Return the forced language code instead of "unknown"
     }
   }
@@ -592,6 +599,7 @@ function detectPrimaryLanguage(text: string, forcedLanguage: string = 'ja'): str
   let koreanChars = 0;
   let arabicChars = 0;
   let hindiChars = 0;
+  let thaiChars = 0;
   
   // Check each character in the text
   for (let i = 0; i < text.length; i++) {
@@ -627,48 +635,62 @@ function detectPrimaryLanguage(text: string, forcedLanguage: string = 'ja'): str
     else if (/[\u0900-\u097F]/.test(char)) {
       hindiChars++;
     }
+    // Thai script
+    else if (/[\u0E00-\u0E7F]/.test(char)) {
+      thaiChars++;
+    }
   }
   
   // Check for Italian based on patterns (simpler approach)
   if (containsItalianText(text) && 
-      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars || hindiChars)) {
+      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars || hindiChars || thaiChars)) {
     return "Italian";
   }
   
   // Check for Tagalog based on patterns
   if (containsTagalogText(text) && 
-      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars || hindiChars)) {
+      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars || hindiChars || thaiChars)) {
     return "Tagalog";
   }
   
   // Check for French based on patterns
   if (containsFrenchText(text) && 
-      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars || hindiChars)) {
+      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars || hindiChars || thaiChars)) {
     return "French";
   }
   
   // Check for Spanish based on patterns
   if (containsSpanishText(text) && 
-      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars || hindiChars)) {
+      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars || hindiChars || thaiChars)) {
     return "Spanish";
   }
   
   // Check for Portuguese based on patterns
   if (containsPortugueseText(text) && 
-      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars || hindiChars)) {
+      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars || hindiChars || thaiChars)) {
     return "Portuguese";
   }
   
   // Check for German based on patterns
   if (containsGermanText(text) && 
-      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars || hindiChars)) {
+      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars || hindiChars || thaiChars)) {
     return "German";
   }
   
   // Check for Esperanto based on patterns
   if (containsEsperantoText(text) && 
-      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars || hindiChars)) {
+      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars || hindiChars || thaiChars)) {
     return "Esperanto";
+  }
+
+  if (containsVietnameseText(text) &&
+      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars || hindiChars || thaiChars)) {
+    return "Vietnamese";
+  }
+
+  if (thaiChars > 0 &&
+      !(russianChars || japaneseChars || chineseChars || koreanChars || arabicChars || hindiChars)) {
+    return "Thai";
   }
   
   // Return language with highest character count
@@ -678,7 +700,8 @@ function detectPrimaryLanguage(text: string, forcedLanguage: string = 'ja'): str
     { lang: "Chinese", count: chineseChars },
     { lang: "Korean", count: koreanChars },
     { lang: "Arabic", count: arabicChars },
-    { lang: "Hindi", count: hindiChars }
+    { lang: "Hindi", count: hindiChars },
+    { lang: "Thai", count: thaiChars }
   ];
   
   counts.sort((a, b) => b.count - a.count);
@@ -738,6 +761,8 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
     case 'de': expectedLanguage = 'German'; break;
     case 'hi': expectedLanguage = 'Hindi'; break;
     case 'eo': expectedLanguage = 'Esperanto'; break;
+    case 'th': expectedLanguage = 'Thai'; break;
+    case 'vi': expectedLanguage = 'Vietnamese'; break;
     default: expectedLanguage = forcedLanguage;
   }
 
@@ -1120,7 +1145,7 @@ export async function processWithClaude(
   if (forcedLanguage) {
     // Define which languages use which validation method
     const latinLanguages = ['en', 'fr', 'es', 'it', 'pt', 'de', 'tl', 'eo'];
-    const nonLatinLanguages = ['ja', 'zh', 'ko', 'ru', 'ar', 'hi'];
+    const nonLatinLanguages = ['ja', 'zh', 'ko', 'ru', 'ar', 'hi', 'th'];
 
     const usePatternValidation = nonLatinLanguages.includes(forcedLanguage);
 
@@ -1158,6 +1183,7 @@ export async function processWithClaude(
       const hasRussian = /[\u0400-\u04FF]/.test(text);
       const hasArabic = /[\u0600-\u06FF]/.test(text);
       const hasHindi = /[\u0900-\u097F]/.test(text);
+      const hasThai = /[\u0E00-\u0E7F]/.test(text);
       
       let detectedNonLatinLanguage: string | null = null;
       if (hasJapanese) detectedNonLatinLanguage = 'Japanese';
@@ -1166,6 +1192,7 @@ export async function processWithClaude(
       else if (hasRussian) detectedNonLatinLanguage = 'Russian';
       else if (hasArabic) detectedNonLatinLanguage = 'Arabic';
       else if (hasHindi) detectedNonLatinLanguage = 'Hindi';
+      else if (hasThai) detectedNonLatinLanguage = 'Thai';
       
       if (detectedNonLatinLanguage) {
         logger.log(`[Claude API] Non-Latin text detected: ${detectedNonLatinLanguage} (expected ${forcedLanguage})`);
@@ -1276,11 +1303,13 @@ If the target language is Chinese, the translation must use Chinese characters.
 If the target language is Korean, the translation must use Korean Hangul.
 If the target language is Russian, the translation must use Cyrillic characters.
 If the target language is Arabic, the translation must use Arabic script.
+If the target language is Thai, the translation must use Thai characters.
+If the target language is Vietnamese, the translation must use Vietnamese script with proper diacritics.
 
 `;
       const normalizedForcedLanguage = typeof forcedLanguage === 'string' ? forcedLanguage.toLowerCase() : 'auto';
-      const readingLanguageCodes = new Set(['zh', 'ko', 'ru', 'ar', 'hi']);
-      const readingLanguageNames = new Set(['Chinese', 'Korean', 'Russian', 'Arabic', 'Hindi']);
+      const readingLanguageCodes = new Set(['zh', 'ko', 'ru', 'ar', 'hi', 'th']);
+      const readingLanguageNames = new Set(['Chinese', 'Korean', 'Russian', 'Arabic', 'Hindi', 'Thai']);
       const hasSourceReadingPrompt =
         readingLanguageCodes.has(normalizedForcedLanguage) ||
         readingLanguageNames.has(primaryLanguage);
@@ -1625,6 +1654,57 @@ Format your response as valid JSON with these exact keys:
   "furiganaText": "",
   "translatedText": "Natural Korean translation using Hangul characters - NO romanization"
 }`;
+      } else if (targetLanguage === 'th' && forcedLanguage !== 'th' && primaryLanguage !== 'Thai' && !hasSourceReadingPrompt) {
+        logger.log(`[DEBUG] TRANSLATING TO THAI: Using natural Thai translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
+        // Natural Thai translation prompt - for translating TO Thai
+        userMessage = `
+${promptTopSection}
+You are a professional Thai translator. I need you to translate this text into natural, native-level Thai: "${text}"
+
+CRITICAL REQUIREMENTS FOR TRANSLATING TO THAI:
+1. Translate the text into fluent, native Thai using proper Thai vocabulary, grammar, and tone
+2. Use Thai script for every word and do NOT add romanization or transliteration
+3. Maintain natural Thai spacing, punctuation, and sentence structure (Thai often omits spaces between words; follow standard conventions)
+4. Preserve the original meaning, formal/informal tone, and cultural context implied by the source
+5. Avoid literal word-by-word substitution—choose idiomatic Thai expressions when appropriate
+
+TRANSLATION GUIDELINES:
+- Keep Thai script as the primary output language; English words/numbers already present in the source may remain unchanged
+- Match the register (polite particles like ค่ะ/ครับ, ครับ/ค่ะ) to the tone of the source text
+- Use natural Thai word order (topic-comment, verb-final clauses) and ensure readability for Thai speakers
+- Pay attention to Thai-specific classifiers, particles, and idiomatic expressions (e.g., ใบ, ตัว, คน, นะ)
+- Translate quoted speech and instructions literally while keeping Thai punctuation consistent (use quotation marks like “ ” or « » when appropriate)
+
+Format your response as valid JSON with these exact keys:
+{
+  "furiganaText": "",
+  "translatedText": "Natural Thai translation using Thai script only - NO romanization"
+}`;
+      } else if (targetLanguage === 'vi' && forcedLanguage !== 'vi' && primaryLanguage !== 'Vietnamese' && !hasSourceReadingPrompt) {
+        logger.log(`[DEBUG] TRANSLATING TO VIETNAMESE: Using natural Vietnamese translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
+        // Natural Vietnamese translation prompt - for translating TO Vietnamese
+        userMessage = `
+${promptTopSection}
+You are a professional Vietnamese translator. I need you to translate this text into natural, native-level Vietnamese: "${text}"
+
+CRITICAL REQUIREMENTS FOR TRANSLATING TO VIETNAMESE:
+1. Translate the text into natural Vietnamese using proper spelling, grammar, and tone
+2. Preserve all diacritics (acute, grave, hook, tilde, dot) for each syllable; Vietnamese must remain in Vietnamese script
+3. Do NOT add romanization or alternate transliterations - the output should use standard Vietnamese orthography
+4. Maintain natural Vietnamese spacing and punctuation
+5. Preserve the original meaning, nuance, and register of the source text
+
+TRANSLATION GUIDELINES:
+- Use contextually appropriate Vietnamese expressions and idioms
+- Follow standard Vietnamese sentence structure and word order
+- Choose polite/formal language when needed; keep tone consistent with the source
+- Ensure the translation reads naturally to a Vietnamese native speaker
+
+Format your response as valid JSON with these exact keys:
+{
+  "furiganaText": "",
+  "translatedText": "Natural Vietnamese translation using proper Vietnamese orthography with all necessary diacritics - NO romanization"
+}`;
       } else if (primaryLanguage === "Korean" && targetLanguage !== 'ko') {
         // Korean-specific prompt with Enhanced Revised Romanization
         // Note: Only add romanization when translating TO a different language (Korean speakers don't need romanization for their native language)
@@ -1822,8 +1902,9 @@ Format your response as valid JSON with these exact keys:
   "furiganaText": "",
   "translatedText": "Natural Arabic translation using Arabic script - NO transliteration"
 }`;
-      } else if (primaryLanguage === "Arabic" && targetLanguage !== 'ar') {
+      } else if ((primaryLanguage === "Arabic" || forcedLanguage === 'ar') && targetLanguage !== 'ar') {
         // Arabic-specific prompt with Enhanced Arabic Chat Alphabet including Sun Letter Assimilation
+        // CRITICAL: This should run regardless of target language to preserve Arabic script + transliteration
         // Note: Only add transliteration when translating TO a different language (Arabic speakers don't need transliteration for their native language)
         userMessage = `
 ${promptTopSection}
@@ -2035,6 +2116,70 @@ Format your response as valid JSON with these exact keys:
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
+      } else if ((primaryLanguage === "Thai" || forcedLanguage === 'th') && targetLanguage !== 'th') {
+        logger.log(`[DEBUG] THAI SOURCE TEXT: Adding RTGS romanization and translating to ${targetLangName} (targetLanguage: ${targetLanguage})`);
+        // Thai-specific prompt with RTGS romanization accuracy
+        // CRITICAL: This should run regardless of target language to preserve Thai script + romanization
+        // Note: Only add romanization when translating TO a different language (Thai speakers don't need romanization for Thai target)
+        userMessage = `
+${promptTopSection}
+You are a Thai language expert. I need you to analyze and translate this Thai text: "${text}"
+
+CRITICAL FORMATTING REQUIREMENTS FOR THAI TEXT:
+- Keep all original Thai text exactly as is (including any English words, numbers, or punctuation)
+- For EVERY Thai word or phrase, add RTGS romanization in parentheses DIRECTLY after the Thai text with NO SPACE before the opening parenthesis
+- CORRECT: สวัสดี(sawatdee) - parenthesis directly touches Thai text
+- WRONG: สวัสดี (sawatdee) - DO NOT put a space before the parenthesis
+- Do NOT add romanization to English words, numerals, or punctuation—leave them untouched
+- Follow standard RTGS conventions: no tone marks, use apostrophes only when part of loan words, and prefer digraphs like ph, th, kh, ch for aspirated consonants
+- Translate into ${targetLangName} language, NOT English (unless English is explicitly requested)
+
+RTGS ACCURACY GUIDELINES:
+- Aspirated consonants: use ph (พ, ผ), th (ท, ธ), kh (ค, ข, ฆ), ch (ช, ฌ, ซ) while unaspirated consonants stay as k, t, k, t, t, etc.
+- Vowels: long vowels double the vowel letters (aa, ii, uu, ee, oo) and diphthongs use Thai-specific combinations (ai, ao, ue, oi)
+- Clusters and final consonants should follow RTGS (e.g., กรุงเทพฯ = Krung Thep, สมุทร = Samut)
+- Use ng for ง/–ng, ny for ญ/ญา when applicable, and maintain the proper representation of silent /อ/ when it leads the syllable
+- Do not introduce diacritics; keep the romanization plain Latin letters with consistent spacing
+
+EXAMPLES OF CORRECT RTGS TOKEN FORMATTING:
+- "สวัสดีครับ" → "สวัสดีครับ(sawatdee khrab)"
+- "ประเทศไทย" → "ประเทศไทย(prathet thai)"
+- "ขอบคุณ" → "ขอบคุณ(khop khun)"
+- "ไปเที่ยวเชียงใหม่" → "ไปเที่ยวเชียงใหม่(pai thiao chiang mai)"
+
+VERIFICATION CHECKLIST:
+✓ Each Thai word has romanization with NO SPACE before the opening parenthesis: ไทย(thai) NOT ไทย (thai)
+✓ Romanization uses RTGS (ph, th, kh, ch, etc.) with no tone marks
+✓ Compound words and classifiers are treated as units (e.g., นักเรียน(nak rian))
+✓ Mixed-language sentences keep non-Thai parts unchanged
+
+Format your response as valid JSON with these exact keys:
+{
+  "furiganaText": "Thai text with RTGS romanization in parentheses after each word as shown above",
+        "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
+}`;
+      } else if ((primaryLanguage === "Vietnamese" || forcedLanguage === 'vi') && targetLanguage !== 'vi') {
+        logger.log(`[DEBUG] VIETNAMESE SOURCE TEXT: Translating Vietnamese to ${targetLangName} (targetLanguage: ${targetLanguage})`);
+        userMessage = `
+${promptTopSection}
+You are a Vietnamese language expert. I need you to analyze and translate this Vietnamese text: "${text}"
+
+CRITICAL REQUIREMENTS FOR VIETNAMESE TEXT:
+- Keep every Vietnamese word exactly as written, including all diacritics (acute, grave, hook, tilde, dot)
+- Do NOT add romanization, transliteration, or alternate spellings - Vietnamese already uses Latin script
+- Maintain natural Vietnamese punctuation, spacing, and tone markers
+- Translate into ${targetLangName} language, NOT English (unless English is explicitly requested)
+
+TRANSLATION GUIDELINES:
+- Preserve the original meaning, nuance, and register
+- Use idiomatic Vietnamese expressions when appropriate but avoid changing the meaning
+- Keep any embedded non-Vietnamese segments (English acronyms, numbers, etc.) unchanged
+
+Format your response as valid JSON with these exact keys:
+{
+  "furiganaText": "",
+  "translatedText": "Accurate translation in ${targetLangName} language that preserves the full Vietnamese meaning, tone, and diacritics"
+}`;
       }
       // Check if we're translating TO Hindi from a non-Hindi source (but NOT from a reading language)
       else if (targetLanguage === 'hi' && forcedLanguage !== 'hi' && primaryLanguage !== 'Hindi' && !hasSourceReadingPrompt) {
@@ -2064,8 +2209,9 @@ Format your response as valid JSON with these exact keys:
   "furiganaText": "",
   "translatedText": "Natural Hindi translation using Devanagari script - NO romanization"
 }`;
-      } else if (primaryLanguage === "Hindi" && targetLanguage !== 'hi') {
+      } else if ((primaryLanguage === "Hindi" || forcedLanguage === 'hi') && targetLanguage !== 'hi') {
         // Enhanced Hindi-specific prompt with comprehensive romanization accuracy
+        // CRITICAL: This should run regardless of target language to preserve Devanagari script + romanization
         // Note: Only add romanization when translating TO a different language (Hindi speakers don't need romanization for their native language)
         userMessage = `
 ${promptTopSection}
@@ -3732,6 +3878,18 @@ For Russian text:
 - Readings should follow the pattern: Русский(russkiy)
 - Check for any missing transliteration
 - Verify transliteration follows standard conventions`;
+              } else if (primaryLanguage === "Thai" || forcedLanguage === 'th') {
+                readingType = "RTGS romanization";
+                readingSpecificInstructions = `
+For Thai text:
+- EVERY Thai word should have RTGS romanization with NO SPACE before the parenthesis
+- CORRECT format: ภาษาไทย(phaasaa thai) - parenthesis directly touches Thai text
+- WRONG format: ภาษาไทย (phaasaa thai) - NO spaces before opening parenthesis!
+- Check for any missing romanization
+- Verify romanization follows RTGS conventions (ph, th, kh, ch for aspirated consonants)
+- Ensure no tone marks are used (RTGS doesn't use tone marks)
+- Verify compound words and classifiers are treated as units
+- Check that long vowels are properly represented (aa, ii, uu, ee, oo)`;
               } else {
                 readingType = "pronunciation guide";
                 readingSpecificInstructions = `

@@ -38,8 +38,10 @@ export function validateFuriganaFormat(text: string): boolean {
   // Russian: Русский(russkiy) - cyrillic with romanization
   // Arabic: العربية(al-arabiya) - arabic with transliteration
   // Hindi: हिन्दी(hindī) - devanagari with romanization
+  // Thai: ภาษาไทย(phaasaa thai) - thai with RTGS romanization (may include periods for abbreviations)
   // Esperanto: Esperanto characters with Latin script
-  const readingRegex = /([\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F\u3040-\u309f\u30a0-\u30ff]+)\(([ぁ-ゟa-zA-ZāēīōūǎěǐǒǔàèìòùáéíóúǘǙǚǜǖǕǗǙǛüÜɑĉĝĥĵŝŭĈĜĤĴŜŬ\s\-0-9]+)\)/;
+  // Note: Added periods (.) to reading content for Thai RTGS abbreviations like kkot.khtm.
+  const readingRegex = /([\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F\u0E00-\u0E7F\u3040-\u309f\u30a0-\u30ff]+)\s*\(([ぁ-ゟa-zA-ZāēīōūǎěǐǒǔàèìòùáéíóúǘǙǚǜǖǕǗǙǛüÜɑĉĝĥĵŝŭĈĜĤĴŜŬ\s\-0-9\.]+)\)/;
   return readingRegex.test(text);
 }
 
@@ -133,18 +135,30 @@ export interface FuriganaWord {
  */
 export function parseFuriganaText(text: string): FuriganaWord[] {
   if (!text) return [];
-  
+
+  console.log('[parseFuriganaText] Input text:', text);
+
   // Fix quotes inside parentheses with missing closing paren: हूं(hūṃ" → हूं(hūṃ)"
   // This handles Claude's malformed output where quote ends up inside and ) is dropped
   let fixedText = text.replace(/\(([a-zA-Zāēīōūǎěǐǒǔàèìòùáéíóúṭḍṇṣṃṅñśḥṁḷṛ\-]+)(["']+)(?=\s|$)/g, '($1)$2');
-  
+
+  console.log('[parseFuriganaText] Fixed text:', fixedText);
+
   const words: FuriganaWord[] = [];
   const cleanedText = cleanFuriganaText(fixedText);
-  
+
+  console.log('[parseFuriganaText] Cleaned text:', cleanedText);
+
   // If no valid furigana format, return as plain text
-  if (!validateFuriganaFormat(cleanedText)) {
+  const isValid = validateFuriganaFormat(cleanedText);
+  console.log('[parseFuriganaText] Validation result:', isValid);
+
+  if (!isValid) {
+    console.log('[parseFuriganaText] Returning plain text');
     return [{ base: cleanedText, ruby: '', type: 'text' }];
   }
+
+  console.log('[parseFuriganaText] Starting parsing with rubyRegex...');
   
   // INDUSTRY STANDARD APPROACH: Split by finding ALL ruby annotations first,
   // then render everything between them as plain text.
@@ -165,12 +179,17 @@ export function parseFuriganaText(text: string): FuriganaWord[] {
   //
   // COMBINING DIACRITICAL MARKS: Include Unicode combining marks (U+0300-U+036F, U+0323-U+0333)
   // for languages that use them in romanization (e.g., Arabic k̲h̲, Hindi ṃ, etc.)
-  const rubyRegex = /([«»"'「」『』‹›]?)([\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F]+)([»«"'」」』』›‹.!?,;:。、]+)?\(([ぁ-ゟa-zA-ZāēīōūǎěǐǒǔàèìòùáéíóúǘǙǚǜǖǕǗǙǛüÜɑśṅñṭḍṇḷṛṣḥṁṃḷ̥ṝṟĝśḱńṗṟť\u0300-\u036F\u0323-\u0333\s\-0-9!?.,;:'"‚""„‹›«»‑–—…']+)\)/g;
+  // THAI FALLBACK: Allow optional whitespace (\s*) before the opening parenthesis to handle
+  // cases where Claude might add a space before the romanization (e.g., "ไทย (thai)" instead of "ไทย(thai)")
+  const rubyRegex = /([«»"'「」『』‹›]?)([\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F\u0E00-\u0E7F]+)([»«"'」」』』›‹.!?,;:。、]+)?\s*\(([ぁ-ゟa-zA-ZāēīōūǎěǐǒǔàèìòùáéíóúǘǙǚǜǖǕǗǙǛüÜɑśṅñṭḍṇḷṛṣḥṁṃḷ̥ṝṟĝśḱńṗṟť\u0300-\u036F\u0323-\u0333\s\-0-9!?.,;:'"‚""„‹›«»‑–—…']+)\)/g;
   
   let lastIndex = 0;
   let match;
-  
+
+  console.log('[parseFuriganaText] Starting regex loop');
+
   while ((match = rubyRegex.exec(cleanedText)) !== null) {
+    console.log('[parseFuriganaText] Found match:', match[0]);
     const fullMatch = match[0];          // e.g., "«الأهرام»(al-'ahraam)" or "東京(とうきょう)"
     const leadingQuote = match[1] || ''; // e.g., "«" or """ (captured group 1, optional)
     const baseText = match[2];           // e.g., "الأهرام" or "東京" (captured group 2)
@@ -278,6 +297,8 @@ export function parseFuriganaText(text: string): FuriganaWord[] {
     }
     return word;
   });
-  
+
+  console.log('[parseFuriganaText] Final result:', JSON.stringify(cleanedWords, null, 2));
+
   return cleanedWords;
 } 

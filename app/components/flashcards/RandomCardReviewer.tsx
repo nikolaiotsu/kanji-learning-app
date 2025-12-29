@@ -79,7 +79,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const HEADER_HEIGHT = 45;
   const HEADER_TO_CARD_SPACING = 16;
   const CARD_TO_CONTROLS_SPACING = 12;
-  const CONTROLS_HEIGHT = 30; // Increased from 25 to accommodate longer localized text
+  const CONTROLS_HEIGHT = 36; // Increased to ensure vertical stability
   const CONTAINER_PADDING_TOP = 10;
   const CONTAINER_PADDING_BOTTOM = 10;
   
@@ -117,13 +117,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       logger.log('🔍 [useMemo] Waiting for deckIds to load...');
       return [];
     }
-    // GATE B: Don't filter until hook has finished loading data
-    // This prevents the case where deckIdsLoaded=true but allFlashcards=[] 
-    // because the async hook hasn't finished yet
-    if (loadingState !== LoadingState.CONTENT_READY) {
-      logger.log('🔍 [useMemo] Waiting for hook CONTENT_READY (current:', loadingState, ')');
-      return [];
-    }
+    // Allow filtering immediately even before CONTENT_READY so UI stays responsive
     // If no decks selected, show all cards
     if (selectedDeckIds.length === 0) {
       logger.log('🔍 [useMemo] No decks selected, showing all', allFlashcards.length, 'cards');
@@ -133,7 +127,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     const filtered = allFlashcards.filter(card => selectedDeckIds.includes(card.deckId));
     logger.log('🔍 [useMemo] Filtered', allFlashcards.length, 'cards by', selectedDeckIds.length, 'decks →', filtered.length, 'cards');
     return filtered;
-  }, [selectedDeckIds, allFlashcards, deckIdsLoaded, loadingState]);
+  }, [selectedDeckIds, allFlashcards, deckIdsLoaded]);
   
   // Simplified loading state management for smooth UX
   const [isInitializing, setIsInitializing] = useState(true);
@@ -177,9 +171,9 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const [lastCardId, setLastCardId] = useState<string | null>(null);
   // Track current displayed card ID for swipe tracking
   const currentDisplayedCardIdRef = useRef<string | null>(null);
-  // Review Mode state - false = Browse Mode (default), true = Review Mode
-  const [isReviewModeActive, setIsReviewModeActive] = useState(false);
-  const isReviewModeActiveRef = useRef(isReviewModeActive);
+  // SRS Mode state - false = Browse Mode (default), true = SRS Mode
+  const [isSrsModeActive, setIsSrsModeActive] = useState(false);
+  const isSrsModeActiveRef = useRef(isSrsModeActive);
   
   // Display state for button appearance - updates immediately on press to prevent flashing
   const [buttonDisplayActive, setButtonDisplayActive] = useState(false);
@@ -203,15 +197,15 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const [shouldShowCounter, setShouldShowCounter] = useState(false); // Control counter visibility for smooth fade-out
   const isFadingOutRef = useRef(false); // Track if we're currently fading out to prevent conflicts
   
-  // Animate counter in/out when Review Mode changes (for manual toggle)
+  // Animate counter in/out when SRS Mode changes (for manual toggle)
   useEffect(() => {
     // Skip if we're already handling a fade-out from session finish
-    if (isFadingOutRef.current && !isReviewModeActive) {
+    if (isFadingOutRef.current && !isSrsModeActive) {
       return;
     }
     
-    if (isReviewModeActive) {
-      // Show counter and fade in when entering Review Mode
+    if (isSrsModeActive) {
+      // Show counter and fade in when entering SRS Mode
       isFadingOutRef.current = false;
       setShouldShowCounter(true);
       Animated.timing(srsCounterOpacity, {
@@ -220,7 +214,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         useNativeDriver: true,
       }).start();
     } else if (!isFadingOutRef.current) {
-      // Fade out when exiting Review Mode (manual toggle)
+      // Fade out when exiting SRS Mode (manual toggle)
       Animated.timing(srsCounterOpacity, {
         toValue: 0,
         duration: 200,
@@ -231,22 +225,22 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         isFadingOutRef.current = false;
       });
     }
-  }, [isReviewModeActive, srsCounterOpacity]);
+  }, [isSrsModeActive, srsCounterOpacity]);
   
   // Keep ref in sync with state
   useEffect(() => {
-    isReviewModeActiveRef.current = isReviewModeActive;
-  }, [isReviewModeActive]);
+    isSrsModeActiveRef.current = isSrsModeActive;
+  }, [isSrsModeActive]);
   
   // Sync button display state with actual state (but allow immediate updates on press)
   useEffect(() => {
     if (!isTransitionLoading) {
-      setButtonDisplayActive(isReviewModeActive);
+      setButtonDisplayActive(isSrsModeActive);
     }
-  }, [isReviewModeActive, isTransitionLoading]);
+  }, [isSrsModeActive, isTransitionLoading]);
   
   
-  // Track previous isReviewModeActive to detect actual mode changes vs card changes
+  // Track previous isSrsModeActive to detect actual mode changes vs card changes
   const prevIsReviewModeActiveRef = useRef<boolean | null>(null);
   
   // Animation values - Initialize with proper starting values
@@ -257,10 +251,10 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   // Define swipe threshold
   const SWIPE_THRESHOLD = 120;
 
-  // SRS Update Handler - Updates box and nextReviewDate for cards in Review Mode
+  // SRS Update Handler - Updates box and nextReviewDate for cards in SRS Mode
   const handleSRSUpdate = async (card: Flashcard, isCorrect: boolean) => {
-    // Only update SRS data in Review Mode
-    if (!isReviewModeActiveRef.current) {
+    // Only update SRS data in SRS Mode
+    if (!isSrsModeActiveRef.current) {
       logger.log('🎯 [SRS] Skipping update - Browse Mode is consequence-free');
       return;
     }
@@ -492,12 +486,18 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   }, [allFlashcards, updateSelectedDeckIds]);
 
   // Update remaining count when reviewSessionCards changes
+  // Both browse and review modes track session progress via reviewSessionCards
+  // (browse = all filtered cards, review = only due cards)
   useEffect(() => {
+    // Always use reviewSessionCards.length for the remaining count
+    // This ensures the count decrements as the user swipes through cards
+    const correctRemainingCount = reviewSessionCards.length;
+
     // Only update if there's an actual change to prevent unnecessary renders
-    if (remainingCount !== reviewSessionCards.length) {
-      setRemainingCount(reviewSessionCards.length);
+    if (remainingCount !== correctRemainingCount) {
+      setRemainingCount(correctRemainingCount);
     }
-    
+
     // When we have no remaining cards but currentCard isn't null, we need to force it
     if (reviewSessionCards.length === 0 && currentCard !== null) {
       setCurrentCard(null);
@@ -725,8 +725,8 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
-    // Increment swipe counters only in Review Mode
-    if (isReviewModeActiveRef.current) {
+    // Increment swipe counters only in SRS Mode
+    if (isSrsModeActiveRef.current) {
       if (direction === 'left') {
         incrementLeftSwipe();
       } else {
@@ -745,7 +745,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         }
       }
       
-      // Handle SRS updates in Review Mode
+      // Handle SRS updates in SRS Mode
       if (cardToUpdate) {
         const isCorrect = direction === 'right'; // Right = remembered, Left = forgot
         handleSRSUpdate(cardToUpdate, isCorrect);
@@ -883,7 +883,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         lastFilteredCardsHashRef.current = cardsHash;
         
         // Start session atomically - respect current review mode state
-        startReviewWithCards(filteredCards, isReviewModeActive);
+        startReviewWithCards(filteredCards, isSrsModeActive);
         
         // Wait for next tick to ensure hook state is fully updated
         setTimeout(() => {
@@ -907,21 +907,21 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     };
     
     initializeReviewSession();
-  }, [filteredCards, deckIdsLoaded, startReviewWithCards, loadingState, allFlashcards.length, isInitializing, selectedDeckIds.length, isSessionFinished, isReviewModeActive, dataVersion]);
+  }, [filteredCards, deckIdsLoaded, startReviewWithCards, loadingState, allFlashcards.length, isInitializing, selectedDeckIds.length, isSessionFinished, isSrsModeActive, dataVersion]);
 
   // Reset delay states when session finishes in browse mode (no animation needed)
   useEffect(() => {
-    if (isSessionFinished && !isReviewModeActive) {
+    if (isSessionFinished && !isSrsModeActive) {
       // In browse mode, we want to show the finished view immediately
       // Reset any delay states that might be stuck from a previous review session
       setDelaySessionFinish(false);
       setIsTransitionLoading(false);
     }
-  }, [isSessionFinished, isReviewModeActive]);
+  }, [isSessionFinished, isSrsModeActive]);
   
   // Automatically disable review mode when session finishes (with fade-out delay)
   useEffect(() => {
-    if (isSessionFinished && isReviewModeActive && !isFadingOutRef.current) {
+    if (isSessionFinished && isSrsModeActive && !isFadingOutRef.current) {
       logger.log('🔄 [Component] Session finished, starting fade-out animation');
       isFadingOutRef.current = true;
       // NOTE: delaySessionFinish and isTransitionLoading are already set by onSessionFinishing callback
@@ -949,7 +949,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           // After fade-out completes, hide counter
           setShouldShowCounter(false);
           // Exit review mode to return to browse mode when all cards are finished
-          setIsReviewModeActive(false);
+          setIsSrsModeActive(false);
           setDelaySessionFinish(false); // Allow "session finished" view to show
           
           // Smoothly fade out loading overlay
@@ -966,16 +966,16 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         });
       }, 100); // Small delay to let card finish animating
     }
-  }, [isSessionFinished, isReviewModeActive, srsCounterOpacity, transitionLoadingOpacity]);
+  }, [isSessionFinished, isSrsModeActive, srsCounterOpacity, transitionLoadingOpacity]);
 
-  // Filter cards and update counts when Review Mode is toggled
-  // CRITICAL FIX: Only call startReviewWithCards when isReviewModeActive ACTUALLY changes
+  // Filter cards and update counts when SRS Mode is toggled
+  // CRITICAL FIX: Only call startReviewWithCards when isSrsModeActive ACTUALLY changes
   // (not when filteredCards changes - that's handled by initializeReviewSession)
   useEffect(() => {
     if (!filteredCards || filteredCards.length === 0) {
       setTotalDeckCards(0);
       setDueCardsCount(0);
-      prevIsReviewModeActiveRef.current = isReviewModeActive;
+      prevIsReviewModeActiveRef.current = isSrsModeActive;
       return;
     }
 
@@ -984,25 +984,25 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     
     // Calculate due cards count (always needed for display)
     const dueCards = filterDueCards(filteredCards);
-    if (isReviewModeActive) {
+    if (isSrsModeActive) {
       setDueCardsCount(dueCards.length);
     } else {
       setDueCardsCount(filteredCards.length); // In browse mode, all cards are "available"
     }
     
-    // CRITICAL: Only call startReviewWithCards if isReviewModeActive actually changed
+    // CRITICAL: Only call startReviewWithCards if isSrsModeActive actually changed
     // This prevents the duplicate card selection that causes the flash
     const modeActuallyChanged = prevIsReviewModeActiveRef.current !== null && 
-                                 prevIsReviewModeActiveRef.current !== isReviewModeActive;
+                                 prevIsReviewModeActiveRef.current !== isSrsModeActive;
     
     // CRITICAL: Don't change cards during transition loading to prevent flashing
     // Wait until loading overlay is fully visible before changing cards
     // CRITICAL: Don't restart session if session is finished - keep showing finished view
     if (modeActuallyChanged && !isTransitionLoading && !isSessionFinished) {
-      logger.log('📚 [Review Mode] Mode changed to:', isReviewModeActive ? 'Review' : 'Browse');
+      logger.log('📚 [SRS Mode] Mode changed to:', isSrsModeActive ? 'Review' : 'Browse');
       
-      if (isReviewModeActive) {
-        // Entering Review Mode: Filter to due cards only
+      if (isSrsModeActive) {
+        // Entering SRS Mode: Filter to due cards only
         if (dueCards.length > 0) {
           startReviewWithCards(dueCards);
         } else {
@@ -1019,8 +1019,8 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     }
     
     // Update the ref for next comparison
-    prevIsReviewModeActiveRef.current = isReviewModeActive;
-  }, [isReviewModeActive, filteredCards, startReviewWithCards, isTransitionLoading, isSessionFinished]);
+    prevIsReviewModeActiveRef.current = isSrsModeActive;
+  }, [isSrsModeActive, filteredCards, startReviewWithCards, isTransitionLoading, isSessionFinished]);
 
   // SIMPLIFIED: Handle deck selection
   // Filtering is now automatic via useMemo - no async operations needed
@@ -1139,7 +1139,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           </TouchableOpacity>
           </View>
           
-          {/* Review Mode Toggle */}
+          {/* SRS Mode Toggle */}
           <TouchableOpacity
             style={[
               styles.reviewModeButton,
@@ -1168,7 +1168,14 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         </View>
         <LoadingCard />
         <View style={styles.controlsContainer}>
-          <Text style={[styles.countText, { opacity: 0.5 }]}>•••</Text>
+          <Text 
+            style={[styles.countText, { opacity: 0.5 }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit={true}
+            minimumFontScale={0.7}
+          >
+            •••
+          </Text>
         </View>
       </View>
     );
@@ -1235,7 +1242,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
             </TouchableOpacity>
             </View>
             
-            {/* Review Mode Toggle */}
+            {/* SRS Mode Toggle */}
             <TouchableOpacity
               style={[
                 styles.reviewModeButton,
@@ -1269,7 +1276,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                   useNativeDriver: true,
                 }).start(() => {
                   // Only change mode after loading overlay is fully visible to prevent card flashing
-                  setIsReviewModeActive(!isReviewModeActive);
+                  setIsSrsModeActive(!isSrsModeActive);
                   
                   // Hide loading after cards are ready with smooth fade out
                   loadingTimeoutRef.current = setTimeout(() => {
@@ -1344,18 +1351,25 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
             </View>
           </View>
           <View style={styles.controlsContainer}>
-            <Text style={styles.countText}>{t('review.remaining', { count: 0 })}</Text>
+            <Text 
+              style={styles.countText}
+              numberOfLines={1}
+              adjustsFontSizeToFit={true}
+              minimumFontScale={0.7}
+            >
+              {t('review.remaining', { count: 0 })}
+            </Text>
           </View>
           {deckSelector}
         </View>
       );
     }
-    // Session finished – show "Review again" option or "No cards due" in Review Mode
+    // Session finished – show "Review again" option or "No cards due" in SRS Mode
     // But delay showing this view if counter is still fading out or if loading transition
     const shouldShowFinishedView = isSessionFinished && !delaySessionFinish && !isTransitionLoading;
     if (shouldShowFinishedView) {
-      // Check if this is Review Mode with no cards due vs. completed review session
-      const isEmptyReviewMode = isReviewModeActive && dueCardsCount === 0;
+      // Check if this is SRS Mode with no cards due vs. completed review session
+      const isEmptyReviewMode = isSrsModeActive && dueCardsCount === 0;
       
       return (
         <View style={styles.container}>
@@ -1395,7 +1409,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
             </TouchableOpacity>
             </View>
             
-            {/* Review Mode Toggle */}
+            {/* SRS Mode Toggle */}
             <TouchableOpacity
               style={[
                 styles.reviewModeButton,
@@ -1429,7 +1443,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                   useNativeDriver: true,
                 }).start(() => {
                   // Only change mode after loading overlay is fully visible to prevent card flashing
-                  setIsReviewModeActive(!isReviewModeActive);
+                  setIsSrsModeActive(!isSrsModeActive);
                   
                   // Hide loading after cards are ready with smooth fade out
                   loadingTimeoutRef.current = setTimeout(() => {
@@ -1479,7 +1493,12 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
             </View>
           </View>
           <View style={styles.controlsContainer}>
-            <Text style={styles.countText}>
+            <Text 
+              style={styles.countText}
+              numberOfLines={1}
+              adjustsFontSizeToFit={true}
+              minimumFontScale={0.7}
+            >
               {t('review.remaining', { count: 0 })}
             </Text>
           </View>
@@ -1534,7 +1553,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         </TouchableOpacity>
         </View>
         
-        {/* Review Mode Toggle */}
+        {/* SRS Mode Toggle */}
         <TouchableOpacity
           style={[
             styles.reviewModeButton,
@@ -1570,7 +1589,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               useNativeDriver: true,
             }).start(() => {
               // Only change mode after loading overlay is fully visible to prevent card flashing
-              setIsReviewModeActive(!isReviewModeActive);
+              setIsSrsModeActive(!isSrsModeActive);
               
               // Hide loading after cards are ready with smooth fade out
               loadingTimeoutRef.current = setTimeout(() => {
@@ -1603,7 +1622,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           </Text>
         </TouchableOpacity>
         
-        {/* SRS Counter - Only visible in Review Mode, positioned right after Review button */}
+        {/* SRS Counter - Only visible in SRS Mode, positioned right after Review button */}
         {shouldShowCounter && (
           <Animated.View style={{ opacity: srsCounterOpacity, marginLeft: 8 }}>
             <TouchableOpacity
@@ -1708,10 +1727,10 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 onImageToggle={(showImage) => {
                   setIsImageExpanded(showImage);
                 }}
-                isReviewModeActive={isReviewModeActive}
+                isSrsModeActive={isSrsModeActive}
               />
-              {/* Right swipe overlay - Green with checkmark - Only show in Review Mode */}
-              {isReviewModeActive && (
+              {/* Right swipe overlay - Green with checkmark - Only show in SRS Mode */}
+              {isSrsModeActive && (
                 <Animated.View 
                   style={[
                     styles.swipeOverlay,
@@ -1723,8 +1742,8 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                   <Ionicons name="checkmark-circle" size={80} color={COLORS.text} />
                 </Animated.View>
               )}
-              {/* Left swipe overlay - Orange with loop/replay - Only show in Review Mode */}
-              {isReviewModeActive && (
+              {/* Left swipe overlay - Orange with loop/replay - Only show in SRS Mode */}
+              {isSrsModeActive && (
                 <Animated.View 
                   style={[
                     styles.swipeOverlay,
@@ -1759,7 +1778,12 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         styles.controlsContainer,
         isImageExpanded && styles.controlsContainerExpanded
       ]}>
-        <Text style={styles.countText}>
+        <Text 
+          style={styles.countText}
+          numberOfLines={1}
+          adjustsFontSizeToFit={true}
+          minimumFontScale={0.7}
+        >
           {!isInitializing && !isCardTransitioning 
             ? t('review.remaining', { count: remainingCount })
             : '•••'}
@@ -1836,7 +1860,7 @@ const createStyles = (
     padding: 8,
     borderRadius: 8,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    marginLeft: 8, // Space between Collections button and Review Mode button
+    marginLeft: 8, // Space between Collections button and SRS Mode button
     zIndex: 1001,
     position: 'relative',
     elevation: 13,
@@ -1911,8 +1935,10 @@ const createStyles = (
     color: '#b3b3b3',
     fontSize: 12,
     textAlign: 'center',
-    flexShrink: 1, // Allow text to shrink if needed
-    flexWrap: 'wrap', // Allow text to wrap on smaller screens
+    width: '100%',
+    // Fixed height relative to CONTROLS_HEIGHT to prevent vertical jumping
+    height: 16,
+    lineHeight: 16,
   },
   loadingCardContainer: {
     width: '100%',
