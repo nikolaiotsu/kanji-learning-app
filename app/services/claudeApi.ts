@@ -1379,30 +1379,400 @@ Format your response as valid JSON with these exact keys:
   "translatedText": "Natural Chinese translation using appropriate Chinese characters and Chinese quotation marks 「」- NO pinyin readings or Western quotes"
 }`;
       }
-      // FAILSAFE: If Japanese is forced, always use Japanese prompt regardless of detected language
+      // FAILSAFE: If Japanese is forced, use Japanese prompt with PROMPT CACHING
       else if (forcedLanguage === 'ja' && targetLanguage !== 'ja') {
-        logger.log(`[DEBUG] FORCED JAPANESE: Using Japanese prompt (furigana) regardless of primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage}`);
-        // Japanese prompt - Enhanced for contextual compound word readings
-        // Note: Only add furigana when translating TO a different language (Japanese speakers don't need furigana for their native language)
-        userMessage = `
-${promptTopSection}
-You are a Japanese language expert. I need you to analyze this text and add furigana to ALL words containing kanji: "${text}"
+        logger.log(`[DEBUG] FORCED JAPANESE: Using Japanese prompt with prompt caching`);
 
-CRITICAL REQUIREMENTS FOR JAPANESE TEXT - THESE ARE MANDATORY:
-1. Keep all original text exactly as is (including any English words, numbers, or punctuation)
-2. For EVERY word containing kanji, you MUST add the complete hiragana reading in parentheses immediately after the word
-3. The reading should cover the entire word (including any hiragana/katakana parts attached to the kanji)
-4. USE STANDARD DICTIONARY READINGS for all compound words - do NOT create readings by combining individual kanji sounds phonetically
-5. You MUST NOT skip any kanji - every single kanji character must have furigana
-6. Non-kanji words (pure hiragana/katakana), English words, and numbers should remain unchanged
-7. Translate into ${targetLangName}
+        // STATIC SYSTEM PROMPT (CACHEABLE) - Just above 2048 token minimum for Haiku
+        const japaneseSystemPrompt = `You are a Japanese language expert specializing in translation and furigana annotation.
+
+TRANSLATION RULES:
+- Translate into natural, fluent target language
+- Preserve original meaning and tone
+- Use natural expressions appropriate for the target language
+- Do NOT add readings or furigana to the translation itself
+
+FURIGANA REQUIREMENTS:
+1. Keep ALL original text exactly as is (English words, numbers, punctuation unchanged)
+2. For EVERY word containing kanji, add complete hiragana readings in parentheses immediately after
+3. USE STANDARD DICTIONARY READINGS for compound words - do NOT combine individual kanji sounds phonetically
+4. Every single kanji character must have a reading - zero exceptions
+5. Pure hiragana/katakana words, foreign loanwords, and numerals remain untouched
+
+READING PRIORITY (PROCESS IN THIS ORDER):
+1. COMPOUND WORDS: Multi-kanji words with established dictionary pronunciations
+2. COUNTER WORDS: Numbers + counters with rendaku sound changes
+3. PROPER NOUNS: Place names, organization names with specific readings
+4. IDIOMATIC EXPRESSIONS: Set phrases with non-compositional readings
+5. INDIVIDUAL KANJI: Only for truly decomposable words
+
+ESSENTIAL COMPOUND WORDS:
+東京(とうきょう), 京都(きょうと), 大阪(おおさか), 日本(にほん), 日本語(にほんご), 勉強(べんきょう), 大学生(だいがくせい), 図書館(としょかん), 病院(びょういん), 銀行(ぎんこう), 食堂(しょくどう), 学校(がっこう), 会社(かいしゃ), 電車(でんしゃ), 自動車(じどうしゃ), 駅(えき), 新聞(しんぶん), 電話(でんわ), 時間(じかん), 仕事(しごと), 買い物(かいもの), 食事(しょくじ), 天気(てんき), 友達(ともだち), 家族(かぞく), 子供(こども), 今日(きょう), 明日(あした), 昨日(きのう), 大人(おとな), 先生(せんせい), 学生(がくせい), 料理(りょうり), 掃除(そうじ), 洗濯(せんたく), 運動(うんどう), 旅行(りょこう), 会議(かいぎ), 試験(しけん), 宿題(しゅくだい), 練習(れんしゅう), 自然(しぜん), 動物(どうぶつ), 植物(しょくぶつ), 季節(きせつ), 春(はる), 夏(なつ), 秋(あき), 冬(ふゆ), 新しい(あたらしい), 古い(ふるい), 大きい(おおきい), 小さい(ちいさい), 高い(たかい), 安い(やすい), 難しい(むずかしい), 簡単(かんたん), 便利(べんり), 不便(ふべん), 有名(ゆうめい), 無名(むめい), 安全(あんぜん), 危険(きけん), 元気(げんき), 病気(びょうき), 幸せ(しあわせ), 不幸(ふこう), 映画(えいが), 音楽(おんがく), 写真(しゃしん), 美術館(びじゅつかん), 博物館(はくぶつかん), 公園(こうえん), 空港(くうこう), 地下鉄(ちかてつ), 新幹線(しんかんせん), 飛行機(ひこうき), 交通(こうつう), 運転(うんてん), 毎朝(まいあさ), 今晩(こんばん), 毎日(まいにち), 毎週(まいしゅう), 毎月(まいつき), 毎年(まいとし)
+
+COUNTER WORD RULES (RENDAKU):
+- 一匹 = いっぴき, 三匹 = さんびき, 六匹 = ろっぴき, 八匹 = はっぴき, 十匹 = じゅっぴき
+- 一人 = ひとり, 二人 = ふたり (irregular forms for 1-2)
+- 一つ = ひとつ, 二つ = ふたつ, 三つ = みっつ (native Japanese counting)
+- 一本 = いっぽん, 三本 = さんぼん, 六本 = ろっぽん (cylindrical objects)
+- 一枚 = いちまい, 二枚 = にまい (flat objects - no rendaku)
+- 一冊 = いっさつ, 三冊 = さんさつ (books)
+- 一台 = いちだい, 二台 = にだい (machines, vehicles)
+
+SPECIAL READING PATTERNS:
+JUKUJIKUN (Whole-word readings): 今日(きょう), 明日(あした), 昨日(きのう), 大人(おとな), 果物(くだもの), 野菜(やさい), 眼鏡(めがね), 浴衣(ゆかた)
+
+RENDAKU PATTERNS: 手紙(てがみ), 物語(ものがたり), 言葉(ことば), 三杯(さんばい), 一杯(いっぱい)
+
+INDIVIDUAL READINGS: 食べ物 = 食(た)べ物(もの), 飲み物 = 飲(の)み物(もの), 読み書き = 読(よ)み書(か)き, 上下 = 上(うえ)下(した), 左右 = 左(ひだり)右(みぎ)
+
+SENTENCE EXAMPLES:
+今日は良い天気ですね → 今日(きょう)は良(よ)い天気(てんき)ですね
+新しい本を読みました → 新(あたら)しい本(ほん)を読(よ)みました
+駅まで歩いて行きます → 駅(えき)まで歩(ある)いて行(い)きます
+猫が三匹います → 猫(ねこ)が三匹(さんびき)います
+図書館で勉強しました → 図書館(としょかん)で勉強(べんきょう)しました
+友達と映画を見に行きます → 友達(ともだち)と映画(えいが)を見(み)に行(い)きます
+毎朝新聞を読んでいます → 毎朝(まいあさ)新聞(しんぶん)を読(よ)んでいます
+来週の月曜日に会議があります → 来週(らいしゅう)の月曜日(げつようび)に会議(かいぎ)があります
+昨日の天気は良かったです → 昨日(きのう)の天気(てんき)は良(よ)かったです
+東京から大阪まで新幹線で行きます → 東京(とうきょう)から大阪(おおさか)まで新幹線(しんかんせん)で新幹線(しんかんせん)で行(い)きます
+
+FORMAT RULES:
+- NO spaces before parentheses: 東京(とうきょう) ✓, 東京 (とうきょう) ✗
+- Use only hiragana in readings (never katakana or romaji)
+- Maintain original text structure exactly
+- Preserve all punctuation, line breaks, and formatting
+- Keep English words, Arabic numerals, and symbols unchanged
+
+QUALITY CHECKLIST:
+✓ Every kanji has a reading (no exceptions)
+✓ Compound words use standard dictionary pronunciations
+✓ Counter words show proper rendaku changes
+✓ Original text structure preserved
+✓ No spaces before opening parentheses
+✓ Only hiragana used in readings
+✓ All punctuation maintained
+✓ Non-Japanese text unchanged
+
+RESPOND WITH JSON:
+{
+  "furiganaText": "Original Japanese text with complete furigana annotations",
+  "translatedText": "Natural translation in target language"
+}`;
+
+        // DYNAMIC USER MESSAGE (NOT CACHEABLE) - Only the text and target language
+        const userMessage = `Translate to ${targetLangName}: "${text}"`;
+
+        // API CALL WITH PROMPT CACHING ENABLED
+        logger.log(`🔄 [Prompt Caching] Sending request with caching enabled - system prompt: ${japaneseSystemPrompt.length} chars, user message: ${userMessage.length} chars`);
+
+        const response = await axios.post(
+          'https://api.anthropic.com/v1/messages',
+          {
+            model: "claude-3-haiku-20240307",
+            max_tokens: 4000,
+            temperature: 0,
+            system: [
+              {
+                type: "text",
+                text: japaneseSystemPrompt,
+                cache_control: { type: "ephemeral" }  // ENABLES PROMPT CACHING
+              }
+            ],
+            messages: [
+              {
+                role: "user",
+                content: userMessage  // Only dynamic content here
+              }
+            ]
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'anthropic-version': '2023-06-01',
+              'anthropic-beta': 'prompt-caching-2024-07-31',  // REQUIRED FOR CACHING
+              'x-api-key': apiKey
+            }
+          }
+        );
+
+        // Extract token usage from API response
+        const usage = response.data?.usage;
+        const inputTokens = usage?.input_tokens;
+        const outputTokens = usage?.output_tokens;
+        
+        // Extract ACTUAL cache metrics from Claude API
+        const cacheCreationTokens = usage?.cache_creation_input_tokens || 0;
+        const cacheReadTokens = usage?.cache_read_input_tokens || 0;
+
+        // Analyze caching effectiveness
+        const cacheableTokens = japaneseSystemPrompt.length / 4; // Rough token estimate
+        const dynamicTokens = userMessage.length / 4; // Rough token estimate
+
+        // Calculate ACTUAL TOTAL COST including cache pricing
+        let totalCost = (inputTokens || 0) + (outputTokens || 0);
+        let cacheCost = 0;
+        let cacheSavings = 0;
+
+        if (cacheCreationTokens > 0) {
+          cacheCost = cacheCreationTokens; // Cache creation costs full price
+          totalCost += cacheCost;
+          logger.log(`🔄 [Cache] 💾 CREATED - ${cacheCreationTokens} tokens cached (full price)`);
+        } else if (cacheReadTokens > 0) {
+          cacheCost = Math.round(cacheReadTokens * 0.1); // Cache reads cost 10% (90% discount)
+          cacheSavings = Math.round(cacheReadTokens * 0.9);
+          totalCost += cacheCost;
+          logger.log(`🔄 [Cache] ✅ HIT - ${cacheReadTokens} tokens read (90% discount = ${cacheCost} billed)`);
+        } else {
+          logger.log(`🔄 [Cache] ⚠️ NONE - Prompt too small (${Math.round(cacheableTokens)} tokens < 2048)`);
+        }
+
+        // Log comprehensive cost breakdown
+        logger.log(`💵 [Cost] Input: ${inputTokens || 0} | Output: ${outputTokens || 0} | Cache: ${cacheCost} | TOTAL: ${totalCost} tokens`);
+        if (cacheSavings > 0) {
+          logger.log(`💵 [Savings] ${cacheSavings} tokens saved (90% off cached portion)`);
+        }
+
+        // Check response headers for any caching indicators
+        const responseHeaders = response.headers;
+        if (responseHeaders['anthropic-cache'] || responseHeaders['x-anthropic-cache']) {
+          logger.log(`🔄 [Prompt Caching] Response header: ${responseHeaders['anthropic-cache'] || responseHeaders['x-anthropic-cache']}`);
+        }
+
+        // Parse response (same as before)
+        if (response.data && response.data.content && Array.isArray(response.data.content)) {
+          const textContent = response.data.content.find((item: ClaudeContentItem) => item.type === "text");
+
+          if (textContent && textContent.text) {
+            try {
+              const jsonMatch = textContent.text.match(/\{[\s\S]*\}/);
+              let jsonString = jsonMatch ? jsonMatch[0] : textContent.text;
+
+              jsonString = cleanJsonString(jsonString);
+
+              logger.log("Raw response text length:", textContent.text.length);
+              logger.log("Extracted JSON string length:", jsonString.length);
+              logger.log("First 100 chars of JSON:", jsonString.substring(0, 100));
+              logger.log("Last 100 chars of JSON:", jsonString.substring(Math.max(0, jsonString.length - 100)));
+
+              let parsedContent;
+
+              try {
+                parsedContent = JSON.parse(jsonString);
+              } catch (parseError) {
+                logger.log('🚨 Initial JSON parse failed, trying emergency fallback...');
+
+                const furiganaMatch = textContent.text.match(/"furiganaText"\s*:\s*"((?:\\.|[^"\\])*?)"/s);
+                const translationMatch = textContent.text.match(/"translatedText"\s*:\s*"((?:\\.|[^"\\])*?)"/s);
+
+                if (furiganaMatch && translationMatch) {
+                  const furiganaValue = furiganaMatch[1]
+                    .replace(/\\"/g, '"')
+                    .replace(/\\\\/g, '\\')
+                    .replace(/[""‚„]/g, '"')
+                    .replace(/[''‛‹›]/g, "'");
+
+                  const translationValue = translationMatch[1]
+                    .replace(/\\"/g, '"')
+                    .replace(/\\\\/g, '\\')
+                    .replace(/[""‚„]/g, '"')
+                    .replace(/[''‛‹›]/g, "'");
+
+                  logger.log("Extracted furigana length:", furiganaValue.length);
+                  logger.log("Extracted translation length:", translationValue.length);
+
+                  parsedContent = {
+                    furiganaText: furiganaValue,
+                    translatedText: translationValue
+                  };
+
+                  logger.log('✅ Emergency fallback parsing successful');
+                } else {
+                  throw parseError;
+                }
+              }
+
+              const translatedText = parsedContent.translatedText || "";
+              const translatedPreview = translatedText.substring(0, 60) + (translatedText.length > 60 ? "..." : "");
+              logger.log(`Translation complete: "${translatedPreview}"`);
+
+              const qualityAssessment = assessTranslationQuality(translatedText, targetLanguage, text.length);
+              logger.log(`🎯 [Smart Verification] Quality assessment: ${qualityAssessment.score}/100 (${qualityAssessment.reasons.join(', ') || 'no issues'})`);
+
+              if (qualityAssessment.needsVerification && retryCount < MAX_RETRIES - 1) {
+                logger.log("⚠️ [Smart Verification] Low quality detected, running verification...");
+              } else if (!qualityAssessment.needsVerification) {
+                logger.log("✅ [Smart Verification] High quality confirmed, skipping verification");
+
+                return {
+                  furiganaText: parsedContent.furiganaText || "",
+                  translatedText: sanitizeTranslatedText(translatedText, targetLanguage)
+                };
+              }
+
+              if (qualityAssessment.needsVerification && retryCount < MAX_RETRIES - 1) {
+                logger.log("🔍 [Smart Verification] Running verification to ensure completeness...");
+
+                retryCount++;
+
+                const verificationPrompt = `
+${promptTopSection}
+You are a translation quality expert. I need you to verify if the following translation is complete.
+
+Original text in source language: "${text}"
+
+Current translation: "${translatedText}"
+
+VERIFICATION TASK:
+1. Compare the original text and the translation
+2. Determine if the translation captures ALL content from the original text
+3. Check if any parts of the original text are missing from the translation
+4. Verify that the translation is a complete, coherent sentence/paragraph
+
+If the translation is incomplete, provide a new complete translation.
+
+Format your response as valid JSON with these exact keys:
+{
+  "isComplete": true/false (boolean indicating if the current translation is complete),
+  "analysis": "Brief explanation of what's missing or incomplete (if applicable)",
+  "furiganaText": "${parsedContent.furiganaText || ""}",
+  "translatedText": "Complete and accurate translation in ${targetLangName} language - either the original if it was complete, or a new complete translation if it wasn't"
+}`;
+
+                const verificationMetrics = apiLogger.startAPICall('https://api.anthropic.com/v1/messages', {
+                  operation: 'translation_verification',
+                  textLength: text.length
+                });
+
+                const verificationResponse = await axios.post(
+                  'https://api.anthropic.com/v1/messages',
+                  {
+                    model: "claude-3-haiku-20240307",
+                    max_tokens: 4000,
+                    temperature: 0,
+                    messages: [
+                      {
+                        role: "user",
+                        content: verificationPrompt
+                      }
+                    ]
+                  },
+                  {
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'anthropic-version': '2023-06-01',
+                      'x-api-key': apiKey
+                    }
+                  }
+                );
+
+                const verificationUsage = verificationResponse.data?.usage;
+                const verificationInputTokens = verificationUsage?.input_tokens;
+                const verificationOutputTokens = verificationUsage?.output_tokens;
+
+                if (verificationResponse.data && verificationResponse.data.content && Array.isArray(verificationResponse.data.content)) {
+                  const verificationTextContent = verificationResponse.data.content.find((item: ClaudeContentItem) => item.type === "text");
+
+                  if (verificationTextContent && verificationTextContent.text) {
+                    try {
+                      const verificationJsonMatch = verificationTextContent.text.match(/\{[\s\S]*\}/);
+                      let verificationJsonString = verificationJsonMatch ? verificationJsonMatch[0] : verificationTextContent.text;
+
+                      verificationJsonString = cleanJsonString(verificationJsonString);
+
+                      logger.log("Verification raw response text length:", verificationTextContent.text.length);
+                      logger.log("Verification extracted JSON string length:", verificationJsonString.length);
+
+                      const verificationParsedContent = JSON.parse(verificationJsonString);
+                      const isComplete = verificationParsedContent.isComplete === true;
+                      const analysis = verificationParsedContent.analysis || "";
+                      const verifiedTranslatedText = verificationParsedContent.translatedText || "";
+
+                      await logClaudeAPI(verificationMetrics, true, verificationTextContent.text, undefined, {
+                        model: 'claude-3-haiku-20240307',
+                        operationType: 'translation_verification',
+                        targetLanguage,
+                        forcedLanguage,
+                        textLength: text.length
+                      }, verificationInputTokens, verificationOutputTokens);
+
+                      if (!isComplete && verifiedTranslatedText.length > translatedText.length) {
+                        logger.log(`Translation was incomplete. Analysis: ${analysis}`);
+                        logger.log("Using improved translation from verification");
+                        logger.log(`New translation: "${verifiedTranslatedText.substring(0, 60)}${verifiedTranslatedText.length > 60 ? '...' : ''}"`);
+
+                        return {
+                          furiganaText: parsedContent.furiganaText || "",
+                          translatedText: sanitizeTranslatedText(verifiedTranslatedText, targetLanguage)
+                        };
+                      } else {
+                        logger.log(`Translation verification result: ${isComplete ? 'Complete' : 'Incomplete'}`);
+                        if (!isComplete) {
+                          logger.log(`Analysis: ${analysis}`);
+                          logger.log("Verification did not provide a better translation - using original");
+                        }
+                      }
+                    } catch (verificationParseError) {
+                      logger.error("Error parsing verification response:", verificationParseError);
+                      await logClaudeAPI(verificationMetrics, false, undefined, verificationParseError instanceof Error ? verificationParseError : new Error(String(verificationParseError)), {
+                        model: 'claude-3-haiku-20240307',
+                        operationType: 'translation_verification',
+                        targetLanguage,
+                        forcedLanguage
+                      }, verificationInputTokens, verificationOutputTokens);
+                    }
+                  } else {
+                    await logClaudeAPI(verificationMetrics, false, undefined, new Error('No text content in verification response'), {
+                      model: 'claude-3-haiku-20240307',
+                      operationType: 'translation_verification',
+                      targetLanguage,
+                      forcedLanguage
+                    }, verificationInputTokens, verificationOutputTokens);
+                  }
+                } else {
+                  await logClaudeAPI(verificationMetrics, false, undefined, new Error('Invalid verification response structure'), {
+                    model: 'claude-3-haiku-20240307',
+                    operationType: 'translation_verification',
+                    targetLanguage,
+                    forcedLanguage
+                  }, verificationInputTokens, verificationOutputTokens);
+                }
+              }
+
+              let furiganaText = applyKoreanRomanizationGuards(parsedContent.furiganaText || "", "initial-parse");
+
+              if ((primaryLanguage === "Japanese" || forcedLanguage === 'ja') && furiganaText) {
+                const validation = validateJapaneseFurigana(text, furiganaText);
+                logger.log(`Furigana validation: ${validation.details}`);
+
+                if (!validation.isValid) {
+                  logger.warn(`Incomplete furigana coverage: ${validation.details}`);
+
+                  if (retryCount === 0 && (validation.missingKanjiCount > 0 || validation.details.includes("incorrect readings"))) {
+                    logger.log("Retrying with more aggressive furigana prompt...");
+                    retryCount++;
+
+                    const aggressivePrompt = `
+${promptTopSection}
+CRITICAL FURIGANA RETRY - PREVIOUS ATTEMPT FAILED
+
+You are a Japanese language expert. The previous attempt failed to add furigana to ALL kanji or used incorrect readings for compound words. You MUST fix this.
+
+Original text: "${text}"
+Previous result had ${validation.missingKanjiCount} missing furigana out of ${validation.totalKanjiCount} total kanji.
+
+ABSOLUTE REQUIREMENTS - NO EXCEPTIONS:
+1. EVERY SINGLE KANJI CHARACTER must have furigana in parentheses
+2. Count the kanji in the original text: ${validation.totalKanjiCount} kanji total
+3. Your response must have exactly ${validation.totalKanjiCount} kanji with furigana
+4. USE STANDARD DICTIONARY READINGS - do NOT create readings by combining individual kanji sounds phonetically
+5. Do NOT skip any kanji - this is mandatory
 
 CRITICAL WORD-LEVEL READING PRIORITY:
 - FIRST analyze the text for compound words, counter words, and context-dependent readings
-- Compound words MUST use their STANDARD DICTIONARY READING - consult your knowledge of established Japanese compound word pronunciations
-- DO NOT phonetically combine individual kanji readings - compound words have fixed, standard readings that may differ from the sum of individual kanji readings
+- Compound words MUST use their STANDARD DICTIONARY READING
+- DO NOT phonetically combine individual kanji readings - compound words have fixed, standard readings
 - Counter words undergo sound changes (rendaku) and must be read as complete units
-- Only split into individual kanji readings when words cannot be read as compounds
 
 MANDATORY VERIFICATION BEFORE RESPONDING - DO THIS STEP BY STEP:
 1. For EVERY compound word, check: "Is this the standard dictionary reading, or did I combine individual kanji readings?"
@@ -1424,7 +1794,7 @@ COMPOUND WORDS (READ AS SINGLE UNITS):
 - "大学生" → "大学生(だいがくせい)" [REQUIRED - compound word]
 - "図書館" → "図書館(としょかん)" [REQUIRED - compound word]
 - "車道" → "車道(しゃどう)" [REQUIRED - compound word with special reading]
-- "自動車" → "自動車(じどうしゃ)" [REQUIRED - compound word]
+- "自動車" → "自動車(じてんしゃ)" [REQUIRED - compound word]
 - "電車" → "電車(でんしゃ)" [REQUIRED - compound word]
 
 INDIVIDUAL KANJI (ONLY when not part of compound):
@@ -1490,6 +1860,83 @@ Format your response as valid JSON with these exact keys:
   "furiganaText": "Japanese text with furigana after EVERY kanji word as shown in examples - THIS IS MANDATORY AND MUST BE COMPLETE",
   "translatedText": "Complete and accurate translation in ${targetLangName} without any truncation or abbreviation"
 }`;
+
+                    const retryResponse = await axios.post(
+                      'https://api.anthropic.com/v1/messages',
+                      {
+                        model: "claude-3-haiku-20240307",
+                        max_tokens: 4000,
+                        temperature: 0,
+                        messages: [
+                          {
+                            role: "user",
+                            content: aggressivePrompt
+                          }
+                        ]
+                      },
+                      {
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'anthropic-version': '2023-06-01',
+                          'x-api-key': apiKey
+                        }
+                      }
+                    );
+
+                    if (retryResponse.data && retryResponse.data.content && Array.isArray(retryResponse.data.content)) {
+                      const retryTextContent = retryResponse.data.content.find((item: ClaudeContentItem) => item.type === "text");
+
+                      if (retryTextContent && retryTextContent.text) {
+                        try {
+                          const retryJsonMatch = retryTextContent.text.match(/\{[\s\S]*\}/);
+                          let retryJsonString = retryJsonMatch ? retryJsonMatch[0] : retryTextContent.text;
+
+                          retryJsonString = cleanJsonString(retryJsonString);
+                          const retryParsedContent = JSON.parse(retryJsonString);
+
+                          const retryPinyinText = retryParsedContent.furiganaText || "";
+                          const retryValidation = validateJapaneseFurigana(text, retryPinyinText);
+
+                          logger.log(`Retry furigana validation: ${retryValidation.details}`);
+
+                          // Use retry result if it has fewer missing kanji
+                          if (retryValidation.missingKanjiCount < validation.missingKanjiCount ||
+                              (retryValidation.isValid && !validation.isValid)) {
+                            furiganaText = retryPinyinText;
+                            logger.log(`Retry successful - reduced missing kanji from ${validation.missingKanjiCount} to ${retryValidation.missingKanjiCount}`);
+                          } else {
+                            logger.log(`Retry did not improve furigana quality - using original result`);
+                          }
+                        } catch (retryParseError) {
+                          logger.error("Error parsing furigana retry response:", retryParseError);
+                        }
+                      }
+                    }
+                  } else if (validation.isValid) {
+                    logger.log(`Furigana validation passed`);
+                  }
+                }
+
+                return {
+                  furiganaText: furiganaText,
+                  translatedText: sanitizeTranslatedText(parsedContent.translatedText || "", targetLanguage)
+                };
+              } else {
+                return {
+                  furiganaText: parsedContent.furiganaText || "",
+                  translatedText: sanitizeTranslatedText(translatedText, targetLanguage)
+                };
+              }
+            } catch (parseError) {
+              logger.error('Error parsing Claude response:', parseError);
+              throw new Error('Failed to parse Claude API response. The response may be malformed.');
+            }
+          } else {
+            throw new Error('No text content received from Claude API');
+          }
+        } else {
+          throw new Error('Invalid response structure from Claude API');
+        }
       } else if ((primaryLanguage === "Chinese" || forcedLanguage === 'zh') && targetLanguage !== 'zh') {
         logger.log(`[DEBUG] Using Chinese prompt (pinyin) for primaryLanguage: ${primaryLanguage}, forcedLanguage: ${forcedLanguage}, targetLanguage: ${targetLanguage}`);
         // Enhanced Chinese-specific prompt with comprehensive pinyin rules
@@ -2671,6 +3118,9 @@ Format your response as valid JSON with these exact keys:
       const usage = response.data?.usage;
       const inputTokens = usage?.input_tokens;
       const outputTokens = usage?.output_tokens;
+
+      const regularCost = (inputTokens || 0) + (outputTokens || 0);
+      logger.log(`💵 [Regular Translation Cost] Input: ${inputTokens || 0} | Output: ${outputTokens || 0} | TOTAL: ${regularCost} tokens`);
 
       
       // Extract and parse the content from Claude's response
@@ -4272,7 +4722,21 @@ export async function processWithClaudeAndScope(
     const targetLangName = LANGUAGE_NAMES_MAP[targetLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'English';
     const sourceLangName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'the source language';
     
-    logger.log(`[WordScope Combined] Analysis type: ${analysisType} (isWord: ${isWord})`);
+    // Check if source language needs readings (furigana/pinyin/romanization)
+    const readingLanguages: { [key: string]: { name: string; readingType: string; format: string } } = {
+      'ja': { name: 'Japanese', readingType: 'furigana', format: 'kanji(hiragana) e.g. 漢字(かんじ)' },
+      'zh': { name: 'Chinese', readingType: 'pinyin', format: 'hanzi(pinyin) e.g. 中国(zhōngguó)' },
+      'ko': { name: 'Korean', readingType: 'romanization', format: 'hangul(romanization) e.g. 한국어(han-gug-eo)' },
+      'ru': { name: 'Russian', readingType: 'romanization', format: 'cyrillic(romanization) e.g. Русский(russkiy)' },
+      'ar': { name: 'Arabic', readingType: 'transliteration', format: 'arabic(transliteration) e.g. العربية(al-arabiya)' },
+      'hi': { name: 'Hindi', readingType: 'romanization', format: 'devanagari(IAST) e.g. हिन्दी(hindī)' },
+      'th': { name: 'Thai', readingType: 'RTGS romanization', format: 'thai(rtgs) e.g. ภาษา(phaasaa)' }
+    };
+    
+    const needsReadings = forcedLanguage in readingLanguages;
+    const readingInfo = needsReadings ? readingLanguages[forcedLanguage] : null;
+    
+    logger.log(`[WordScope Combined] Analysis type: ${analysisType} (isWord: ${isWord}), needsReadings: ${needsReadings}`);
     
     // Build the scope analysis instructions based on analysis type
     const scopeInstructions = analysisType === 'etymology'
@@ -4289,11 +4753,180 @@ Explain the grammar structure of this ${sourceLangName} sentence:
 2. Sentence structure: How the sentence is constructed
 3. Verb forms: Tense, mood, aspect (if applicable)
 4. Key grammar points: Important grammatical features for language learners
-5. Keep it accessible - avoid overwhelming technical jargon
+5. Example sentences: When possible, provide 2 new example sentences in ${sourceLangName} that follow the same grammar structure as the analyzed sentence. These should demonstrate the same grammatical patterns. Only create examples if you can do so naturally without forcing or inventing unrealistic content. If no natural examples are possible, skip this section entirely.
+6. Keep it accessible - avoid overwhelming technical jargon
 Maximum 200 words. Focus on helping learners understand how this ${sourceLangName} sentence works grammatically.`;
 
-    // Combined prompt for translation + scope analysis
-    const combinedPrompt = `You are a language expert. I need you to BOTH translate AND analyze the following ${sourceLangName} text.
+    // Build detailed reading instructions based on source language
+    // These match the quality of the regular Translate button prompts
+    let readingTask = '';
+    
+    if (needsReadings && readingInfo) {
+      if (forcedLanguage === 'ja') {
+        // Japanese - detailed furigana instructions (same as Translate button)
+        readingTask = `
+=== TASK 3: FURIGANA ===
+Add furigana to ALL words containing kanji in the ORIGINAL Japanese text.
+
+CRITICAL REQUIREMENTS:
+1. Keep all original text exactly as is (including any English words, numbers, or punctuation)
+2. For EVERY word containing kanji, add the complete hiragana reading in parentheses immediately after the word
+3. The reading should cover the entire word (including any hiragana/katakana parts attached to the kanji)
+4. USE STANDARD DICTIONARY READINGS for all compound words - do NOT create readings by combining individual kanji sounds phonetically
+5. You MUST NOT skip any kanji - every single kanji character must have furigana
+6. Non-kanji words (pure hiragana/katakana), English words, and numbers should remain unchanged
+
+WORD-LEVEL READING PRIORITY:
+- FIRST analyze the text for compound words, counter words, and context-dependent readings
+- Compound words MUST use their STANDARD DICTIONARY READING
+- DO NOT phonetically combine individual kanji readings - compound words have fixed, standard readings
+- Counter words undergo sound changes (rendaku) and must be read as complete units
+
+Examples of correct formatting:
+- "東京" → "東京(とうきょう)" [compound place name]
+- "日本語" → "日本語(にほんご)" [compound word]
+- "一匹" → "一匹(いっぴき)" [counter word with rendaku]
+- "今日" → "今日(きょう)" [special compound reading]
+- "食べ物" → "食(た)べ物(もの)" [individual readings when needed]
+- "新しい本を読みました" → "新(あたら)しい本(ほん)を読(よ)みました"
+
+SPECIAL ATTENTION TO COUNTERS:
+- 一匹 = いっぴき, 三匹 = さんびき, 六匹 = ろっぴき
+- 一人 = ひとり, 二人 = ふたり
+- 一つ = ひとつ, 二つ = ふたつ
+
+NO spaces between kanji and the opening parenthesis.
+`;
+      } else if (forcedLanguage === 'zh') {
+        // Chinese - detailed pinyin instructions
+        readingTask = `
+=== TASK 3: PINYIN ===
+Add pinyin to the ORIGINAL Chinese text.
+
+CRITICAL REQUIREMENTS:
+1. KEEP ALL ORIGINAL CHINESE CHARACTERS exactly as they appear
+2. For EACH Chinese word/phrase, add pinyin in parentheses IMMEDIATELY AFTER the Chinese characters
+3. Format: 中文(zhōngwén) - Chinese characters followed by pinyin in parentheses
+4. Include tone marks in pinyin (ā, á, ǎ, à, etc.)
+5. Group characters into meaningful words - don't add pinyin to each character separately unless it's a single-character word
+
+Examples:
+- "中国" → "中国(zhōngguó)"
+- "你好" → "你好(nǐhǎo)"
+- "学习中文" → "学习(xuéxí)中文(zhōngwén)"
+
+NO spaces between characters and the opening parenthesis.
+`;
+      } else if (forcedLanguage === 'ko') {
+        // Korean - Revised Romanization
+        readingTask = `
+=== TASK 3: ROMANIZATION ===
+Add Revised Romanization to the ORIGINAL Korean text.
+
+CRITICAL REQUIREMENTS:
+1. Keep all original Hangul text exactly as it appears
+2. Add romanization in parentheses IMMEDIATELY AFTER each Korean word
+3. Use standard Revised Romanization of Korean
+4. Format: 한글(hangeul) - Hangul followed by romanization
+
+Examples:
+- "한국어" → "한국어(han-gug-eo)"
+- "안녕하세요" → "안녕하세요(annyeonghaseyo)"
+- "감사합니다" → "감사합니다(gamsahamnida)"
+
+NO spaces between Hangul and the opening parenthesis.
+`;
+      } else if (forcedLanguage === 'ru') {
+        // Russian - Latin romanization
+        readingTask = `
+=== TASK 3: ROMANIZATION ===
+Add Latin romanization to the ORIGINAL Russian text.
+
+CRITICAL REQUIREMENTS:
+1. Keep all original Cyrillic text exactly as it appears
+2. Add romanization in parentheses IMMEDIATELY AFTER each Russian word
+3. Use standard Latin transliteration
+4. Format: Русский(russkiy) - Cyrillic followed by romanization
+
+Examples:
+- "Россия" → "Россия(rossiya)"
+- "Привет" → "Привет(privet)"
+- "Спасибо" → "Спасибо(spasibo)"
+
+NO spaces between Cyrillic and the opening parenthesis.
+`;
+      } else if (forcedLanguage === 'ar') {
+        // Arabic - transliteration
+        readingTask = `
+=== TASK 3: TRANSLITERATION ===
+Add transliteration to the ORIGINAL Arabic text.
+
+CRITICAL REQUIREMENTS:
+1. Keep all original Arabic script exactly as it appears
+2. Add transliteration in parentheses IMMEDIATELY AFTER each Arabic word
+3. Use Arabic Chat Alphabet or standard transliteration
+4. Format: العربية(al-arabiya) - Arabic followed by transliteration
+
+Examples:
+- "مرحبا" → "مرحبا(marhaba)"
+- "شكرا" → "شكرا(shukran)"
+
+NO spaces between Arabic and the opening parenthesis.
+`;
+      } else if (forcedLanguage === 'hi') {
+        // Hindi - IAST romanization
+        readingTask = `
+=== TASK 3: ROMANIZATION ===
+Add IAST romanization to the ORIGINAL Hindi text.
+
+CRITICAL REQUIREMENTS:
+1. Keep all original Devanagari script exactly as it appears
+2. Add IAST romanization in parentheses IMMEDIATELY AFTER each Hindi word
+3. Include diacritical marks (ā, ī, ū, etc.)
+4. Format: हिन्दी(hindī) - Devanagari followed by romanization
+
+Examples:
+- "नमस्ते" → "नमस्ते(namaste)"
+- "धन्यवाद" → "धन्यवाद(dhanyavād)"
+
+NO spaces between Devanagari and the opening parenthesis.
+`;
+      } else if (forcedLanguage === 'th') {
+        // Thai - RTGS romanization
+        readingTask = `
+=== TASK 3: RTGS ROMANIZATION ===
+Add Royal Thai General System (RTGS) romanization to the ORIGINAL Thai text.
+
+CRITICAL REQUIREMENTS:
+1. Keep all original Thai script exactly as it appears
+2. Add RTGS romanization in parentheses IMMEDIATELY AFTER each Thai word
+3. Use standard RTGS transliteration (may include periods for abbreviations)
+4. Format: ภาษา(phaasaa) - Thai followed by romanization
+
+Examples:
+- "สวัสดี" → "สวัสดี(sawatdi)"
+- "ขอบคุณ" → "ขอบคุณ(khop khun)"
+- "ประเทศไทย" → "ประเทศไทย(prathet thai)"
+
+NO spaces between Thai script and the opening parenthesis.
+`;
+      }
+    }
+
+    // Build the furiganaText field instruction based on language
+    let furiganaFieldInstruction = `"furiganaText": "",`;
+    if (needsReadings && readingInfo) {
+      if (forcedLanguage === 'ja') {
+        furiganaFieldInstruction = `"furiganaText": "Original Japanese text with furigana after EVERY kanji word - THIS IS MANDATORY",`;
+      } else if (forcedLanguage === 'zh') {
+        furiganaFieldInstruction = `"furiganaText": "Original Chinese text with pinyin (including tone marks) after each word",`;
+      } else {
+        furiganaFieldInstruction = `"furiganaText": "Original ${sourceLangName} text with ${readingInfo.readingType} in parentheses",`;
+      }
+    }
+
+    // Combined prompt for translation + scope analysis (+ readings if needed)
+    const combinedPrompt = `You are a ${needsReadings ? `${sourceLangName} language expert` : 'language expert'}. I need you to ${needsReadings ? 'translate, analyze, AND add readings to' : 'BOTH translate AND analyze'} the following ${sourceLangName} text.
 
 TEXT TO PROCESS: "${normalizedText}"
 
@@ -4301,23 +4934,27 @@ TEXT TO PROCESS: "${normalizedText}"
 Translate the text into natural, fluent ${targetLangName}.
 - Preserve the original meaning and tone
 - Use natural expressions in ${targetLangName}
-- Do NOT add any readings, romanization, or furigana
+- Do NOT add any readings, romanization, or furigana to the TRANSLATION
 
 === TASK 2: ${analysisType.toUpperCase()} ANALYSIS ===
 ${scopeInstructions}
-
+${readingTask}
 === RESPONSE FORMAT ===
 You MUST respond with valid JSON in this exact format:
 {
+  ${furiganaFieldInstruction}
   "translatedText": "Your ${targetLangName} translation here",
   "scopeAnalysis": "Your ${analysisType} analysis here (in ${targetLangName})"
 }
 
-CRITICAL: 
-- Both fields are required
-- Write ALL content in ${targetLangName}
+CRITICAL REQUIREMENTS:
+- ALL three fields are required and must be complete${needsReadings ? `
+- furiganaText MUST contain the COMPLETE original text WITH ${readingInfo?.readingType} for EVERY applicable character/word
+- Do NOT skip any readings - every ${forcedLanguage === 'ja' ? 'kanji' : 'word'} must have its reading` : ''}
+- Write translation and analysis in ${targetLangName}
 - Do not include any text outside the JSON object
-- Ensure proper JSON escaping for quotes and special characters`;
+- Ensure proper JSON escaping for quotes and special characters (use \\" for quotes inside strings)
+- Do NOT truncate or abbreviate any field`;
 
     // Progress callback
     onProgress?.(1);
@@ -4347,7 +4984,9 @@ CRITICAL:
     const inputTokens = usage?.input_tokens;
     const outputTokens = usage?.output_tokens;
     
-    logger.log(`[WordScope Combined] Token usage - Input: ${inputTokens}, Output: ${outputTokens}`);
+    // Calculate WordScope cost
+    const wordScopeCost = (inputTokens || 0) + (outputTokens || 0);
+    logger.log(`💵 [WordScope Cost] Input: ${inputTokens} | Output: ${outputTokens} | TOTAL: ${wordScopeCost} tokens`);
     
     // Parse the combined response
     const content = response.data.content as ClaudeContentItem[];
@@ -4356,7 +4995,7 @@ CRITICAL:
     logger.log(`[WordScope Combined] Raw response length: ${rawResponse.length}`);
     
     // Try to parse the JSON response
-    let parsedResult: { translatedText: string; scopeAnalysis: string } | null = null;
+    let parsedResult: { furiganaText?: string; translatedText: string; scopeAnalysis: string } | null = null;
     
     try {
       // First, try direct JSON parse
@@ -4366,18 +5005,87 @@ CRITICAL:
       const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         parsedResult = JSON.parse(jsonMatch[0]);
+        // Log what we got from JSON.parse
+        logger.log(`[WordScope Combined] JSON.parse succeeded - furiganaText: ${parsedResult?.furiganaText?.length || 0} chars, translatedText: ${parsedResult?.translatedText?.length || 0} chars, scopeAnalysis: ${parsedResult?.scopeAnalysis?.length || 0} chars`);
+        if (parsedResult?.furiganaText) {
+          logger.log(`[WordScope Combined] furiganaText from JSON.parse: "${parsedResult.furiganaText.substring(0, 100)}..."`);
+        }
       }
     } catch (parseError) {
       logger.warn('[WordScope Combined] JSON parse failed, attempting manual extraction');
+      logger.log(`[WordScope Combined] Raw response preview (first 500 chars): ${rawResponse.substring(0, 500)}`);
       
-      // Manual extraction fallback
-      const translatedMatch = rawResponse.match(/"translatedText"\s*:\s*"([^"]+)"/);
-      const scopeMatch = rawResponse.match(/"scopeAnalysis"\s*:\s*"([^"]+)"/);
+      // Manual extraction fallback - handle Claude returning unescaped quotes in JSON
+      // Claude often returns: "scopeAnalysis": "The phrase "word" means..."
+      // where inner quotes are NOT escaped, breaking JSON parsing
       
-      if (translatedMatch && scopeMatch) {
+      // Unescape the content: \n → newline, \" → quote, \\ → backslash
+      const unescapeJsonString = (str: string): string => {
+        return str
+          .replace(/\\n/g, '\n')
+          .replace(/\\r/g, '\r')
+          .replace(/\\t/g, '\t')
+          .replace(/\\"/g, '"')
+          .replace(/\\\\/g, '\\');
+      };
+      
+      // Helper to extract a field value between its key and the next key (or end)
+      const extractField = (fieldName: string, nextFieldName: string | null): string | null => {
+        const fieldStart = rawResponse.indexOf(`"${fieldName}"`);
+        if (fieldStart === -1) return null;
+        
+        const colonAfter = rawResponse.indexOf(':', fieldStart);
+        if (colonAfter === -1) return null;
+        
+        const openQuote = rawResponse.indexOf('"', colonAfter + 1);
+        if (openQuote === -1) return null;
+        
+        // Find end boundary - either next field or closing brace
+        let endBoundary: number;
+        if (nextFieldName) {
+          endBoundary = rawResponse.indexOf(`"${nextFieldName}"`, openQuote);
+          if (endBoundary === -1) endBoundary = rawResponse.lastIndexOf('}');
+        } else {
+          endBoundary = rawResponse.lastIndexOf('}');
+        }
+        
+        if (endBoundary <= openQuote) return null;
+        
+        // Work backwards from end boundary to find closing quote
+        let endPos = endBoundary - 1;
+        while (endPos > openQuote && /[\s,\n\r]/.test(rawResponse[endPos])) {
+          endPos--;
+        }
+        
+        if (rawResponse[endPos] === '"') {
+          return unescapeJsonString(rawResponse.substring(openQuote + 1, endPos));
+        }
+        return null;
+      };
+      
+      // Extract fields in order: furiganaText -> translatedText -> scopeAnalysis
+      const furiganaText = extractField('furiganaText', 'translatedText');
+      const translatedText = extractField('translatedText', 'scopeAnalysis');
+      const scopeAnalysis = extractField('scopeAnalysis', null);
+      
+      // Log raw match results
+      logger.log(`[WordScope Combined] furiganaText extracted: ${furiganaText ? `"${furiganaText.substring(0, 100)}..."` : 'null'}`);
+      logger.log(`[WordScope Combined] translatedText extracted: ${translatedText ? `"${translatedText.substring(0, 100)}..."` : 'null'}`);
+      logger.log(`[WordScope Combined] scopeAnalysis extracted: ${scopeAnalysis ? `"${scopeAnalysis.substring(0, 200)}..."` : 'null'}`);
+      
+      // Log what we found for debugging
+      logger.log(`[WordScope Combined] Manual extraction - furiganaText: ${furiganaText ? 'found (' + furiganaText.length + ' chars)' : 'missing'}`);
+      logger.log(`[WordScope Combined] Manual extraction - translatedText: ${translatedText ? 'found (' + translatedText.length + ' chars)' : 'missing'}`);
+      logger.log(`[WordScope Combined] Manual extraction - scopeAnalysis: ${scopeAnalysis ? 'found (' + scopeAnalysis.length + ' chars)' : 'missing'}`);
+      if (scopeAnalysis) {
+        logger.log(`[WordScope Combined] scopeAnalysis content: "${scopeAnalysis.substring(0, 300)}..."`);
+      }
+      
+      if (translatedText && scopeAnalysis) {
         parsedResult = {
-          translatedText: translatedMatch[1],
-          scopeAnalysis: scopeMatch[1]
+          furiganaText: furiganaText || '',
+          translatedText,
+          scopeAnalysis
         };
       }
     }
@@ -4402,8 +5110,14 @@ CRITICAL:
     
     logger.log('[WordScope Combined] Successfully completed combined translation + scope analysis');
     
+    // Return furiganaText if provided by Claude (for reading languages)
+    const furiganaResult = parsedResult.furiganaText || '';
+    if (furiganaResult) {
+      logger.log(`[WordScope Combined] Returning furiganaText: "${furiganaResult.substring(0, 50)}..."`);
+    }
+    
     return {
-      furiganaText: '', // WordScope doesn't need furigana
+      furiganaText: furiganaResult,
       translatedText: parsedResult.translatedText,
       scopeAnalysis: parsedResult.scopeAnalysis,
       languageMismatch: undefined
@@ -4468,7 +5182,8 @@ Provide (in ${targetLangName} language):
 2. Sentence structure: How the sentence is constructed
 3. Verb forms: Tense, mood, aspect (if applicable)
 4. Key grammar points: Important grammatical features for language learners
-5. Keep it accessible - avoid overwhelming technical jargon
+5. Example sentences: When possible, provide 2 new example sentences in ${sourceLangName} that follow the same grammar structure as the analyzed sentence. These should demonstrate the same grammatical patterns. Only create examples if you can do so naturally without forcing or inventing unrealistic content. If no natural examples are possible, skip this section entirely.
+6. Keep it accessible - avoid overwhelming technical jargon
 
 Write your analysis in ${targetLangName}. Maximum 200 words.`;
     
@@ -4576,7 +5291,9 @@ Provide (in ${targetLangName} language):
 1. Parts of speech: Identify key words and their grammatical roles
 2. Sentence structure: How the sentence is constructed
 3. Verb forms: Tense, mood, aspect (if applicable)
-4. Key grammar points: Important grammatical features for language learners but keep it accessible
+4. Key grammar points: Important grammatical features for language learners
+5. Example sentences: When possible, provide 2 new example sentences in ${sourceLangName} that follow the same grammar structure as the analyzed sentence. These should demonstrate the same grammatical patterns. Only create examples if you can do so naturally without forcing or inventing unrealistic content. If no natural examples are possible, skip this section entirely.
+6. Keep it accessible - avoid overwhelming technical jargon
 
 Write your analysis in ${targetLangName}. Maximum 200 words. Focus on helping learners understand how this ${sourceLangName} sentence works grammatically.`;
     
@@ -4775,8 +5492,9 @@ function validateJapaneseFurigana(originalText: string, furiganaText: string): {
   }
   
   // Count kanji that have furigana in the furigana text
-  // Look for patterns like 漢字(かんじ) where kanji is followed by hiragana in parentheses
-  const furiganaPattern = /[\u4e00-\u9fff]+\([ぁ-ゟ\?]+\)/g;
+  // Look for patterns like 漢字(かんじ) or 周り(まわり) - base must START with kanji
+  // Hiragana/katakana (okurigana) can follow AFTER the initial kanji, but not before
+  const furiganaPattern = /[\u4e00-\u9fff][\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff]*\([ぁ-ゟ\?]+\)/g;
   const furiganaMatches = furiganaText.match(furiganaPattern) || [];
   
   // Extract kanji from furigana matches

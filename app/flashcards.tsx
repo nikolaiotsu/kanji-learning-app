@@ -365,41 +365,13 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       setActualTargetLanguage(usedTargetLang);
       
       // If we used different languages than original (from retry), update settings
+      // Auto-switch is handled by languageMismatch detection in the translation call itself
       if (usedSourceLang !== originalSourceLanguage || usedTargetLang !== originalTargetLanguage) {
         logger.log(`✅ [Flashcards] Translation successful with auto-switch, updating settings: ${usedSourceLang} → ${usedTargetLang}`);
         await setBothLanguages(usedSourceLang, usedTargetLang);
-        // Skip post-translation validation since we already know the correct languages from retry
-      } else {
-        // Only run post-translation validation if NO retry happened
-        // This catches cases where pattern detection missed a mismatch but translation still worked
-        if (editedText && editedText.length > 5) {
-          try {
-            logger.log(`🔍 [Flashcards] Performing post-translation validation for: ${usedSourceLang}`);
-            const detectedLanguageName = await performLazyAIValidation(editedText, usedSourceLang);
-
-            if (detectedLanguageName) {
-              logger.log(`🔍 [Flashcards] Detected language: ${detectedLanguageName}, Expected: ${AVAILABLE_LANGUAGES[usedSourceLang as keyof typeof AVAILABLE_LANGUAGES]}`);
-
-              // Check if detected language differs from what we used
-              const expectedLanguageName = AVAILABLE_LANGUAGES[usedSourceLang as keyof typeof AVAILABLE_LANGUAGES];
-              if (detectedLanguageName !== expectedLanguageName) {
-                // Convert detected language name to code
-                const detectedCode = Object.keys(AVAILABLE_LANGUAGES).find(
-                  key => AVAILABLE_LANGUAGES[key as keyof typeof AVAILABLE_LANGUAGES] === detectedLanguageName
-                );
-
-                // Only update if detected language is different from both source and target
-                if (detectedCode && detectedCode !== usedSourceLang && detectedCode !== usedTargetLang) {
-                  logger.log(`🎯 [Flashcards] Post-validation found mismatch, updating settings: ${detectedCode} → ${usedTargetLang}`);
-                  await setBothLanguages(detectedCode, usedTargetLang);
-                }
-              }
-            }
-          } catch (error) {
-            logger.warn(`🔍 [Flashcards] Post-translation validation error:`, error);
-          }
-        }
       }
+      // Post-translation validation removed - Claude's successful translation IS the validation
+      // The languageMismatch detection already handles auto-switch before we get here
     }
 
     return result;
@@ -796,15 +768,10 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
         setTranslatedText(result.translatedText);
         setScopeAnalysis(result.scopeAnalysis || '');
         
-        if (needsRomanization) {
+        // WordScope Combined now returns furigana for reading languages in a single call
+        if (needsRomanization && result.furiganaText) {
           setFuriganaText(result.furiganaText);
-          if (!result.furiganaText && targetLanguage !== 'ja' && targetLanguage !== 'zh') {
-            if (hasJapanese && containsKanji(editedText)) {
-              setError('Failed to generate furigana for kanji characters. This may affect readability. The translation is still available.');
-            } else {
-              setError('Failed to get proper romanization for this text. The translation is still available.');
-            }
-          }
+          logger.log(`🔤 [Flashcards] Furigana from combined call: "${result.furiganaText.substring(0, 50)}..."`);
         }
         
         setTextProcessed(true);

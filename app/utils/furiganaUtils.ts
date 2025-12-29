@@ -31,7 +31,7 @@ export function validateFuriganaFormat(text: string): boolean {
   
   // Check if text contains properly formatted readings
   // Japanese: 東京(とうきょう) - kanji with hiragana
-  //          落ち着いた(おちついた) - mixed kanji-hiragana with hiragana reading
+  //          周り(まわり) - kanji+okurigana with hiragana reading (base STARTS with kanji)
   //          食べ物(たべもの) - mixed kanji-hiragana with hiragana reading
   // Chinese: 中国(zhōngguó) - hanzi with pinyin
   // Korean: 한국어(han-gug-eo) - hangul with romanization
@@ -40,8 +40,8 @@ export function validateFuriganaFormat(text: string): boolean {
   // Hindi: हिन्दी(hindī) - devanagari with romanization
   // Thai: ภาษาไทย(phaasaa thai) - thai with RTGS romanization (may include periods for abbreviations)
   // Esperanto: Esperanto characters with Latin script
-  // Note: Added periods (.) to reading content for Thai RTGS abbreviations like kkot.khtm.
-  const readingRegex = /([\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F\u0E00-\u0E7F\u3040-\u309f\u30a0-\u30ff]+)\s*\(([ぁ-ゟa-zA-ZāēīōūǎěǐǒǔàèìòùáéíóúǘǙǚǜǖǕǗǙǛüÜɑĉĝĥĵŝŭĈĜĤĴŜŬ\s\-0-9\.]+)\)/;
+  // Note: Base text must START with non-kana character, but can have hiragana/katakana AFTER
+  const readingRegex = /([\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F\u0E00-\u0E7F][\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F\u0E00-\u0E7F\u3040-\u309f\u30a0-\u30ff]*)\s*\(([ぁ-ゟa-zA-ZāēīōūǎěǐǒǔàèìòùáéíóúǘǙǚǜǖǕǗǙǛüÜɑĉĝĥĵŝŭĈĜĤĴŜŬ\s\-0-9\.]+)\)/;
   return readingRegex.test(text);
 }
 
@@ -61,8 +61,9 @@ export function extractKanji(text: string): string[] {
  * @returns Number of furigana pairs found
  */
 export function countFuriganaPairs(text: string): number {
-  // Updated to handle mixed kanji-hiragana-katakana words like 落ち着いた(おちついた)
-  const furiganaRegex = /([\u4e00-\u9fff\u3400-\u4dbf\u3040-\u309f\u30a0-\u30ff]+)\(([ぁ-ゟ]+)\)/g;
+  // Handle mixed kanji-hiragana words like 周り(まわり) - base must START with kanji
+  // Hiragana/katakana can only follow AFTER the initial kanji
+  const furiganaRegex = /([\u4e00-\u9fff\u3400-\u4dbf][\u4e00-\u9fff\u3400-\u4dbf\u3040-\u309f\u30a0-\u30ff]*)\(([ぁ-ゟ]+)\)/g;
   const matches = text.match(furiganaRegex);
   return matches ? matches.length : 0;
 }
@@ -164,10 +165,10 @@ export function parseFuriganaText(text: string): FuriganaWord[] {
   // then render everything between them as plain text.
   // This matches how HTML <ruby> tags work and how e-readers display furigana.
   
-  // CRITICAL FIX: Only match CJK characters (kanji/hanzi/hangul) BEFORE the parentheses
-  // Do NOT include hiragana/katakana [\u3040-\u309f\u30a0-\u30ff] in the base match
-  // Those should be plain text between ruby annotations
-  // This ensures "は東京(とうきょう)" becomes: は [text] + 東京(とうきょう) [ruby]
+  // CRITICAL FIX: Base text must START with a non-kana script character (kanji, hangul, cyrillic, etc.)
+  // Hiragana/katakana can only follow AFTER the initial script character.
+  // This ensures "に居(い)" correctly matches only "居(い)" not "に居(い)"
+  // And "周り(まわり)" correctly matches the kanji+okurigana as a unit.
   // 
   // PUNCTUATION HANDLING: Allow optional punctuation between base and reading
   // e.g., 심각하다"(sim-gag-ha-da) or 요청했다.(yo-cheong-haess-da.)
@@ -181,7 +182,9 @@ export function parseFuriganaText(text: string): FuriganaWord[] {
   // for languages that use them in romanization (e.g., Arabic k̲h̲, Hindi ṃ, etc.)
   // THAI FALLBACK: Allow optional whitespace (\s*) before the opening parenthesis to handle
   // cases where Claude might add a space before the romanization (e.g., "ไทย (thai)" instead of "ไทย(thai)")
-  const rubyRegex = /([«»"'「」『』‹›]?)([\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F\u0E00-\u0E7F]+)([»«"'」」』』›‹.!?,;:。、]+)?\s*\(([ぁ-ゟa-zA-ZāēīōūǎěǐǒǔàèìòùáéíóúǘǙǚǜǖǕǗǙǛüÜɑśṅñṭḍṇḷṛṣḥṁṃḷ̥ṝṟĝśḱńṗṟť\u0300-\u036F\u0323-\u0333\s\-0-9!?.,;:'"‚""„‹›«»‑–—…']+)\)/g;
+  // JAPANESE MIXED TEXT: Allow hiragana/katakana AFTER kanji (okurigana) like "周り(まわり)"
+  // but NOT before - the base must START with kanji/hangul/cyrillic/arabic/devanagari/thai
+  const rubyRegex = /([«»"'「」『』‹›]?)([\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F\u0E00-\u0E7F][\u4e00-\u9fff\u3400-\u4dbf\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uFFA0-\uFFDC\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\u0900-\u097F\u0E00-\u0E7F\u3040-\u309f\u30a0-\u30ff]*)([»«"'」」』』›‹.!?,;:。、]+)?\s*\(([ぁ-ゟa-zA-ZāēīōūǎěǐǒǔàèìòùáéíóúǘǙǚǜǖǕǗǙǛüÜɑśṅñṭḍṇḷṛṣḥṁṃḷ̥ṝṟĝśḱńṗṟť\u0300-\u036F\u0323-\u0333\s\-0-9!?.,;:'"‚""„‹›«»‑–—…']+)\)/g;
   
   let lastIndex = 0;
   let match;
