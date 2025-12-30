@@ -6,6 +6,252 @@ import { validateTextLength } from '../utils/inputValidation';
 import { logger } from '../utils/logger';
 import { sanitizeKoreanRomanization, analyzeKoreanRomanization } from './koreanRomanizationGuards';
 
+// STATIC SYSTEM PROMPT FOR CHINESE (CACHEABLE) - Shared across functions
+// Just above 2048 token minimum for Haiku caching
+const chineseSystemPrompt = `You are a Chinese language expert specializing in translation and pinyin annotation.
+
+TRANSLATION RULES:
+- Translate into natural, fluent target language
+- Preserve original meaning and tone
+- Use natural expressions appropriate for the target language
+- Do NOT add pinyin readings to the translation itself
+
+PINYIN REQUIREMENTS:
+1. Keep ALL original text exactly as is (English words, numbers, punctuation unchanged)
+2. For EVERY Chinese word/phrase, add pinyin in parentheses IMMEDIATELY AFTER the Chinese characters
+3. USE STANDARD Hanyu Pinyin with proper tone marks (ā é ǐ ò ū ǖ)
+4. For compound words, provide pinyin for the COMPLETE word unit, not individual characters
+5. Every single Chinese character must have pinyin - zero exceptions
+6. Non-Chinese content (English, numbers, symbols) remains unchanged
+
+READING PRIORITY (PROCESS IN THIS ORDER):
+- 1. COMPOUND WORDS: Multi-character words with established dictionary pronunciations
+- 2. PROPER NOUNS: Place names, institution names, organization names with specific readings
+- 3. COMMON PHRASES: Set phrases and idiomatic expressions with standard readings
+- 4. INDIVIDUAL CHARACTERS: Only when words cannot be read as compounds
+
+ESSENTIAL COMPOUND WORDS:
+普通话(pǔtōnghuà), 中华人民共和国(Zhōnghuá Rénmín Gònghéguó), 北京大学(Běijīng Dàxué), 第一次(dì-yī-cì), 电视机(diànshìjī), 计算机(jìsuànjī), 图书馆(túshūguǎn), 飞机场(fēijīchǎng), 火车站(huǒchēzhàn), 大学生(dàxuéshēng), 中国人(Zhōngguórén), 外国人(wàiguórén), 今天(jīntiān), 明天(míngtiān), 昨天(zuótiān), 现在(xiànzài), 以后(yǐhòu), 以前(yǐqián), 学校(xuéxiào), 医院(yīyuàn), 银行(yínháng), 商店(shāngdiàn), 饭店(fàndiàn), 超市(chāoshì), 公园(gōngyuán), 地铁(dìtiě), 公共汽车(gōnggòng qìchē), 出租车(chūzūchē), 自行车(zìxíngchē), 飞机(fēijī), 火车(huǒchē), 汽车(qìchē), 朋友(péngyǒu), 家人(jiārén), 孩子(háizi), 老师(lǎoshī), 学生(xuéshēng), 医生(yīshēng), 护士(hùshì), 警察(jǐngchá), 工作(gōngzuò), 学习(xuéxí), 生活(shēnghuó), 吃饭(chīfàn), 睡觉(shuìjiào), 运动(yùndòng), 旅行(lǚxíng), 购物(gòuwù), 看电影(kàn diànyǐng), 听音乐(tīng yīnyuè), 读书(dúshū), 写作业(xiě zuòyè), 做家务(zuò jiāwù), 天气(tiānqì), 春天(chūntiān), 夏天(xiàtiān), 秋天(qiūtiān), 冬天(dōngtiān), 新(xīn), 旧(jiù), 大(dà), 小(xiǎo), 高(gāo), 低(dī), 好(hǎo), 坏(huài), 难(nán), 容易(róngyì), 方便(fāngbiàn), 不方便(bù fāngbiàn), 有名(yǒumíng), 安全(ānquán), 危险(wēixiǎn), 健康(jiànkāng), 生病(shēngbìng), 快乐(kuàilè), 难过(nánguò), 电影(diànyǐng), 音乐(yīnyuè), 照片(zhàopiàn), 博物馆(bówùguǎn), 美术馆(měishùguǎn), 机场(jīchǎng), 火车站(huǒchēzhàn), 地铁站(dìtiězhàn), 每天(měitiān), 每周(měizhōu), 每月(měiyuè), 每年(měinián)
+
+TONE SANDHI RULES (MANDATORY):
+- 不 (bù) becomes (bú) before fourth tone: 不是(búshì), 不对(búduì), 不要(búyào)
+- 不 (bù) stays (bù) before first, second, third tones: 不好(bùhǎo), 不来(bùlái)
+- 一 changes tone based on following tone:
+  * 一 + first tone = yī: 一天(yītiān)
+  * 一 + second/third tone = yí: 一年(yínián), 一点(yìdiǎn)
+  * 一 + fourth tone = yí: 一个(yíge), 一样(yíyàng)
+- Third tone + third tone: first becomes second tone: 你好(níhǎo), 老老实(láolǎoshí)
+- Neutral tone particles (的, 了, 吗, 吧, 呢): mark without tone marks: de, le, ma, ba, ne
+
+CONTEXT-DEPENDENT READINGS:
+- 行: háng (bank, row, industry) vs xíng (walk, do, travel)
+- 长: cháng (long, length) vs zhǎng (grow, elder, leader)
+- 数: shù (number, amount) vs shǔ (count, enumerate)
+- 调: diào (tone, tune, melody) vs tiáo (adjust, regulate)
+- 当: dāng (when, should, ought) vs dàng (suitable, proper)
+- 好: hǎo (good, well) vs hào (like, fond of)
+- 中: zhōng (middle, center) vs zhòng (hit target)
+- 重: zhòng (heavy, serious) vs chóng (repeat, duplicate)
+
+SENTENCE EXAMPLES:
+今天天气很好 → 今天(jīntiān)天气(tiānqì)很(hěn)好(hǎo)
+我在北京大学学习中文 → 我(wǒ)在(zài)北京大学(Běijīng Dàxué)学习(xuéxí)中文(zhōngwén)
+这是一本很有意思的书 → 这(zhè)是(shì)一(yì)本(běn)很(hěn)有意思(yǒu yìsi)的(de)书(shū)
+不是我的错 → 不是(búshì)我(wǒ)的(de)错(cuò)
+一个苹果 → 一个(yíge)苹果(píngguǒ)
+你好吗 → 你好(níhǎo)吗(ma)
+
+FORMAT RULES:
+- NO spaces before parentheses: 中文(zhōngwén) ✓, 中文 (zhōngwén) ✗
+- Use standard Hanyu Pinyin with tone marks
+- Maintain original text structure exactly
+- Preserve all punctuation, line breaks, and formatting
+- Keep English words, Arabic numerals, and symbols unchanged
+- Compound words read as single units with standard pronunciations
+
+QUALITY CHECKLIST:
+- Every Chinese character has pinyin (no exceptions)
+- Compound words use standard dictionary pronunciations
+- Tone sandhi rules properly applied (不, 一, third tone combinations)
+- Context-dependent characters use appropriate readings
+- Original text structure preserved
+- No spaces before opening parentheses
+- All tone marks present and correct
+- Non-Chinese text unchanged
+
+EXTRA QUALITY NOTES:
+- Keep spacing around punctuation consistent with the source text
+- Confirm dictionary readings for multi-character compounds and proper nouns
+- Avoid adding new characters that were not in the original and never invent new phrases
+- Verify tone marks are complete including neutral tones (marked without tone marks)
+
+RESPOND WITH JSON:
+{
+  "furiganaText": "Original Chinese text with complete pinyin annotations",
+  "translatedText": "Natural translation in target language"
+}`;
+
+// STATIC SYSTEM PROMPT FOR JAPANESE (CACHEABLE) - Shared across functions
+// Just above 2048 token minimum for Haiku caching
+const japaneseSystemPrompt = `You are a Japanese language expert specializing in translation and furigana annotation.
+
+TRANSLATION RULES:
+- Translate into natural, fluent target language
+- Preserve original meaning and tone
+- Use natural expressions appropriate for the target language
+- Do NOT add readings or furigana to the translation itself
+
+FURIGANA REQUIREMENTS:
+1. Keep ALL original text exactly as is (English words, numbers, punctuation unchanged)
+2. For EVERY word containing kanji, add complete hiragana readings in parentheses immediately after
+3. USE STANDARD DICTIONARY READINGS for compound words - do NOT combine individual kanji sounds phonetically
+4. Every single kanji character must have a reading - zero exceptions
+5. Pure hiragana/katakana words, foreign loanwords, and numerals remain untouched
+
+READING PRIORITY (PROCESS IN THIS ORDER):
+- 1. COMPOUND WORDS: Multi-kanji words with established dictionary pronunciations
+- 2. COUNTER WORDS: Numbers + counters with rendaku sound changes
+- 3. PROPER NOUNS: Place names, organization names with specific readings
+- 4. IDIOMATIC EXPRESSIONS: Set phrases with non-compositional readings
+- 5. INDIVIDUAL KANJI: Only for truly decomposable words
+
+ESSENTIAL COMPOUND WORDS:
+東京(とうきょう), 京都(きょうと), 大阪(おおさか), 日本(にほん), 日本語(にほんご), 勉強(べんきょう), 大学生(だいがくせい), 図書館(としょかん), 病院(びょういん), 銀行(ぎんこう), 食堂(しょくどう), 学校(がっこう), 会社(かいしゃ), 電車(でんしゃ), 自動車(じどうしゃ), 駅(えき), 新聞(しんぶん), 電話(でんわ), 時間(じかん), 仕事(しごと), 買い物(かいもの), 食事(しょくじ), 天気(てんき), 友達(ともだち), 家族(かぞく), 子供(こども), 今日(きょう), 明日(あした), 昨日(きのう), 大人(おとな), 先生(せんせい), 学生(がくせい), 料理(りょうり), 掃除(そうじ), 洗濯(せんたく), 運動(うんどう), 旅行(りょこう), 会議(かいぎ), 試験(しけん), 宿題(しゅくだい), 練習(れんしゅう), 自然(しぜん), 動物(どうぶつ), 植物(しょくぶつ), 季節(きせつ), 春(はる), 夏(なつ), 秋(あき), 冬(ふゆ), 新しい(あたらしい), 古い(ふるい), 大きい(おおきい), 小さい(ちいさい), 高い(たかい), 安い(やすい), 難しい(むずかしい), 簡単(かんたん), 便利(べんり), 不便(ふべん), 有名(ゆうめい), 無名(むめい), 安全(あんぜん), 危険(きけん), 元気(げんき), 病気(びょうき), 幸せ(しあわせ), 不幸(ふこう), 映画(えいが), 音楽(おんがく), 写真(しゃしん), 美術館(びじゅつかん), 博物館(はくぶつかん), 公園(こうえん), 空港(くうこう), 地下鉄(ちかてつ), 新幹線(しんかんせん), 飛行機(ひこうき), 交通(こうつう), 運転(うんてん), 毎朝(まいあさ), 今晩(こんばん), 毎日(まいにち), 毎週(まいしゅう), 毎月(まいつき), 毎年(まいとし),
+COUNTER WORD RULES (RENDAKU):
+一匹 = いっぴき, 三匹 = さんびき, 六匹 = ろっぴき, 八匹 = はっぴき, 十匹 = じゅっぴき
+一人 = ひとり, 二人 = ふたり (irregular forms for 1-2)
+一つ = ひとつ, 二つ = ふたつ, 三つ = みっつ (native Japanese counting)
+一本 = いっぽん, 三本 = さんぼん, 六本 = ろっぽん (cylindrical objects)
+一枚 = いちまい, 二枚 = にまい (flat objects - no rendaku)
+一冊 = いっさつ, 三冊 = さんさつ (books)
+一台 = いちだい, 二台 = にだい (machines, vehicles)
+
+SPECIAL READING PATTERNS:
+JUKUJIKUN (Whole-word readings): 今日(きょう), 明日(あした), 昨日(きのう), 大人(おとな), 果物(くだもの), 野菜(やさい), 眼鏡(めがね), 浴衣(ゆかた)
+
+RENDAKU PATTERNS: 手紙(てがみ), 物語(ものがたり), 言葉(ことば), 三杯(さんばい), 一杯(いっぱい)
+
+INDIVIDUAL READINGS: 食べ物 = 食(た)べ物(もの), 飲み物 = 飲(の)み物(もの), 読み書き = 読(よ)み書(か)き, 上下 = 上(うえ)下(した), 左右 = 左(ひだり)右(みぎ)
+
+SENTENCE EXAMPLES:
+今日は良い天気ですね → 今日(きょう)は良(よ)い天気(てんき)ですね
+新しい本を読みました → 新(あたら)しい本(ほん)を読(よ)みました
+駅まで歩いて行きます → 駅(えき)まで歩(ある)いて行(い)きます
+猫が三匹います → 猫(ねこ)が三匹(さんびき)います
+図書館で勉強しました → 図書館(としょかん)で勉強(べんきょう)しました
+友達と映画を見に行きます → 友達(ともだち)と映画(えいが)を見(み)に行(い)きます
+
+
+FORMAT RULES:
+NO spaces before parentheses: 東京(とうきょう) ✓, 東京 (とうきょう) ✗
+Use only hiragana in readings (never katakana or romaji)
+Maintain original text structure exactly
+Preserve all punctuation, line breaks, and formatting
+Keep English words, Arabic numerals, and symbols unchanged
+
+QUALITY CHECKLIST:
+- Every kanji has a reading (no exceptions)
+- Compound words use standard dictionary pronunciations
+- Counter words show proper rendaku changes
+- Original text structure preserved
+- No spaces before opening parentheses
+- Only hiragana used in readings
+- Non-Japanese text unchanged
+
+EXTRA QUALITY NOTES:
+- Keep spacing around punctuation consistent with the source text.
+- Confirm dictionary readings for multi-kanji compounds and proper nouns.
+- Avoid adding new kanji that were not in the original and never invent new phrases.
+
+RESPOND WITH JSON:
+{
+  "furiganaText": "Original Japanese text with complete furigana annotations",
+  "translatedText": "Natural translation in target language"
+}`;
+
+// STATIC SYSTEM PROMPT FOR KOREAN (CACHEABLE) - Shared across functions
+// Just above 2048 token minimum for Haiku caching
+const koreanSystemPrompt = `You are a Korean language expert specializing in translation and Revised Romanization annotation.
+
+TRANSLATION RULES:
+- Translate into natural, fluent target language
+- Preserve original meaning and tone
+- Use natural expressions appropriate for the target language
+- Do NOT add romanization to the translation itself
+
+ROMANIZATION REQUIREMENTS:
+1. Keep ALL original text exactly as is (English words, numbers, punctuation unchanged)
+2. For EVERY Korean word/phrase, add Revised Romanization in parentheses IMMEDIATELY AFTER the Korean text
+3. Use official Revised Romanization system rules
+4. Format: 한국어(han-gug-eo) - Hangul followed by romanization in parentheses
+5. Do NOT add romanization to English words, numbers, or punctuation
+6. NEVER output Japanese romaji spellings - always use Korean Revised Romanization
+
+READING PRIORITY (PROCESS IN THIS ORDER):
+- 1. COMPOUND WORDS: Multi-syllable words with clear syllable boundaries
+- 2. GRAMMATICAL ENDINGS: Verb endings, particles, and suffixes with standard romanization
+- 3. COMMON PATTERNS: Time expressions, formal endings, and standard phrases
+- 4. INDIVIDUAL WORDS: Single words with proper syllable separation
+
+ESSENTIAL KOREAN PATTERNS:
+안녕하세요(an-nyeong-ha-se-yo), 저는(jeo-neun), 학생입니다(hag-saeng-im-ni-da), 오늘(o-neul), 날씨가(nal-ssi-ga), 좋아요(jo-a-yo), 변화시키고(byeon-hwa-si-ki-go), 중요성(jung-yo-seong), 평생교육(pyeong-saeng-gyo-yug), 일곱시(il-gop-si), 점심시간(jeom-sim-si-gan), 구경했습니다(gu-gyeong-haess-seum-ni-da), 한국어(han-gug-eo), 영어(yeong-eo), 일본어(il-bon-eo), 중국어(jung-gug-eo), 공부(gong-bu), 학교(hag-gyo), 학생(hag-saeng), 선생님(seon-saeng-nim), 친구(chin-gu), 가족(ga-jok), 집(jip), 음식(eum-sik), 물(mul), 책(chaek), 시간(si-gan), 오전(o-jeon), 오후(o-hu), 아침(a-chim), 점심(jeom-sim), 저녁(jeo-nyeok), 월요일(wol-yo-il), 화요일(hwa-yo-il), 수요일(su-yo-il), 목요일(mog-yo-il), 금요일(geum-yo-il), 토요일(to-yo-il), 좋다(jo-ta), 나쁘다(na-ppeu-da), 크다(keu-da), 작다(jak-da), 높다(nop-da), 낮다(nat-da), 빠르다(ppa-reu-da), 느리다(neu-ri-da), 쉽다(swip-da), 어렵다(eo-ryeop-da), 예쁘다(ye-ppeu-da), 아름답다(a-reum-dap-da), 맛있다(ma-sit-da), 맛없다(mat-eop-da), 재미있다(jae-mi-it-da), 행복하다(haeng-bok-ha-da), 슬프다(seul-peu-da), 기쁘다(gi-ppeu-da), 무섭다(mu-seop-da), 안전하다(an-jeon-ha-da), 위험하다(wi-heom-ha-da), 건강하다(geon-gang-ha-da), 아프다(a-peu-da), 피곤하다(pi-gon-ha-da), 배고프다(bae-go-peu-da), 목마르다(mok-ma-reu-da), 깨끗하다(kkae-kkeut-ha-da), 더럽다(deo-reop-da), 따뜻하다(tta-tteut-ha-da), 차갑다(cha-gap-da), 비(bi), 눈(nun), 바람(ba-ram), 태양(tae-yang), 달(dal), 별(byeol), 하늘(ha-neul), 땅(ttang), 바다(ba-da), 산(san), 강(gang), 나무(na-mu), 꽃(kkot), 새(sae), 개(gae), 고양이(go-yang-i), 물고기(mul-go-gi), 사과(sa-gwa), 바나나(ba-na-na), 포도(po-do), 딸기(ttal-gi), 수박(su-bak), 감자(gam-ja), 당근(dang-geun), 양파(yang-pa), 마늘(ma-neul), 고추(go-chu), 버섯(beo-seot), 배추(ba-e-chu), 시금치(si-geum-chi), 무(mu)
+
+VOWEL DISTINCTIONS (CRITICAL):
+- ㅓ = eo (어, 서, 너, 더, 머, 버, 퍼, 저, 처, 커)
+- ㅗ = o (오, 소, 노, 도, 모, 보, 포, 조, 초, 코)
+- ㅡ = eu (으, 스, 느, 드, 므, 브, 프, 즈, 츠, 크)
+- ㅜ = u (우, 수, 누, 두, 무, 부, 푸, 주, 추, 쿠)
+
+GRAMMATICAL PATTERNS:
+- Past tense: -았/었/였 = -ass/-eoss/-yeoss
+- Formal polite: -습니다 = -seum-ni-da
+- Topic particle: 은/는 = eun/neun
+- Object particle: 을/를 = eul/reul
+- Causative: -시키다 = -si-ki-da
+- Abstract noun: -성 = -seong
+- Time: 시 = si, 시간 = si-gan
+
+SENTENCE EXAMPLES:
+안녕하세요 → 안녕하세요(an-nyeong-ha-se-yo)
+저는 학생입니다 → 저는(jeo-neun) 학생입니다(hag-saeng-im-ni-da)
+오늘 날씨가 좋아요 → 오늘(o-neul) 날씨가(nal-ssi-ga) 좋아요(jo-a-yo)
+변화시키고 → 변화시키고(byeon-hwa-si-ki-go)
+중요성 → 중요성(jung-yo-seong)
+평생교육 → 평생교육(pyeong-saeng-gyo-yug)
+일곱시 → 일곱시(il-gop-si)
+점심시간 → 점심시간(jeom-sim-si-gan)
+구경했습니다 → 구경했습니다(gu-gyeong-haess-seum-ni-da)
+Hello 한국어 → Hello 한국어(han-gug-eo)
+
+FORMAT RULES:
+- NO spaces before parentheses: 한국어(han-gug-eo) ✓, 한국어 (han-gug-eo) ✗
+- Use Revised Romanization system only
+- Maintain original text structure exactly
+- Preserve all punctuation, line breaks, and formatting
+- Keep English words, Arabic numerals, and symbols unchanged
+- Maintain clear syllable boundaries in compound words
+
+QUALITY CHECKLIST:
+- Every Korean word has romanization (no exceptions)
+- Vowel distinctions correct (ㅓ/ㅗ, ㅡ/ㅜ)
+- Compound words maintain syllable boundaries
+- Formal endings complete (-습니다, -았습니다)
+- Original text structure preserved
+- No spaces before opening parentheses
+- No Japanese romaji spellings
+- Non-Korean text unchanged
+
+EXTRA QUALITY NOTES:
+- Verify ㅓ/ㅗ and ㅡ/ㅜ distinctions are correct
+- Check compound word boundaries and formal endings
+- Never use Japanese romaji spellings
+
+RESPOND WITH JSON:
+{
+  "furiganaText": "Original Korean text with complete Revised Romanization annotations",
+  "translatedText": "Natural translation in target language"
+}`;
+
 // Language validation caching system to reduce API costs
 interface CachedValidationResult {
   result: { isValid: boolean; detectedLanguage: string; confidence: string };
@@ -1383,83 +1629,6 @@ Format your response as valid JSON with these exact keys:
       else if (forcedLanguage === 'ja' && targetLanguage !== 'ja') {
         logger.log(`[DEBUG] FORCED JAPANESE: Using Japanese prompt with prompt caching`);
 
-        // STATIC SYSTEM PROMPT (CACHEABLE) - Just above 2048 token minimum for Haiku
-        const japaneseSystemPrompt = `You are a Japanese language expert specializing in translation and furigana annotation.
-
-TRANSLATION RULES:
-- Translate into natural, fluent target language
-- Preserve original meaning and tone
-- Use natural expressions appropriate for the target language
-- Do NOT add readings or furigana to the translation itself
-
-FURIGANA REQUIREMENTS:
-1. Keep ALL original text exactly as is (English words, numbers, punctuation unchanged)
-2. For EVERY word containing kanji, add complete hiragana readings in parentheses immediately after
-3. USE STANDARD DICTIONARY READINGS for compound words - do NOT combine individual kanji sounds phonetically
-4. Every single kanji character must have a reading - zero exceptions
-5. Pure hiragana/katakana words, foreign loanwords, and numerals remain untouched
-
-READING PRIORITY (PROCESS IN THIS ORDER):
-1. COMPOUND WORDS: Multi-kanji words with established dictionary pronunciations
-2. COUNTER WORDS: Numbers + counters with rendaku sound changes
-3. PROPER NOUNS: Place names, organization names with specific readings
-4. IDIOMATIC EXPRESSIONS: Set phrases with non-compositional readings
-5. INDIVIDUAL KANJI: Only for truly decomposable words
-
-ESSENTIAL COMPOUND WORDS:
-東京(とうきょう), 京都(きょうと), 大阪(おおさか), 日本(にほん), 日本語(にほんご), 勉強(べんきょう), 大学生(だいがくせい), 図書館(としょかん), 病院(びょういん), 銀行(ぎんこう), 食堂(しょくどう), 学校(がっこう), 会社(かいしゃ), 電車(でんしゃ), 自動車(じどうしゃ), 駅(えき), 新聞(しんぶん), 電話(でんわ), 時間(じかん), 仕事(しごと), 買い物(かいもの), 食事(しょくじ), 天気(てんき), 友達(ともだち), 家族(かぞく), 子供(こども), 今日(きょう), 明日(あした), 昨日(きのう), 大人(おとな), 先生(せんせい), 学生(がくせい), 料理(りょうり), 掃除(そうじ), 洗濯(せんたく), 運動(うんどう), 旅行(りょこう), 会議(かいぎ), 試験(しけん), 宿題(しゅくだい), 練習(れんしゅう), 自然(しぜん), 動物(どうぶつ), 植物(しょくぶつ), 季節(きせつ), 春(はる), 夏(なつ), 秋(あき), 冬(ふゆ), 新しい(あたらしい), 古い(ふるい), 大きい(おおきい), 小さい(ちいさい), 高い(たかい), 安い(やすい), 難しい(むずかしい), 簡単(かんたん), 便利(べんり), 不便(ふべん), 有名(ゆうめい), 無名(むめい), 安全(あんぜん), 危険(きけん), 元気(げんき), 病気(びょうき), 幸せ(しあわせ), 不幸(ふこう), 映画(えいが), 音楽(おんがく), 写真(しゃしん), 美術館(びじゅつかん), 博物館(はくぶつかん), 公園(こうえん), 空港(くうこう), 地下鉄(ちかてつ), 新幹線(しんかんせん), 飛行機(ひこうき), 交通(こうつう), 運転(うんてん), 毎朝(まいあさ), 今晩(こんばん), 毎日(まいにち), 毎週(まいしゅう), 毎月(まいつき), 毎年(まいとし)
-
-COUNTER WORD RULES (RENDAKU):
-- 一匹 = いっぴき, 三匹 = さんびき, 六匹 = ろっぴき, 八匹 = はっぴき, 十匹 = じゅっぴき
-- 一人 = ひとり, 二人 = ふたり (irregular forms for 1-2)
-- 一つ = ひとつ, 二つ = ふたつ, 三つ = みっつ (native Japanese counting)
-- 一本 = いっぽん, 三本 = さんぼん, 六本 = ろっぽん (cylindrical objects)
-- 一枚 = いちまい, 二枚 = にまい (flat objects - no rendaku)
-- 一冊 = いっさつ, 三冊 = さんさつ (books)
-- 一台 = いちだい, 二台 = にだい (machines, vehicles)
-
-SPECIAL READING PATTERNS:
-JUKUJIKUN (Whole-word readings): 今日(きょう), 明日(あした), 昨日(きのう), 大人(おとな), 果物(くだもの), 野菜(やさい), 眼鏡(めがね), 浴衣(ゆかた)
-
-RENDAKU PATTERNS: 手紙(てがみ), 物語(ものがたり), 言葉(ことば), 三杯(さんばい), 一杯(いっぱい)
-
-INDIVIDUAL READINGS: 食べ物 = 食(た)べ物(もの), 飲み物 = 飲(の)み物(もの), 読み書き = 読(よ)み書(か)き, 上下 = 上(うえ)下(した), 左右 = 左(ひだり)右(みぎ)
-
-SENTENCE EXAMPLES:
-今日は良い天気ですね → 今日(きょう)は良(よ)い天気(てんき)ですね
-新しい本を読みました → 新(あたら)しい本(ほん)を読(よ)みました
-駅まで歩いて行きます → 駅(えき)まで歩(ある)いて行(い)きます
-猫が三匹います → 猫(ねこ)が三匹(さんびき)います
-図書館で勉強しました → 図書館(としょかん)で勉強(べんきょう)しました
-友達と映画を見に行きます → 友達(ともだち)と映画(えいが)を見(み)に行(い)きます
-毎朝新聞を読んでいます → 毎朝(まいあさ)新聞(しんぶん)を読(よ)んでいます
-来週の月曜日に会議があります → 来週(らいしゅう)の月曜日(げつようび)に会議(かいぎ)があります
-昨日の天気は良かったです → 昨日(きのう)の天気(てんき)は良(よ)かったです
-東京から大阪まで新幹線で行きます → 東京(とうきょう)から大阪(おおさか)まで新幹線(しんかんせん)で新幹線(しんかんせん)で行(い)きます
-
-FORMAT RULES:
-- NO spaces before parentheses: 東京(とうきょう) ✓, 東京 (とうきょう) ✗
-- Use only hiragana in readings (never katakana or romaji)
-- Maintain original text structure exactly
-- Preserve all punctuation, line breaks, and formatting
-- Keep English words, Arabic numerals, and symbols unchanged
-
-QUALITY CHECKLIST:
-✓ Every kanji has a reading (no exceptions)
-✓ Compound words use standard dictionary pronunciations
-✓ Counter words show proper rendaku changes
-✓ Original text structure preserved
-✓ No spaces before opening parentheses
-✓ Only hiragana used in readings
-✓ All punctuation maintained
-✓ Non-Japanese text unchanged
-
-RESPOND WITH JSON:
-{
-  "furiganaText": "Original Japanese text with complete furigana annotations",
-  "translatedText": "Natural translation in target language"
-}`;
-
         // DYNAMIC USER MESSAGE (NOT CACHEABLE) - Only the text and target language
         const userMessage = `Translate to ${targetLangName}: "${text}"`;
 
@@ -1938,140 +2107,10 @@ Format your response as valid JSON with these exact keys:
           throw new Error('Invalid response structure from Claude API');
         }
       } else if ((primaryLanguage === "Chinese" || forcedLanguage === 'zh') && targetLanguage !== 'zh') {
-        logger.log(`[DEBUG] Using Chinese prompt (pinyin) for primaryLanguage: ${primaryLanguage}, forcedLanguage: ${forcedLanguage}, targetLanguage: ${targetLanguage}`);
-        // Enhanced Chinese-specific prompt with comprehensive pinyin rules
+        logger.log(`[DEBUG] Using Chinese prompt (pinyin) with prompt caching for primaryLanguage: ${primaryLanguage}, forcedLanguage: ${forcedLanguage}, targetLanguage: ${targetLanguage}`);
+        // Use cached system prompt for Chinese (similar to Japanese)
         // Note: Only add pinyin when translating TO a different language (Chinese speakers don't need pinyin for their native language)
-        userMessage = `
-${promptTopSection}
-You are a Chinese language expert. I need you to analyze and add pinyin to this Chinese text: "${text}"
-
-CRITICAL FORMATTING REQUIREMENTS - THESE ARE MANDATORY:
-1. KEEP ALL ORIGINAL CHINESE CHARACTERS in the text exactly as they appear
-2. For EACH Chinese word/phrase, add pinyin in parentheses IMMEDIATELY AFTER the Chinese characters
-3. Format: 中文(zhōngwén) - Chinese characters followed by pinyin in parentheses
-4. Do NOT replace Chinese characters with pinyin - ADD pinyin after Chinese characters
-5. Use STANDARD Hanyu Pinyin with proper tone marks (ā é ǐ ò ū ǖ)
-6. For compound words, provide pinyin for the COMPLETE word unit, not individual characters
-7. Keep all non-Chinese content (English, numbers, punctuation) exactly as is - do NOT add pinyin to non-Chinese content
-8. Translate into ${targetLangName} language, NOT English (unless English is specifically requested)
-
-CRITICAL COMPOUND WORD PRIORITY:
-- FIRST analyze the text for compound words, proper nouns, and multi-character expressions
-- Compound words should be read as single units with their standard pronunciation
-- Institution names, place names, and common phrases must be treated as complete units
-- Only split into individual character readings when words cannot be read as compounds
-
-MANDATORY TONE SANDHI RULES:
-- 不 (bù) becomes (bú) before fourth tone: 不是(búshì), 不对(búduì), 不要(búyào)
-- 不 (bù) becomes (bù) before first, second, third tones: 不好(bùhǎo), 不来(bùlái)
-- 一 changes tone based on following tone:
-  * 一 + first tone = yī: 一天(yītiān)
-  * 一 + second/third tone = yí: 一年(yínián), 一点(yìdiǎn)
-  * 一 + fourth tone = yí: 一个(yíge), 一样(yíyàng)
-- Third tone + third tone: first becomes second tone: 你好(níhǎo), 老老实(láolǎoshí)
-- Neutral tone particles (的, 了, 吗, 吧, 呢) - mark without tone marks: de, le, ma, ba, ne
-
-CONTEXT-DEPENDENT READINGS - Verify meaning before choosing:
-- 行: háng (bank, row, industry) vs xíng (walk, do, travel)
-- 长: cháng (long, length) vs zhǎng (grow, elder, leader)
-- 数: shù (number, amount) vs shǔ (count, enumerate)
-- 调: diào (tone, tune, melody) vs tiáo (adjust, regulate)
-- 当: dāng (when, should, ought) vs dàng (suitable, proper)
-- 好: hǎo (good, well) vs hào (like, fond of)
-- 中: zhōng (middle, center) vs zhòng (hit target)
-- 重: zhòng (heavy, serious) vs chóng (repeat, duplicate)
-
-SELF-VERIFICATION REQUIREMENT:
-After generating pinyin, you MUST perform these verification steps:
-1. Review EVERY Chinese compound word in your output
-2. For each compound, verify the reading is the standard dictionary pronunciation (not just combining individual character readings)
-3. Check that all tone sandhi rules are correctly applied
-4. Ensure context-dependent characters use the appropriate reading for their meaning
-5. Verify all tone marks are present and correct (including neutral tones marked without tone marks)
-6. Double-check compound words against the examples below
-
-Examples of MANDATORY correct Chinese pinyin formatting:
-
-COMPOUND WORDS (READ AS SINGLE UNITS):
-- "普通话" → "普通话(pǔtōnghuà)" [REQUIRED - complete compound, not individual characters]
-- "中华人民共和国" → "中华人民共和国(Zhōnghuá Rénmín Gònghéguó)" [REQUIRED - proper noun as unit]
-- "北京大学" → "北京大学(Běijīng Dàxué)" [REQUIRED - institution name as unit]
-- "第一次" → "第一次(dì-yī-cì)" [REQUIRED - ordinal compound with tone sandhi]
-- "电视机" → "电视机(diànshìjī)" [REQUIRED - compound word]
-- "计算机" → "计算机(jìsuànjī)" [REQUIRED - compound word]
-- "图书馆" → "图书馆(túshūguǎn)" [REQUIRED - compound word]
-- "飞机场" → "飞机场(fēijīchǎng)" [REQUIRED - compound word]
-- "火车站" → "火车站(huǒchēzhàn)" [REQUIRED - compound word]
-- "大学生" → "大学生(dàxuéshēng)" [REQUIRED - compound word]
-- "中国人" → "中国人(Zhōngguórén)" [REQUIRED - nationality compound]
-- "外国人" → "外国人(wàiguórén)" [REQUIRED - compound word]
-
-TONE SANDHI EXAMPLES (CRITICAL ACCURACY):
-- "不是" → "不是(búshì)" [REQUIRED - 不 becomes bú before 4th tone]
-- "不对" → "不对(búduì)" [REQUIRED - 不 becomes bú before 4th tone]
-- "不好" → "不好(bùhǎo)" [REQUIRED - 不 stays bù before 3rd tone]
-- "一个" → "一个(yíge)" [REQUIRED - 一 becomes yí before 4th tone]
-- "一年" → "一年(yínián)" [REQUIRED - 一 becomes yí before 2nd tone]
-- "一天" → "一天(yītiān)" [REQUIRED - 一 stays yī before 1st tone]
-- "你好" → "你好(níhǎo)" [REQUIRED - 3rd+3rd tone sandhi]
-
-CONTEXT-DEPENDENT EXAMPLES:
-- "银行" → "银行(yínháng)" [háng = bank/institution]
-- "行走" → "行走(xíngzǒu)" [xíng = walk/travel]
-- "很长" → "很长(hěn cháng)" [cháng = long/length]
-- "班长" → "班长(bānzhǎng)" [zhǎng = leader/head]
-- "数学" → "数学(shùxué)" [shù = mathematics/number]
-- "数一数" → "数一数(shǔ yī shǔ)" [shǔ = count/enumerate]
-
-NEUTRAL TONE EXAMPLES:
-- "的" → "的(de)" [REQUIRED - no tone mark for neutral tone]
-- "了" → "了(le)" [REQUIRED - no tone mark for neutral tone]  
-- "吗" → "吗(ma)" [REQUIRED - no tone mark for neutral tone]
-- "走了" → "走了(zǒu le)" [REQUIRED - neutral tone for particle]
-- "我的" → "我的(wǒ de)" [REQUIRED - neutral tone for possessive]
-
-COMPLEX SENTENCE EXAMPLES - EXACT FORMAT REQUIRED:
-- "今天天气很好" → "今天(jīntiān)天气(tiānqì)很(hěn)好(hǎo)"
-- "我在北京大学学习中文" → "我(wǒ)在(zài)北京大学(Běijīng Dàxué)学习(xuéxí)中文(zhōngwén)"
-- "这是一本很有意思的书" → "这(zhè)是(shì)一(yì)本(běn)很(hěn)有意思(yǒu yìsi)的(de)书(shū)"
-
-CRITICAL: Notice how EVERY example keeps the original Chinese characters and adds pinyin in parentheses after them!
-
-MIXED CONTENT FORMATTING:
-- "Hello 中国" → "Hello 中国(Zhōngguó)" [English unchanged, Chinese with pinyin]
-- "我爱你 and I love you" → "我爱你(wǒ ài nǐ) and I love you" [Mixed content]
-- "中国語を勉強している" → "中国語(zhōngguóyǔ)を勉強している" [Chinese-Japanese mixed]
-
-VALIDATION CHECKLIST - Verify each item before responding:
-✓ Are all tone marks correct and complete? (including neutral tones without marks)
-✓ Are compound words treated as units with correct standard readings?
-✓ Are tone sandhi rules properly applied (不, 一, third tone combinations)?
-✓ Do context-dependent characters use appropriate readings for their meaning?
-✓ Are there any missing pinyin for Chinese characters?
-✓ Do all readings match the context, not just dictionary defaults?
-
-ERROR HANDLING:
-If you encounter a character whose reading you're uncertain about, use the most common contextual reading and add [?] after the pinyin like this: "难(nán)[?]"
-
-CRITICAL RESPONSE FORMAT REQUIREMENTS:
-1. Format your response as valid JSON with these exact keys
-2. Do NOT truncate or abbreviate any part of the response
-3. Include the COMPLETE furiganaText and translatedText without omissions
-4. Ensure all special characters are properly escaped in the JSON
-5. Do NOT use ellipses (...) or any other abbreviation markers
-6. CRITICAL: Your response MUST include a COMPLETE translation - partial translations will cause errors
-
-Format your response as valid JSON with these exact keys:
-{
-  "furiganaText": "ORIGINAL Chinese characters with pinyin in parentheses after each word as shown in examples above - DO NOT REPLACE Chinese characters with pinyin, ADD pinyin after them",
-  "translatedText": "Complete and accurate translation in ${targetLangName} without any truncation or abbreviation"
-}
-
-FINAL CHECK BEFORE RESPONDING:
-✓ Does your furiganaText contain the ORIGINAL Chinese characters?
-✓ Is pinyin added IN PARENTHESES after each Chinese word?
-✓ Did you follow the format: 中文(zhōngwén) not just "zhōngwén"?
-`;
+        userMessage = `Translate to ${targetLangName}: "${text}"`;
       }
       // Check if we're translating TO Korean from a non-Korean source (but NOT from a reading language)
       else if (targetLanguage === 'ko' && forcedLanguage !== 'ko' && primaryLanguage !== 'Korean' && !hasSourceReadingPrompt) {
@@ -2153,64 +2192,10 @@ Format your response as valid JSON with these exact keys:
   "translatedText": "Natural Vietnamese translation using proper Vietnamese orthography with all necessary diacritics - NO romanization"
 }`;
       } else if (primaryLanguage === "Korean" && targetLanguage !== 'ko') {
-        // Korean-specific prompt with Enhanced Revised Romanization
+        logger.log(`[DEBUG] Using Korean prompt (romanization) with prompt caching for primaryLanguage: ${primaryLanguage}, forcedLanguage: ${forcedLanguage}, targetLanguage: ${targetLanguage}`);
+        // Use cached system prompt for Korean (similar to Japanese and Chinese)
         // Note: Only add romanization when translating TO a different language (Korean speakers don't need romanization for their native language)
-        userMessage = `
-${promptTopSection}
-You are a Korean language expert. I need you to analyze and translate this Korean text: "${text}"
-
-CRITICAL FORMATTING REQUIREMENTS FOR KOREAN TEXT:
-- Keep all original Korean text exactly as is (including any English words, numbers, or punctuation)
-- For EVERY Korean word/phrase, add the Revised Romanization in parentheses immediately after the Korean text
-- Do NOT add romanization to English words, numbers, or punctuation - leave them untouched and remove any accidental parentheses
-- Follow the official Revised Romanization system rules
-- The format should be: 한국어(han-gug-eo) NOT "han-gug-eo (Korean)" or any other format
-- Do NOT mix English translations in the romanization - only provide pronunciation guide
-- NEVER output Japanese romaji spellings (ni-sen, san-ju, shi, tsu, etc.) even if the translation target is Japanese. Romanization must always remain Korean Revised Romanization.
-- Translate into ${targetLangName} language, NOT English (unless English is specifically requested)
-
-KOREAN-SPECIFIC VALIDATION:
-- Double-check ㅓ/ㅗ vowel distinctions (ㅓ = eo, ㅗ = o)
-- Ensure consistent ㅡ (eu) vs ㅜ (u) representation
-- Verify compound word boundaries are logical
-- Check that formal endings (-습니다, -았습니다) are complete
-
-COMMON KOREAN PATTERNS:
-- Past tense: -았/었/였 = -ass/-eoss/-yeoss
-- Formal polite: -습니다 = -seum-ni-da
-- Topic particle: 은/는 = eun/neun
-- Object particle: 을/를 = eul/reul
-- Causative verb forms: -시키다 = -si-ki-da
-- Abstract noun formations: -성 = -seong
-- Time expressions: 시 = si, 시간 = si-gan
-- Compound words: maintain syllable boundaries clearly
-
-Examples of CORRECT Korean romanization formatting:
-- "안녕하세요" should become "안녕하세요(an-nyeong-ha-se-yo)"
-- "저는 학생입니다" should become "저는(jeo-neun) 학생입니다(hag-saeng-im-ni-da)"
-- "오늘 날씨가 좋아요" should become "오늘(o-neul) 날씨가(nal-ssi-ga) 좋아요(jo-a-yo)"
-- "변화시키고" should become "변화시키고(byeon-hwa-si-ki-go)"
-- "중요성" should become "중요성(jung-yo-seong)"
-- "평생교육" should become "평생교육(pyeong-saeng-gyo-yug)"
-- "일곱시" should become "일곱시(il-gop-si)"
-- "점심시간" should become "점심시간(jeom-sim-si-gan)"
-- "구경했습니다" should become "구경했습니다(gu-gyeong-haess-seum-ni-da)"
-- Mixed content: "Hello 한국어" should become "Hello 한국어(han-gug-eo)"
-
-WRONG examples (do NOT use these formats):
-- "jeo-neun (I)" ❌
-- "han-gug-eo (Korean)" ❌
-- "gong-bu-ha-go (study)" ❌
-- Inconsistent vowels: "학생" as "hag-sang" instead of "hag-saeng" ❌
-- Missing syllable boundaries in compounds ❌
-- Japanese romaji numbers or syllables such as "2030(ni-sen-san-ju)" or "국회에(goku-e)" ❌
-
-Format your response as valid JSON with these exact keys:
-{
-  "furiganaText": "Korean text with romanization in parentheses immediately after each Korean word - following the examples above",
-  "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
-}
-`;
+        userMessage = `Translate to ${targetLangName}: "${text}"`;
       }
       // Check if we're translating TO Russian from a non-Russian source (but NOT from a reading language)
       else if (targetLanguage === 'ru' && forcedLanguage !== 'ru' && primaryLanguage !== 'Russian' && !hasSourceReadingPrompt) {
@@ -3086,7 +3071,72 @@ Format your response as valid JSON with these exact keys:
       // Make API request to Claude using latest API format
       logger.log('🎯 [Claude API] Starting API request to Claude...');
       
-      const response = await axios.post(
+      // Check if we should use cached system prompt for Chinese, Japanese, or Korean
+      const isChineseWithCaching = (primaryLanguage === "Chinese" || forcedLanguage === 'zh') && targetLanguage !== 'zh';
+      const isJapaneseWithCaching = (primaryLanguage === "Japanese" || forcedLanguage === 'ja') && targetLanguage !== 'ja';
+      const isKoreanWithCaching = (primaryLanguage === "Korean" || forcedLanguage === 'ko') && targetLanguage !== 'ko';
+      const useCachedPrompt = isChineseWithCaching || isJapaneseWithCaching || isKoreanWithCaching;
+      
+      let response;
+      if (useCachedPrompt) {
+        // Use cached system prompt for Chinese, Japanese, or Korean
+        const systemPrompt = isChineseWithCaching ? chineseSystemPrompt : 
+                            isJapaneseWithCaching ? japaneseSystemPrompt : 
+                            koreanSystemPrompt;
+        const languageName = isChineseWithCaching ? 'Chinese' : 
+                            isJapaneseWithCaching ? 'Japanese' : 
+                            'Korean';
+        
+        logger.log(`🔄 [Prompt Caching] Sending ${languageName} request with caching enabled - system prompt: ${systemPrompt.length} chars, user message: ${processedPrompt.length} chars`);
+        
+        response = await axios.post(
+          'https://api.anthropic.com/v1/messages',
+          {
+            model: "claude-3-haiku-20240307",
+            max_tokens: 4000,
+            temperature: 0,
+            system: [
+              {
+                type: "text",
+                text: systemPrompt,
+                cache_control: { type: "ephemeral" }  // ENABLES PROMPT CACHING
+              }
+            ],
+            messages: [
+              {
+                role: "user",
+                content: processedPrompt  // Only dynamic content here
+              }
+            ]
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'anthropic-version': '2023-06-01',
+              'anthropic-beta': 'prompt-caching-2024-07-31',  // REQUIRED FOR CACHING
+              'x-api-key': apiKey
+            }
+          }
+        );
+        
+        // Extract cache metrics
+        const usage = response.data?.usage;
+        const cacheCreationTokens = usage?.cache_creation_input_tokens || 0;
+        const cacheReadTokens = usage?.cache_read_input_tokens || 0;
+        
+        if (cacheCreationTokens > 0) {
+          logger.log(`🔄 [Cache] 💾 CREATED - ${cacheCreationTokens} tokens cached (full price)`);
+        } else if (cacheReadTokens > 0) {
+          const cacheCost = Math.round(cacheReadTokens * 0.1);
+          const cacheSavings = Math.round(cacheReadTokens * 0.9);
+          logger.log(`🔄 [Cache] ✅ HIT - ${cacheReadTokens} tokens read (90% discount = ${cacheCost} billed)`);
+          logger.log(`💵 [Savings] ${cacheSavings} tokens saved (90% off cached portion)`);
+        } else {
+          logger.log(`🔄 [Cache] ⚠️ NONE - Prompt may be too small`);
+        }
+      } else {
+        // Regular API call without caching
+        response = await axios.post(
         'https://api.anthropic.com/v1/messages',
         {
           model: "claude-3-haiku-20240307",
@@ -3107,6 +3157,7 @@ Format your response as valid JSON with these exact keys:
           }
         }
       );
+      }
 
       // Checkpoint 2: API request completed, response received (purple light)
       logger.log('🎯 [Claude API] Checkpoint 2: API response received, triggering purple light');
@@ -4953,13 +5004,105 @@ CRITICAL REQUIREMENTS:
 - Do NOT skip any readings - every ${forcedLanguage === 'ja' ? 'kanji' : 'word'} must have its reading` : ''}
 - Write translation and analysis in ${targetLangName}
 - Do not include any text outside the JSON object
-- Ensure proper JSON escaping for quotes and special characters (use \\" for quotes inside strings)
+- Ensure proper JSON escaping: use \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes
 - Do NOT truncate or abbreviate any field`;
 
     // Progress callback
     onProgress?.(1);
     
-    const response = await axios.post(
+    // Check if we should use cached system prompt for Chinese, Japanese, or Korean (similar to regular translation)
+    const isChineseWithCaching = forcedLanguage === 'zh';
+    const isJapaneseWithCaching = forcedLanguage === 'ja';
+    const isKoreanWithCaching = forcedLanguage === 'ko';
+    const useCachedPrompt = isChineseWithCaching || isJapaneseWithCaching || isKoreanWithCaching;
+    
+    let response;
+    if (useCachedPrompt) {
+      // Use cached system prompt for Chinese, Japanese, or Korean WordScope
+      // The system prompt already includes translation and reading instructions
+      // We only need to add scope analysis instructions in the dynamic message
+      const systemPrompt = isChineseWithCaching ? chineseSystemPrompt : 
+                           isJapaneseWithCaching ? japaneseSystemPrompt : 
+                           koreanSystemPrompt;
+      const readingType = isChineseWithCaching ? 'pinyin' : 
+                         isJapaneseWithCaching ? 'furigana' : 
+                         'romanization';
+      const wordType = isJapaneseWithCaching ? 'kanji' : 'word';
+      
+      const dynamicUserMessage = `TEXT TO PROCESS: "${normalizedText}"
+
+=== TASK 2: ${analysisType.toUpperCase()} ANALYSIS ===
+${scopeInstructions}
+
+=== RESPONSE FORMAT ===
+You MUST respond with valid JSON in this exact format:
+{
+  ${furiganaFieldInstruction}
+  "translatedText": "Your ${targetLangName} translation here",
+  "scopeAnalysis": "Your ${analysisType} analysis here (in ${targetLangName})"
+}
+
+CRITICAL REQUIREMENTS:
+- ALL three fields are required and must be complete
+- furiganaText MUST contain the COMPLETE original text WITH ${readingType} for EVERY applicable ${wordType}
+- Do NOT skip any readings - every ${isJapaneseWithCaching ? 'kanji' : isChineseWithCaching ? 'Chinese word' : 'Korean word'} must have its ${readingType} reading
+- Write translation and analysis in ${targetLangName}
+- Do not include any text outside the JSON object
+- Ensure proper JSON escaping: use \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes
+- Do NOT truncate or abbreviate any field`;
+
+      const languageName = isChineseWithCaching ? 'Chinese' : isJapaneseWithCaching ? 'Japanese' : 'Korean';
+      logger.log(`🔄 [WordScope Prompt Caching] Sending ${languageName} request with caching enabled - system prompt: ${systemPrompt.length} chars, user message: ${dynamicUserMessage.length} chars`);
+      
+      response = await axios.post(
+        'https://api.anthropic.com/v1/messages',
+        {
+          model: 'claude-3-haiku-20240307',
+          max_tokens: 1024,
+          temperature: 0.3,
+          system: [
+            {
+              type: "text",
+              text: systemPrompt,
+              cache_control: { type: "ephemeral" }  // ENABLES PROMPT CACHING
+            }
+          ],
+          messages: [
+            {
+              role: "user",
+              content: dynamicUserMessage  // Only dynamic content here
+            }
+          ]
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-beta': 'prompt-caching-2024-07-31'  // REQUIRED FOR CACHING
+          },
+          timeout: 30000
+        }
+      );
+      
+      // Extract cache metrics for WordScope
+      const usage = response.data?.usage;
+      const cacheCreationTokens = usage?.cache_creation_input_tokens || 0;
+      const cacheReadTokens = usage?.cache_read_input_tokens || 0;
+      
+      if (cacheCreationTokens > 0) {
+        logger.log(`🔄 [WordScope Cache] 💾 CREATED - ${cacheCreationTokens} tokens cached (full price)`);
+      } else if (cacheReadTokens > 0) {
+        const cacheCost = Math.round(cacheReadTokens * 0.1);
+        const cacheSavings = Math.round(cacheReadTokens * 0.9);
+        logger.log(`🔄 [WordScope Cache] ✅ HIT - ${cacheReadTokens} tokens read (90% discount = ${cacheCost} billed)`);
+        logger.log(`💵 [WordScope Savings] ${cacheSavings} tokens saved (90% off cached portion)`);
+      } else {
+        logger.log(`🔄 [WordScope Cache] ⚠️ NONE - Prompt may be too small`);
+      }
+    } else {
+      // Regular API call without caching (for other languages)
+      response = await axios.post(
       'https://api.anthropic.com/v1/messages',
       {
         model: 'claude-3-haiku-20240307',
@@ -4976,6 +5119,7 @@ CRITICAL REQUIREMENTS:
         timeout: 30000 // Increased timeout for combined call
       }
     );
+    }
     
     onProgress?.(2);
     
