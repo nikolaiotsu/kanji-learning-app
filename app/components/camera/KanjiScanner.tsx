@@ -2164,17 +2164,16 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 icon={isWalkthroughActive ? "add" : ((canCreateFlashcard && isConnected) ? "add" : "lock-closed")}
                 iconColor={
                   isWalkthroughActive && currentStep?.id === 'custom-card' 
-                    ? '#FFFF00' // Bright yellow for highlighted
+                    ? '#FBBF24' // Warm amber for highlighted
                     : isWalkthroughActive 
-                    ? '#CCCCCC' // Light grey for non-highlighted during walkthrough
-                    : 'black' // Black icon color
+                    ? '#94A3B8' // Slate grey for non-highlighted during walkthrough
+                    : '#FFFFFF' // White icon color
                 }
-                color="rgba(128, 128, 128, 0.5)" // Translucent grey background
                 size="medium"
                 shape="square"
                 style={styles.rowButton}
-                disabled={!isConnected || localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'custom-card')} // Disable when offline, processing, or walkthrough active (unless it's the current step)
-                darkDisabled={!canCreateFlashcard || !isConnected || localProcessing || isImageProcessing} // Dark disabled when offline, limit reached or processing
+                disabled={!isConnected || localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'custom-card')}
+                darkDisabled={!canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
               />
             </View>
             {/* Check Flashcards Button */}
@@ -2189,16 +2188,15 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 materialCommunityIcon="cards"
                 iconColor={
                   isWalkthroughActive && currentStep?.id === 'flashcards' 
-                    ? '#FFFF00' // Bright yellow for highlighted
+                    ? '#FBBF24' // Warm amber for highlighted
                     : isWalkthroughActive 
-                    ? '#CCCCCC' // Light grey for non-highlighted during walkthrough
-                    : 'black' // Black icon color
+                    ? '#94A3B8' // Slate grey for non-highlighted during walkthrough
+                    : '#FFFFFF' // White icon color
                 }
-                color="rgba(128, 128, 128, 0.5)" // Translucent grey background
                 size="medium"
                 shape="square"
                 style={styles.rowButton}
-                disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'flashcards')} // Disable during processing or walkthrough (unless it's the current step)
+                disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'flashcards')}
               />
             </View>
             {/* Gallery Button */}
@@ -2217,20 +2215,19 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 icon={isWalkthroughActive ? "images" : ((!canCreateFlashcard || !isConnected || isImageProcessing || localProcessing) ? "lock-closed" : "images")}
                 iconColor={
                   isWalkthroughActive && (currentStep?.id === 'gallery' || currentStep?.id === 'gallery-confirm')
-                    ? '#FFFF00' // Bright yellow for highlighted
+                    ? '#FBBF24' // Warm amber for highlighted
                     : isWalkthroughActive 
-                    ? '#CCCCCC' // Light grey for non-highlighted during walkthrough
-                    : 'black' // Black icon color
+                    ? '#94A3B8' // Slate grey for non-highlighted during walkthrough
+                    : '#FFFFFF' // White icon color
                 }
-                color="rgba(128, 128, 128, 0.5)" // Translucent grey background
                 size="medium"
                 shape="square"
                 style={styles.rowButton}
                 disabled={
                   !isConnected || localProcessing || isImageProcessing ||
                   (isWalkthroughActive && currentStep?.id !== 'gallery' && currentStep?.id !== 'gallery-confirm')
-                } // Disable when offline, processing, or walkthrough active (unless gallery step)
-                darkDisabled={!canCreateFlashcard || !isConnected || localProcessing || isImageProcessing} // Dark disabled when offline, limit reached or processing
+                }
+                darkDisabled={!canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
               />
             </WalkthroughTarget>
             {/* Camera Button (rightmost) */}
@@ -2247,21 +2244,19 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                   icon="camera"
                   iconColor={
                     currentStep?.id === 'camera' 
-                      ? '#FFFF00' // Bright yellow for highlighted
-                      : '#CCCCCC' // Light grey for non-highlighted during walkthrough
+                      ? '#FBBF24' // Warm amber for highlighted
+                      : '#94A3B8' // Slate grey for non-highlighted during walkthrough
                   }
-                  color="rgba(128, 128, 128, 0.5)" // Translucent grey background
                   size="medium"
                   shape="square"
                   style={styles.rowButton}
-                  disabled={currentStep?.id !== 'camera'} // Only enabled when it's the current step
+                  disabled={currentStep?.id !== 'camera'}
                 />
               ) : isImageProcessing || localProcessing || !isConnected ? (
                 <PokedexButton
                   onPress={() => {}} // No action when disabled
                   icon="lock-closed"
-                  color="rgba(128, 128, 128, 0.5)" // Translucent grey background
-                  iconColor="black" // Black icon color
+                  iconColor="#64748B"
                   size="medium"
                   shape="square"
                   style={styles.rowButton}
@@ -2321,7 +2316,6 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                     onPress={handleBackToPreviousImage}
                     icon="arrow-undo"
                     iconColor={(imageHistory.length === 0 || localProcessing || isImageProcessing) ? '#888888' : 'black'}
-                    color="rgba(128, 128, 128, 0.5)"
                     size="small"
                     shape="square"
                     disabled={imageHistory.length === 0 || localProcessing || isImageProcessing}
@@ -2331,7 +2325,6 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                     onPress={handleForwardToNextImage}
                     icon="arrow-redo"
                     iconColor={(forwardHistory.length === 0 || localProcessing || isImageProcessing) ? '#888888' : 'black'}
-                    color="rgba(128, 128, 128, 0.5)"
                     size="small"
                     shape="square"
                     disabled={forwardHistory.length === 0 || localProcessing || isImageProcessing}
@@ -2361,7 +2354,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                             ? (currentStep?.id === 'highlight' ? '#FFFF00' : '#CCCCCC')
                             : 'black' // Black icon color
                         }
-                        color="rgba(128, 128, 128, 0.5)" // Translucent grey background
+ // Translucent grey background
                         size="small"
                         shape="square"
                         disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'highlight')}
@@ -2383,7 +2376,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                             ? (currentStep?.id === 'crop' ? '#FFFF00' : '#CCCCCC')
                             : 'black' // Black icon color
                         }
-                        color="rgba(128, 128, 128, 0.5)" // Translucent grey background
+ // Translucent grey background
                         size="small"
                         shape="square"
                         disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'crop')}
@@ -2405,7 +2398,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                             ? (currentStep?.id === 'rotate' ? '#FFFF00' : '#CCCCCC')
                             : 'black' // Black icon color
                         }
-                        color="rgba(128, 128, 128, 0.5)" // Translucent grey background
+ // Translucent grey background
                         size="small"
                         shape="square"
                         disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'rotate')}
@@ -2420,8 +2413,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                     <PokedexButton
                       onPress={cancelActiveMode} 
                       icon="close"
-                      iconColor="black"
-                      color="rgba(128, 128, 128, 0.5)"
+                      iconColor="#FFFFFF"
                       size="small"
                       shape="square"
                       disabled={localProcessing || isImageProcessing}
@@ -2432,8 +2424,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                         <PokedexButton
                           onPress={discardHighlightSelection} 
                           icon="refresh-outline" 
-                          iconColor="black"
-                          color="rgba(128, 128, 128, 0.5)"
+                          iconColor="#FFFFFF"
                           size="small"
                           shape="square"
                           disabled={localProcessing || isImageProcessing}
@@ -2454,7 +2445,6 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                                 ? (currentStep?.id === 'confirm-highlight' ? '#FFFF00' : '#CCCCCC')
                                 : 'black'
                             }
-                            color="rgba(128, 128, 128, 0.5)"
                             size="small"
                             shape="square"
                             disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'confirm-highlight')}
@@ -2468,8 +2458,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                         <PokedexButton
                           onPress={discardCropSelection}
                           icon="refresh-outline" 
-                          iconColor="black"
-                          color="rgba(128, 128, 128, 0.5)"
+                          iconColor="#FFFFFF"
                           size="small"
                           shape="square"
                           disabled={localProcessing || isImageProcessing}
@@ -2477,8 +2466,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                         <PokedexButton
                           onPress={confirmCrop}
                           icon="checkmark"
-                          iconColor="black"
-                          color="rgba(128, 128, 128, 0.5)"
+                          iconColor="#FFFFFF"
                           size="small"
                           shape="square"
                           disabled={localProcessing || isImageProcessing}
@@ -2493,8 +2481,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                           <PokedexButton
                             onPress={handleUndoRotation}
                             icon="arrow-undo"
-                            iconColor="black"
-                            color="rgba(128, 128, 128, 0.5)"
+                            iconColor="#FFFFFF"
                             size="small"
                             shape="square"
                           disabled={localProcessing || isImageProcessing}
@@ -2504,8 +2491,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                           <PokedexButton
                             onPress={handleRedoRotation}
                             icon="arrow-redo"
-                            iconColor="black"
-                            color="rgba(128, 128, 128, 0.5)"
+                            iconColor="#FFFFFF"
                             size="small"
                             shape="square"
                           disabled={localProcessing || isImageProcessing}
@@ -2515,8 +2501,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                           <PokedexButton
                             onPress={handleConfirmRotation}
                             icon="checkmark"
-                            iconColor="black"
-                            color="rgba(128, 128, 128, 0.5)"
+                            iconColor="#FFFFFF"
                             size="small"
                             shape="square"
                             disabled={localProcessing || isImageProcessing}

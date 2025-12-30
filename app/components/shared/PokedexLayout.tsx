@@ -9,6 +9,7 @@ import {
   ImageStyle,
   Animated
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../../constants/colors';
 import TexturedBackground from './TexturedBackground';
@@ -75,34 +76,24 @@ export default memo(function PokedexLayout({
   const topSectionVariantStyle = variant === 'flashcards' ? styles.flashcardsTopSection : {};
   const screenVariantStyle = variant === 'flashcards' ? styles.flashcardsScreen : {};
 
-  // Determine light colors based on variant
-  const mainLightBaseColor = variant === 'flashcards' ? COLORS.pokedexAmber : '#F22E27';
-  const mainLightInnerColor = variant === 'flashcards' ? COLORS.pokedexAmberGlow : '#F22E27';
-  const mainLightPulseColor = variant === 'flashcards' ? COLORS.pokedexAmberPulse : '#F22E27';
+  // Modernized light colors
+  const mainLightBaseColor = variant === 'flashcards' ? COLORS.pokedexAmber : '#EF4444';
+  const mainLightInnerColor = variant === 'flashcards' ? COLORS.pokedexAmberGlow : '#F87171';
+  const mainLightPulseColor = variant === 'flashcards' ? COLORS.pokedexAmberPulse : '#FCA5A5';
 
-  const smallLightColors = variant === 'flashcards' ? 
+  const smallLightColors = variant === 'flashcards' ?
     [COLORS.lightGray, COLORS.pokedexPurple, COLORS.pokedexYellow, COLORS.pokedexGreen] :
     ['#DDAD43', '#01A84F', '#4FC3F7'];
   
   const flashcardsControlIconSize = 18;
 
-  // NOTE: Removed createBrightGlow function - it was causing glows to not render properly
-  // Now using natural light colors for glows, same as main screen (which works perfectly)
-
   // Animation effect for light-up sequence
   useEffect(() => {
     if (triggerLightAnimation) {
-      /*
-       * Stop any animation that might still be running from the previous
-       * trigger so that we can "restart" the light effect in sync with the
-       * latest card swipe.
-       */
       if (animationSequenceRef.current) {
         animationSequenceRef.current.stop();
       }
 
-      // Ensure all animated values are reset to their initial state before
-      // we kick off a fresh sequence.
       mainLightAnim.stopAnimation();
       mainLightAnim.setValue(0);
       smallLightsAnim.forEach(anim => {
@@ -110,15 +101,12 @@ export default memo(function PokedexLayout({
         anim.setValue(0);
       });
 
-      // Build a brand-new animation sequence for this trigger.
       const sequence = Animated.sequence([
-        // Main light flash
         Animated.timing(mainLightAnim, {
           toValue: 1,
           duration: 300,
           useNativeDriver: false,
         }),
-        // Stagger the small lights so they illuminate one after another
         Animated.stagger(150,
           smallLightsAnim.map(anim =>
             Animated.timing(anim, {
@@ -128,7 +116,6 @@ export default memo(function PokedexLayout({
             })
           )
         ),
-        // Fade everything back to normal
         Animated.parallel([
           Animated.timing(mainLightAnim, {
             toValue: 0,
@@ -145,10 +132,8 @@ export default memo(function PokedexLayout({
         ]),
       ]);
 
-      // Keep a ref so we can cancel it next time if needed
       animationSequenceRef.current = sequence;
 
-      // Start the sequence and clear the ref once it finishes cleanly
       sequence.start(() => {
         animationSequenceRef.current = null;
       });
@@ -161,7 +146,6 @@ export default memo(function PokedexLayout({
     
     if (isProcessing) {
       logger.log('🟠 [PokedexLayout] Starting main light animation (toValue: 1)');
-      // Turn on main light when processing starts
       Animated.timing(mainLightAnim, {
         toValue: 1,
         duration: 200,
@@ -170,14 +154,11 @@ export default memo(function PokedexLayout({
         logger.log('🟠 [PokedexLayout] Main light animation completed');
       });
 
-      // Turn on lights progressively based on loadingProgress
-      // Only animate the specific light for the current checkpoint to avoid re-animating previous lights
-      const currentLightIndex = loadingProgress - 1; // Convert 1-based checkpoint to 0-based index
+      const currentLightIndex = loadingProgress - 1;
       
       if (currentLightIndex >= 0 && currentLightIndex < smallLightsAnim.length) {
         logger.log(`💡 [PokedexLayout] Checkpoint ${loadingProgress}: Animating light ${currentLightIndex}`);
         
-        // Animate only the current light for this checkpoint
         Animated.timing(smallLightsAnim[currentLightIndex], {
           toValue: 1,
           duration: 200,
@@ -186,15 +167,12 @@ export default memo(function PokedexLayout({
           logger.log(`💡 [PokedexLayout] Light ${currentLightIndex} animation completed`);
         });
         
-        // Ensure all previous lights are also on (without re-animating)
         for (let i = 0; i < currentLightIndex; i++) {
           smallLightsAnim[i].setValue(1);
           logger.log(`🔛 [PokedexLayout] Light ${i} set to on (previous checkpoint)`);
         }
         
-        // Ensure all future lights are off (but don't turn off lights from higher completed checkpoints)
         for (let i = currentLightIndex + 1; i < smallLightsAnim.length; i++) {
-          // Only turn off lights that weren't already turned on by a higher checkpoint
           const currentValue = (smallLightsAnim[i] as any)._value || 0;
           if (currentValue === 0) {
             smallLightsAnim[i].setValue(0);
@@ -206,7 +184,6 @@ export default memo(function PokedexLayout({
       }
     } else {
       logger.log('⚪ [PokedexLayout] Fading out all lights');
-      // Processing complete - fade out all lights
       Animated.parallel([
         Animated.timing(mainLightAnim, {
           toValue: 0,
@@ -226,65 +203,56 @@ export default memo(function PokedexLayout({
     }
   }, [isProcessing, loadingProgress, mainLightAnim, smallLightsAnim]);
 
-  // Pre-compute animated styles to avoid creating new ones during render
+  // Pre-compute animated styles
   const mainLightAnimatedStyle = {
-    shadowColor: variant === 'flashcards' ? mainLightBaseColor : '#F22E27', // Use natural colors, not overly bright ones
+    shadowColor: mainLightBaseColor,
     shadowOffset: { width: 0, height: 0 },
-    // Try both iOS and Android shadow approaches
     shadowOpacity: Animated.multiply(mainLightAnim, variant === 'flashcards' ? 0.9 : 0.8),
     shadowRadius: mainLightAnim.interpolate({
       inputRange: [0, 1],
-      outputRange: [0, variant === 'flashcards' ? 25 : 20] // Reduced radius for better compatibility
+      outputRange: [0, variant === 'flashcards' ? 25 : 20]
     }),
     elevation: mainLightAnim.interpolate({
       inputRange: [0, 1],
-      outputRange: [0, variant === 'flashcards' ? 20 : 15] // Android elevation for glow effect
+      outputRange: [0, variant === 'flashcards' ? 20 : 15]
     }),
     opacity: Animated.add(0.6, Animated.multiply(mainLightAnim, variant === 'flashcards' ? 0.4 : 0.3))
   };
   
-  // DEBUG: Log the current animation values
   logger.log('🎨 [PokedexLayout] Animation values:', {
     variant,
     isProcessing,
     loadingProgress,
     mainLightBaseColor,
-    shadowColor: variant === 'flashcards' ? mainLightBaseColor : '#F22E27'
+    shadowColor: mainLightBaseColor
   });
 
-  // Create a simpler way to render the small lights without interpolation
+  // Render small lights with modern styling
   const renderSmallLight = (color: string, index: number) => {
-    // Override color to red if processing failed
-    const lightColor = processingFailed ? '#FF0000' : color;
+    const lightColor = processingFailed ? '#EF4444' : color;
+    const glowColor = processingFailed ? '#EF4444' : color;
     
-    // Use natural light color for glow, not overly bright colors
-    const glowColor = processingFailed ? '#FF0000' : color;
-    
-    // Boost opacity for darker colors like purple to match visibility of lighter colors
     const isDarkColor = lightColor === COLORS.pokedexPurple || lightColor === COLORS.mediumSurface;
-    const opacityMultiplier = isDarkColor ? 1.8 : 1.0; // Increased from 1.3 to 1.8 to better match yellow brightness
+    const opacityMultiplier = isDarkColor ? 1.8 : 1.0;
     
     const animStyle = {
       shadowColor: glowColor,
       shadowOffset: { width: 0, height: 0 },
-      // Try both iOS and Android shadow approaches
       shadowOpacity: Animated.multiply(smallLightsAnim[index], variant === 'flashcards' ? 0.9 : 0.8),
       shadowRadius: smallLightsAnim[index].interpolate({
         inputRange: [0, 1],
-        outputRange: [0, variant === 'flashcards' ? 15 : 12] // Reduced radius for better compatibility
+        outputRange: [0, variant === 'flashcards' ? 15 : 12]
       }),
       elevation: smallLightsAnim[index].interpolate({
         inputRange: [0, 1],
-        outputRange: [0, variant === 'flashcards' ? 15 : 10] // Android elevation for glow effect
+        outputRange: [0, variant === 'flashcards' ? 15 : 10]
       }),
-      // Higher opacity to make animation more visible
       opacity: Animated.add(0.7, Animated.multiply(smallLightsAnim[index], 0.3))
     };
     
     return (
       <View key={index} style={styles.smallLightContainer}>
-        {/* Multiple glow layers for natural effect */}
-        {/* Outermost glow - largest and most transparent */}
+        {/* Outer glow */}
         <Animated.View 
           style={[
             {
@@ -300,7 +268,7 @@ export default memo(function PokedexLayout({
             }
           ]}
         />
-        {/* Middle glow layer */}
+        {/* Middle glow */}
         <Animated.View 
           style={[
             {
@@ -316,7 +284,7 @@ export default memo(function PokedexLayout({
             }
           ]}
         />
-        {/* Inner glow layer - smallest and slightly more visible */}
+        {/* Inner glow */}
         <Animated.View 
           style={[
             {
@@ -332,7 +300,7 @@ export default memo(function PokedexLayout({
             }
           ]}
         />
-        {/* Main light element */}
+        {/* Main light */}
         <Animated.View 
           style={[
             variant === 'flashcards' ? styles.flashcardsSmallLight : styles.smallLight,
@@ -356,12 +324,17 @@ export default memo(function PokedexLayout({
         
         {showLights && (
           <View style={[styles.topSection, topSectionVariantStyle]}>
+            {/* Gradient overlay for top bar */}
+            <LinearGradient
+              colors={[COLORS.background, COLORS.background]}
+              style={StyleSheet.absoluteFill}
+            />
+            
             {variant === 'flashcards' ? (
               <>
                 {/* Flashcards Variant: Main light with outer glow */}
                 <View style={{ position: 'relative', marginRight: 10 }}>
-                  {/* Outer glow layers for main light - multiple layers for natural effect */}
-                  {/* Outermost glow - largest and most transparent */}
+                  {/* Glow layers */}
                   <Animated.View 
                     style={[
                       {
@@ -377,7 +350,6 @@ export default memo(function PokedexLayout({
                       }
                     ]}
                   />
-                  {/* Middle glow layer */}
                   <Animated.View 
                     style={[
                       {
@@ -393,7 +365,6 @@ export default memo(function PokedexLayout({
                       }
                     ]}
                   />
-                  {/* Inner glow layer - smallest and slightly more visible */}
                   <Animated.View 
                     style={[
                       {
@@ -417,7 +388,12 @@ export default memo(function PokedexLayout({
                       { zIndex: 10 }
                     ]}
                   >
-                    <View style={[styles.flashcardsMainStatusBar_Inner, { backgroundColor: mainLightInnerColor }]} />
+                    <LinearGradient
+                      colors={[COLORS.pokedexAmberGlow, COLORS.pokedexAmberDark]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFill}
+                    />
                     <View style={[styles.flashcardsMainStatusBar_Reflection, { backgroundColor: mainLightPulseColor }]} />
                   </Animated.View>
                 </View>
@@ -427,20 +403,24 @@ export default memo(function PokedexLayout({
               </>
             ) : (
               <>
-                {/* Main Variant: Simple bulbous light with animation */}
-                <Animated.View 
-                  style={[
-                    styles.mainLight, 
-                    { 
-                      backgroundColor: mainLightBaseColor,
-                    },
-                    mainLightAnimatedStyle
-                  ]}
-                >
-                  <View style={[styles.mainLightHighlight, { backgroundColor: `${mainLightBaseColor}60` }]} />
-                  <View style={styles.mainLightReflection} />
-                </Animated.View>
-                                <View style={styles.smallLights}>
+                {/* Main Variant: Circular light with gradient */}
+                <View style={{ position: 'relative' }}>
+                  <Animated.View 
+                    style={[
+                      styles.mainLight, 
+                      mainLightAnimatedStyle
+                    ]}
+                  >
+                    <LinearGradient
+                      colors={['#F87171', '#EF4444', '#DC2626']}
+                      start={{ x: 0.3, y: 0 }}
+                      end={{ x: 0.7, y: 1 }}
+                      style={[StyleSheet.absoluteFill, { borderRadius: 22.5 }]}
+                    />
+                    <View style={styles.mainLightReflection} />
+                  </Animated.View>
+                </View>
+                <View style={styles.smallLights}>
                   {smallLightColors.map((color, index) => (
                     <View key={index} style={styles.smallLightContainer}>
                       {renderSmallLight(color, index)}
@@ -449,23 +429,23 @@ export default memo(function PokedexLayout({
                 </View>
               </>
             )}
-            {/* Logo - positioned absolutely within topSection */}
+            {/* Logo */}
             {logoSource && (
               <Image
                 source={logoSource}
                 style={[
                   styles.logoImage, 
                   logoStyle,
-                  { opacity: 1 } // Always fully visible - no animation
+                  { opacity: 1 }
                 ]}
                 resizeMode="contain"
               />
             )}
           </View>
         )}
-        {/* Main "screen" area */}
+        {/* Main screen area */}
         <View style={[styles.screen, screenStyle, screenVariantStyle]}>
-          {/* Screen inset decorations */}
+          {/* Modern corner accents */}
           <View style={styles.screenCorner} />
           <View style={[styles.screenCorner, styles.screenCornerTopRight]} />
           <View style={[styles.screenCorner, styles.screenCornerBottomLeft]} />
@@ -483,7 +463,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
-    // Remove shading effects
   },
   safeArea: {
     flex: 1,
@@ -493,76 +472,73 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 10,
-    borderBottomWidth: 3,
-    borderBottomColor: COLORS.pokedexBlack,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
     position: 'relative',
-    zIndex: 100, // Ensure top bar stays above screen and overlays
-    elevation: 20, // Ensure stacking on Android; harmless on iOS
+    zIndex: 100,
+    elevation: 20,
+    overflow: 'hidden',
   },
   flashcardsTopSection: {
-    backgroundColor: COLORS.background,
+    backgroundColor: 'transparent',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 4, // Reduced for tighter layout
+    paddingVertical: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 1,
-    elevation: 20, // Keep above screen content
-    zIndex: 100, // Align with main variant stacking
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 20,
+    zIndex: 100,
   },
-  // Main page - circular light
+  // Main page - circular light with modern styling
   mainLight: {
     width: 45,
     height: 45,
-    borderRadius: 22.5, // Changed to make it circular
+    borderRadius: 22.5,
     borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
     elevation: 5,
     position: 'relative',
-    borderColor: '#000000',
-    // Add inset shadow effect
-    shadowColor: '#000000',
+    overflow: 'hidden',
+    shadowColor: '#3B82F6',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
   },
   mainLightRing: {
     position: 'absolute',
     width: 38,
     height: 38,
-    borderRadius: 19, // Changed to make it circular
+    borderRadius: 19,
     borderWidth: 2,
     opacity: 0.7,
   },
   mainLightInner: {
     width: 30,
     height: 30,
-    borderRadius: 15, // Changed to make it circular
+    borderRadius: 15,
     borderWidth: 1,
     elevation: 3,
   },
   mainLightReflection: {
     position: 'absolute',
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#FFFFFF90',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
     top: 6,
     left: 6,
     opacity: 0.8,
-    shadowColor: '#FFFFFF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 3,
   },
   pulseIndicator: {
     position: 'absolute',
     width: 8,
     height: 8, 
-    borderRadius: 4, // Changed to make it circular
+    borderRadius: 4,
     bottom: 5,
     right: 5,
     borderWidth: 1,
@@ -574,37 +550,37 @@ const styles = StyleSheet.create({
   },
   smallLight: {
     width: 18,
-    height: 18, // Changed from 8 to 18 to make it circular
-    borderRadius: 9, // Changed to make it circular
+    height: 18,
+    borderRadius: 9,
     marginHorizontal: 4,
-    borderWidth: 2,
-    borderColor: '#000000',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     elevation: 3,
-    // Add depth shadow effect
-    shadowColor: '#000000',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.3,
     shadowRadius: 2,
   },
   screen: {
     flex: 1,
-    backgroundColor: COLORS.screenBackground,
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
     padding: 10,
-    borderRadius: 8,
+    borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 4,
     },
     shadowOpacity: 0.3,
-    shadowRadius: 4.65,
+    shadowRadius: 8,
     elevation: 8,
     zIndex: 0,
-    borderStyle: 'solid',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   flashcardsScreen: {
-    backgroundColor: '#1A1A1A',
-    padding: 4, // Reduced for tighter layout
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    padding: 4,
   },
   cornerDecoration: {
     position: 'absolute',
@@ -615,7 +591,7 @@ const styles = StyleSheet.create({
   decorativeLine: {
     width: 20,
     height: 2,
-    backgroundColor: '#00000080',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     marginBottom: 3,
     borderRadius: 1,
   },
@@ -625,22 +601,23 @@ const styles = StyleSheet.create({
     left: 5,
     width: 15,
     height: 15,
-    borderLeftWidth: 3,
-    borderTopWidth: 3,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderLeftWidth: 2,
+    borderTopWidth: 2,
+    borderColor: 'rgba(59, 130, 246, 0.4)',
     zIndex: 5,
+    borderRadius: 2,
   },
   screenCornerTopRight: {
     left: undefined,
     right: 5,
     borderLeftWidth: 0,
-    borderRightWidth: 3,
+    borderRightWidth: 2,
   },
   screenCornerBottomLeft: {
     top: undefined,
     bottom: 5,
     borderTopWidth: 0,
-    borderBottomWidth: 3,
+    borderBottomWidth: 2,
   },
   screenCornerBottomRight: {
     top: undefined,
@@ -649,8 +626,8 @@ const styles = StyleSheet.create({
     right: 5,
     borderLeftWidth: 0,
     borderTopWidth: 0,
-    borderRightWidth: 3,
-    borderBottomWidth: 3,
+    borderRightWidth: 2,
+    borderBottomWidth: 2,
   },
   speakerGrill: {
     position: 'absolute',
@@ -686,34 +663,27 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#FFFFFF90',
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
     top: 4,
     left: 6,
     borderWidth: 0.5,
-    borderColor: '#FFFFFF60',
-    shadowColor: '#FFFFFF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 2,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
   },
   flashcardsMainStatusBar: {
     height: 20,
     width: 100,
-    backgroundColor: COLORS.pokedexAmberDark,
-    borderRadius: 3,
-    borderWidth: 1.5,
-    borderColor: COLORS.pokedexBlack,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     position: 'relative',
-    // REMOVED overflow: 'hidden' - it was clipping the shadows!
-    // REMOVED marginRight: 15 - moved to wrapper
-    zIndex: 15, // Ensure this light and its shadow are on top
-    // Removed base shadow - will be completely controlled by animation
+    overflow: 'hidden',
+    zIndex: 15,
   },
   flashcardsMainStatusBar_Inner: {
     height: '70%',
     width: '50%',
-    borderRadius: 2,
+    borderRadius: 4,
     position: 'absolute',
     left: '5%',
   },
@@ -730,17 +700,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  // Changed from flashcardsSmallSquareLight to thin oval lights
   flashcardsSmallLight: {
     width: 24,
     height: 8,
-    borderRadius: 4, // More rounded for thin oval shape
+    borderRadius: 4,
     marginHorizontal: 4,
     borderWidth: 1,
-    borderColor: COLORS.pokedexBlack,
-    // Removed base shadow - will be completely controlled by animation
-    elevation: 15, // Increased elevation to ensure shadows are visible
-    zIndex: 15, // Ensure these lights and their shadows are on top
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    elevation: 15,
+    zIndex: 15,
   },
   logoImage: {
     position: 'absolute',
@@ -761,16 +729,12 @@ const styles = StyleSheet.create({
   },
   smallLightReflection: {
     position: 'absolute',
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FFFFFF90',
-    top: 1,
-    left: 1,
-    opacity: 0.7,
-    shadowColor: '#FFFFFF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 2,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    top: 2,
+    left: 2,
+    opacity: 0.8,
   },
-}); 
+});

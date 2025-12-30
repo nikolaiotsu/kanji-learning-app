@@ -61,7 +61,8 @@
     "@expo/prebuild-config": "^8.0.0",
     "@react-native-community/netinfo": "11.4.1",
     "expo-store-review": "~8.0.1",
-    "react-native-svg": "15.8.0"
+    "react-native-svg": "15.8.0",
+    "expo-linear-gradient": "~14.0.2"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

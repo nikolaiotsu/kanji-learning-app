@@ -11,6 +11,7 @@ import { SwipeCounterProvider } from './context/SwipeCounterContext';
 import AuthGuard from './components/auth/AuthGuard';
 import { StyleSheet, View, Text, ActivityIndicator, LogBox } from 'react-native';
 import { COLORS } from './constants/colors';
+import TexturedBackground from './components/shared/TexturedBackground';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -104,75 +105,80 @@ export default function RootLayout() {
   }
 
   return (
-    <GestureHandlerRootView style={styles.container}>
-      <SafeAreaProvider>
-        <AuthProvider>
-          <SettingsProvider>
-            <SubscriptionProvider>
-              <OCRCounterProvider>
-                <FlashcardCounterProvider>
-                  <SwipeCounterProvider>
-                    <AuthGuard>
-                <Stack 
-                  screenOptions={{
-                    headerShown: true,
-                    headerStyle: {
-                      backgroundColor: COLORS.background,
-                    },
-                    headerTintColor: COLORS.text,
-                    headerTitleStyle: {
-                      fontWeight: 'bold',
-                    },
-                    headerBackTitle: 'Back',
-                    contentStyle: {
-                      backgroundColor: COLORS.background,
-                    },
-                    // Add border and shadow to make headers pop
-                    headerShadowVisible: true,
-                  }}
-                >
-                  <Stack.Screen name="(screens)" options={{ headerShown: false }} />
-                  <Stack.Screen name="index" options={{ headerShown: false, title: 'Home' }} />
-                  <Stack.Screen 
-                    name="flashcards" 
-                    options={{ 
-                      title: 'Make a Flashcard',
-                      gestureEnabled: false,
-                    }} 
-                  />
-                  <Stack.Screen 
-                    name="saved-flashcards" 
-                    options={{ 
-                      headerShown: false,
-                      gestureEnabled: false,
-                    }} 
-                  />
-                  <Stack.Screen name="settings" options={{ title: 'Settings' }} />
-                  <Stack.Screen name="login" options={{ title: 'Login', headerShown: false }} />
-                  <Stack.Screen name="signup" options={{ title: 'Sign Up', headerShown: false }} />
-                  <Stack.Screen name="reset-password" options={{ title: 'Reset Password' }} />
-                </Stack>
-                    </AuthGuard>
-                  </SwipeCounterProvider>
-                </FlashcardCounterProvider>
-              </OCRCounterProvider>
-            </SubscriptionProvider>
-          </SettingsProvider>
-        </AuthProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <TexturedBackground variant="default" style={styles.container}>
+      <GestureHandlerRootView style={styles.gestureContainer}>
+        <SafeAreaProvider>
+          <AuthProvider>
+            <SettingsProvider>
+              <SubscriptionProvider>
+                <OCRCounterProvider>
+                  <FlashcardCounterProvider>
+                    <SwipeCounterProvider>
+                      <AuthGuard>
+                  <Stack
+                    screenOptions={{
+                      headerShown: true,
+                      headerStyle: {
+                        backgroundColor: 'transparent',
+                      },
+                      headerTintColor: COLORS.text,
+                      headerTitleStyle: {
+                        fontWeight: 'bold',
+                      },
+                      headerBackTitle: 'Back',
+                      contentStyle: {
+                        backgroundColor: 'transparent',
+                      },
+                      // Add border and shadow to make headers pop
+                      headerShadowVisible: true,
+                    }}
+                  >
+                    <Stack.Screen name="(screens)" options={{ headerShown: false }} />
+                    <Stack.Screen name="index" options={{ headerShown: false, title: 'Home' }} />
+                    <Stack.Screen
+                      name="flashcards"
+                      options={{
+                        title: 'Make a Flashcard',
+                        gestureEnabled: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="saved-flashcards"
+                      options={{
+                        headerShown: false,
+                        gestureEnabled: false,
+                      }}
+                    />
+                    <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+                    <Stack.Screen name="login" options={{ title: 'Login', headerShown: false }} />
+                    <Stack.Screen name="signup" options={{ title: 'Sign Up', headerShown: false }} />
+                    <Stack.Screen name="reset-password" options={{ title: 'Reset Password' }} />
+                  </Stack>
+                      </AuthGuard>
+                    </SwipeCounterProvider>
+                  </FlashcardCounterProvider>
+                </OCRCounterProvider>
+              </SubscriptionProvider>
+            </SettingsProvider>
+          </AuthProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </TexturedBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+  },
+  gestureContainer: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: COLORS.background,
   },
   loadingText: {
     marginTop: 10,

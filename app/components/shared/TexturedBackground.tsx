@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../constants/colors';
 
 interface TexturedBackgroundProps {
@@ -10,7 +11,7 @@ interface TexturedBackgroundProps {
 
 export default function TexturedBackground({ 
   style, 
-  variant = 'gradient', 
+  variant = 'modern', 
   children 
 }: TexturedBackgroundProps) {
   
@@ -19,12 +20,21 @@ export default function TexturedBackground({
       case 'gradient':
         return (
           <>
-            {/* Base layer */}
-            <View style={[styles.baseLayer, { backgroundColor: '#006ad6' }]} />
-            {/* Gradient simulation with multiple layers */}
-            <View style={[styles.gradientLayer1, { backgroundColor: '#004ba0' }]} />
-            <View style={[styles.gradientLayer2, { backgroundColor: '#003875' }]} />
-            {/* Subtle texture overlay */}
+            {/* Deep navy base with gradient */}
+            <LinearGradient
+              colors={['#0F172A', '#1E293B', '#0F172A']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.baseLayer}
+            />
+            {/* Blue accent gradient */}
+            <LinearGradient
+              colors={['rgba(59, 130, 246, 0.15)', 'rgba(30, 64, 175, 0.1)', 'transparent']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.gradientLayer1}
+            />
+            {/* Subtle depth layer */}
             <View style={styles.textureOverlay} />
           </>
         );
@@ -32,9 +42,19 @@ export default function TexturedBackground({
       case 'subtle':
         return (
           <>
-            <View style={[styles.baseLayer, { backgroundColor: '#006ad6' }]} />
-            <View style={styles.subtlePattern1} />
-            <View style={styles.subtlePattern2} />
+            <LinearGradient
+              colors={['#0F172A', '#1E3A5F', '#0F172A']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.baseLayer}
+            />
+            {/* Subtle blue tint */}
+            <LinearGradient
+              colors={['rgba(59, 130, 246, 0.08)', 'transparent', 'rgba(59, 130, 246, 0.05)']}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={styles.subtlePattern1}
+            />
             <View style={styles.noiseOverlay} />
           </>
         );
@@ -42,26 +62,63 @@ export default function TexturedBackground({
       case 'modern':
         return (
           <>
-            <View style={[styles.baseLayer, { backgroundColor: '#006ad6' }]} />
-            <View style={styles.modernLayer1} />
-            <View style={styles.modernLayer2} />
-            <View style={styles.modernAccent} />
-            <View style={styles.modernGlow} />
+            {/* Rich deep blue base */}
+            <LinearGradient
+              colors={['#0A1628', '#0F2847', '#0A1628']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.baseLayer}
+            />
+            {/* Vibrant blue accent from top */}
+            <LinearGradient
+              colors={['rgba(59, 130, 246, 0.2)', 'rgba(37, 99, 235, 0.1)', 'transparent']}
+              start={{ x: 0.3, y: 0 }}
+              end={{ x: 0.7, y: 0.6 }}
+              style={styles.modernLayer1}
+            />
+            {/* Bottom ambient glow */}
+            <LinearGradient
+              colors={['transparent', 'rgba(30, 58, 138, 0.15)', 'rgba(15, 23, 42, 0.8)']}
+              start={{ x: 0.5, y: 0.5 }}
+              end={{ x: 0.5, y: 1 }}
+              style={styles.modernLayer2}
+            />
+            {/* Subtle center spotlight */}
+            <LinearGradient
+              colors={['rgba(96, 165, 250, 0.08)', 'transparent']}
+              start={{ x: 0.5, y: 0.3 }}
+              end={{ x: 0.5, y: 0.7 }}
+              style={styles.modernGlow}
+            />
           </>
         );
       
       case 'radial':
         return (
           <>
-            <View style={[styles.baseLayer, { backgroundColor: '#004080' }]} />
-            <View style={styles.radialCenter} />
-            <View style={styles.radialMid} />
-            <View style={styles.radialOuter} />
+            {/* Dark base */}
+            <View style={[styles.baseLayer, { backgroundColor: '#0A1628' }]} />
+            {/* Radial blue center glow */}
+            <LinearGradient
+              colors={['rgba(59, 130, 246, 0.25)', 'rgba(37, 99, 235, 0.15)', 'transparent']}
+              start={{ x: 0.5, y: 0.3 }}
+              end={{ x: 0.5, y: 0.8 }}
+              style={styles.radialCenter}
+            />
+            {/* Edge vignette */}
+            <LinearGradient
+              colors={['transparent', 'rgba(10, 22, 40, 0.6)']}
+              start={{ x: 0.5, y: 0.5 }}
+              end={{ x: 0.5, y: 1 }}
+              style={styles.radialOuter}
+            />
           </>
         );
       
       default:
-        return <View style={[styles.baseLayer, { backgroundColor: COLORS.background }]} />;
+        return (
+          <View style={[styles.baseLayer, { backgroundColor: COLORS.background }]} />
+        );
     }
   };
 
@@ -97,8 +154,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    opacity: 0.7,
-    transform: [{ skewY: '2deg' }],
   },
   gradientLayer2: {
     position: 'absolute',
@@ -107,7 +162,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     opacity: 0.5,
-    transform: [{ skewY: '-1deg' }],
   },
   textureOverlay: {
     position: 'absolute',
@@ -115,7 +169,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    backgroundColor: 'rgba(255, 255, 255, 0.01)',
     opacity: 0.8,
   },
   
@@ -126,9 +180,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#0074e6',
-    opacity: 0.3,
-    transform: [{ rotate: '45deg' }, { scaleX: 2 }],
   },
   subtlePattern2: {
     position: 'absolute',
@@ -136,9 +187,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#0074e6',
-    opacity: 0.2,
-    transform: [{ rotate: '-45deg' }, { scaleY: 1.5 }],
   },
   noiseOverlay: {
     position: 'absolute',
@@ -146,7 +194,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.01)',
+    backgroundColor: 'rgba(255, 255, 255, 0.008)',
     opacity: 0.9,
   },
   
@@ -157,19 +205,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: '60%',
-    backgroundColor: '#0074e6',
-    opacity: 0.4,
-    transform: [{ skewX: '1deg' }],
   },
   modernLayer2: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: '40%',
-    backgroundColor: '#005bb8',
-    opacity: 0.6,
-    transform: [{ skewX: '-0.5deg' }],
+    height: '50%',
   },
   modernAccent: {
     position: 'absolute',
@@ -177,9 +219,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: '20%',
-    backgroundColor: '#0080ff',
-    opacity: 0.15,
-    transform: [{ skewY: '0.5deg' }],
   },
   modernGlow: {
     position: 'absolute',
@@ -187,20 +226,15 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 128, 255, 0.05)',
-    opacity: 0.8,
   },
   
   // Radial variant layers
   radialCenter: {
     position: 'absolute',
-    top: '10%',
-    left: '20%',
-    width: '60%',
-    height: '60%',
-    backgroundColor: '#0080ff',
-    borderRadius: 1000,
-    opacity: 0.4,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   radialMid: {
     position: 'absolute',
@@ -208,7 +242,6 @@ const styles = StyleSheet.create({
     left: '10%',
     width: '80%',
     height: '80%',
-    backgroundColor: '#006ad6',
     borderRadius: 1000,
     opacity: 0.3,
   },
@@ -218,7 +251,5 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#004080',
-    opacity: 0.2,
   },
-}); 
+});
