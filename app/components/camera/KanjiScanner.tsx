@@ -433,6 +433,10 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       const isReturningFromAnotherScreen = hasLostFocusRef.current;
       hasLostFocusRef.current = false;
       
+      // Reset the ref when regaining focus
+      isNavigatingToFlashcardsRef.current = false;
+      logger.log('[KanjiScanner] Regained focus - reset navigation ref');
+      
       // Set returning flag if we were navigating
       if (isNavigating) {
         setReturningFromFlashcards(true);
@@ -1119,8 +1123,11 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
         const detectedText = textRegions.map(item => item.text).join('\n');
         logger.log('Extracted text:', detectedText);
         
-        // Set navigation state to prevent UI flash
+        // Set navigation state to prevent UI flash - use BOTH state and ref
+        // The ref ensures we hide the component immediately without waiting for re-render
         setIsNavigating(true);
+        isNavigatingToFlashcardsRef.current = true;
+        logger.log('[KanjiScanner] Navigation initiated - component will hide from render tree');
         
         // Store the current image state before navigating
         // This ensures we have the original image stored for history navigation
@@ -2061,18 +2068,22 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
         // logger.log(`[KanjiScannerRootView] onLayout: x:${x}, y:${y}, width:${width}, height:${height}`);
       }}
     >
-      {/* Always-mounted global overlay for guaranteed paint order */}
-      <Animated.View
-        pointerEvents={(isImageProcessing || isGlobalOverlayVisible) ? 'auto' : 'none'}
-        style={[
-          styles.loadingOverlay,
-          { opacity: globalOverlayOpacity }
-        ]}
-      >
-        <ActivityIndicator size="large" color="#FFFFFF" />
-      </Animated.View>
-      {!capturedImage ? (
+      {/* Early return when navigating - prevents the component from rendering during transition */}
+      {/* This is the industry standard approach: remove from component tree instead of just hiding */}
+      {isNavigatingToFlashcardsRef.current ? null : (
         <>
+          {/* Always-mounted global overlay for guaranteed paint order */}
+          <Animated.View
+            pointerEvents={(isImageProcessing || isGlobalOverlayVisible) ? 'auto' : 'none'}
+            style={[
+              styles.loadingOverlay,
+              { opacity: globalOverlayOpacity }
+            ]}
+          >
+            <ActivityIndicator size="large" color="black" />
+          </Animated.View>
+          {!capturedImage ? (
+            <>
           {/* Settings Button */}
           {!capturedImage && (
             <>
@@ -2163,12 +2174,13 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 onPress={canCreateFlashcard && isConnected ? handleTextInput : showUpgradeAlert}
                 icon={isWalkthroughActive ? "add" : ((canCreateFlashcard && isConnected) ? "add" : "lock-closed")}
                 iconColor={
-                  isWalkthroughActive && currentStep?.id === 'custom-card' 
+                  isWalkthroughActive && currentStep?.id === 'custom-card'
                     ? '#FBBF24' // Warm amber for highlighted
-                    : isWalkthroughActive 
+                    : isWalkthroughActive
                     ? '#94A3B8' // Slate grey for non-highlighted during walkthrough
-                    : '#FFFFFF' // White icon color
+                    : '#000000' // Black icon color
                 }
+                color="grey"
                 size="medium"
                 shape="square"
                 style={styles.rowButton}
@@ -2187,12 +2199,13 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 onPress={handleNavigateToSavedFlashcards}
                 materialCommunityIcon="cards"
                 iconColor={
-                  isWalkthroughActive && currentStep?.id === 'flashcards' 
+                  isWalkthroughActive && currentStep?.id === 'flashcards'
                     ? '#FBBF24' // Warm amber for highlighted
-                    : isWalkthroughActive 
+                    : isWalkthroughActive
                     ? '#94A3B8' // Slate grey for non-highlighted during walkthrough
-                    : '#FFFFFF' // White icon color
+                    : '#000000' // Black icon color
                 }
+                color="grey"
                 size="medium"
                 shape="square"
                 style={styles.rowButton}
@@ -2216,10 +2229,11 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 iconColor={
                   isWalkthroughActive && (currentStep?.id === 'gallery' || currentStep?.id === 'gallery-confirm')
                     ? '#FBBF24' // Warm amber for highlighted
-                    : isWalkthroughActive 
+                    : isWalkthroughActive
                     ? '#94A3B8' // Slate grey for non-highlighted during walkthrough
-                    : '#FFFFFF' // White icon color
+                    : '#000000' // Black icon color
                 }
+                color="grey"
                 size="medium"
                 shape="square"
                 style={styles.rowButton}
@@ -2247,6 +2261,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                       ? '#FBBF24' // Warm amber for highlighted
                       : '#94A3B8' // Slate grey for non-highlighted during walkthrough
                   }
+                  color="grey"
                   size="medium"
                   shape="square"
                   style={styles.rowButton}
@@ -2257,6 +2272,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                   onPress={() => {}} // No action when disabled
                   icon="lock-closed"
                   iconColor="#64748B"
+                  color="grey"
                   size="medium"
                   shape="square"
                   style={styles.rowButton}
@@ -2294,7 +2310,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
         <PokedexButton
           onPress={handleCancel}
           icon="arrow-back"
-          iconColor="white" // White icon color
+          iconColor="black" // Black icon color to match other buttons
           color="rgba(255, 149, 0, 0.5)" // Translucent orange background
           size="small"
           shape="square"
@@ -2413,7 +2429,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                     <PokedexButton
                       onPress={cancelActiveMode} 
                       icon="close"
-                      iconColor="#FFFFFF"
+                      iconColor="black"
                       size="small"
                       shape="square"
                       disabled={localProcessing || isImageProcessing}
@@ -2424,7 +2440,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                         <PokedexButton
                           onPress={discardHighlightSelection} 
                           icon="refresh-outline" 
-                          iconColor="#FFFFFF"
+                          iconColor="black"
                           size="small"
                           shape="square"
                           disabled={localProcessing || isImageProcessing}
@@ -2458,7 +2474,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                         <PokedexButton
                           onPress={discardCropSelection}
                           icon="refresh-outline" 
-                          iconColor="#FFFFFF"
+                          iconColor="black"
                           size="small"
                           shape="square"
                           disabled={localProcessing || isImageProcessing}
@@ -2466,7 +2482,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                         <PokedexButton
                           onPress={confirmCrop}
                           icon="checkmark"
-                          iconColor="#FFFFFF"
+                          iconColor="black"
                           size="small"
                           shape="square"
                           disabled={localProcessing || isImageProcessing}
@@ -2481,7 +2497,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                           <PokedexButton
                             onPress={handleUndoRotation}
                             icon="arrow-undo"
-                            iconColor="#FFFFFF"
+                            iconColor="black"
                             size="small"
                             shape="square"
                           disabled={localProcessing || isImageProcessing}
@@ -2491,7 +2507,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                           <PokedexButton
                             onPress={handleRedoRotation}
                             icon="arrow-redo"
-                            iconColor="#FFFFFF"
+                            iconColor="black"
                             size="small"
                             shape="square"
                           disabled={localProcessing || isImageProcessing}
@@ -2501,7 +2517,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                           <PokedexButton
                             onPress={handleConfirmRotation}
                             icon="checkmark"
-                            iconColor="#FFFFFF"
+                            iconColor="black"
                             size="small"
                             shape="square"
                             disabled={localProcessing || isImageProcessing}
@@ -2518,7 +2534,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           {/* Loading indicator for local processing (OCR, rotation, etc.) */}
           {localProcessing && (
             <View style={styles.localProcessingOverlay}>
-              <ActivityIndicator size="large" color="#FFFFFF" />
+              <ActivityIndicator size="large" color="black" />
             </View>
           )}
 
@@ -2600,6 +2616,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           }
           treatAsNonFinal={currentStep?.id === 'confirm-highlight'}
         />
+      )}
+        </>
       )}
     </View>
   );

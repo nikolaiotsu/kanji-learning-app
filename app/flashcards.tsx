@@ -1630,7 +1630,7 @@ const styles = StyleSheet.create({
     width: '100%',
     minHeight: 100,
     borderWidth: 1,
-    borderColor: COLORS.royalBlue,
+    borderColor: 'rgba(59, 130, 246, 0.5)', // More transparent blue
   },
   sectionTitle: {
     fontSize: 18,

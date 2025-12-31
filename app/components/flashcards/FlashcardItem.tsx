@@ -304,12 +304,25 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
       const currentType = isWord ? 'etymology' : 'grammar';
       const alternateType = currentType === 'etymology' ? 'grammar' : 'etymology';
       
+      // Map detected language to language code for API
+      const languageCodeMap: Record<string, string> = {
+        'Japanese': 'ja',
+        'Chinese': 'zh',
+        'Korean': 'ko',
+        'Russian': 'ru',
+        'Arabic': 'ar',
+        'Hindi': 'hi',
+        'Thai': 'th',
+        'English': 'en',
+      };
+      const sourceLanguageCode = languageCodeMap[detectedLanguage] || 'ja';
+      
       // Fetch alternate analysis
       const alternateAnalysis = await fetchSingleScopeAnalysis(
         flashcard.originalText,
         alternateType,
         flashcard.targetLanguage,
-        flashcard.sourceLanguage || 'ja'
+        sourceLanguageCode
       );
       
       if (alternateAnalysis) {
@@ -857,7 +870,7 @@ const createStyles = (responsiveCardHeight: number) => StyleSheet.create({
     position: 'relative',
     zIndex: 2, // Above the backdrop overlay (zIndex: 1)
     borderWidth: 1,
-    borderColor: COLORS.royalBlue,
+    borderColor: 'rgba(59, 130, 246, 0.5)', // More transparent blue
   },
   expandedCardWrapper: {
     paddingBottom: 12, // Add breathing room around the image without growing the layout

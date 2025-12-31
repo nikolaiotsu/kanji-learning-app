@@ -94,7 +94,14 @@ export default function PokedexButton({
     if (disabled) {
       return ['rgba(100, 116, 139, 0.5)', 'rgba(71, 85, 105, 0.6)'] as const;
     }
-    // Default glassmorphism gradient
+    // Use grey gradient if color prop is provided (matching flip/image buttons)
+    if (color && (color.includes('grey') || color.includes('gray') || color.includes('128'))) {
+      return [
+        'rgba(140, 140, 140, 0.35)',  // Lighter grey top
+        'rgba(100, 100, 100, 0.45)',   // Darker grey bottom
+      ] as const;
+    }
+    // Default glassmorphism gradient (blue)
     return [
       'rgba(59, 130, 246, 0.25)',  // Blue tint top
       'rgba(30, 64, 175, 0.35)',   // Deeper blue bottom

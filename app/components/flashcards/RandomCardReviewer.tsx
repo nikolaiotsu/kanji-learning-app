@@ -1539,7 +1539,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
             <Ionicons 
               name="albums-outline" 
               size={20} 
-                  color={COLORS.primary} // Stay blue throughout walkthrough
+                  color="rgba(59, 130, 246, 0.5)" // More transparent blue
               style={{ zIndex: 1001 }} // Ensure icon is above yellow background
             />
             <Text 
@@ -1610,7 +1610,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           <Ionicons 
             name={buttonDisplayActive ? "school" : "school-outline"} 
             size={18} 
-            color={buttonDisplayActive ? COLORS.text : COLORS.primary}
+            color={buttonDisplayActive ? COLORS.text : 'rgba(59, 130, 246, 0.5)'} // More transparent blue when inactive
           />
           <Text 
             style={[
@@ -1849,7 +1849,7 @@ const createStyles = (
     opacity: 0.5,
   },
   deckButtonText: {
-    color: COLORS.primary,
+    color: 'rgba(59, 130, 246, 0.5)', // More transparent blue
     marginLeft: 4,
     fontWeight: '500',
     zIndex: 1001, // Ensure text is above the yellow background
@@ -1869,7 +1869,7 @@ const createStyles = (
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   reviewModeButtonText: {
-    color: COLORS.primary,
+    color: 'rgba(59, 130, 246, 0.5)', // More transparent blue
     marginLeft: 4,
     fontWeight: '500',
     zIndex: 1001,

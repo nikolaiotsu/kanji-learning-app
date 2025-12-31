@@ -4,6 +4,7 @@ import KanjiScanner from './components/camera/KanjiScanner';
 import { COLORS } from './constants/colors';
 import PokedexLayout from './components/shared/PokedexLayout';
 import { Asset } from 'expo-asset';
+import { useFocusEffect } from 'expo-router';
 
 import { logger } from './utils/logger';
 // 1. Import the logo image
@@ -14,6 +15,10 @@ export default function App() {
   // Logo is always visible - simplified from complex content-ready sync
   const [logoVisible, setLogoVisible] = useState(true);
   const [logoUri, setLogoUri] = useState<string | null>(null);
+  
+  // Track if screen is focused - hide PokedexLayout header when navigating away
+  // This prevents the lights/logo from lingering during screen transitions
+  const [isScreenFocused, setIsScreenFocused] = useState(true);
 
   // Callback to trigger the light animation
   const handleCardSwipe = useCallback(() => {
@@ -61,11 +66,30 @@ export default function App() {
     };
   }, []);
 
+  // Track screen focus to hide PokedexLayout header during navigation transitions
+  // This is the industry standard approach: hide UI elements when screen loses focus
+  useFocusEffect(
+    useCallback(() => {
+      // Screen gained focus - show the header
+      logger.log('[AppIndex] Screen focused - showing PokedexLayout header');
+      setIsScreenFocused(true);
+      
+      return () => {
+        // Screen losing focus - hide the header IMMEDIATELY
+        // This prevents the lights/logo from lingering during transition
+        logger.log('[AppIndex] Screen blurred - hiding PokedexLayout header');
+        setIsScreenFocused(false);
+      };
+    }, [])
+  );
+
   return (
     // 2. Pass it to the logoSource prop and add logoStyle - synchronized with content readiness
+    // showLights is controlled by isScreenFocused to hide header during navigation transitions
     <PokedexLayout 
       logoSource={logoUri ? { uri: logoUri } : worddexLogo}
-      logoVisible={logoVisible}
+      logoVisible={logoVisible && isScreenFocused}
+      showLights={isScreenFocused}
       logoStyle={{ 
         width: 80, // Increased width from 100
         height: 65, // Increased height from 30

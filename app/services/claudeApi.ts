@@ -1455,7 +1455,47 @@ export async function processWithClaude(
         };
       }
       
-      logger.log(`[Claude API] No non-Latin characters detected, proceeding with ${forcedLanguage} as source`);
+      // LATIN-TO-LATIN VALIDATION: Use AI to distinguish between Latin-based languages
+      // This is critical for scenarios like FR→EN where user scans English text
+      // Pattern matching can't distinguish French from English, so we need Claude
+      const isLatinToLatinScenario = latinLanguages.includes(forcedLanguage) && latinLanguages.includes(targetLanguage);
+      
+      if (isLatinToLatinScenario && text.trim().length >= 10) {
+        logger.log(`[Claude API] Latin-to-Latin scenario detected (${forcedLanguage}→${targetLanguage}), using AI validation`);
+        
+        try {
+          const apiKey = Constants.expoConfig?.extra?.EXPO_PUBLIC_CLAUDE_API_KEY || 
+                        process.env.EXPO_PUBLIC_CLAUDE_API_KEY;
+          
+          if (apiKey) {
+            const aiValidation = await validateLanguageWithClaude(text, forcedLanguage, apiKey);
+            
+            if (!aiValidation.isValid && aiValidation.detectedLanguage) {
+              logger.log(`[Claude API] AI detected language mismatch: expected ${forcedLanguage}, got ${aiValidation.detectedLanguage}`);
+              
+              const mismatchInfo = buildLanguageMismatchInfo(
+                forcedLanguage,
+                aiValidation.detectedLanguage
+              );
+              
+              return {
+                furiganaText: '',
+                translatedText: '',
+                languageMismatch: mismatchInfo
+              };
+            }
+            
+            logger.log(`[Claude API] AI validation passed: text is ${aiValidation.detectedLanguage} (confidence: ${aiValidation.confidence})`);
+          } else {
+            logger.warn(`[Claude API] No API key available for Latin-to-Latin AI validation, proceeding without validation`);
+          }
+        } catch (validationError) {
+          logger.warn(`[Claude API] AI validation failed, proceeding without validation:`, validationError);
+          // Don't block translation if AI validation fails - just proceed
+        }
+      } else {
+        logger.log(`[Claude API] No non-Latin characters detected, proceeding with ${forcedLanguage} as source`);
+      }
     }
   }
 
@@ -4765,6 +4805,84 @@ export async function processWithClaudeAndScope(
     const apiKey = Constants.expoConfig?.extra?.EXPO_PUBLIC_CLAUDE_API_KEY;
     if (!apiKey) {
       throw new Error('Claude API key not configured');
+    }
+    
+    // LANGUAGE VALIDATION (same logic as processWithClaude)
+    // This ensures Latin-to-Latin language mismatches are caught before processing
+    const latinLanguages = ['en', 'fr', 'es', 'it', 'pt', 'de', 'tl', 'eo'];
+    const nonLatinLanguages = ['ja', 'zh', 'ko', 'ru', 'ar', 'hi', 'th'];
+    
+    if (forcedLanguage) {
+      const usePatternValidation = nonLatinLanguages.includes(forcedLanguage);
+      
+      if (usePatternValidation) {
+        // Pattern-based validation for non-Latin languages
+        const validationResult = validateTextMatchesLanguage(text, forcedLanguage);
+        if (!validationResult.isValid) {
+          const mismatchInfo = buildLanguageMismatchInfo(
+            forcedLanguage,
+            validationResult.detectedLanguage
+          );
+          logger.log(`[WordScope Combined] Language mismatch: expected ${forcedLanguage}, detected ${validationResult.detectedLanguage}`);
+          return {
+            furiganaText: '',
+            translatedText: '',
+            languageMismatch: mismatchInfo
+          };
+        }
+      } else {
+        // Latin languages: Check for non-Latin characters first
+        const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(text);
+        const hasChinese = /[\u4E00-\u9FFF]/.test(text) && !/[\u3040-\u309F\u30A0-\u30FF]/.test(text);
+        const hasKorean = /[\uAC00-\uD7AF\u1100-\u11FF]/.test(text);
+        const hasRussian = /[\u0400-\u04FF]/.test(text);
+        const hasArabic = /[\u0600-\u06FF]/.test(text);
+        const hasHindi = /[\u0900-\u097F]/.test(text);
+        const hasThai = /[\u0E00-\u0E7F]/.test(text);
+        
+        let detectedNonLatinLanguage: string | null = null;
+        if (hasJapanese) detectedNonLatinLanguage = 'Japanese';
+        else if (hasChinese) detectedNonLatinLanguage = 'Chinese';
+        else if (hasKorean) detectedNonLatinLanguage = 'Korean';
+        else if (hasRussian) detectedNonLatinLanguage = 'Russian';
+        else if (hasArabic) detectedNonLatinLanguage = 'Arabic';
+        else if (hasHindi) detectedNonLatinLanguage = 'Hindi';
+        else if (hasThai) detectedNonLatinLanguage = 'Thai';
+        
+        if (detectedNonLatinLanguage) {
+          const mismatchInfo = buildLanguageMismatchInfo(forcedLanguage, detectedNonLatinLanguage);
+          logger.log(`[WordScope Combined] Non-Latin text detected: ${detectedNonLatinLanguage} (expected ${forcedLanguage})`);
+          return {
+            furiganaText: '',
+            translatedText: '',
+            languageMismatch: mismatchInfo
+          };
+        }
+        
+        // Latin-to-Latin validation using AI
+        const isLatinToLatinScenario = latinLanguages.includes(forcedLanguage) && latinLanguages.includes(targetLanguage);
+        
+        if (isLatinToLatinScenario && text.trim().length >= 10) {
+          logger.log(`[WordScope Combined] Latin-to-Latin scenario (${forcedLanguage}→${targetLanguage}), using AI validation`);
+          
+          try {
+            const aiValidation = await validateLanguageWithClaude(text, forcedLanguage, apiKey);
+            
+            if (!aiValidation.isValid && aiValidation.detectedLanguage) {
+              logger.log(`[WordScope Combined] AI detected language mismatch: expected ${forcedLanguage}, got ${aiValidation.detectedLanguage}`);
+              const mismatchInfo = buildLanguageMismatchInfo(forcedLanguage, aiValidation.detectedLanguage);
+              return {
+                furiganaText: '',
+                translatedText: '',
+                languageMismatch: mismatchInfo
+              };
+            }
+            logger.log(`[WordScope Combined] AI validation passed: text is ${aiValidation.detectedLanguage}`);
+          } catch (validationError) {
+            logger.warn(`[WordScope Combined] AI validation failed, proceeding:`, validationError);
+          }
+        }
+      }
     }
     
     // Determine analysis type: etymology for words/idioms, grammar for sentences
