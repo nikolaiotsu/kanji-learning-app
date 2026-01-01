@@ -171,85 +171,43 @@ RESPOND WITH JSON:
 
 // STATIC SYSTEM PROMPT FOR KOREAN (CACHEABLE) - Shared across functions
 // Just above 2048 token minimum for Haiku caching
-const koreanSystemPrompt = `You are a Korean language expert specializing in translation and Revised Romanization annotation.
+const koreanSystemPrompt = `You are a Korean language expert. Your task is to annotate Korean text with romanization and translate it.
 
-TRANSLATION RULES:
-- Translate into natural, fluent target language
-- Preserve original meaning and tone
-- Use natural expressions appropriate for the target language
-- Do NOT add romanization to the translation itself
+⚠️ CRITICAL RULE #1 - NEVER VIOLATE:
+The furiganaText MUST contain the ORIGINAL KOREAN CHARACTERS (한글).
+WRONG: "munbeob poin-teu" ❌ (romanization only - NO Korean!)
+CORRECT: "문법(mun-beop) 포인트(po-in-teu)" ✓ (Korean + romanization)
 
-ROMANIZATION REQUIREMENTS:
-1. Keep ALL original text exactly as is (English words, numbers, punctuation unchanged)
-2. For EVERY Korean word/phrase, add Revised Romanization in parentheses IMMEDIATELY AFTER the Korean text
-3. Use official Revised Romanization system rules
-4. Format: 한국어(han-gug-eo) - Hangul followed by romanization in parentheses
-5. Do NOT add romanization to English words, numbers, or punctuation
-6. NEVER output Japanese romaji spellings - always use Korean Revised Romanization
+⚠️ CRITICAL RULE #2 - TRANSLATION:
+The translatedText must be PURE target language. NO romanization.
+WRONG: "eun/neun vs i/ga" ❌ (romanization in translation)
+CORRECT: "topic marker vs subject marker" ✓ (actual translation)
 
-READING PRIORITY (PROCESS IN THIS ORDER):
-- 1. COMPOUND WORDS: Multi-syllable words with clear syllable boundaries
-- 2. GRAMMATICAL ENDINGS: Verb endings, particles, and suffixes with standard romanization
-- 3. COMMON PATTERNS: Time expressions, formal endings, and standard phrases
-- 4. INDIVIDUAL WORDS: Single words with proper syllable separation
+FORMAT FOR furiganaText:
+- Every Korean word: 한글(romanization) - Korean FIRST, then romanization in parentheses
+- Slashes: 은/는 → 은(eun)/는(neun) - annotate EACH word separately
+- Parentheses: (조사) → (조사(jo-sa)) - add romanization inside
+- English/numbers: keep unchanged
 
-ESSENTIAL KOREAN PATTERNS:
-안녕하세요(an-nyeong-ha-se-yo), 저는(jeo-neun), 학생입니다(hag-saeng-im-ni-da), 오늘(o-neul), 날씨가(nal-ssi-ga), 좋아요(jo-a-yo), 변화시키고(byeon-hwa-si-ki-go), 중요성(jung-yo-seong), 평생교육(pyeong-saeng-gyo-yug), 일곱시(il-gop-si), 점심시간(jeom-sim-si-gan), 구경했습니다(gu-gyeong-haess-seum-ni-da), 한국어(han-gug-eo), 영어(yeong-eo), 일본어(il-bon-eo), 중국어(jung-gug-eo), 공부(gong-bu), 학교(hag-gyo), 학생(hag-saeng), 선생님(seon-saeng-nim), 친구(chin-gu), 가족(ga-jok), 집(jip), 음식(eum-sik), 물(mul), 책(chaek), 시간(si-gan), 오전(o-jeon), 오후(o-hu), 아침(a-chim), 점심(jeom-sim), 저녁(jeo-nyeok), 월요일(wol-yo-il), 화요일(hwa-yo-il), 수요일(su-yo-il), 목요일(mog-yo-il), 금요일(geum-yo-il), 토요일(to-yo-il), 좋다(jo-ta), 나쁘다(na-ppeu-da), 크다(keu-da), 작다(jak-da), 높다(nop-da), 낮다(nat-da), 빠르다(ppa-reu-da), 느리다(neu-ri-da), 쉽다(swip-da), 어렵다(eo-ryeop-da), 예쁘다(ye-ppeu-da), 아름답다(a-reum-dap-da), 맛있다(ma-sit-da), 맛없다(mat-eop-da), 재미있다(jae-mi-it-da), 행복하다(haeng-bok-ha-da), 슬프다(seul-peu-da), 기쁘다(gi-ppeu-da), 무섭다(mu-seop-da), 안전하다(an-jeon-ha-da), 위험하다(wi-heom-ha-da), 건강하다(geon-gang-ha-da), 아프다(a-peu-da), 피곤하다(pi-gon-ha-da), 배고프다(bae-go-peu-da), 목마르다(mok-ma-reu-da), 깨끗하다(kkae-kkeut-ha-da), 더럽다(deo-reop-da), 따뜻하다(tta-tteut-ha-da), 차갑다(cha-gap-da), 비(bi), 눈(nun), 바람(ba-ram), 태양(tae-yang), 달(dal), 별(byeol), 하늘(ha-neul), 땅(ttang), 바다(ba-da), 산(san), 강(gang), 나무(na-mu), 꽃(kkot), 새(sae), 개(gae), 고양이(go-yang-i), 물고기(mul-go-gi), 사과(sa-gwa), 바나나(ba-na-na), 포도(po-do), 딸기(ttal-gi), 수박(su-bak), 감자(gam-ja), 당근(dang-geun), 양파(yang-pa), 마늘(ma-neul), 고추(go-chu), 버섯(beo-seot), 배추(ba-e-chu), 시금치(si-geum-chi), 무(mu)
+EXAMPLES:
+Input: "문법 포인트"
+furiganaText: "문법(mun-beop) 포인트(po-in-teu)"
 
-VOWEL DISTINCTIONS (CRITICAL):
-- ㅓ = eo (어, 서, 너, 더, 머, 버, 퍼, 저, 처, 커)
-- ㅗ = o (오, 소, 노, 도, 모, 보, 포, 조, 초, 코)
-- ㅡ = eu (으, 스, 느, 드, 므, 브, 프, 즈, 츠, 크)
-- ㅜ = u (우, 수, 누, 두, 무, 부, 푸, 주, 추, 쿠)
+Input: "은/는 vs 이/가"  
+furiganaText: "은(eun)/는(neun) vs 이(i)/가(ga)"
 
-GRAMMATICAL PATTERNS:
-- Past tense: -았/었/였 = -ass/-eoss/-yeoss
-- Formal polite: -습니다 = -seum-ni-da
-- Topic particle: 은/는 = eun/neun
-- Object particle: 을/를 = eul/reul
-- Causative: -시키다 = -si-ki-da
-- Abstract noun: -성 = -seong
-- Time: 시 = si, 시간 = si-gan
+Input: "(목적격 조사)"
+furiganaText: "(목적격(mog-jeog-gyeog) 조사(jo-sa))"
 
-SENTENCE EXAMPLES:
-안녕하세요 → 안녕하세요(an-nyeong-ha-se-yo)
-저는 학생입니다 → 저는(jeo-neun) 학생입니다(hag-saeng-im-ni-da)
-오늘 날씨가 좋아요 → 오늘(o-neul) 날씨가(nal-ssi-ga) 좋아요(jo-a-yo)
-변화시키고 → 변화시키고(byeon-hwa-si-ki-go)
-중요성 → 중요성(jung-yo-seong)
-평생교육 → 평생교육(pyeong-saeng-gyo-yug)
-일곱시 → 일곱시(il-gop-si)
-점심시간 → 점심시간(jeom-sim-si-gan)
-구경했습니다 → 구경했습니다(gu-gyeong-haess-seum-ni-da)
-Hello 한국어 → Hello 한국어(han-gug-eo)
-
-FORMAT RULES:
-- NO spaces before parentheses: 한국어(han-gug-eo) ✓, 한국어 (han-gug-eo) ✗
-- Use Revised Romanization system only
-- Maintain original text structure exactly
-- Preserve all punctuation, line breaks, and formatting
-- Keep English words, Arabic numerals, and symbols unchanged
-- Maintain clear syllable boundaries in compound words
-
-QUALITY CHECKLIST:
-- Every Korean word has romanization (no exceptions)
-- Vowel distinctions correct (ㅓ/ㅗ, ㅡ/ㅜ)
-- Compound words maintain syllable boundaries
-- Formal endings complete (-습니다, -았습니다)
-- Original text structure preserved
-- No spaces before opening parentheses
-- No Japanese romaji spellings
-- Non-Korean text unchanged
-
-EXTRA QUALITY NOTES:
-- Verify ㅓ/ㅗ and ㅡ/ㅜ distinctions are correct
-- Check compound word boundaries and formal endings
-- Never use Japanese romaji spellings
+ROMANIZATION RULES:
+- ㅓ = eo, ㅗ = o, ㅡ = eu, ㅜ = u
+- No spaces before parentheses
+- Use Revised Romanization only (not Japanese romaji)
 
 RESPOND WITH JSON:
 {
-  "furiganaText": "Original Korean text with complete Revised Romanization annotations",
-  "translatedText": "Natural translation in target language"
+  "furiganaText": "Korean text with romanization annotations",
+  "translatedText": "Pure translation in target language (NO romanization)"
 }`;
 
 // Language validation caching system to reduce API costs
@@ -1353,6 +1311,33 @@ export async function processWithClaude(
   text = normalizeQuotationMarks(text);
   logger.log('[Claude API] Text normalized for safe JSON processing');
   
+  // PRE-PROCESSING: Escape slashes between CJK characters to prevent Claude misinterpretation
+  // Claude often confuses slashes as annotation delimiters (e.g., "은/는" → thinks it's a format)
+  // By replacing with a rare placeholder, we prevent this and restore after processing
+  const SLASH_PLACEHOLDER = '∕'; // U+2215 DIVISION SLASH (visually similar but distinct)
+  const slashEscapePattern = /([\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\uAC00-\uD7AF\u1100-\u11FF])\/([\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\uAC00-\uD7AF\u1100-\u11FF])/g;
+  let hasEscapedSlashes = false;
+  const originalTextWithSlashes = text;
+  
+  // Keep replacing until no more matches (handles consecutive like "에서/에/로")
+  let prevText = '';
+  while (prevText !== text) {
+    prevText = text;
+    text = text.replace(slashEscapePattern, `$1${SLASH_PLACEHOLDER}$2`);
+  }
+  
+  if (text !== originalTextWithSlashes) {
+    hasEscapedSlashes = true;
+    const slashCount = (originalTextWithSlashes.match(/\//g) || []).length - (text.match(/\//g) || []).length;
+    logger.log(`[Claude API] Escaped ${slashCount} slash(es) between CJK characters to prevent misinterpretation`);
+  }
+  
+  // Helper to restore slashes in output text
+  const restoreSlashes = (output: string): string => {
+    if (!hasEscapedSlashes || !output) return output;
+    return output.replace(new RegExp(SLASH_PLACEHOLDER, 'g'), '/');
+  };
+  
   // Start logging metrics
   const metrics: APIUsageMetrics = apiLogger.startAPICall('https://api.anthropic.com/v1/messages', {
     text: text.substring(0, 100), // Log first 100 chars for debugging
@@ -1399,13 +1384,62 @@ export async function processWithClaude(
       // Keep pattern-based validation for non-Latin languages (works reliably)
       logger.log(`[Claude API] Performing pattern-based language validation for non-Latin language: ${forcedLanguage}`);
       const validationResult = validateTextMatchesLanguage(text, forcedLanguage);
+
+      // CJK-TO-CJK VALIDATION: Always use AI to distinguish between Chinese and Japanese
+      // Pattern matching can't reliably distinguish them (they share CJK characters)
+      // This is critical for scenarios like JP→CH or CH→JP where user scans the other language
+      const cjkLanguages = ['ja', 'zh'];
+      const isCJKLanguage = cjkLanguages.includes(forcedLanguage);
+
+      if (isCJKLanguage && text.trim().length >= 5) {
+        logger.log(`[Claude API] CJK language detected (${forcedLanguage}), using AI validation for accurate detection`);
+
+        try {
+          const apiKey = Constants.expoConfig?.extra?.EXPO_PUBLIC_CLAUDE_API_KEY ||
+                        process.env.EXPO_PUBLIC_CLAUDE_API_KEY;
+
+          if (apiKey) {
+            const aiValidation = await validateLanguageWithClaude(text, forcedLanguage, apiKey);
+
+            // Check if AI detected a different CJK language
+            const aiDetectedLanguage = aiValidation.detectedLanguage;
+            const isMismatch = aiDetectedLanguage && aiDetectedLanguage !== LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP];
+
+            if (isMismatch) {
+              logger.log(`[Claude API] AI detected CJK language mismatch: expected ${LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP]}, got ${aiDetectedLanguage} (confidence: ${aiValidation.confidence})`);
+
+              const mismatchInfo = buildLanguageMismatchInfo(
+                forcedLanguage,
+                aiDetectedLanguage
+              );
+
+              return {
+                furiganaText: '',
+                translatedText: '',
+                languageMismatch: mismatchInfo
+              };
+            } else {
+              logger.log(`[Claude API] AI validation confirmed ${forcedLanguage} language (confidence: ${aiValidation.confidence})`);
+            }
+          } else {
+            logger.warn(`[Claude API] No API key available for CJK AI validation, using pattern-based detection`);
+          }
+        } catch (validationError) {
+          logger.warn(`[Claude API] AI validation failed, using pattern-based detection:`, validationError);
+          // Fall through to use pattern-based detection
+        }
+      }
+
+      // Pattern-based validation check (only if AI validation didn't trigger mismatch)
       if (!validationResult.isValid) {
         const expectedLanguageName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || forcedLanguage;
+        const detectedName = validationResult.detectedLanguage || 'Unknown';
+
+        // Fallback to pattern-based detection for non-CJK mismatches or if AI validation fails
         const mismatchInfo = buildLanguageMismatchInfo(
           forcedLanguage,
           validationResult.detectedLanguage
         );
-        const detectedName = validationResult.detectedLanguage || 'Unknown';
         const errorMessage = `Language mismatch: Unable to confirm ${expectedLanguageName} in the provided text (detected ${detectedName})`;
         logger.log(`[Claude API] ${errorMessage}`);
 
@@ -1520,7 +1554,8 @@ export async function processWithClaude(
 
   const applyKoreanRomanizationGuards = (value: string, context: string) => {
     if (!shouldEnforceKoreanRomanization || !value) {
-      return value;
+      // Still restore slashes even for non-Korean
+      return restoreSlashes(value);
     }
 
     const { sanitizedText, strippedAnnotations } = sanitizeKoreanRomanization(value);
@@ -1530,7 +1565,8 @@ export async function processWithClaude(
         `[KoreanRomanization] Removed ${strippedAnnotations.length} non-Hangul annotations during ${context}: ${preview}`
       );
     }
-    return sanitizedText;
+    // Restore escaped slashes after processing
+    return restoreSlashes(sanitizedText);
   };
   
   const sanitizeTranslatedText = (value: string, targetLangCode: string) => {
@@ -1548,6 +1584,39 @@ export async function processWithClaude(
       const chineseWithAnnotationPattern =
         /([\u4e00-\u9fff]+)\([^)]+\)/g;
       sanitized = sanitized.replace(chineseWithAnnotationPattern, '$1');
+    }
+
+    // For non-Korean target languages, remove Korean romanization patterns from translation
+    // This handles cases where Claude incorrectly includes romanization in the translation
+    if (targetLangCode !== 'ko' && forcedLanguage === 'ko') {
+      // Detect ANY Korean romanization patterns (particle pairs with slashes)
+      // These should NEVER appear in a proper translation
+      const romanizationPattern = /\b[a-z]+-?[a-z]*\/[a-z]+-?[a-z]*\b/gi;
+      
+      if (romanizationPattern.test(sanitized)) {
+        logger.warn('[sanitizeTranslatedText] Detected Korean romanization in translation, cleaning...');
+        
+        // Replace known particle patterns with translations
+        const replacements: Array<{ pattern: RegExp; translations: { [lang: string]: string } }> = [
+          { pattern: /\b-?eun\/?-?neun\b/gi, translations: { fr: 'marqueur de thème', en: 'topic marker', es: 'marcador de tema', default: '(topic)' } },
+          { pattern: /\b-?i\/?-?ga\b/gi, translations: { fr: 'marqueur de sujet', en: 'subject marker', es: 'marcador de sujeto', default: '(subject)' } },
+          { pattern: /\b-?eul\/?-?reul\b/gi, translations: { fr: 'marqueur d\'objet', en: 'object marker', es: 'marcador de objeto', default: '(object)' } },
+          { pattern: /\b-?e-?seo\/?-?e\/?-?ro\b/gi, translations: { fr: 'lieu/direction', en: 'location/direction', es: 'lugar/dirección', default: '(location/direction)' } },
+          { pattern: /\b-?eseo\/?-?e\/?-?ro\b/gi, translations: { fr: 'lieu/direction', en: 'location/direction', es: 'lugar/dirección', default: '(location/direction)' } },
+        ];
+        
+        for (const { pattern, translations } of replacements) {
+          const replacement = translations[targetLangCode] || translations['default'];
+          sanitized = sanitized.replace(pattern, replacement);
+        }
+        
+        // Catch any remaining romanization patterns (e.g., "jang-so/bang-hyang")
+        // Replace with empty string or generic marker
+        sanitized = sanitized.replace(/\b[a-z]+-[a-z]+\/[a-z]+-[a-z]+\b/gi, '');
+        
+        // Clean up any double spaces created by removal
+        sanitized = sanitized.replace(/\s{2,}/g, ' ').trim();
+      }
     }
 
     return sanitized;
@@ -1805,6 +1874,116 @@ Format your response as valid JSON with these exact keys:
               const translatedPreview = translatedText.substring(0, 60) + (translatedText.length > 60 ? "..." : "");
               logger.log(`Translation complete: "${translatedPreview}"`);
 
+              // CRITICAL: Run Korean romanization validation BEFORE smart verification early return
+              // This ensures we catch cases where Claude returns romanization-only without Korean characters
+              let earlyFuriganaText = applyKoreanRomanizationGuards(parsedContent.furiganaText || "", "initial-parse-early");
+              
+              if ((primaryLanguage === "Korean" || forcedLanguage === 'ko') && earlyFuriganaText) {
+                const koreanValidation = validateKoreanRomanization(text, earlyFuriganaText);
+                logger.log(`Korean romanization validation (early path): ${koreanValidation.details}`);
+                
+                if (!koreanValidation.isValid && koreanValidation.accuracy < 50) {
+                  logger.warn(`CRITICAL: Korean romanization failed - ${koreanValidation.details}`);
+                  
+                  // Check if this is a critical failure (romanization-only without Korean)
+                  const isCriticalFailure = koreanValidation.accuracy === 0 && koreanValidation.issues.some(i => i.includes('CRITICAL'));
+                  
+                  if (isCriticalFailure && retryCount === 0) {
+                    logger.log("Retrying with explicit Korean preservation prompt...");
+                    retryCount++;
+                    
+                    const koreanRetryPrompt = `
+${promptTopSection}
+CRITICAL ERROR: KOREAN TEXT WAS LOST - MUST PRESERVE ORIGINAL HANGUL
+
+You are a Korean language expert. The previous attempt FAILED because you returned only romanization without the original Korean characters.
+
+WHAT WENT WRONG:
+- Input had slashes (/) or parentheses in the text
+- You returned ONLY romanization like "eun/neun" instead of "은(eun)/는(neun)"
+- The original Korean characters were completely lost
+
+Original text: "${text}"
+
+ABSOLUTE REQUIREMENT - DO NOT IGNORE:
+1. You MUST preserve ALL original Korean (Hangul) characters
+2. Add romanization in parentheses AFTER each Korean word
+3. Format: 한글(romanization) - Korean FIRST, then romanization in parentheses
+4. If input has slashes like "은/는", output "은(eun)/는(neun)" - annotate EACH word separately
+5. If input has parentheses like "(목적격 조사)", keep them and add romanization: "(목적격(mog-jeog-gyeog) 조사(jo-sa))"
+
+CORRECT EXAMPLES:
+- "문법 포인트" → "문법(mun-beop) 포인트(po-in-teu)"
+- "은/는 vs 이/가" → "은(eun)/는(neun) vs 이(i)/가(ga)"
+- "(목적격 조사)" → "(목적격(mog-jeog-gyeog) 조사(jo-sa))"
+- "에서/에/로" → "에서(e-seo)/에(e)/로(ro)"
+
+WRONG (DO NOT DO THIS):
+- "munbeob po-in-teu" ❌ (missing Korean characters)
+- "eun/neun vs i/ga" ❌ (missing Korean characters)
+- "munbeob(moon-beob)" ❌ (romanization with romanization - NO Korean!)
+
+TRANSLATION REQUIREMENTS (CRITICAL):
+- translatedText must be a PURE ${targetLangName} translation
+- Do NOT include any romanization (eun, neun, i, ga, etc.) in the translation
+- Do NOT mix romanization with ${targetLangName} words
+- Translate the MEANING of the Korean text into natural ${targetLangName}
+- Example: "은/는 vs 이/가" should translate to a ${targetLangName} explanation of these particles, NOT "eun/neun vs i/ga"
+
+Format your response as valid JSON:
+{
+  "furiganaText": "MUST contain original Korean text with romanization in parentheses",
+  "translatedText": "PURE ${targetLangName} translation - NO romanization, only natural ${targetLangName} text"
+}
+`;
+                    
+                    try {
+                      const retryResponse = await axios.post(
+                        'https://api.anthropic.com/v1/messages',
+                        {
+                          model: "claude-3-haiku-20240307",
+                          max_tokens: 4000,
+                          temperature: 0.1,
+                          messages: [{ role: "user", content: koreanRetryPrompt }]
+                        },
+                        {
+                          headers: {
+                            'x-api-key': apiKey,
+                            'Content-Type': 'application/json',
+                            'anthropic-version': '2023-06-01'
+                          },
+                          timeout: 60000
+                        }
+                      );
+                      
+                      if (retryResponse.data?.content?.[0]?.text) {
+                        const retryText = retryResponse.data.content[0].text;
+                        logger.log("Korean retry response:", retryText.substring(0, 200) + "...");
+                        
+                        const retryJson = cleanJsonString(retryText);
+                        const retryParsed = JSON.parse(retryJson);
+                        
+                        const retryValidation = validateKoreanRomanization(text, retryParsed.furiganaText || "");
+                        logger.log(`Korean retry validation: ${retryValidation.details}`);
+                        
+                        if (retryValidation.accuracy > koreanValidation.accuracy) {
+                          earlyFuriganaText = applyKoreanRomanizationGuards(retryParsed.furiganaText || "", "korean-retry-early");
+                          logger.log(`Korean retry successful - improved from ${koreanValidation.accuracy}% to ${retryValidation.accuracy}%`);
+                          
+                          // Update parsedContent with retry results
+                          parsedContent.furiganaText = earlyFuriganaText;
+                          if (retryParsed.translatedText) {
+                            parsedContent.translatedText = retryParsed.translatedText;
+                          }
+                        }
+                      }
+                    } catch (retryError) {
+                      logger.error("Korean retry failed:", retryError);
+                    }
+                  }
+                }
+              }
+
               const qualityAssessment = assessTranslationQuality(translatedText, targetLanguage, text.length);
               logger.log(`🎯 [Smart Verification] Quality assessment: ${qualityAssessment.score}/100 (${qualityAssessment.reasons.join(', ') || 'no issues'})`);
 
@@ -1814,8 +1993,8 @@ Format your response as valid JSON with these exact keys:
                 logger.log("✅ [Smart Verification] High quality confirmed, skipping verification");
 
                 return {
-                  furiganaText: parsedContent.furiganaText || "",
-                  translatedText: sanitizeTranslatedText(translatedText, targetLanguage)
+                  furiganaText: earlyFuriganaText,
+                  translatedText: sanitizeTranslatedText(parsedContent.translatedText || "", targetLanguage)
                 };
               }
 
@@ -1911,7 +2090,7 @@ Format your response as valid JSON with these exact keys:
                         logger.log(`New translation: "${verifiedTranslatedText.substring(0, 60)}${verifiedTranslatedText.length > 60 ? '...' : ''}"`);
 
                         return {
-                          furiganaText: parsedContent.furiganaText || "",
+                          furiganaText: restoreSlashes(parsedContent.furiganaText || ""),
                           translatedText: sanitizeTranslatedText(verifiedTranslatedText, targetLanguage)
                         };
                       } else {
@@ -2132,7 +2311,7 @@ Format your response as valid JSON with these exact keys:
                 };
               } else {
                 return {
-                  furiganaText: parsedContent.furiganaText || "",
+                  furiganaText: restoreSlashes(parsedContent.furiganaText || ""),
                   translatedText: sanitizeTranslatedText(translatedText, targetLanguage)
                 };
               }
@@ -3371,6 +3550,116 @@ Format your response as valid JSON with these exact keys:
             const translatedPreview = translatedText.substring(0, 60) + (translatedText.length > 60 ? "..." : "");
             logger.log(`Translation complete: "${translatedPreview}"`);
             
+            // CRITICAL: Run Korean romanization validation BEFORE smart verification early return
+            // This ensures we catch cases where Claude returns romanization-only without Korean characters
+            let earlyFuriganaText2 = applyKoreanRomanizationGuards(parsedContent.furiganaText || "", "initial-parse-early-path2");
+            
+            if ((primaryLanguage === "Korean" || forcedLanguage === 'ko') && earlyFuriganaText2) {
+              const koreanValidation = validateKoreanRomanization(text, earlyFuriganaText2);
+              logger.log(`Korean romanization validation (early path 2): ${koreanValidation.details}`);
+              
+              if (!koreanValidation.isValid && koreanValidation.accuracy < 50) {
+                logger.warn(`CRITICAL: Korean romanization failed - ${koreanValidation.details}`);
+                
+                // Check if this is a critical failure (romanization-only without Korean)
+                const isCriticalFailure = koreanValidation.accuracy === 0 && koreanValidation.issues.some(i => i.includes('CRITICAL'));
+                
+                if (isCriticalFailure && retryCount === 0) {
+                  logger.log("Retrying with explicit Korean preservation prompt (path 2)...");
+                  retryCount++;
+                  
+                  const koreanRetryPrompt = `
+${promptTopSection}
+CRITICAL ERROR: KOREAN TEXT WAS LOST - MUST PRESERVE ORIGINAL HANGUL
+
+You are a Korean language expert. The previous attempt FAILED because you returned only romanization without the original Korean characters.
+
+WHAT WENT WRONG:
+- Input had slashes (/) or parentheses in the text
+- You returned ONLY romanization like "eun/neun" instead of "은(eun)/는(neun)"
+- The original Korean characters were completely lost
+
+Original text: "${text}"
+
+ABSOLUTE REQUIREMENT - DO NOT IGNORE:
+1. You MUST preserve ALL original Korean (Hangul) characters
+2. Add romanization in parentheses AFTER each Korean word
+3. Format: 한글(romanization) - Korean FIRST, then romanization in parentheses
+4. If input has slashes like "은/는", output "은(eun)/는(neun)" - annotate EACH word separately
+5. If input has parentheses like "(목적격 조사)", keep them and add romanization: "(목적격(mog-jeog-gyeog) 조사(jo-sa))"
+
+CORRECT EXAMPLES:
+- "문법 포인트" → "문법(mun-beop) 포인트(po-in-teu)"
+- "은/는 vs 이/가" → "은(eun)/는(neun) vs 이(i)/가(ga)"
+- "(목적격 조사)" → "(목적격(mog-jeog-gyeog) 조사(jo-sa))"
+- "에서/에/로" → "에서(e-seo)/에(e)/로(ro)"
+
+WRONG (DO NOT DO THIS):
+- "munbeob po-in-teu" ❌ (missing Korean characters)
+- "eun/neun vs i/ga" ❌ (missing Korean characters)
+- "munbeob(moon-beob)" ❌ (romanization with romanization - NO Korean!)
+
+TRANSLATION REQUIREMENTS (CRITICAL):
+- translatedText must be a PURE ${targetLangName} translation
+- Do NOT include any romanization (eun, neun, i, ga, etc.) in the translation
+- Do NOT mix romanization with ${targetLangName} words
+- Translate the MEANING of the Korean text into natural ${targetLangName}
+- Example: "은/는 vs 이/가" should translate to a ${targetLangName} explanation of these particles, NOT "eun/neun vs i/ga"
+
+Format your response as valid JSON:
+{
+  "furiganaText": "MUST contain original Korean text with romanization in parentheses",
+  "translatedText": "PURE ${targetLangName} translation - NO romanization, only natural ${targetLangName} text"
+}
+`;
+                  
+                  try {
+                    const retryResponse = await axios.post(
+                      'https://api.anthropic.com/v1/messages',
+                      {
+                        model: "claude-3-haiku-20240307",
+                        max_tokens: 4000,
+                        temperature: 0.1,
+                        messages: [{ role: "user", content: koreanRetryPrompt }]
+                      },
+                      {
+                        headers: {
+                          'x-api-key': apiKey,
+                          'Content-Type': 'application/json',
+                          'anthropic-version': '2023-06-01'
+                        },
+                        timeout: 60000
+                      }
+                    );
+                    
+                    if (retryResponse.data?.content?.[0]?.text) {
+                      const retryText = retryResponse.data.content[0].text;
+                      logger.log("Korean retry response (path 2):", retryText.substring(0, 200) + "...");
+                      
+                      const retryJson = cleanJsonString(retryText);
+                      const retryParsed = JSON.parse(retryJson);
+                      
+                      const retryValidation = validateKoreanRomanization(text, retryParsed.furiganaText || "");
+                      logger.log(`Korean retry validation (path 2): ${retryValidation.details}`);
+                      
+                      if (retryValidation.accuracy > koreanValidation.accuracy) {
+                        earlyFuriganaText2 = applyKoreanRomanizationGuards(retryParsed.furiganaText || "", "korean-retry-early-path2");
+                        logger.log(`Korean retry successful (path 2) - improved from ${koreanValidation.accuracy}% to ${retryValidation.accuracy}%`);
+                        
+                        // Update parsedContent with retry results
+                        parsedContent.furiganaText = earlyFuriganaText2;
+                        if (retryParsed.translatedText) {
+                          parsedContent.translatedText = retryParsed.translatedText;
+                        }
+                      }
+                    }
+                  } catch (retryError) {
+                    logger.error("Korean retry failed (path 2):", retryError);
+                  }
+                }
+              }
+            }
+            
             // SMART VERIFICATION: Assess translation quality before expensive verification
             const qualityAssessment = assessTranslationQuality(translatedText, targetLanguage, text.length);
             logger.log(`🎯 [Smart Verification] Quality assessment: ${qualityAssessment.score}/100 (${qualityAssessment.reasons.join(', ') || 'no issues'})`);
@@ -3381,8 +3670,8 @@ Format your response as valid JSON with these exact keys:
               logger.log("✅ [Smart Verification] High quality confirmed, skipping verification");
               // Return early - no verification needed
               return {
-                furiganaText: parsedContent.furiganaText || "",
-                translatedText: sanitizeTranslatedText(translatedText, targetLanguage)
+                furiganaText: earlyFuriganaText2,
+                translatedText: sanitizeTranslatedText(parsedContent.translatedText || "", targetLanguage)
               };
             }
 
@@ -3488,7 +3777,7 @@ Format your response as valid JSON with these exact keys:
                       logger.log(`New translation: "${verifiedTranslatedText.substring(0, 60)}${verifiedTranslatedText.length > 60 ? '...' : ''}"`);
                       
                       return {
-                        furiganaText: parsedContent.furiganaText || "",
+                        furiganaText: restoreSlashes(parsedContent.furiganaText || ""),
                         translatedText: sanitizeTranslatedText(verifiedTranslatedText, targetLanguage)
                       };
                     } else {
@@ -3864,8 +4153,53 @@ Format as JSON:
                   logger.log("Retrying with enhanced Korean romanization correction prompt...");
                   retryCount++;
                   
+                  // Check if this is a critical failure (romanization-only without Korean)
+                  const isCriticalFailure = validation.accuracy === 0 && validation.issues.some(i => i.includes('CRITICAL'));
+                  
                   // Create specific correction prompt based on validation issues
-                  const correctionPrompt = `
+                  const correctionPrompt = isCriticalFailure ? `
+${promptTopSection}
+CRITICAL ERROR: KOREAN TEXT WAS LOST - MUST PRESERVE ORIGINAL HANGUL
+
+You are a Korean language expert. The previous attempt FAILED because you returned only romanization without the original Korean characters.
+
+WHAT WENT WRONG:
+- Input had slashes (/) or parentheses in the text
+- You returned ONLY romanization like "eun/neun" instead of "은(eun)/는(neun)"
+- The original Korean characters were completely lost
+
+Original text: "${text}"
+
+ABSOLUTE REQUIREMENT - DO NOT IGNORE:
+1. You MUST preserve ALL original Korean (Hangul) characters
+2. Add romanization in parentheses AFTER each Korean word
+3. Format: 한글(romanization) - Korean FIRST, then romanization in parentheses
+4. If input has slashes like "은/는", output "은(eun)/는(neun)" - annotate EACH word separately
+5. If input has parentheses like "(목적격 조사)", keep them and add romanization: "(목적격(mog-jeog-gyeog) 조사(jo-sa))"
+
+CORRECT EXAMPLES:
+- "문법 포인트" → "문법(mun-beop) 포인트(po-in-teu)"
+- "은/는 vs 이/가" → "은(eun)/는(neun) vs 이(i)/가(ga)"
+- "(목적격 조사)" → "(목적격(mog-jeog-gyeog) 조사(jo-sa))"
+- "에서/에/로" → "에서(e-seo)/에(e)/로(ro)"
+
+WRONG (DO NOT DO THIS):
+- "munbeob po-in-teu" ❌ (missing Korean characters)
+- "eun/neun vs i/ga" ❌ (missing Korean characters)
+
+TRANSLATION REQUIREMENTS (CRITICAL):
+- translatedText must be a PURE ${targetLangName} translation
+- Do NOT include any romanization (eun, neun, i, ga, etc.) in the translation
+- Do NOT mix romanization with ${targetLangName} words
+- Translate the MEANING of the Korean text into natural ${targetLangName}
+- Example: "은/는 vs 이/가" should translate to a ${targetLangName} explanation of these particles, NOT "eun/neun vs i/ga"
+
+Format your response as valid JSON:
+{
+  "furiganaText": "MUST contain original Korean text with romanization in parentheses",
+  "translatedText": "PURE ${targetLangName} translation - NO romanization, only natural ${targetLangName} text"
+}
+` : `
 ${promptTopSection}
 CRITICAL KOREAN ROMANIZATION RETRY - PREVIOUS ATTEMPT HAD QUALITY ISSUES
 
@@ -3886,6 +4220,11 @@ MANDATORY CORRECTIONS - Fix these specific problems:
 3. ${validation.issues.some(i => i.includes('compound')) ? 'MAINTAIN SYLLABLE BOUNDARIES - compound words need clear hyphen separation' : ''}
 4. ${validation.issues.some(i => i.includes('coverage')) ? 'ENSURE COMPLETE COVERAGE - every Korean word must have romanization' : ''}
 5. ${validation.issues.some(i => i.includes('romanization')) ? 'USE STANDARD ROMANIZATION - follow Revised Romanization system exactly' : ''}
+
+CRITICAL REMINDER - PRESERVE KOREAN TEXT:
+- ALWAYS keep the original Korean characters: 한글(romanization) format
+- NEVER output only romanization without Korean characters
+- If input has slashes "은/는", output "은(eun)/는(neun)" - annotate each word
 
 SPECIFIC PATTERN FIXES REQUIRED:
 - Past tense: -았/었/였 = -ass/-eoss/-yeoss  
@@ -5856,6 +6195,26 @@ function validateKoreanRomanization(originalText: string, romanizedText: string)
       suggestions: [],
       accuracy: 100,
       details: "No Korean characters found in text"
+    };
+  }
+  
+  // CRITICAL CHECK: Detect if Claude returned romanization-only without Korean characters
+  // This happens when input text contains slashes/parentheses that confuse the model
+  const romanizedKorean = romanizedText.match(koreanRegex) || [];
+  const romanizedKoreanCount = romanizedKorean.length;
+  
+  if (romanizedKoreanCount === 0 || romanizedKoreanCount < totalKoreanCount * 0.3) {
+    // Claude returned romanization-only without preserving Korean characters
+    // This is a critical failure that needs retry
+    return {
+      isValid: false,
+      issues: ["CRITICAL: Claude returned romanization-only without Korean characters - original Hangul was lost"],
+      suggestions: [
+        "Retry with explicit instruction to preserve original Korean text",
+        "Format must be: 한글(romanization) not just romanization"
+      ],
+      accuracy: 0,
+      details: `Critical failure: Original text had ${totalKoreanCount} Korean characters, but romanized result has only ${romanizedKoreanCount}. Claude likely misinterpreted slashes/parentheses in input.`
     };
   }
   

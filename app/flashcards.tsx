@@ -333,6 +333,31 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
         result = await attempt(detectedCode, originalTargetLanguage);
         usedSourceLang = detectedCode;
         usedTargetLang = originalTargetLanguage;
+        
+        // If this retry also failed, apply smart retry logic to the second detection
+        // This handles cases like: KR→FR setting, scan French, initial detect says "Italian", retry fails, AI says "French"
+        if (result.languageMismatch) {
+          const secondDetectedCode = result.languageMismatch.detectedLanguageCode;
+          logger.log(`🔄 [Flashcards] Second mismatch detected: ${secondDetectedCode}`);
+          
+          // Case 2a: Second detection matches target → swap (text is in target language)
+          if (secondDetectedCode === originalTargetLanguage) {
+            logger.log(`🔄 [Flashcards] Text is actually in target language (${originalTargetLanguage}), swapping: ${originalTargetLanguage} → ${originalSourceLanguage}`);
+            setDetectedLanguage(AVAILABLE_LANGUAGES[originalTargetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'unknown');
+            result = await attempt(originalTargetLanguage, originalSourceLanguage);
+            usedSourceLang = originalTargetLanguage;
+            usedTargetLang = originalSourceLanguage;
+          }
+          // Case 1a: Second detection matches source → retry original (detection was wrong, text is actually in source)
+          else if (secondDetectedCode === originalSourceLanguage) {
+            logger.log(`🔄 [Flashcards] Text is actually in source language (${originalSourceLanguage}), retrying with original settings: ${originalSourceLanguage} → ${originalTargetLanguage}`);
+            setDetectedLanguage(AVAILABLE_LANGUAGES[originalSourceLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'unknown');
+            result = await attempt(originalSourceLanguage, originalTargetLanguage);
+            usedSourceLang = originalSourceLanguage;
+            usedTargetLang = originalTargetLanguage;
+          }
+          // Otherwise: second detection is unreliable, fail gracefully (don't go deeper)
+        }
       }
       // Case 2: Detected language matches target (user scanned text in their learning language)
       // Simple swap: target → source
