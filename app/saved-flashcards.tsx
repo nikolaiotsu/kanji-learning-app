@@ -32,7 +32,7 @@ import { registerSyncCallback, unregisterSyncCallback } from './services/syncMan
 import { useSubscription } from './context/SubscriptionContext';
 
 import { logger } from './utils/logger';
-const POKEDEX_LAYOUT_HORIZONTAL_REDUCTION = 20; // Updated: (padding 10) * 2
+const POKEDEX_LAYOUT_HORIZONTAL_REDUCTION = 8; // flashcardsScreen uses padding: 4 on each side
 
 export default function SavedFlashcardsScreen() {
   logger.log('🎬 [SavedFlashcards] ========== COMPONENT RENDER START ==========');
@@ -722,6 +722,12 @@ export default function SavedFlashcardsScreen() {
       try {
         scrollDeckSelectorToIndex(index, viewPosition, true);
       } catch {}
+
+      // Ensure the horizontal list is aligned to the selected deck
+      flashcardsListRef.current?.scrollToOffset({
+        offset: index * contentWidth,
+        animated: true,
+      });
     }
   };
 
@@ -919,33 +925,35 @@ export default function SavedFlashcardsScreen() {
     const pageKey = `${item.id}_${index}_${selectedDeckId === item.id ? 'selected' : 'idle'}`;
     // Return a container with consistent width
     return (
-      <View key={pageKey} style={[styles.deckPage, { width: contentWidth }]}>
-        {/* Always render deckContentContainer to stabilize layout */}
-        <View style={styles.deckContentContainer}>
-          {/* Conditionally render content based on selection and loading state */}
-          {selectedDeckId === item.id ? (
-            isLoadingFlashcards ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#007AFF" />
-                <Text style={styles.loadingText}>{t('savedFlashcards.loadingFlashcards')}</Text>
-              </View>
+      <View key={pageKey} style={{ width: contentWidth }}>
+        <View style={styles.deckPage}>
+          {/* Always render deckContentContainer to stabilize layout */}
+          <View style={styles.deckContentContainer}>
+            {/* Conditionally render content based on selection and loading state */}
+            {selectedDeckId === item.id ? (
+              isLoadingFlashcards ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#007AFF" />
+                  <Text style={styles.loadingText}>{t('savedFlashcards.loadingFlashcards')}</Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={flashcards}
+                  renderItem={renderFlashcard}
+                  keyExtractor={(flashcardItem) => flashcardItem.id}
+                  contentContainerStyle={styles.listContent}
+                  ListEmptyComponent={renderEmptyState}
+                  showsVerticalScrollIndicator={true}
+                  scrollEnabled={true}
+                  initialNumToRender={4}
+                  windowSize={5}
+                  removeClippedSubviews={true} // Keep as true for performance on inner lists
+                />
+              )
             ) : (
-              <FlatList
-                data={flashcards}
-                renderItem={renderFlashcard}
-                keyExtractor={(flashcardItem) => flashcardItem.id}
-                contentContainerStyle={styles.listContent}
-                ListEmptyComponent={renderEmptyState}
-                showsVerticalScrollIndicator={true}
-                scrollEnabled={true}
-                initialNumToRender={4}
-                windowSize={5}
-                removeClippedSubviews={true} // Keep as true for performance on inner lists
-              />
-            )
-          ) : (
-            null 
-          )}
+              null 
+            )}
+          </View>
         </View>
       </View>
     );
@@ -1177,9 +1185,16 @@ export default function SavedFlashcardsScreen() {
               index,
             })}
             onMomentumScrollEnd={(e) => {
-              const newIndex = Math.round(e.nativeEvent.contentOffset.x / contentWidth);
-              if (newIndex !== selectedDeckIndex) {
-                handleDeckSwipe(newIndex);
+              const scrollOffset = e.nativeEvent.contentOffset.x;
+              const newIndex = Math.round(scrollOffset / contentWidth);
+              const clampedIndex = Math.max(0, Math.min(newIndex, decks.length - 1));
+              if (clampedIndex !== selectedDeckIndex) {
+                handleDeckSwipe(clampedIndex);
+              } else {
+                flashcardsListRef.current?.scrollToOffset({
+                  offset: clampedIndex * contentWidth,
+                  animated: true,
+                });
               }
             }}
             scrollEnabled={true}
@@ -1255,7 +1270,7 @@ const styles = StyleSheet.create({
     height: 36,
   },
   selectedDeckItem: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.royalBlue50,
   },
   deckName: {
     fontSize: 14,
@@ -1392,7 +1407,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.darkGray,
+    borderBottomColor: COLORS.royalBlue50,
     backgroundColor: COLORS.pokedexBlack,
   },
   titleContainer: {
@@ -1418,9 +1433,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.darkSurface,
   },
   deckPage: {
-    alignItems: 'center', 
-    justifyContent: 'center',
-    paddingHorizontal: 8, 
+    flex: 1,
+    paddingHorizontal: 8,
   },
   deckContentContainer: {
     flex: 1,

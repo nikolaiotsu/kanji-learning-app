@@ -43,6 +43,7 @@ export const COLORS = {
   muted: '#64748B', // Muted slate
   error: '#EF4444', // Modern red
   royalBlue: '#3B82F6', // Vibrant blue for flashcard borders
+  royalBlue50: 'rgba(59, 130, 246, 0.5)', // 50% opacity highlight
   pokedexAmber: '#F59E0B',      // Modern amber for flashcard main light
   pokedexAmberDark: '#D97706',  // Darker amber
   pokedexAmberGlow: '#FBBF24',  // Lighter amber glow

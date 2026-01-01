@@ -779,7 +779,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
             <Ionicons 
               name="trash-outline" 
               size={22} 
-              color={isOnline ? COLORS.royalBlue : COLORS.darkGray} 
+                color={isOnline ? COLORS.royalBlue50 : COLORS.darkGray} 
             />
           </TouchableOpacity>
         )}
@@ -792,7 +792,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
             <Ionicons 
               name="pencil" 
               size={22} 
-              color={isOnline ? COLORS.royalBlue : COLORS.darkGray} 
+              color={isOnline ? COLORS.royalBlue50 : COLORS.darkGray} 
             />
           </TouchableOpacity>
         )}
@@ -805,7 +805,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
             <MaterialIcons 
               name="drive-file-move-outline" 
               size={22} 
-              color={isOnline ? COLORS.royalBlue : COLORS.darkGray} 
+              color={isOnline ? COLORS.royalBlue50 : COLORS.darkGray} 
             />
           </TouchableOpacity>
         )}
@@ -870,7 +870,7 @@ const createStyles = (responsiveCardHeight: number) => StyleSheet.create({
     position: 'relative',
     zIndex: 2, // Above the backdrop overlay (zIndex: 1)
     borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.5)', // More transparent blue
+    borderColor: COLORS.royalBlue50,
   },
   expandedCardWrapper: {
     paddingBottom: 12, // Add breathing room around the image without growing the layout

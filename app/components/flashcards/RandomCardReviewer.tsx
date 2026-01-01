@@ -1899,18 +1899,16 @@ const createStyles = (
     maxHeight: cardStageHeight,
     flex: 1, // Expand to fill available space
     position: 'relative',
-    alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 15,
     marginBottom: cardToControlsSpacing, // Proper spacing between card and controls
     overflow: 'hidden',
   },
   cardContainer: {
-    width: '100%',
     flex: 1, // Expand to fill available space
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+    paddingHorizontal: 15,
   },
   cardWithOverlayWrapper: {
     width: '100%',
