@@ -29,6 +29,7 @@ interface FlashcardItemProps {
   showRefreshButton?: boolean; // Show refresh button next to image toggle in saved flashcards mode
   isOnline?: boolean; // Whether the app is online (disables write operations when offline)
   isSrsModeActive?: boolean; // Whether review mode is active (for rainbow border effect)
+  disableBackdropOverlay?: boolean; // If true, don't show the backdrop overlay (useful in list contexts)
 }
 
 const FlashcardItem: React.FC<FlashcardItemProps> = ({ 
@@ -44,6 +45,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   showRefreshButton = false,
   isOnline = true, // Default to true for backward compatibility
   isSrsModeActive = false, // Default to false
+  disableBackdropOverlay = false, // Default to false to maintain existing behavior
 }) => {
   const { t } = useTranslation();
   const { targetLanguage } = useSettings();
@@ -53,6 +55,9 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   
   // Rainbow border animation
   const rainbowAnim = useRef(new Animated.Value(0)).current;
+  
+  // Image fade animation
+  const imageFadeAnim = useRef(new Animated.Value(0)).current;
   
   useEffect(() => {
     if (isSrsModeActive) {
@@ -270,11 +275,24 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
     
     const newState = !showImage;
     setShowImage(newState);
+    
+    // Animate fade in/out
+    Animated.timing(imageFadeAnim, {
+      toValue: newState ? 1 : 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+    
     // Call the onImageToggle callback if provided
     if (onImageToggle) {
       onImageToggle(newState);
     }
   };
+  
+  // Initialize image fade animation based on showImage state
+  useEffect(() => {
+    imageFadeAnim.setValue(showImage ? 1 : 0);
+  }, [flashcard.id]); // Reset when flashcard changes
 
   // Handle appending alternate analysis
   const handleAppendAnalysis = async () => {
@@ -502,8 +520,8 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
       styles.cardContainer,
       showImage && flashcard.imageUrl ? styles.expandedCardContainer : null
     ]}>
-      {/* Backdrop overlay - tap outside card to dismiss */}
-      {showImage && flashcard.imageUrl && (
+      {/* Backdrop overlay - tap outside card to dismiss (only show if not disabled) */}
+      {showImage && flashcard.imageUrl && !disableBackdropOverlay && (
         <TouchableOpacity 
           style={styles.backdropOverlay}
           activeOpacity={1}
@@ -558,10 +576,16 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
               
               {/* Always render the image but conditionally show it */}
               {flashcard.imageUrl && (
-                <View 
+                <Animated.View 
                   style={[
                     styles.imageContainer,
-                    !showImage && styles.hiddenImage
+                    {
+                      opacity: imageFadeAnim,
+                      // Hide from layout when not showing
+                      height: showImage ? undefined : 0,
+                      marginTop: showImage ? 15 : 0,
+                      marginBottom: showImage ? 10 : 0,
+                    }
                   ]}
                 >
                   {imageLoadingState === 'error' ? (
@@ -596,7 +620,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
                       )}
                     </>
                   )}
-                </View>
+                </Animated.View>
               )}
             </ScrollView>
           </View>
@@ -717,10 +741,16 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
               
               {/* Always render the image on back side too but conditionally show it */}
               {flashcard.imageUrl && (
-                <View 
+                <Animated.View 
                   style={[
                     styles.imageContainer,
-                    !showImage && styles.hiddenImage
+                    {
+                      opacity: imageFadeAnim,
+                      // Hide from layout when not showing
+                      height: showImage ? undefined : 0,
+                      marginTop: showImage ? 15 : 0,
+                      marginBottom: showImage ? 10 : 0,
+                    }
                   ]}
                 >
                   {imageLoadingState === 'error' ? (
@@ -755,7 +785,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
                       )}
                     </>
                   )}
-                </View>
+                </Animated.View>
               )}
               
               {deckName && (
@@ -1033,9 +1063,6 @@ const createStyles = (responsiveCardHeight: number) => StyleSheet.create({
     marginTop: 15,
     marginBottom: 10,
     alignSelf: 'center', // Center the image container
-  },
-  hiddenImage: {
-    display: 'none', // Hide the image container when toggled off
   },
   image: {
     width: '100%',

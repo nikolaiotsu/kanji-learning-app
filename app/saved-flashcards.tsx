@@ -70,6 +70,7 @@ export default function SavedFlashcardsScreen() {
   const deckSelectorRef = useRef<FlatList>(null);
   const screenWidth = Dimensions.get('window').width;
   const contentWidth = screenWidth - POKEDEX_LAYOUT_HORIZONTAL_REDUCTION;
+  const isUserDragging = useRef(false);
 
   // Reset animation trigger after it's been activated
   useEffect(() => {
@@ -916,6 +917,7 @@ export default function SavedFlashcardsScreen() {
         onAppendAnalysis={handleAppendAnalysis}
         showRefreshButton={true}
         isOnline={isConnected}
+        disableBackdropOverlay={true}
       />
     );
   };
@@ -1184,18 +1186,24 @@ export default function SavedFlashcardsScreen() {
               offset: contentWidth * index,
               index,
             })}
+            onScrollBeginDrag={() => {
+              isUserDragging.current = true;
+            }}
             onMomentumScrollEnd={(e) => {
+              // Only process deck changes if user actually dragged (not just a tap)
+              if (!isUserDragging.current) {
+                return;
+              }
+              isUserDragging.current = false;
+              
               const scrollOffset = e.nativeEvent.contentOffset.x;
               const newIndex = Math.round(scrollOffset / contentWidth);
               const clampedIndex = Math.max(0, Math.min(newIndex, decks.length - 1));
               if (clampedIndex !== selectedDeckIndex) {
+                // Only call handleDeckSwipe - let pagingEnabled handle the snap
                 handleDeckSwipe(clampedIndex);
-              } else {
-                flashcardsListRef.current?.scrollToOffset({
-                  offset: clampedIndex * contentWidth,
-                  animated: true,
-                });
               }
+              // No manual scrollToOffset needed - pagingEnabled handles snapping
             }}
             scrollEnabled={true}
             style={styles.deckPager}
