@@ -16,6 +16,26 @@ import { useAuth } from '../../context/AuthContext';
 const { width } = Dimensions.get('window');
 const cardWidth = width * 0.9;
 
+// Helper function to interpolate between hex colors
+const interpolateColor = (color1: string, color2: string, factor: number): string => {
+  const hex1 = color1.replace('#', '');
+  const hex2 = color2.replace('#', '');
+  
+  const r1 = parseInt(hex1.substring(0, 2), 16);
+  const g1 = parseInt(hex1.substring(2, 4), 16);
+  const b1 = parseInt(hex1.substring(4, 6), 16);
+  
+  const r2 = parseInt(hex2.substring(0, 2), 16);
+  const g2 = parseInt(hex2.substring(2, 4), 16);
+  const b2 = parseInt(hex2.substring(4, 6), 16);
+  
+  const r = Math.round(r1 + (r2 - r1) * factor);
+  const g = Math.round(g1 + (g2 - g1) * factor);
+  const b = Math.round(b1 + (b2 - b1) * factor);
+  
+  return `#${[r, g, b].map(x => x.toString(16).padStart(2, '0')).join('')}`;
+};
+
 interface FlashcardItemProps {
   flashcard: Flashcard;
   onDelete?: (id: string) => void;
@@ -55,6 +75,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   
   // Rainbow border animation
   const rainbowAnim = useRef(new Animated.Value(0)).current;
+  const [rainbowBorderColor, setRainbowBorderColor] = useState('#FF0000');
   
   // Image fade animation
   const imageFadeAnim = useRef(new Animated.Value(0)).current;
@@ -71,26 +92,39 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
         })
       );
       loop.start();
+      
+      // Listen to animation updates and update border color state
+      const listenerId = rainbowAnim.addListener(({ value }) => {
+        const colors = [
+          '#FF0000', // Red
+          '#FF7F00', // Orange
+          '#FFFF00', // Yellow
+          '#00FF00', // Green
+          '#0000FF', // Blue
+          '#4B0082', // Indigo
+          '#FF0000', // Back to Red (loop)
+        ];
+        const segment = value * 6;
+        const index = Math.floor(segment) % 6;
+        const nextIndex = (index + 1) % 6;
+        const progress = segment % 1;
+        
+        // Interpolate between colors
+        const color1 = colors[index];
+        const color2 = colors[nextIndex];
+        const interpolatedColor = interpolateColor(color1, color2, progress);
+        setRainbowBorderColor(interpolatedColor);
+      });
+      
       return () => {
         loop.stop();
+        rainbowAnim.removeListener(listenerId);
         rainbowAnim.setValue(0);
       };
+    } else {
+      setRainbowBorderColor(COLORS.royalBlue50);
     }
   }, [isSrsModeActive, rainbowAnim]);
-  
-  // Interpolate rainbow colors
-  const rainbowColor = rainbowAnim.interpolate({
-    inputRange: [0, 0.17, 0.33, 0.5, 0.67, 0.83, 1],
-    outputRange: [
-      '#FF0000', // Red
-      '#FF7F00', // Orange
-      '#FFFF00', // Yellow
-      '#00FF00', // Green
-      '#0000FF', // Blue
-      '#4B0082', // Indigo
-      '#FF0000', // Back to Red (loop)
-    ],
-  });
   
   // Create styles with responsive card height
   const styles = React.useMemo(() => createStyles(cardHeight), [cardHeight]);
@@ -436,6 +470,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   }, []);
 
   // Interpolate for front and back animations
+  // Content rotates relative to wrapper, so when wrapper rotates, content rotates with it
   const frontAnimatedStyle = {
     transform: [
       { 
@@ -532,7 +567,6 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
       <Animated.View style={[
         styles.cardWrapper,
         showImage && flashcard.imageUrl ? styles.expandedCardWrapper : null,
-        isSrsModeActive && { borderColor: rainbowColor, borderWidth: 1, borderRadius: 16 }
       ]}>
         {/* Front of the card */}
         <Animated.View style={[
@@ -540,7 +574,15 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
           styles.cardSide, 
           frontAnimatedStyle
         ]}>
-          <View style={styles.cardFront}>
+          <View style={[
+            styles.cardBorderWrapper,
+            {
+              borderWidth: 1,
+              borderColor: isSrsModeActive ? rainbowBorderColor : COLORS.royalBlue50,
+              borderRadius: 16
+            }
+          ]}>
+            <View style={styles.cardFront}>
             <ScrollView 
               ref={frontScrollViewRef}
               style={styles.scrollContainer}
@@ -623,6 +665,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
                 </Animated.View>
               )}
             </ScrollView>
+            </View>
           </View>
         </Animated.View>
 
@@ -632,7 +675,15 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
           styles.cardSide, 
           backAnimatedStyle
         ]}>
-          <View style={styles.cardBack}>
+          <View style={[
+            styles.cardBorderWrapper,
+            {
+              borderWidth: 1,
+              borderColor: isSrsModeActive ? rainbowBorderColor : COLORS.royalBlue50,
+              borderRadius: 16
+            }
+          ]}>
+            <View style={styles.cardBack}>
             <ScrollView 
               ref={backScrollViewRef}
               style={styles.scrollContainer}
@@ -795,6 +846,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
                 </View>
               )}
             </ScrollView>
+            </View>
           </View>
         </Animated.View>
       </Animated.View>
@@ -899,11 +951,9 @@ const createStyles = (responsiveCardHeight: number) => StyleSheet.create({
     backgroundColor: COLORS.darkSurface,
     position: 'relative',
     zIndex: 2, // Above the backdrop overlay (zIndex: 1)
-    borderWidth: 1,
-    borderColor: COLORS.royalBlue50,
   },
   expandedCardWrapper: {
-    paddingBottom: 12, // Add breathing room around the image without growing the layout
+    // Removed padding to prevent border size changes
   },
   cardContent: {
     position: 'absolute',
@@ -920,14 +970,29 @@ const createStyles = (responsiveCardHeight: number) => StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  cardBorderWrapper: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
   cardFront: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     padding: 20,
     paddingTop: 50,
     paddingBottom: 50,
   },
   cardBack: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     padding: 20,
     paddingTop: 50,
     paddingBottom: 50,

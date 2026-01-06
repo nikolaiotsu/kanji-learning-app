@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, ActivityIndicator, Dimensions, Animated } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, ActivityIndicator, Dimensions, Animated, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons, MaterialIcons, FontAwesome5, AntDesign, FontAwesome6, Feather } from '@expo/vector-icons';
@@ -2568,37 +2568,46 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
             style={styles.modalContainer}
           >
             <View style={styles.modalContent}>
-              <TextInput
-                style={styles.textInput}
-                value={inputText}
-                onChangeText={setInputText}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-                placeholder={t('textInput.placeholder')}
-                placeholderTextColor="#999"
-                autoFocus
-              />
-              <View style={styles.modalButtonsContainer}>
-                <TouchableOpacity 
-                  style={[styles.modalCancelButton, (localProcessing || isImageProcessing) ? styles.disabledButton : null]} 
-                  onPress={handleCancelTextInput}
-                  disabled={localProcessing || isImageProcessing}
-                >
-                  <Text style={styles.modalButtonText}>{t('textInput.cancel')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.modalSaveButton, (localProcessing || isImageProcessing) ? styles.disabledButton : null]} 
-                  onPress={handleSubmitTextInput}
-                  disabled={localProcessing || isImageProcessing}
-                >
-                  <Text style={styles.modalButtonText}>{t('textInput.translate')}</Text>
-                </TouchableOpacity>
+              <ScrollView 
+                style={styles.modalScrollContent}
+                contentContainerStyle={styles.modalScrollContentContainer}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                <TextInput
+                  style={styles.textInput}
+                  value={inputText}
+                  onChangeText={setInputText}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                  placeholder={t('textInput.placeholder')}
+                  placeholderTextColor="#999"
+                  autoFocus
+                />
+              </ScrollView>
+              <View style={styles.modalFooter}>
+                <View style={styles.modalButtonsContainer}>
+                  <TouchableOpacity 
+                    style={[styles.modalCancelButton, (localProcessing || isImageProcessing) ? styles.disabledButton : null]} 
+                    onPress={handleCancelTextInput}
+                    disabled={localProcessing || isImageProcessing}
+                  >
+                    <Text style={styles.modalButtonText}>{t('textInput.cancel')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.modalSaveButton, (localProcessing || isImageProcessing) ? styles.disabledButton : null]} 
+                    onPress={handleSubmitTextInput}
+                    disabled={localProcessing || isImageProcessing}
+                  >
+                    <Text style={styles.modalButtonText}>{t('textInput.translate')}</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           </KeyboardAvoidingView>
@@ -2803,15 +2812,29 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
   modalContent: {
     backgroundColor: COLORS.darkSurface,
     borderRadius: 12,
-    padding: 20,
     width: '100%',
     maxWidth: 500,
     marginBottom: Platform.OS === 'ios' ? 10 : 0,
-    maxHeight: '70%',
+    maxHeight: '80%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+    overflow: 'hidden',
+  },
+  modalScrollContent: {
+    flex: 1,
+  },
+  modalScrollContentContainer: {
+    padding: 20,
+    paddingBottom: 12,
+  },
+  modalFooter: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.mediumSurface,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 20,
   },
   modalTitle: {
     fontSize: 18,
@@ -2834,7 +2857,6 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
   modalButtonsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 20,
   },
   modalCancelButton: {
     backgroundColor: COLORS.mediumSurface,

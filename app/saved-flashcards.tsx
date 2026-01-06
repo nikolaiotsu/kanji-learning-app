@@ -702,34 +702,28 @@ export default function SavedFlashcardsScreen() {
   
   // Function to handle swipe between decks
   const handleDeckSwipe = (index: number) => {
-    if (index >= 0 && index < decks.length) {
-      const deck = decks[index];
-      
-      // Trigger the light animation
-      setTriggerLightAnimation(true);
-      
-      // Set loading state first to prevent showing stale content
-      setIsLoadingFlashcards(true);
-      setHasAppliedRequestedDeck(true);
-      
-      // Update selected deck ID and index
-      setSelectedDeckId(deck.id);
-      setSelectedDeckIndex(index);
-      
-      // Calculate appropriate view position based on deck location
-      const viewPosition = getViewPosition(index, decks.length);
-      
-      // Scroll the deck selector to keep the selected deck visible
-      try {
-        scrollDeckSelectorToIndex(index, viewPosition, true);
-      } catch {}
+      if (index >= 0 && index < decks.length) {
+        const deck = decks[index];
 
-      // Ensure the horizontal list is aligned to the selected deck
-      flashcardsListRef.current?.scrollToOffset({
-        offset: index * contentWidth,
-        animated: true,
-      });
-    }
+        // Trigger the light animation
+        setTriggerLightAnimation(true);
+
+        // Set loading state first to prevent showing stale content
+        setIsLoadingFlashcards(true);
+        setHasAppliedRequestedDeck(true);
+
+        // Update selected deck ID and index
+        setSelectedDeckId(deck.id);
+        setSelectedDeckIndex(index);
+
+        // Calculate appropriate view position based on deck location
+        const viewPosition = getViewPosition(index, decks.length);
+
+        // Scroll the deck selector to keep the selected deck visible
+        try {
+          scrollDeckSelectorToIndex(index, viewPosition, true);
+        } catch {}
+      }
   };
 
   // Function to handle editing flashcard
@@ -1172,13 +1166,13 @@ export default function SavedFlashcardsScreen() {
         
         {/* Deck pages with flashcards */}
         {!isLoadingDecks && decks.length > 0 && (
+          <View style={{ flex: 1 }}>
           <FlatList
             ref={flashcardsListRef}
             data={decks}
             renderItem={renderDeckPage}
             keyExtractor={(item) => item.id}
             horizontal
-            pagingEnabled
             showsHorizontalScrollIndicator={false}
             initialScrollIndex={selectedDeckIndex}
             getItemLayout={(_, index) => ({
@@ -1186,24 +1180,39 @@ export default function SavedFlashcardsScreen() {
               offset: contentWidth * index,
               index,
             })}
+            // DISABLE snapToInterval - it snaps to absolute positions, not relative to current deck
+            // We'll handle snapping manually in onMomentumScrollEnd based on swipe direction
+            decelerationRate="fast"
             onScrollBeginDrag={() => {
               isUserDragging.current = true;
             }}
+            onScrollEndDrag={() => {
+              // Reset dragging state - no longer used for velocity detection
+              // Velocity detection was moved to onMomentumScrollEnd for better accuracy
+            }}
             onMomentumScrollEnd={(e) => {
+              const scrollOffset = e.nativeEvent.contentOffset.x;
+              const currentExpectedOffset = selectedDeckIndex * contentWidth;
+              const offsetFromCurrent = scrollOffset - currentExpectedOffset;
+              const swipeDirection = Math.abs(offsetFromCurrent) > contentWidth / 2 ? Math.sign(offsetFromCurrent) : 0;
+              const targetIndex = Math.max(0, Math.min(selectedDeckIndex + swipeDirection, decks.length - 1));
+
               // Only process deck changes if user actually dragged (not just a tap)
               if (!isUserDragging.current) {
                 return;
               }
               isUserDragging.current = false;
-              
-              const scrollOffset = e.nativeEvent.contentOffset.x;
-              const newIndex = Math.round(scrollOffset / contentWidth);
-              const clampedIndex = Math.max(0, Math.min(newIndex, decks.length - 1));
-              if (clampedIndex !== selectedDeckIndex) {
-                // Only call handleDeckSwipe - let pagingEnabled handle the snap
-                handleDeckSwipe(clampedIndex);
+
+              // Snap to the correct deck position
+              const targetOffset = targetIndex * contentWidth;
+              flashcardsListRef.current?.scrollToOffset({
+                offset: targetOffset,
+                animated: true,
+              });
+
+              if (targetIndex !== selectedDeckIndex) {
+                handleDeckSwipe(targetIndex);
               }
-              // No manual scrollToOffset needed - pagingEnabled handles snapping
             }}
             scrollEnabled={true}
             style={styles.deckPager}
@@ -1213,6 +1222,7 @@ export default function SavedFlashcardsScreen() {
             decelerationRate="fast"
             snapToAlignment="start"
           />
+          </View>
         )}
         
         {isLoadingDecks && (
@@ -1511,3 +1521,4 @@ const styles = StyleSheet.create({
   },
 
 }); 
+
