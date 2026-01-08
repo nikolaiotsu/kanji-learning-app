@@ -342,9 +342,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   // Loading animation component - clean spinner without text
   const LoadingCard = () => (
     <View style={styles.cardContainer}>
-      <View style={styles.loadingCardContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
+      <ActivityIndicator size="large" color={COLORS.primary} />
     </View>
   );
 
@@ -1173,7 +1171,9 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           {/* Offline Indicator */}
           <OfflineBanner visible={!isConnected} />
         </View>
-        <LoadingCard />
+        <View style={styles.cardStage}>
+          <LoadingCard />
+        </View>
         <View style={styles.controlsContainer}>
           <Text 
             style={[styles.countText, { opacity: 0.5 }]}
@@ -1944,23 +1944,6 @@ const createStyles = (
     // Fixed height relative to CONTROLS_HEIGHT to prevent vertical jumping
     height: 16,
     lineHeight: 16,
-  },
-  loadingCardContainer: {
-    width: '100%',
-    minHeight: cardStageHeight, // Minimum height for readability
-    flex: 1, // Expand to fill available space
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.darkSurface,
-    borderRadius: 15,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
   },
   errorText: {
     color: COLORS.danger,

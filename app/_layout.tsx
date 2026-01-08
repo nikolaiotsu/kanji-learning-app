@@ -13,12 +13,18 @@ import { StyleSheet, View, Text, ActivityIndicator, LogBox } from 'react-native'
 import { COLORS } from './constants/colors';
 import TexturedBackground from './components/shared/TexturedBackground';
 import * as WebBrowser from 'expo-web-browser';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { useTranslation } from 'react-i18next';
 import { initializeSyncManager } from './services/syncManager';
+import * as SplashScreen from 'expo-splash-screen';
 
 import { logger } from './utils/logger';
+
+// Keep the splash screen visible while we fetch resources
+SplashScreen.preventAutoHideAsync().catch(() => {
+  // Ignore errors - splash screen may already be hidden
+});
 
 // Suppress network error warnings in the console when offline
 // These are expected and handled gracefully in our code
@@ -47,7 +53,7 @@ console.error = (...args) => {
 };
 
 export default function RootLayout() {
-  const [isI18nReady, setIsI18nReady] = useState(false);
+  const [isAppReady, setIsAppReady] = useState(false);
   const { i18n } = useTranslation();
 
   // Initialize WebBrowser to handle OAuth redirects
@@ -74,7 +80,7 @@ export default function RootLayout() {
     const checkI18nReady = () => {
       if (i18n.isInitialized) {
         logger.log('[RootLayout] i18n is ready, language:', i18n.language);
-        setIsI18nReady(true);
+        setIsAppReady(true);
       } else {
         logger.log('[RootLayout] i18n not ready, waiting...');
         // Retry after a short delay
@@ -94,85 +100,96 @@ export default function RootLayout() {
     };
   }, []);
 
-  // Show loading screen while i18n is initializing
-  if (!isI18nReady) {
-    return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
-    );
-  }
+  // Hide splash screen once the app is ready and layout is complete
+  const onLayoutRootView = useCallback(async () => {
+    if (isAppReady) {
+      // Add a small delay to ensure layout is stable before hiding splash
+      await new Promise(resolve => setTimeout(resolve, 50));
+      await SplashScreen.hideAsync();
+    }
+  }, [isAppReady]);
 
+  // Keep SafeAreaProvider and GestureHandlerRootView always mounted
+  // to prevent layout shifts when safe area insets are calculated
   return (
-    <TexturedBackground variant="default" style={styles.container}>
-      <GestureHandlerRootView style={styles.gestureContainer}>
-        <SafeAreaProvider>
-          <AuthProvider>
-            <SettingsProvider>
-              <SubscriptionProvider>
-                <OCRCounterProvider>
-                  <FlashcardCounterProvider>
-                    <SwipeCounterProvider>
-                      <AuthGuard>
-                  <Stack
-                    screenOptions={{
-                      headerShown: true,
-                      headerStyle: {
-                        backgroundColor: 'transparent',
-                      },
-                      headerTintColor: COLORS.text,
-                      headerTitleStyle: {
-                        fontWeight: 'bold',
-                      },
-                      headerBackTitle: 'Back',
-                      contentStyle: {
-                        backgroundColor: 'transparent',
-                      },
-                      // Add border and shadow to make headers pop
-                      headerShadowVisible: true,
-                    }}
-                  >
-                    <Stack.Screen name="(screens)" options={{ headerShown: false }} />
-                    <Stack.Screen name="index" options={{ headerShown: false, title: 'Home' }} />
-                    <Stack.Screen
-                      name="flashcards"
-                      options={{
-                        title: 'Make a Flashcard',
-                        gestureEnabled: true,
-                        presentation: 'modal'
-                      }}
-                    />
-                    <Stack.Screen
-                      name="saved-flashcards"
-                      options={{
-                        headerShown: false,
-                        gestureEnabled: true,
-                        presentation: 'modal'
-                      }}
-                    />
-                    <Stack.Screen 
-                      name="settings" 
-                      options={{ 
-                        title: 'Settings',
-                        presentation: 'modal',
-                        gestureEnabled: true
-                      }} 
-                    />
-                    <Stack.Screen name="login" options={{ title: 'Login', headerShown: false }} />
-                    <Stack.Screen name="signup" options={{ title: 'Sign Up', headerShown: false }} />
-                    <Stack.Screen name="reset-password" options={{ title: 'Reset Password' }} />
-                  </Stack>
-                      </AuthGuard>
-                    </SwipeCounterProvider>
-                  </FlashcardCounterProvider>
-                </OCRCounterProvider>
-              </SubscriptionProvider>
-            </SettingsProvider>
-          </AuthProvider>
-        </SafeAreaProvider>
-      </GestureHandlerRootView>
-    </TexturedBackground>
+    <GestureHandlerRootView style={styles.gestureContainer}>
+      <SafeAreaProvider>
+        <TexturedBackground variant="default" style={styles.container}>
+          {!isAppReady ? (
+            // Loading state - keep same background and structure
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+              <Text style={styles.loadingText}>Loading...</Text>
+            </View>
+          ) : (
+            <View style={styles.container} onLayout={onLayoutRootView}>
+              <AuthProvider>
+                <SettingsProvider>
+                  <SubscriptionProvider>
+                    <OCRCounterProvider>
+                      <FlashcardCounterProvider>
+                        <SwipeCounterProvider>
+                          <AuthGuard>
+                            <Stack
+                              screenOptions={{
+                                headerShown: true,
+                                headerStyle: {
+                                  backgroundColor: 'transparent',
+                                },
+                                headerTintColor: COLORS.text,
+                                headerTitleStyle: {
+                                  fontWeight: 'bold',
+                                },
+                                headerBackTitle: 'Back',
+                                contentStyle: {
+                                  backgroundColor: 'transparent',
+                                },
+                                // Add border and shadow to make headers pop
+                                headerShadowVisible: true,
+                              }}
+                            >
+                              <Stack.Screen name="(screens)" options={{ headerShown: false }} />
+                              <Stack.Screen name="index" options={{ headerShown: false, title: 'Home' }} />
+                              <Stack.Screen
+                                name="flashcards"
+                                options={{
+                                  title: 'Make a Flashcard',
+                                  gestureEnabled: true,
+                                  presentation: 'modal'
+                                }}
+                              />
+                              <Stack.Screen
+                                name="saved-flashcards"
+                                options={{
+                                  headerShown: false,
+                                  gestureEnabled: true,
+                                  presentation: 'modal'
+                                }}
+                              />
+                              <Stack.Screen 
+                                name="settings" 
+                                options={{ 
+                                  title: 'Settings',
+                                  presentation: 'modal',
+                                  gestureEnabled: true
+                                }} 
+                              />
+                              <Stack.Screen name="login" options={{ title: 'Login', headerShown: false }} />
+                              <Stack.Screen name="signup" options={{ title: 'Sign Up', headerShown: false }} />
+                              <Stack.Screen name="reset-password" options={{ title: 'Reset Password' }} />
+                            </Stack>
+                          </AuthGuard>
+                        </SwipeCounterProvider>
+                      </FlashcardCounterProvider>
+                    </OCRCounterProvider>
+                  </SubscriptionProvider>
+                </SettingsProvider>
+              </AuthProvider>
+            </View>
+          )}
+        </TexturedBackground>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
@@ -187,7 +204,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    // No background color - let TexturedBackground show through
   },
   loadingText: {
     marginTop: 10,

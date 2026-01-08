@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/worddexiconlogo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0F172A"
     },
     "ios": {
       "supportsTablet": true,
@@ -28,7 +28,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/worddexiconlogo.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#0F172A"
       },
       "package": "com.bluve01.kanjilearningapp",
       "permissions": ["INTERNET"],
@@ -39,6 +39,14 @@
       "favicon": "./assets/worddexiconlogo.png"
     },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0A1628",
+          "image": "./assets/worddexiconlogo.png",
+          "resizeMode": "contain"
+        }
+      ],
       "expo-router",
       "expo-dev-client",
       "expo-web-browser",
