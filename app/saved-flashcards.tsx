@@ -335,13 +335,15 @@ export default function SavedFlashcardsScreen() {
       setFlashcards([]);
       loadFlashcardsByDeck(selectedDeckId);
     } else {
-      // If no decks are available, show empty state
-      if (decks.length === 0) {
+      // Only show empty state if decks have FINISHED loading and there are none
+      // Don't set isLoadingFlashcards to false while decks are still loading
+      // This prevents the flash of "no flashcards" text during initial load
+      if (!isLoadingDecks && decks.length === 0) {
         setFlashcards([]);
         setIsLoadingFlashcards(false);
       }
     }
-  }, [selectedDeckId, decks]);
+  }, [selectedDeckId, decks, isLoadingDecks]);
 
   // Function to load decks from storage
   const loadDecks = async () => {
@@ -896,7 +898,6 @@ export default function SavedFlashcardsScreen() {
               isLoadingFlashcards ? (
                 <View style={styles.loadingContainer}>
                   <ActivityIndicator size="large" color="#007AFF" />
-                  <Text style={styles.loadingText}>{t('savedFlashcards.loadingFlashcards')}</Text>
                 </View>
               ) : (
                 <FlatList
@@ -1194,7 +1195,6 @@ export default function SavedFlashcardsScreen() {
         {isLoadingDecks && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#007AFF" />
-                          <Text style={styles.loadingText}>{t('savedFlashcards.loadingFlashcards')}</Text>
           </View>
         )}
 

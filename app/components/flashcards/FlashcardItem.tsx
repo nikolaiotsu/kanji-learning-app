@@ -436,6 +436,13 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
     })
   };
 
+  // Hide action buttons during flip animation to prevent grey dot artifact
+  const actionButtonsOpacity = flipAnim.interpolate({
+    inputRange: [0, 0.1, 0.9, 1],
+    outputRange: [1, 0, 0, 1],
+    extrapolate: 'clamp',
+  });
+
   // Enhanced image preloading with better error handling
   useEffect(() => {
     if (flashcard.imageUrl) {
@@ -746,7 +753,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
       </Animated.View>
       
       {/* Card Actions */}
-      <View style={styles.actionButtonsContainer}>
+      <Animated.View style={[styles.actionButtonsContainer, { opacity: actionButtonsOpacity }]}>
         {onDelete && (
           <TouchableOpacity 
             style={[styles.deleteButton, !isOnline && styles.disabledButton]} 
@@ -785,7 +792,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
             />
           </TouchableOpacity>
         )}
-      </View>
+      </Animated.View>
       
       {/* Bottom right actions for image and flip */}
       <View style={styles.bottomRightActionsContainer}>
@@ -842,7 +849,7 @@ const createStyles = (responsiveCardHeight: number) => StyleSheet.create({
     maxHeight: responsiveCardHeight,
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: COLORS.darkSurface,
+    backgroundColor: '#000000', // Black background to enhance flip effect
     position: 'relative',
     zIndex: 2, // Above the backdrop overlay (zIndex: 1)
   },

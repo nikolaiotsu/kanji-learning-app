@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Animated, PanResponder, Dimensions, Alert } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Animated, PanResponder, Dimensions, Alert, Easing } from 'react-native';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -571,6 +571,13 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     opacityAnim.setValue(0);
     transitionLoadingOpacity.setValue(0);
   }, []);
+
+  // Ensure opacity starts at 0 when transitioning to prevent flash
+  useEffect(() => {
+    if (isCardTransitioning || isInitializing) {
+      opacityAnim.setValue(0);
+    }
+  }, [isCardTransitioning, isInitializing, opacityAnim]);
   
   // Reset transition loading opacity when loading completes
   useEffect(() => {
@@ -944,7 +951,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           toValue: 0,
           duration: 250, // Smooth fade duration
           useNativeDriver: true,
-          easing: Animated.ease, // Use ease for smoother animation
+          easing: Easing.out(Easing.quad), // Use ease for smoother animation
         }).start(() => {
           // After fade-out completes, hide counter
           setShouldShowCounter(false);
@@ -1698,30 +1705,31 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       </View>
       
       <View style={styles.cardStage}>
-        {/* Show loading during transitions or mode changes, otherwise show card if available */}
-        {isCardTransitioning ? (
-          <LoadingCard />
-        ) : currentCard ? (
-          <Animated.View 
-            style={[
-              styles.cardContainer, 
-              { 
-                transform: [
-                  { translateX: slideAnim },
-                  { rotate: rotateAnim.interpolate({
-                    inputRange: [-300, 0, 300],
-                    outputRange: ['-10deg', '0deg', '10deg']
-                  }) }
-                ],
-                opacity: isInitializing ? fadeAnim : opacityAnim
-              }
-            ]}
-            {...panResponder.panHandlers}
-          >
+        {/* Always render the card container to prevent layout shifts */}
+        <Animated.View
+          style={[
+            styles.cardContainer,
+            {
+              transform: [
+                { translateX: slideAnim },
+                { rotate: rotateAnim.interpolate({
+                  inputRange: [-300, 0, 300],
+                  outputRange: ['-10deg', '0deg', '10deg']
+                }) }
+              ],
+              opacity: opacityAnim
+            }
+          ]}
+          {...panResponder.panHandlers}
+        >
+          {/* Show loading card when transitioning or initializing */}
+          {(isCardTransitioning || isInitializing || !currentCard) ? (
+            <LoadingCard />
+          ) : (
             <View style={styles.cardWithOverlayWrapper}>
-              <FlashcardItem 
+              <FlashcardItem
                 key={currentCard.id}
-                flashcard={currentCard} 
+                flashcard={currentCard}
                 disableTouchHandling={false}
                 cardHeight={CARD_STAGE_HEIGHT}
                 onImageToggle={(showImage) => {
@@ -1731,7 +1739,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               />
               {/* Right swipe overlay - Green with checkmark - Only show in SRS Mode */}
               {isSrsModeActive && (
-                <Animated.View 
+                <Animated.View
                   style={[
                     styles.swipeOverlay,
                     styles.swipeOverlayRight,
@@ -1744,7 +1752,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               )}
               {/* Left swipe overlay - Orange with loop/replay - Only show in SRS Mode */}
               {isSrsModeActive && (
-                <Animated.View 
+                <Animated.View
                   style={[
                     styles.swipeOverlay,
                     styles.swipeOverlayLeft,
@@ -1755,23 +1763,22 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                   <Ionicons name="refresh" size={80} color={COLORS.text} />
                 </Animated.View>
               )}
-              {/* Transition loading overlay - smooth fade in/out without layout shift */}
-              {isTransitionLoading && (
-                <Animated.View 
-                  style={[
-                    styles.transitionLoadingOverlay,
-                    { opacity: transitionLoadingOpacity }
-                  ]}
-                  pointerEvents="none"
-                >
-                  <ActivityIndicator size="large" color={COLORS.primary} />
-                </Animated.View>
-              )}
             </View>
-          </Animated.View>
-        ) : isInitializing ? (
-          <LoadingCard />
-        ) : null}
+          )}
+
+          {/* Transition loading overlay - smooth fade in/out without layout shift */}
+          {isTransitionLoading && (
+            <Animated.View
+              style={[
+                styles.transitionLoadingOverlay,
+                { opacity: transitionLoadingOpacity }
+              ]}
+              pointerEvents="none"
+            >
+              <ActivityIndicator size="large" color={COLORS.primary} />
+            </Animated.View>
+          )}
+        </Animated.View>
       </View>
 
       <View style={[
