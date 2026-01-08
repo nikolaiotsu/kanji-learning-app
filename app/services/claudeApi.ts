@@ -5432,6 +5432,11 @@ export async function processWithClaudeAndScope(
       throw new Error('Claude API key not configured');
     }
     
+    // Use Haiku 3.5 only for Japanese (complex furigana readings), regular Haiku for other languages
+    const wordScopeModel = forcedLanguage === 'ja' 
+      ? 'claude-3-5-haiku-20241022'  // Better accuracy for Japanese compound word readings
+      : 'claude-3-haiku-20240307';   // Regular Haiku for other languages
+    
     // LANGUAGE VALIDATION (same logic as processWithClaude)
     // This ensures Latin-to-Latin language mismatches are caught before processing
     const latinLanguages = ['en', 'fr', 'es', 'it', 'pt', 'de', 'tl', 'eo'];
@@ -5899,7 +5904,7 @@ CRITICAL REQUIREMENTS:
       response = await axios.post(
         'https://api.anthropic.com/v1/messages',
         {
-          model: 'claude-3-5-haiku-20241022',  // Using Claude 3.5 Haiku for WordScope
+          model: wordScopeModel,  // Haiku 3.5 for Japanese, regular Haiku for others
           max_tokens: 1024,
           temperature: 0.3,
           system: [
@@ -5947,7 +5952,7 @@ CRITICAL REQUIREMENTS:
       response = await axios.post(
       'https://api.anthropic.com/v1/messages',
       {
-        model: 'claude-3-5-haiku-20241022',  // Using Claude 3.5 Haiku for WordScope
+        model: wordScopeModel,  // Haiku 3.5 for Japanese, regular Haiku for others
         max_tokens: 1024, // Increased for combined response
         temperature: 0.3,
         messages: [{ role: 'user', content: combinedPrompt }]
@@ -6022,7 +6027,7 @@ CRITICAL REQUIREMENTS:
     
     // Log successful combined API call
     await logClaudeAPI(metrics, true, rawResponse, undefined, {
-      model: 'claude-3-5-haiku-20241022',
+      model: wordScopeModel,
       targetLanguage,
       forcedLanguage,
       textLength: normalizedText.length,
@@ -6077,6 +6082,11 @@ async function processWithClaudeAndScopeFallback(
     if (!apiKey) {
       throw new Error('Claude API key not configured');
     }
+    
+    // Use Haiku 3.5 only for Japanese (complex furigana readings), regular Haiku for other languages
+    const wordScopeModel = forcedLanguage === 'ja' 
+      ? 'claude-3-5-haiku-20241022'  // Better accuracy for Japanese compound word readings
+      : 'claude-3-haiku-20240307';   // Regular Haiku for other languages
     
     const targetLangName = LANGUAGE_NAMES_MAP[targetLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'English';
     const sourceLangName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'the source language';
@@ -6142,7 +6152,7 @@ RULES:
     const response = await axios.post(
       'https://api.anthropic.com/v1/messages',
       {
-        model: 'claude-3-5-haiku-20241022',  // Using Claude 3.5 Haiku for WordScope
+        model: wordScopeModel,  // Haiku 3.5 for Japanese, regular Haiku for others
         max_tokens: 512,
         temperature: 0.3,
         messages: [{ role: 'user', content: scopePrompt }]
@@ -6214,7 +6224,7 @@ RULES:
     }
     
     await logClaudeAPI(scopeMetrics, true, formattedScopeAnalysis, undefined, {
-      model: 'claude-3-5-haiku-20241022',
+      model: wordScopeModel,
       targetLanguage,
       forcedLanguage,
       textLength: text.length,
