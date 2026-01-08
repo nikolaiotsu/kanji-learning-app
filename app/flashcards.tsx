@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, Platform, ActivityIndicator, ScrollView, Toucha
 import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { processWithClaude, processWithClaudeAndScope, fetchSingleScopeAnalysis, validateLanguageWithClaude, LanguageMismatchInfo, ClaudeResponse } from './services/claudeApi';
+import { processWithClaude, processWithClaudeAndScope, validateLanguageWithClaude, LanguageMismatchInfo, ClaudeResponse } from './services/claudeApi';
 import { 
   cleanText, 
   containsJapanese, 
@@ -42,6 +42,7 @@ const LANGUAGE_NAME_TO_CODE: Record<string, string> = Object.entries(AVAILABLE_L
 );
 import { COLORS } from './constants/colors';
 import { FontAwesome6 } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import PokedexLayout from './components/shared/PokedexLayout';
 import FuriganaText from './components/shared/FuriganaText';
 import { useFlashcardCounter } from './context/FlashcardCounterContext';
@@ -112,8 +113,6 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
   const [processingProgress, setProcessingProgress] = useState(0);
   const [processingFailed, setProcessingFailed] = useState(false);
   
-  // State for appending alternate analysis
-  const [isAppendingAnalysis, setIsAppendingAnalysis] = useState(false);
   
   // State for the image display
   const [showImagePreview, setShowImagePreview] = useState(false);
@@ -930,48 +929,6 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     setShowEditTranslationModal(true);
   };
 
-  // Function to handle appending alternate analysis (etymology or grammar)
-  const handleAppendAlternateAnalysis = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
-    if (!editedText || !scopeAnalysis) {
-      return;
-    }
-    
-    logger.log('🔬 [Scope] Appending alternate analysis');
-    setIsAppendingAnalysis(true);
-    
-    try {
-      // Determine current analysis type based on text
-      const isWord = !(/[.!?。！？]/.test(editedText)) && editedText.trim().length < 50;
-      const currentType = isWord ? 'etymology' : 'grammar';
-      const alternateType = currentType === 'etymology' ? 'grammar' : 'etymology';
-      
-      // Fetch the alternate analysis
-      const alternateAnalysis = await fetchSingleScopeAnalysis(
-        editedText,
-        alternateType,
-        targetLanguage,
-        forcedDetectionLanguage
-      );
-      
-      if (alternateAnalysis) {
-        // Append with clear separator
-        const separator = `\n\n--- ${alternateType === 'etymology' ? 'Etymology & Context' : 'Grammar Analysis'} ---\n\n`;
-        const updatedAnalysis = scopeAnalysis + separator + alternateAnalysis;
-        setScopeAnalysis(updatedAnalysis);
-        logger.log('🔬 [Scope] Successfully appended alternate analysis');
-      }
-    } catch (error) {
-      logger.error('🔬 [Scope] Failed to append alternate analysis:', error);
-      Alert.alert(
-        t('common.error'),
-        'Failed to fetch additional analysis. Please try again.'
-      );
-    } finally {
-      setIsAppendingAnalysis(false);
-    }
-  };
 
   return (
     <PokedexLayout 
@@ -1033,51 +990,117 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                 style={styles.editButton}
                 onPress={handleEditText}
               >
-                <Ionicons 
-                  name="pencil" 
-                  size={20} 
-                  color="#ffffff" 
-                  style={styles.buttonIcon} 
+                {/* Main gradient background */}
+                <LinearGradient
+                  colors={['rgba(140, 140, 140, 0.35)', 'rgba(100, 100, 100, 0.45)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={StyleSheet.absoluteFill}
                 />
-                <Text style={styles.buttonText}>
-                  Edit Text
-                </Text>
+                
+                {/* Glass highlight overlay (top shine) */}
+                <LinearGradient
+                  colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 0.6 }}
+                  style={styles.glassOverlay}
+                />
+                
+                {/* Inner glow border */}
+                <View style={styles.innerBorder} />
+                
+                {/* Button content */}
+                <View style={styles.buttonContent}>
+                  <Ionicons 
+                    name="pencil" 
+                    size={20} 
+                    color="#ffffff" 
+                    style={styles.buttonIcon} 
+                  />
+                  <Text style={styles.buttonText}>
+                    Edit Text
+                  </Text>
+                </View>
               </TouchableOpacity>
               
               <TouchableOpacity
                 style={styles.scopeAndTranslateButton}
                 onPress={handleScopeAndTranslate}
               >
-                <View style={styles.dualIconContainer}>
-                  <FontAwesome5 
-                    name="microscope" 
-                    size={16} 
-                    color="#ffffff" 
-                  />
-                  <Ionicons 
-                    name="language" 
-                    size={16} 
-                    color="#ffffff" 
-                  />
+                {/* Main gradient background */}
+                <LinearGradient
+                  colors={['rgba(140, 140, 140, 0.35)', 'rgba(100, 100, 100, 0.45)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                />
+                
+                {/* Glass highlight overlay (top shine) */}
+                <LinearGradient
+                  colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 0.6 }}
+                  style={styles.glassOverlay}
+                />
+                
+                {/* Inner glow border */}
+                <View style={styles.innerBorder} />
+                
+                {/* Button content */}
+                <View style={styles.buttonContent}>
+                  <View style={styles.dualIconContainer}>
+                    <FontAwesome5 
+                      name="microscope" 
+                      size={16} 
+                      color="#ffffff" 
+                    />
+                    <Ionicons 
+                      name="language" 
+                      size={16} 
+                      color="#ffffff" 
+                    />
+                  </View>
+                  <Text style={styles.buttonText}>
+                    Wordscope
+                  </Text>
                 </View>
-                <Text style={styles.buttonText}>
-                  Scope & Translate
-                </Text>
               </TouchableOpacity>
               
               <TouchableOpacity
                 style={styles.translateButton}
                 onPress={handleTranslate}
               >
-                <Ionicons 
-                  name="language" 
-                  size={20} 
-                  color="#ffffff" 
-                  style={styles.buttonIcon} 
+                {/* Main gradient background */}
+                <LinearGradient
+                  colors={['rgba(140, 140, 140, 0.35)', 'rgba(100, 100, 100, 0.45)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={StyleSheet.absoluteFill}
                 />
-                <Text style={styles.buttonText}>
-                  Translate
-                </Text>
+                
+                {/* Glass highlight overlay (top shine) */}
+                <LinearGradient
+                  colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 0.6 }}
+                  style={styles.glassOverlay}
+                />
+                
+                {/* Inner glow border */}
+                <View style={styles.innerBorder} />
+                
+                {/* Button content */}
+                <View style={styles.buttonContent}>
+                  <Ionicons 
+                    name="language" 
+                    size={20} 
+                    color="#ffffff" 
+                    style={styles.buttonIcon} 
+                  />
+                  <Text style={styles.buttonText}>
+                    Translate
+                  </Text>
+                </View>
               </TouchableOpacity>
             </View>
           )}
@@ -1172,44 +1195,12 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                     </View>
                   )}
                   
-                  {scopeAnalysis && (() => {
-                    // Match the same logic used by the API to determine word vs sentence
-                    const isWordInput = editedText && !(/[.!?。！？]/.test(editedText)) && editedText.trim().length < 50;
-                    return (
+                  {scopeAnalysis && (
                     <View style={styles.resultContainer}>
-                      <Text style={styles.sectionTitle}>
-                        {isWordInput ? 'Etymology & Context' : 'Grammar Analysis'}
-                      </Text>
+                      <Text style={styles.sectionTitle}>Wordscope</Text>
                       <Text style={styles.scopeAnalysisText} numberOfLines={0}>{scopeAnalysis}</Text>
-                      
-                      {/* Append Alternate Analysis Button */}
-                      {!scopeAnalysis.includes('--- Etymology & Context ---') && 
-                       !scopeAnalysis.includes('--- Grammar Analysis ---') && (
-                        <TouchableOpacity
-                          style={styles.appendAnalysisButton}
-                          onPress={handleAppendAlternateAnalysis}
-                          disabled={isAppendingAnalysis}
-                        >
-                          {isAppendingAnalysis ? (
-                            <ActivityIndicator size="small" color="#ffffff" />
-                          ) : (
-                            <>
-                              <View style={styles.dualIconContainer}>
-                                <FontAwesome5 name="microscope" size={16} color="#ffffff" />
-                                <Ionicons name="add-circle-outline" size={16} color="#ffffff" />
-                              </View>
-                              <Text style={styles.appendAnalysisButtonText}>
-                                {isWordInput 
-                                  ? 'Add Grammar' 
-                                  : 'Add Etymology & Context'}
-                              </Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
-                      )}
                     </View>
-                    );
-                  })()}
+                  )}
 
                   {/* 2x2 Button Grid */}
                   {textProcessed && translatedText && (
@@ -1220,8 +1211,30 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                           style={[styles.gridButton, { flex: 1 }]}
                           onPress={handleViewSavedFlashcards}
                         >
-                          <Ionicons name="albums-outline" size={20} color="#ffffff" style={styles.buttonIcon} />
-                          <Text style={styles.gridButtonText}>{t('flashcard.save.viewSaved')}</Text>
+                          {/* Main gradient background */}
+                          <LinearGradient
+                            colors={['rgba(100, 116, 139, 0.35)', 'rgba(71, 85, 105, 0.45)']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 0, y: 1 }}
+                            style={StyleSheet.absoluteFill}
+                          />
+                          
+                          {/* Glass highlight overlay (top shine) */}
+                          <LinearGradient
+                            colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 0, y: 0.6 }}
+                            style={styles.glassOverlay}
+                          />
+                          
+                          {/* Inner glow border */}
+                          <View style={styles.innerBorder} />
+                          
+                          {/* Button content */}
+                          <View style={styles.gridButtonContent}>
+                            <Ionicons name="albums-outline" size={20} color="#ffffff" style={styles.buttonIcon} />
+                            <Text style={styles.gridButtonText}>{t('flashcard.save.viewSaved')}</Text>
+                          </View>
                         </TouchableOpacity>
 
                         <TouchableOpacity
@@ -1235,30 +1248,70 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                           onPress={handleShowDeckSelector}
                           disabled={isSaving || isSaved}
                         >
-                        {isSaving ? (
-                          <ActivityIndicator size="small" color="#ffffff" />
-                        ) : (
-                          <>
-                            <Ionicons 
-                              name={
-                                isSaved ? "checkmark-circle" : 
-                                !canCreateFlashcard ? "lock-closed" : 
-                                "bookmark-outline"
-                              } 
-                              size={20} 
-                              color={!canCreateFlashcard ? COLORS.darkGray : "#ffffff"}
-                              style={styles.buttonIcon} 
+                          {/* Main gradient background */}
+                          {isSaved ? (
+                            <LinearGradient
+                              colors={['rgba(255, 149, 0, 0.4)', 'rgba(255, 149, 0, 0.5)']}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 0, y: 1 }}
+                              style={StyleSheet.absoluteFill}
                             />
-                            <Text style={[
-                              styles.gridButtonText,
-                              !canCreateFlashcard ? { color: COLORS.darkGray } : null
-                            ]}>
-                              {isSaved ? t('flashcard.save.savedAsFlashcard') : 
-                               !canCreateFlashcard ? `Limit reached (${remainingFlashcards} left)` :
-                               t('flashcard.save.saveAsFlashcard')}
-                            </Text>
-                          </>
-                        )}
+                          ) : (isSaving || !canCreateFlashcard) ? (
+                            <LinearGradient
+                              colors={['rgba(51, 65, 85, 0.5)', 'rgba(30, 41, 59, 0.6)']}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 0, y: 1 }}
+                              style={StyleSheet.absoluteFill}
+                            />
+                          ) : (
+                            <LinearGradient
+                              colors={['rgba(100, 116, 139, 0.35)', 'rgba(71, 85, 105, 0.45)']}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 0, y: 1 }}
+                              style={StyleSheet.absoluteFill}
+                            />
+                          )}
+                          
+                          {/* Glass highlight overlay (top shine) - only if not disabled */}
+                          {(!isSaving && canCreateFlashcard) && (
+                            <LinearGradient
+                              colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 0, y: 0.6 }}
+                              style={styles.glassOverlay}
+                            />
+                          )}
+                          
+                          {/* Inner glow border */}
+                          <View style={styles.innerBorder} />
+                          
+                          {/* Button content */}
+                          <View style={styles.gridButtonContent}>
+                            {isSaving ? (
+                              <ActivityIndicator size="small" color="#ffffff" />
+                            ) : (
+                              <>
+                                <Ionicons 
+                                  name={
+                                    isSaved ? "checkmark-circle" : 
+                                    !canCreateFlashcard ? "lock-closed" : 
+                                    "bookmark-outline"
+                                  } 
+                                  size={20} 
+                                  color={!canCreateFlashcard ? COLORS.darkGray : "#ffffff"}
+                                  style={styles.buttonIcon} 
+                                />
+                                <Text style={[
+                                  styles.gridButtonText,
+                                  !canCreateFlashcard ? { color: COLORS.darkGray } : null
+                                ]}>
+                                  {isSaved ? t('flashcard.save.savedAsFlashcard') : 
+                                   !canCreateFlashcard ? `Limit reached (${remainingFlashcards} left)` :
+                                   t('flashcard.save.saveAsFlashcard')}
+                                </Text>
+                              </>
+                            )}
+                          </View>
                         </TouchableOpacity>
                     </View>
 
@@ -1268,16 +1321,60 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                           style={[styles.gridButton, styles.editTranslationGridButton]} 
                           onPress={handleEditTranslation}
                         >
-                          <Ionicons name="pencil" size={18} color="#ffffff" style={styles.buttonIcon} />
-                          <Text style={styles.gridButtonText}>{t('flashcard.edit.editTranslation')}</Text>
+                          {/* Main gradient background - green */}
+                          <LinearGradient
+                            colors={['rgba(44, 182, 125, 0.4)', 'rgba(34, 151, 103, 0.5)']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 0, y: 1 }}
+                            style={StyleSheet.absoluteFill}
+                          />
+                          
+                          {/* Glass highlight overlay (top shine) */}
+                          <LinearGradient
+                            colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 0, y: 0.6 }}
+                            style={styles.glassOverlay}
+                          />
+                          
+                          {/* Inner glow border */}
+                          <View style={styles.innerBorder} />
+                          
+                          {/* Button content */}
+                          <View style={styles.gridButtonContent}>
+                            <Ionicons name="pencil" size={18} color="#ffffff" style={styles.buttonIcon} />
+                            <Text style={styles.gridButtonText}>{t('flashcard.edit.editTranslation')}</Text>
+                          </View>
                         </TouchableOpacity>
                         
                         <TouchableOpacity 
                           style={[styles.gridButton, styles.editInputGridButton]} 
                           onPress={handleEditInputAndRetranslate}
                         >
-                          <Ionicons name="refresh" size={18} color="#ffffff" style={styles.buttonIcon} />
-                          <Text style={styles.gridButtonText}>{t('flashcard.edit.editInputRetranslate')}</Text>
+                          {/* Main gradient background - red */}
+                          <LinearGradient
+                            colors={['rgba(255, 107, 107, 0.4)', 'rgba(220, 38, 38, 0.5)']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 0, y: 1 }}
+                            style={StyleSheet.absoluteFill}
+                          />
+                          
+                          {/* Glass highlight overlay (top shine) */}
+                          <LinearGradient
+                            colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 0, y: 0.6 }}
+                            style={styles.glassOverlay}
+                          />
+                          
+                          {/* Inner glow border */}
+                          <View style={styles.innerBorder} />
+                          
+                          {/* Button content */}
+                          <View style={styles.gridButtonContent}>
+                            <Ionicons name="refresh" size={18} color="#ffffff" style={styles.buttonIcon} />
+                            <Text style={styles.gridButtonText}>{t('flashcard.edit.editInputRetranslate')}</Text>
+                          </View>
                         </TouchableOpacity>
                       </View>
 
@@ -1567,28 +1664,40 @@ const styles = StyleSheet.create({
   editButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.mediumSurface,
     borderRadius: 8,
     width: 90,
     height: 90,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    overflow: 'hidden',
+    // Glassmorphism border
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    // Soft shadow for depth
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 2,
+    shadowRadius: 8,
+    elevation: 8,
+    // Background blur simulation (via semi-transparent background)
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
   },
   scopeAndTranslateButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.mediumSurface,
     borderRadius: 8,
     width: 90,
     height: 90,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    overflow: 'hidden',
+    // Glassmorphism border
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    // Soft shadow for depth
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 2,
+    shadowRadius: 8,
+    elevation: 8,
+    // Background blur simulation (via semi-transparent background)
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
   },
   dualIconContainer: {
     flexDirection: 'row',
@@ -1598,15 +1707,46 @@ const styles = StyleSheet.create({
   translateButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.mediumSurface,
     borderRadius: 8,
     width: 90,
     height: 90,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    overflow: 'hidden',
+    // Glassmorphism border
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    // Soft shadow for depth
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 2,
+    shadowRadius: 8,
+    elevation: 8,
+    // Background blur simulation (via semi-transparent background)
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+  },
+  glassOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '60%',
+    borderRadius: 8,
+  },
+  innerBorder: {
+    position: 'absolute',
+    top: 1,
+    left: 1,
+    right: 1,
+    bottom: 1,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 7,
+    pointerEvents: 'none',
+  },
+  buttonContent: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
   },
   loadingContainer: {
     marginTop: 20,
@@ -1745,15 +1885,15 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   savedButton: {
-    backgroundColor: COLORS.secondary,
+    // Gradient handled in component
   },
   disabledButton: {
-    backgroundColor: COLORS.darkSurface,
     opacity: 0.8,
+    // Gradient handled in component
   },
   darkDisabledButton: {
-    backgroundColor: COLORS.disabledDark,
     opacity: 0.8,
+    // Gradient handled in component
   },
   modalContainer: {
     flex: 1,
@@ -1934,15 +2074,21 @@ const styles = StyleSheet.create({
   gridButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.darkGray,
     borderRadius: 8,
     paddingVertical: 16,
     paddingHorizontal: 12,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    overflow: 'hidden',
+    // Glassmorphism border
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    // Soft shadow for depth
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 2,
+    shadowRadius: 8,
+    elevation: 8,
+    // Background blur simulation (via semi-transparent background)
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
     flex: 1,
     minHeight: 80,
   },
@@ -1955,13 +2101,19 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   saveGridButton: {
-    backgroundColor: COLORS.darkGray,
+    // Gradient handled in component
   },
   editTranslationGridButton: {
-    backgroundColor: '#2CB67D',
+    // Gradient handled in component
   },
   editInputGridButton: {
-    backgroundColor: '#FF6B6B',
+    // Gradient handled in component
+  },
+  gridButtonContent: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
   },
   modalImageContainer: {
     marginBottom: 16,

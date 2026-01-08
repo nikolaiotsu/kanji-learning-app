@@ -375,7 +375,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <PokedexLayout>
+    <PokedexLayout showLights={false}>
       <ScrollView>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('settings.preferences')}</Text>

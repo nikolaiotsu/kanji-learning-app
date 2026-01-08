@@ -139,17 +139,26 @@ export default function RootLayout() {
                       name="flashcards"
                       options={{
                         title: 'Make a Flashcard',
-                        gestureEnabled: false,
+                        gestureEnabled: true,
+                        presentation: 'modal'
                       }}
                     />
                     <Stack.Screen
                       name="saved-flashcards"
                       options={{
                         headerShown: false,
-                        gestureEnabled: false,
+                        gestureEnabled: true,
+                        presentation: 'modal'
                       }}
                     />
-                    <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+                    <Stack.Screen 
+                      name="settings" 
+                      options={{ 
+                        title: 'Settings',
+                        presentation: 'modal',
+                        gestureEnabled: true
+                      }} 
+                    />
                     <Stack.Screen name="login" options={{ title: 'Login', headerShown: false }} />
                     <Stack.Screen name="signup" options={{ title: 'Sign Up', headerShown: false }} />
                     <Stack.Screen name="reset-password" options={{ title: 'Reset Password' }} />

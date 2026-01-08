@@ -322,126 +322,131 @@ export default memo(function PokedexLayout({
       <SafeAreaView style={[styles.safeArea, style]}>
         <StatusBar backgroundColor={COLORS.background} barStyle="light-content" />
         
+        {/* Conditionally render topSection based on showLights prop.
+            Settings screen sets showLights=false (default) to not show the header. */}
         {showLights && (
-          <View style={[styles.topSection, topSectionVariantStyle]}>
-            {/* Gradient overlay for top bar */}
-            <LinearGradient
-              colors={[COLORS.background, COLORS.background]}
-              style={StyleSheet.absoluteFill}
+        <View style={[
+          styles.topSection, 
+          topSectionVariantStyle
+        ]}>
+          {/* Gradient overlay for top bar */}
+          <LinearGradient
+            colors={[COLORS.background, COLORS.background]}
+            style={StyleSheet.absoluteFill}
+          />
+          
+          {variant === 'flashcards' ? (
+            <>
+              {/* Flashcards Variant: Main light with outer glow */}
+              <View style={{ position: 'relative', marginRight: 10 }}>
+                {/* Glow layers */}
+                <Animated.View 
+                  style={[
+                    {
+                      position: 'absolute',
+                      width: 140,
+                      height: 50,
+                      borderRadius: 25,
+                      backgroundColor: mainLightBaseColor,
+                      opacity: Animated.multiply(mainLightAnim, 0.08),
+                      top: -15,
+                      left: -20,
+                      zIndex: 3,
+                    }
+                  ]}
+                />
+                <Animated.View 
+                  style={[
+                    {
+                      position: 'absolute',
+                      width: 120,
+                      height: 35,
+                      borderRadius: 17,
+                      backgroundColor: mainLightBaseColor,
+                      opacity: Animated.multiply(mainLightAnim, 0.12),
+                      top: -7,
+                      left: -10,
+                      zIndex: 4,
+                    }
+                  ]}
+                />
+                <Animated.View 
+                  style={[
+                    {
+                      position: 'absolute',
+                      width: 110,
+                      height: 25,
+                      borderRadius: 12,
+                      backgroundColor: mainLightBaseColor,
+                      opacity: Animated.multiply(mainLightAnim, 0.15),
+                      top: -2,
+                      left: -5,
+                      zIndex: 5,
+                    }
+                  ]}
+                />
+                {/* Main light element */}
+                <Animated.View 
+                  style={[
+                    styles.flashcardsMainStatusBar,
+                    mainLightAnimatedStyle,
+                    { zIndex: 10 }
+                  ]}
+                >
+                  <LinearGradient
+                    colors={[COLORS.pokedexAmberGlow, COLORS.pokedexAmberDark]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <View style={[styles.flashcardsMainStatusBar_Reflection, { backgroundColor: mainLightPulseColor }]} />
+                </Animated.View>
+              </View>
+              <View style={styles.flashcardsSmallLightContainer}>
+                {smallLightColors.map((color, index) => renderSmallLight(color, index))}
+              </View>
+            </>
+          ) : (
+            <>
+              {/* Main Variant: Circular light with gradient */}
+              <View style={{ position: 'relative' }}>
+                <Animated.View 
+                  style={[
+                    styles.mainLight, 
+                    mainLightAnimatedStyle
+                  ]}
+                >
+                  <LinearGradient
+                    colors={['#F87171', '#EF4444', '#DC2626']}
+                    start={{ x: 0.3, y: 0 }}
+                    end={{ x: 0.7, y: 1 }}
+                    style={[StyleSheet.absoluteFill, { borderRadius: 22.5 }]}
+                  />
+                  <View style={styles.mainLightReflection} />
+                </Animated.View>
+              </View>
+              <View style={styles.smallLights}>
+                {smallLightColors.map((color, index) => (
+                  <View key={index} style={styles.smallLightContainer}>
+                    {renderSmallLight(color, index)}
+                  </View>
+                ))}
+              </View>
+            </>
+          )}
+          {/* Logo */}
+          {logoSource && (
+            <Image
+              source={logoSource}
+              style={[
+                styles.logoImage, 
+                logoStyle,
+                { opacity: 1 }
+              ]}
+              resizeMode="contain"
             />
-            
-            {variant === 'flashcards' ? (
-              <>
-                {/* Flashcards Variant: Main light with outer glow */}
-                <View style={{ position: 'relative', marginRight: 10 }}>
-                  {/* Glow layers */}
-                  <Animated.View 
-                    style={[
-                      {
-                        position: 'absolute',
-                        width: 140,
-                        height: 50,
-                        borderRadius: 25,
-                        backgroundColor: mainLightBaseColor,
-                        opacity: Animated.multiply(mainLightAnim, 0.08),
-                        top: -15,
-                        left: -20,
-                        zIndex: 3,
-                      }
-                    ]}
-                  />
-                  <Animated.View 
-                    style={[
-                      {
-                        position: 'absolute',
-                        width: 120,
-                        height: 35,
-                        borderRadius: 17,
-                        backgroundColor: mainLightBaseColor,
-                        opacity: Animated.multiply(mainLightAnim, 0.12),
-                        top: -7,
-                        left: -10,
-                        zIndex: 4,
-                      }
-                    ]}
-                  />
-                  <Animated.View 
-                    style={[
-                      {
-                        position: 'absolute',
-                        width: 110,
-                        height: 25,
-                        borderRadius: 12,
-                        backgroundColor: mainLightBaseColor,
-                        opacity: Animated.multiply(mainLightAnim, 0.15),
-                        top: -2,
-                        left: -5,
-                        zIndex: 5,
-                      }
-                    ]}
-                  />
-                  {/* Main light element */}
-                  <Animated.View 
-                    style={[
-                      styles.flashcardsMainStatusBar,
-                      mainLightAnimatedStyle,
-                      { zIndex: 10 }
-                    ]}
-                  >
-                    <LinearGradient
-                      colors={[COLORS.pokedexAmberGlow, COLORS.pokedexAmberDark]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={StyleSheet.absoluteFill}
-                    />
-                    <View style={[styles.flashcardsMainStatusBar_Reflection, { backgroundColor: mainLightPulseColor }]} />
-                  </Animated.View>
-                </View>
-                <View style={styles.flashcardsSmallLightContainer}>
-                  {smallLightColors.map((color, index) => renderSmallLight(color, index))}
-                </View>
-              </>
-            ) : (
-              <>
-                {/* Main Variant: Circular light with gradient */}
-                <View style={{ position: 'relative' }}>
-                  <Animated.View 
-                    style={[
-                      styles.mainLight, 
-                      mainLightAnimatedStyle
-                    ]}
-                  >
-                    <LinearGradient
-                      colors={['#F87171', '#EF4444', '#DC2626']}
-                      start={{ x: 0.3, y: 0 }}
-                      end={{ x: 0.7, y: 1 }}
-                      style={[StyleSheet.absoluteFill, { borderRadius: 22.5 }]}
-                    />
-                    <View style={styles.mainLightReflection} />
-                  </Animated.View>
-                </View>
-                <View style={styles.smallLights}>
-                  {smallLightColors.map((color, index) => (
-                    <View key={index} style={styles.smallLightContainer}>
-                      {renderSmallLight(color, index)}
-                    </View>
-                  ))}
-                </View>
-              </>
-            )}
-            {/* Logo */}
-            {logoSource && (
-              <Image
-                source={logoSource}
-                style={[
-                  styles.logoImage, 
-                  logoStyle,
-                  { opacity: 1 }
-                ]}
-                resizeMode="contain"
-              />
-            )}
-          </View>
+          )}
+        </View>
         )}
         {/* Main screen area */}
         <View style={[styles.screen, screenStyle, screenVariantStyle]}>

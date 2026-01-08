@@ -42,7 +42,6 @@ interface FlashcardItemProps {
   onSend?: (id: string) => void;
   onEdit?: (id: string) => void;
   onImageToggle?: (showImage: boolean) => void;
-  onAppendAnalysis?: (flashcardId: string, newAnalysis: string) => Promise<void>;
   deckName?: string; // Optional deck name to display
   disableTouchHandling?: boolean; // If true, the card won't be flippable via touch
   cardHeight?: number; // Optional responsive card height (defaults to 300 if not provided)
@@ -58,7 +57,6 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   onSend, 
   onEdit,
   onImageToggle,
-  onAppendAnalysis,
   deckName,
   disableTouchHandling = false,
   cardHeight = 300, // Sensible default for saved-flashcards page
@@ -152,8 +150,6 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   const [imageUriToUse, setImageUriToUse] = useState<string | undefined>(flashcard.imageUrl);
   const MAX_RETRY_COUNT = 5;
   
-  // State for appending alternate analysis
-  const [isAppendingAnalysis, setIsAppendingAnalysis] = useState(false);
   
   // Load cached image URI on mount or when image URL changes
   useEffect(() => {
@@ -328,75 +324,6 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
     imageFadeAnim.setValue(showImage ? 1 : 0);
   }, [flashcard.id]); // Reset when flashcard changes
 
-  // Handle appending alternate analysis
-  const handleAppendAnalysis = async () => {
-    if (!isOnline) {
-      const { Alert } = require('react-native');
-      Alert.alert(
-        t('offline.title') || 'Offline',
-        t('offline.editDisabled') || 'Editing flashcards requires an internet connection.',
-        [{ text: t('common.ok') || 'OK' }]
-      );
-      return;
-    }
-    
-    if (!onAppendAnalysis || !flashcard.scopeAnalysis || !flashcard.originalText) {
-      return;
-    }
-    
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setIsAppendingAnalysis(true);
-    
-    try {
-      // Import the API function
-      const { fetchSingleScopeAnalysis } = require('../../services/claudeApi');
-      
-      // Determine current analysis type
-      const isWord = !(/[.!?。！？]/.test(flashcard.originalText)) && flashcard.originalText.trim().length < 50;
-      const currentType = isWord ? 'etymology' : 'grammar';
-      const alternateType = currentType === 'etymology' ? 'grammar' : 'etymology';
-      
-      // Map detected language to language code for API
-      const languageCodeMap: Record<string, string> = {
-        'Japanese': 'ja',
-        'Chinese': 'zh',
-        'Korean': 'ko',
-        'Russian': 'ru',
-        'Arabic': 'ar',
-        'Hindi': 'hi',
-        'Thai': 'th',
-        'English': 'en',
-      };
-      const sourceLanguageCode = languageCodeMap[detectedLanguage] || 'ja';
-      
-      // Fetch alternate analysis
-      const alternateAnalysis = await fetchSingleScopeAnalysis(
-        flashcard.originalText,
-        alternateType,
-        flashcard.targetLanguage,
-        sourceLanguageCode
-      );
-      
-      if (alternateAnalysis) {
-        // Append with separator
-        const separator = `\n\n--- ${alternateType === 'etymology' ? 'Etymology & Context' : 'Grammar Analysis'} ---\n\n`;
-        const updatedAnalysis = flashcard.scopeAnalysis + separator + alternateAnalysis;
-        
-        // Call parent handler to update the flashcard
-        await onAppendAnalysis(flashcard.id, updatedAnalysis);
-        logger.log('🔬 [FlashcardItem] Successfully appended alternate analysis');
-      }
-    } catch (error) {
-      logger.error('🔬 [FlashcardItem] Failed to append alternate analysis:', error);
-      const { Alert } = require('react-native');
-      Alert.alert(
-        t('common.error') || 'Error',
-        'Failed to fetch additional analysis. Please try again.'
-      );
-    } finally {
-      setIsAppendingAnalysis(false);
-    }
-  };
 
   // Handle image load success
   const handleImageLoad = () => {
@@ -748,47 +675,14 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
               </Text>
               
               {/* Scope Analysis Section */}
-              {flashcard.scopeAnalysis && (() => {
-                // Match the same logic used by the API to determine word vs sentence
-                const isWordInput = flashcard.originalText && !(/[.!?。！？]/.test(flashcard.originalText)) && flashcard.originalText.trim().length < 50;
-                return (
+              {flashcard.scopeAnalysis && (
                 <>
-                  <Text style={styles.sectionTitle}>
-                    {isWordInput ? 'Etymology & Context' : 'Grammar Analysis'}
-                  </Text>
+                  <Text style={styles.sectionTitle}>Wordscope</Text>
                   <Text style={styles.scopeAnalysisText}>
                     {flashcard.scopeAnalysis}
                   </Text>
-                  
-                  {/* Append Alternate Analysis Button */}
-                  {onAppendAnalysis && 
-                   !flashcard.scopeAnalysis.includes('--- Etymology & Context ---') && 
-                   !flashcard.scopeAnalysis.includes('--- Grammar Analysis ---') && (
-                    <TouchableOpacity
-                      style={styles.appendAnalysisButton}
-                      onPress={handleAppendAnalysis}
-                      disabled={isAppendingAnalysis || !isOnline}
-                    >
-                      {isAppendingAnalysis ? (
-                        <ActivityIndicator size="small" color="#ffffff" />
-                      ) : (
-                        <>
-                          <View style={styles.dualIconContainer}>
-                            <FontAwesome5 name="microscope" size={16} color="#ffffff" />
-                            <Ionicons name="add-circle-outline" size={16} color="#ffffff" />
-                          </View>
-                          <Text style={styles.appendAnalysisButtonText}>
-                            {isWordInput 
-                              ? 'Add Grammar' 
-                              : 'Add Etymology & Context'}
-                          </Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
-                  )}
                 </>
-                );
-              })()}
+              )}
               
               {/* Always render the image on back side too but conditionally show it */}
               {flashcard.imageUrl && (

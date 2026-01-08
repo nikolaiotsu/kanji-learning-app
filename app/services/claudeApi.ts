@@ -5110,6 +5110,292 @@ Format your response as valid JSON with these exact keys:
 }
 
 /**
+ * Robust JSON parser for WordScope responses with nested structures
+ * Uses industry-standard progressive parsing strategy
+ */
+function parseWordScopeResponse(rawResponse: string): {
+  furiganaText?: string;
+  translatedText: string;
+  scopeAnalysis: {
+    word: string;
+    reading: string;
+    partOfSpeech: string;
+    baseForm?: string;
+    grammar: {
+      explanation: string;
+      particles?: Array<{ particle: string; use: string; example: string }>;
+    };
+    examples: Array<{ sentence: string; translation: string; note: string }>;
+    commonMistake: {
+      wrong: string;
+      correct: string;
+      reason: string;
+    };
+    commonContext?: string;
+  };
+} | null {
+  const cleanedResponse = rawResponse.trim();
+  
+  // Strategy 1: Try direct JSON.parse (most common case)
+  try {
+    const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+  } catch (e) {
+    logger.log('[WordScope Parser] Strategy 1 (direct parse) failed, trying next...');
+  }
+  
+  // Strategy 2: Try extracting from markdown code blocks
+  try {
+    const jsonBlockMatch = cleanedResponse.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+    if (jsonBlockMatch) {
+      return JSON.parse(jsonBlockMatch[1]);
+    }
+  } catch (e) {
+    logger.log('[WordScope Parser] Strategy 2 (markdown blocks) failed, trying next...');
+  }
+  
+  // Strategy 3: Try with aggressive JSON extraction and cleaning
+  try {
+    const firstBrace = cleanedResponse.indexOf('{');
+    const lastBrace = cleanedResponse.lastIndexOf('}');
+    
+    if (firstBrace !== -1 && lastBrace !== -1 && firstBrace < lastBrace) {
+      let jsonString = cleanedResponse.substring(firstBrace, lastBrace + 1);
+      
+      // Fix common JSON issues
+      // Remove trailing commas before closing braces/brackets
+      jsonString = jsonString.replace(/,(\s*[}\]])/g, '$1');
+      
+      // Fix unescaped quotes in string values (basic approach)
+      // This is tricky for nested objects, so we'll try parsing first
+      try {
+        return JSON.parse(jsonString);
+      } catch (e) {
+        // If still failing, try more aggressive cleaning
+        logger.log('[WordScope Parser] Strategy 3a failed, trying aggressive cleaning...');
+      }
+    }
+  } catch (e) {
+    logger.log('[WordScope Parser] Strategy 3 failed, trying next...');
+  }
+  
+  // Strategy 4: Manual extraction for nested structures using balanced brace matching
+  // This handles cases where JSON has unescaped quotes or other issues
+  try {
+    const extractFieldValue = (fieldName: string, jsonString: string, isObject: boolean = false): any | null => {
+      const fieldPattern = new RegExp(`"${fieldName}"\\s*:`, 'g');
+      const match = fieldPattern.exec(jsonString);
+      if (!match) return null;
+      
+      const valueStart = match.index + match[0].length;
+      let valueEnd = valueStart;
+      
+      // Skip whitespace
+      while (valueEnd < jsonString.length && /\s/.test(jsonString[valueEnd])) {
+        valueEnd++;
+      }
+      
+      if (isObject) {
+        // Extract object value by finding balanced braces
+        if (jsonString[valueEnd] !== '{') return null;
+        
+        let depth = 0;
+        let inString = false;
+        let escapeNext = false;
+        let i = valueEnd;
+        
+        while (i < jsonString.length) {
+          const char = jsonString[i];
+          
+          if (escapeNext) {
+            escapeNext = false;
+            i++;
+            continue;
+          }
+          
+          if (char === '\\') {
+            escapeNext = true;
+            i++;
+            continue;
+          }
+          
+          if (char === '"') {
+            inString = !inString;
+          } else if (!inString) {
+            if (char === '{') depth++;
+            if (char === '}') {
+              depth--;
+              if (depth === 0) {
+                const objectString = jsonString.substring(valueEnd, i + 1);
+                try {
+                  return JSON.parse(objectString);
+                } catch (e) {
+                  // Try cleaning trailing commas
+                  const cleaned = objectString.replace(/,(\s*[}\]])/g, '$1');
+                  try {
+                    return JSON.parse(cleaned);
+                  } catch (e2) {
+                    return null;
+                  }
+                }
+              }
+            }
+          }
+          i++;
+        }
+        return null;
+      } else {
+        // Extract string value
+        if (jsonString[valueEnd] !== '"') return null;
+        
+        let i = valueEnd + 1;
+        let inEscape = false;
+        const valueChars: string[] = [];
+        
+        while (i < jsonString.length) {
+          const char = jsonString[i];
+          
+          if (inEscape) {
+            inEscape = false;
+            valueChars.push(char);
+            i++;
+            continue;
+          }
+          
+          if (char === '\\') {
+            inEscape = true;
+            valueChars.push(char);
+            i++;
+            continue;
+          }
+          
+          if (char === '"') {
+            // Check if this is the end of the value
+            let nextNonWhitespace = i + 1;
+            while (nextNonWhitespace < jsonString.length && /\s/.test(jsonString[nextNonWhitespace])) {
+              nextNonWhitespace++;
+            }
+            const nextChar = jsonString[nextNonWhitespace];
+            if (nextChar === ',' || nextChar === '}' || nextNonWhitespace >= jsonString.length) {
+              // This is the end
+              const rawValue = valueChars.join('');
+              // Unescape
+              return rawValue
+                .replace(/\\"/g, '"')
+                .replace(/\\\\/g, '\\')
+                .replace(/\\n/g, '\n')
+                .replace(/\\r/g, '\r')
+                .replace(/\\t/g, '\t');
+            }
+          }
+          
+          valueChars.push(char);
+          i++;
+        }
+        return null;
+      }
+    };
+    
+    const firstBrace = cleanedResponse.indexOf('{');
+    const lastBrace = cleanedResponse.lastIndexOf('}');
+    
+    if (firstBrace !== -1 && lastBrace !== -1) {
+      const jsonString = cleanedResponse.substring(firstBrace, lastBrace + 1);
+      
+      const furiganaText = extractFieldValue('furiganaText', jsonString, false);
+      const translatedText = extractFieldValue('translatedText', jsonString, false);
+      const scopeAnalysis = extractFieldValue('scopeAnalysis', jsonString, true);
+      
+      if (translatedText && scopeAnalysis) {
+        const result: any = {
+          translatedText,
+          scopeAnalysis
+        };
+        if (furiganaText) {
+          result.furiganaText = furiganaText;
+        }
+        logger.log('[WordScope Parser] Strategy 4 (manual extraction) succeeded');
+        return result;
+      }
+    }
+  } catch (e) {
+    logger.log('[WordScope Parser] Strategy 4 (manual extraction) failed:', e);
+  }
+  
+  // All strategies failed
+  logger.error('[WordScope Parser] All parsing strategies failed');
+  return null;
+}
+
+/**
+ * Formats the JSON scope analysis response into plain text format
+ */
+function formatScopeAnalysis(analysisJson: {
+  word: string;
+  reading: string;
+  partOfSpeech: string;
+  baseForm?: string;
+  grammar: {
+    explanation: string;
+    particles?: Array<{ particle: string; use: string; example: string }>;
+  };
+  examples: Array<{ sentence: string; translation: string; note: string }>;
+  commonMistake: {
+    wrong: string;
+    correct: string;
+    reason: string;
+  };
+  commonContext?: string;
+}): string {
+  let formatted = `${analysisJson.word}（${analysisJson.reading}）\n`;
+  
+  // Part of speech and base form
+  if (analysisJson.baseForm) {
+    formatted += `${analysisJson.partOfSpeech} → Base: ${analysisJson.baseForm}\n`;
+  } else {
+    formatted += `${analysisJson.partOfSpeech}\n`;
+  }
+  
+  formatted += '\nGrammar\n';
+  formatted += `${analysisJson.grammar.explanation}\n`;
+  
+  // Particles section (if applicable)
+  if (analysisJson.grammar.particles && analysisJson.grammar.particles.length > 0) {
+    formatted += '\nCommon particles:\n';
+    analysisJson.grammar.particles.forEach((p) => {
+      formatted += `- ${p.particle} (${p.use}): ${p.example}\n`;
+    });
+  }
+  
+  // Examples section
+  formatted += '\nExamples\n';
+  analysisJson.examples.forEach((ex, index) => {
+    formatted += `${index + 1}. ${ex.sentence}\n`;
+    formatted += `   ${ex.translation}\n`;
+    formatted += `   → ${ex.note}\n`;
+    if (index < analysisJson.examples.length - 1) {
+      formatted += '\n';
+    }
+  });
+  
+  // Common mistake section
+  formatted += '\n⚠️ Common Mistake\n';
+  formatted += `✗ ${analysisJson.commonMistake.wrong}\n`;
+  formatted += `✓ ${analysisJson.commonMistake.correct}\n`;
+  formatted += `${analysisJson.commonMistake.reason}`;
+  
+  // Common context section (if provided)
+  if (analysisJson.commonContext) {
+    formatted += '\n\n📍 Common Context\n';
+    formatted += `${analysisJson.commonContext}`;
+  }
+  
+  return formatted;
+}
+
+/**
  * Process text with Claude API and generate scope analysis (etymology/grammar)
  * This is a simple wrapper that first gets translation, then adds scope analysis
  * 
@@ -5224,9 +5510,6 @@ export async function processWithClaudeAndScope(
       }
     }
     
-    // Determine analysis type: etymology for words/idioms, grammar for sentences
-    const isWord = !(/[.!?。！？]/.test(normalizedText)) && normalizedText.trim().length < 50;
-    const analysisType = isWord ? 'etymology' : 'grammar';
     const targetLangName = LANGUAGE_NAMES_MAP[targetLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'English';
     const sourceLangName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'the source language';
     
@@ -5244,26 +5527,58 @@ export async function processWithClaudeAndScope(
     const needsReadings = forcedLanguage in readingLanguages;
     const readingInfo = needsReadings ? readingLanguages[forcedLanguage] : null;
     
-    logger.log(`[WordScope Combined] Analysis type: ${analysisType} (isWord: ${isWord}), needsReadings: ${needsReadings}`);
+    logger.log(`[WordScope Combined] Grammar analysis, needsReadings: ${needsReadings}`);
     
-    // Build the scope analysis instructions based on analysis type
-    const scopeInstructions = analysisType === 'etymology'
-      ? `SCOPE ANALYSIS (Etymology):
-Provide etymology and context for this ${sourceLangName} word/idiom:
-1. Etymology: Origin and historical development of this ${sourceLangName} word/idiom
-2. How the meaning evolved over time
-3. Cultural context and interesting usage notes
-4. Be factual - only include information you're confident about, but you don't need to mention this factualness to the user
-Maximum 200 words. Focus on helping language learners understand the ${sourceLangName} word/idiom better.`
-      : `SCOPE ANALYSIS (Grammar):
-Explain the grammar structure of this ${sourceLangName} sentence:
-1. Parts of speech: Identify key words and their grammatical roles
-2. Sentence structure: How the sentence is constructed
-3. Verb forms: Tense, mood, aspect (if applicable)
-4. Key grammar points: Important grammatical features for language learners
-5. Example sentences: When possible, provide 2 new example sentences in ${sourceLangName} that follow the same grammar structure as the analyzed sentence. These should demonstrate the same grammatical patterns. Only create examples if you can do so naturally without forcing or inventing unrealistic content. If no natural examples are possible, skip this section entirely.
-6. Keep it accessible - avoid overwhelming technical jargon
-Maximum 200 words. Focus on helping learners understand how this ${sourceLangName} sentence works grammatically.`;
+    // Build the scope analysis instructions - unified grammar-focused format
+    const scopeInstructions = `SCOPE ANALYSIS (Grammar):
+You are a ${sourceLangName} language teacher helping a ${targetLanguage} speaker.
+
+Analyze: "${normalizedText}"
+
+Respond in valid JSON:
+{
+  "word": "word in original script",
+  "reading": "pronunciation guide",
+  "partOfSpeech": "part of speech",
+  "baseForm": "dictionary form if different, otherwise omit this field",
+  "grammar": {
+    "explanation": "one clear sentence explaining the grammar pattern",
+    "particles": [
+      {"particle": "particle", "use": "what it marks", "example": "short example"}
+    ]
+  },
+  "examples": [
+    {
+      "sentence": "simple example",
+      "translation": "translation",
+      "note": "brief grammar point (under 10 words)"
+    },
+    {
+      "sentence": "intermediate example",
+      "translation": "translation",
+      "note": "different usage point"
+    },
+    {
+      "sentence": "natural/casual example",
+      "translation": "translation",
+      "note": "casual speech pattern or nuance"
+    }
+  ],
+  "commonMistake": {
+    "wrong": "incorrect usage",
+    "correct": "correct usage",
+    "reason": "brief explanation (under 15 words)"
+  }
+}
+
+RULES:
+- Keep all explanations SHORT and practical
+- Example notes must be under 10 words
+- Examples should progress: simple → intermediate → natural/casual
+- Particles array only needed for languages that use them (Japanese, Korean)
+- Focus only on what helps the learner USE the word correctly
+- If baseForm is the same as word, omit the baseForm field
+- Write all content in ${targetLangName}`;
 
     // Build detailed reading instructions based on source language
     // These match the quality of the regular Translate button prompts
@@ -5444,7 +5759,7 @@ Translate the text into natural, fluent ${targetLangName}.
 - Use natural expressions in ${targetLangName}
 - Do NOT add any readings, romanization, or furigana to the TRANSLATION
 
-=== TASK 2: ${analysisType.toUpperCase()} ANALYSIS ===
+=== TASK 2: GRAMMAR ANALYSIS ===
 ${scopeInstructions}
 ${readingTask}
 === RESPONSE FORMAT ===
@@ -5452,17 +5767,52 @@ You MUST respond with valid JSON in this exact format:
 {
   ${furiganaFieldInstruction}
   "translatedText": "Your ${targetLangName} translation here",
-  "scopeAnalysis": "Your ${analysisType} analysis here (in ${targetLangName})"
+  "scopeAnalysis": {
+    "word": "word in original script",
+    "reading": "pronunciation guide",
+    "partOfSpeech": "part of speech",
+    "baseForm": "dictionary form if different, otherwise omit this field",
+    "grammar": {
+      "explanation": "one clear sentence explaining the grammar pattern",
+      "particles": [
+        {"particle": "particle", "use": "what it marks", "example": "short example"}
+      ]
+    },
+    "examples": [
+      {
+        "sentence": "simple example",
+        "translation": "translation",
+        "note": "brief grammar point (under 10 words)"
+      },
+      {
+        "sentence": "intermediate example",
+        "translation": "translation",
+        "note": "different usage point"
+      },
+      {
+        "sentence": "natural/casual example",
+        "translation": "translation",
+        "note": "casual speech pattern or nuance"
+      }
+    ],
+    "commonMistake": {
+      "wrong": "incorrect usage",
+      "correct": "correct usage",
+      "reason": "brief explanation (under 15 words)"
+    },
+    "commonContext": "brief note about when/where this phrase is commonly used (e.g., 'customer-to-patron contexts', 'formal business settings', 'casual conversations'). Omit if not applicable."
+  }
 }
 
 CRITICAL REQUIREMENTS:
-- ALL three fields are required and must be complete${needsReadings ? `
+- ALL fields are required and must be complete${needsReadings ? `
 - furiganaText MUST contain the COMPLETE original text WITH ${readingInfo?.readingType} for EVERY applicable character/word
 - Do NOT skip any readings - every ${forcedLanguage === 'ja' ? 'kanji' : 'word'} must have its reading` : ''}
 - Write translation and analysis in ${targetLangName}
 - Do not include any text outside the JSON object
 - Ensure proper JSON escaping: use \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes
-- Do NOT truncate or abbreviate any field`;
+- Do NOT truncate or abbreviate any field
+- commonContext should briefly mention typical situations, relationships, or settings where the phrase appears`;
 
     // Progress callback
     onProgress?.(1);
@@ -5488,7 +5838,7 @@ CRITICAL REQUIREMENTS:
       
       const dynamicUserMessage = `TEXT TO PROCESS: "${normalizedText}"
 
-=== TASK 2: ${analysisType.toUpperCase()} ANALYSIS ===
+=== TASK 2: GRAMMAR ANALYSIS ===
 ${scopeInstructions}
 
 === RESPONSE FORMAT ===
@@ -5496,17 +5846,52 @@ You MUST respond with valid JSON in this exact format:
 {
   ${furiganaFieldInstruction}
   "translatedText": "Your ${targetLangName} translation here",
-  "scopeAnalysis": "Your ${analysisType} analysis here (in ${targetLangName})"
+  "scopeAnalysis": {
+    "word": "word in original script",
+    "reading": "pronunciation guide",
+    "partOfSpeech": "part of speech",
+    "baseForm": "dictionary form if different, otherwise omit this field",
+    "grammar": {
+      "explanation": "one clear sentence explaining the grammar pattern",
+      "particles": [
+        {"particle": "particle", "use": "what it marks", "example": "short example"}
+      ]
+    },
+    "examples": [
+      {
+        "sentence": "simple example",
+        "translation": "translation",
+        "note": "brief grammar point (under 10 words)"
+      },
+      {
+        "sentence": "intermediate example",
+        "translation": "translation",
+        "note": "different usage point"
+      },
+      {
+        "sentence": "natural/casual example",
+        "translation": "translation",
+        "note": "casual speech pattern or nuance"
+      }
+    ],
+    "commonMistake": {
+      "wrong": "incorrect usage",
+      "correct": "correct usage",
+      "reason": "brief explanation (under 15 words)"
+    },
+    "commonContext": "brief note about when/where this phrase is commonly used (e.g., 'customer-to-patron contexts', 'formal business settings', 'casual conversations'). Omit if not applicable."
+  }
 }
 
 CRITICAL REQUIREMENTS:
-- ALL three fields are required and must be complete
+- ALL fields are required and must be complete
 - furiganaText MUST contain the COMPLETE original text WITH ${readingType} for EVERY applicable ${wordType}
 - Do NOT skip any readings - every ${isJapaneseWithCaching ? 'kanji' : isChineseWithCaching ? 'Chinese word' : 'Korean word'} must have its ${readingType} reading
 - Write translation and analysis in ${targetLangName}
 - Do not include any text outside the JSON object
 - Ensure proper JSON escaping: use \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes
-- Do NOT truncate or abbreviate any field`;
+- Do NOT truncate or abbreviate any field
+- commonContext should briefly mention typical situations, relationships, or settings where the phrase appears`;
 
       const languageName = isChineseWithCaching ? 'Chinese' : isJapaneseWithCaching ? 'Japanese' : 'Korean';
       logger.log(`🔄 [WordScope Prompt Caching] Sending ${languageName} request with caching enabled - system prompt: ${systemPrompt.length} chars, user message: ${dynamicUserMessage.length} chars`);
@@ -5514,7 +5899,7 @@ CRITICAL REQUIREMENTS:
       response = await axios.post(
         'https://api.anthropic.com/v1/messages',
         {
-          model: 'claude-3-haiku-20240307',
+          model: 'claude-3-5-haiku-20241022',  // Using Claude 3.5 Haiku for WordScope
           max_tokens: 1024,
           temperature: 0.3,
           system: [
@@ -5562,7 +5947,7 @@ CRITICAL REQUIREMENTS:
       response = await axios.post(
       'https://api.anthropic.com/v1/messages',
       {
-        model: 'claude-3-haiku-20240307',
+        model: 'claude-3-5-haiku-20241022',  // Using Claude 3.5 Haiku for WordScope
         max_tokens: 1024, // Increased for combined response
         temperature: 0.3,
         messages: [{ role: 'user', content: combinedPrompt }]
@@ -5595,105 +5980,41 @@ CRITICAL REQUIREMENTS:
     
     logger.log(`[WordScope Combined] Raw response length: ${rawResponse.length}`);
     
-    // Try to parse the JSON response
-    let parsedResult: { furiganaText?: string; translatedText: string; scopeAnalysis: string } | null = null;
-    
-    try {
-      // First, try direct JSON parse
-      const cleanedResponse = rawResponse.trim();
-      
-      // Find JSON object in response (in case there's extra text)
-      const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsedResult = JSON.parse(jsonMatch[0]);
-        // Log what we got from JSON.parse
-        logger.log(`[WordScope Combined] JSON.parse succeeded - furiganaText: ${parsedResult?.furiganaText?.length || 0} chars, translatedText: ${parsedResult?.translatedText?.length || 0} chars, scopeAnalysis: ${parsedResult?.scopeAnalysis?.length || 0} chars`);
-        if (parsedResult?.furiganaText) {
-          logger.log(`[WordScope Combined] furiganaText from JSON.parse: "${parsedResult.furiganaText.substring(0, 100)}..."`);
-        }
-      }
-    } catch (parseError) {
-      logger.warn('[WordScope Combined] JSON parse failed, attempting manual extraction');
-      logger.log(`[WordScope Combined] Raw response preview (first 500 chars): ${rawResponse.substring(0, 500)}`);
-      
-      // Manual extraction fallback - handle Claude returning unescaped quotes in JSON
-      // Claude often returns: "scopeAnalysis": "The phrase "word" means..."
-      // where inner quotes are NOT escaped, breaking JSON parsing
-      
-      // Unescape the content: \n → newline, \" → quote, \\ → backslash
-      const unescapeJsonString = (str: string): string => {
-        return str
-          .replace(/\\n/g, '\n')
-          .replace(/\\r/g, '\r')
-          .replace(/\\t/g, '\t')
-          .replace(/\\"/g, '"')
-          .replace(/\\\\/g, '\\');
-      };
-      
-      // Helper to extract a field value between its key and the next key (or end)
-      const extractField = (fieldName: string, nextFieldName: string | null): string | null => {
-        const fieldStart = rawResponse.indexOf(`"${fieldName}"`);
-        if (fieldStart === -1) return null;
-        
-        const colonAfter = rawResponse.indexOf(':', fieldStart);
-        if (colonAfter === -1) return null;
-        
-        const openQuote = rawResponse.indexOf('"', colonAfter + 1);
-        if (openQuote === -1) return null;
-        
-        // Find end boundary - either next field or closing brace
-        let endBoundary: number;
-        if (nextFieldName) {
-          endBoundary = rawResponse.indexOf(`"${nextFieldName}"`, openQuote);
-          if (endBoundary === -1) endBoundary = rawResponse.lastIndexOf('}');
-        } else {
-          endBoundary = rawResponse.lastIndexOf('}');
-        }
-        
-        if (endBoundary <= openQuote) return null;
-        
-        // Work backwards from end boundary to find closing quote
-        let endPos = endBoundary - 1;
-        while (endPos > openQuote && /[\s,\n\r]/.test(rawResponse[endPos])) {
-          endPos--;
-        }
-        
-        if (rawResponse[endPos] === '"') {
-          return unescapeJsonString(rawResponse.substring(openQuote + 1, endPos));
-        }
-        return null;
-      };
-      
-      // Extract fields in order: furiganaText -> translatedText -> scopeAnalysis
-      const furiganaText = extractField('furiganaText', 'translatedText');
-      const translatedText = extractField('translatedText', 'scopeAnalysis');
-      const scopeAnalysis = extractField('scopeAnalysis', null);
-      
-      // Log raw match results
-      logger.log(`[WordScope Combined] furiganaText extracted: ${furiganaText ? `"${furiganaText.substring(0, 100)}..."` : 'null'}`);
-      logger.log(`[WordScope Combined] translatedText extracted: ${translatedText ? `"${translatedText.substring(0, 100)}..."` : 'null'}`);
-      logger.log(`[WordScope Combined] scopeAnalysis extracted: ${scopeAnalysis ? `"${scopeAnalysis.substring(0, 200)}..."` : 'null'}`);
-      
-      // Log what we found for debugging
-      logger.log(`[WordScope Combined] Manual extraction - furiganaText: ${furiganaText ? 'found (' + furiganaText.length + ' chars)' : 'missing'}`);
-      logger.log(`[WordScope Combined] Manual extraction - translatedText: ${translatedText ? 'found (' + translatedText.length + ' chars)' : 'missing'}`);
-      logger.log(`[WordScope Combined] Manual extraction - scopeAnalysis: ${scopeAnalysis ? 'found (' + scopeAnalysis.length + ' chars)' : 'missing'}`);
-      if (scopeAnalysis) {
-        logger.log(`[WordScope Combined] scopeAnalysis content: "${scopeAnalysis.substring(0, 300)}..."`);
-      }
-      
-      if (translatedText && scopeAnalysis) {
-        parsedResult = {
-          furiganaText: furiganaText || '',
-          translatedText,
-          scopeAnalysis
-        };
-      }
-    }
+    // Use robust JSON parser with progressive strategy
+    const parsedResult = parseWordScopeResponse(rawResponse);
     
     if (!parsedResult || !parsedResult.translatedText) {
-      logger.error('[WordScope Combined] Failed to parse combined response, falling back to separate calls');
-      // Fall back to the original two-call approach
+      logger.warn('[WordScope Combined] Failed to parse response, falling back to separate calls');
+      logger.log(`[WordScope Combined] Raw response preview (first 500 chars): ${rawResponse.substring(0, 500)}`);
+      
+      // Fall back to the separate calls approach
+      return await processWithClaudeAndScopeFallback(text, targetLanguage, forcedLanguage, onProgress);
+    }
+    
+    // Log successful parsing
+    logger.log(`[WordScope Combined] Successfully parsed - furiganaText: ${parsedResult?.furiganaText?.length || 0} chars, translatedText: ${parsedResult?.translatedText?.length || 0} chars`);
+    if (parsedResult?.furiganaText) {
+      logger.log(`[WordScope Combined] furiganaText: "${parsedResult.furiganaText.substring(0, 100)}..."`);
+    }
+    if (parsedResult?.scopeAnalysis && typeof parsedResult.scopeAnalysis === 'object') {
+      logger.log(`[WordScope Combined] scopeAnalysis is JSON object with word: ${parsedResult.scopeAnalysis.word}`);
+    }
+    
+    // Format scopeAnalysis if it's an object
+    let formattedScopeAnalysis: string;
+    if (typeof parsedResult.scopeAnalysis === 'object' && parsedResult.scopeAnalysis !== null) {
+      try {
+        formattedScopeAnalysis = formatScopeAnalysis(parsedResult.scopeAnalysis);
+        logger.log(`[WordScope Combined] Formatted scopeAnalysis: ${formattedScopeAnalysis.length} chars`);
+      } catch (formatError) {
+        logger.error('[WordScope Combined] Failed to format scopeAnalysis:', formatError);
+        return await processWithClaudeAndScopeFallback(text, targetLanguage, forcedLanguage, onProgress);
+      }
+    } else if (typeof parsedResult.scopeAnalysis === 'string') {
+      // Legacy format - keep as is for backward compatibility
+      formattedScopeAnalysis = parsedResult.scopeAnalysis;
+    } else {
+      logger.error('[WordScope Combined] scopeAnalysis is missing or invalid');
       return await processWithClaudeAndScopeFallback(text, targetLanguage, forcedLanguage, onProgress);
     }
     
@@ -5701,11 +6022,10 @@ CRITICAL REQUIREMENTS:
     
     // Log successful combined API call
     await logClaudeAPI(metrics, true, rawResponse, undefined, {
-      model: 'claude-3-haiku-20240307',
+      model: 'claude-3-5-haiku-20241022',
       targetLanguage,
       forcedLanguage,
       textLength: normalizedText.length,
-      analysisType,
       operationType: 'wordscope_combined'
     }, inputTokens, outputTokens);
     
@@ -5720,7 +6040,7 @@ CRITICAL REQUIREMENTS:
     return {
       furiganaText: furiganaResult,
       translatedText: parsedResult.translatedText,
-      scopeAnalysis: parsedResult.scopeAnalysis,
+      scopeAnalysis: formattedScopeAnalysis,
       languageMismatch: undefined
     };
     
@@ -5758,47 +6078,71 @@ async function processWithClaudeAndScopeFallback(
       throw new Error('Claude API key not configured');
     }
     
-    const isWord = !(/[.!?。！？]/.test(text)) && text.trim().length < 50;
     const targetLangName = LANGUAGE_NAMES_MAP[targetLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'English';
     const sourceLangName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'the source language';
     
-    const scopePrompt = isWord 
-      ? `You are a language expert. Analyze this ${sourceLangName} word/idiom and provide etymology and context.
+    const scopePrompt = `You are a ${sourceLangName} language teacher helping a ${targetLanguage} speaker.
 
-Text to analyze: "${text}"
+Analyze: "${text}"
 
-Provide (in ${targetLangName} language):
-1. Etymology: Origin and historical development of this ${sourceLangName} word/idiom
-2. How the meaning evolved over time
-3. Cultural context and interesting usage notes
-4. Be factual - only include information you're confident about
+Respond in valid JSON:
+{
+  "word": "word in original script",
+  "reading": "pronunciation guide",
+  "partOfSpeech": "part of speech",
+  "baseForm": "dictionary form if different, otherwise omit this field",
+  "grammar": {
+    "explanation": "one clear sentence explaining the grammar pattern",
+    "particles": [
+      {"particle": "particle", "use": "what it marks", "example": "short example"}
+    ]
+  },
+  "examples": [
+    {
+      "sentence": "simple example",
+      "translation": "translation",
+      "note": "brief grammar point (under 10 words)"
+    },
+    {
+      "sentence": "intermediate example",
+      "translation": "translation",
+      "note": "different usage point"
+    },
+    {
+      "sentence": "natural/casual example",
+      "translation": "translation",
+      "note": "casual speech pattern or nuance"
+    }
+  ],
+  "commonMistake": {
+    "wrong": "incorrect usage",
+    "correct": "correct usage",
+    "reason": "brief explanation (under 15 words)"
+  },
+  "commonContext": "brief note about when/where this phrase is commonly used (e.g., 'customer-to-patron contexts', 'formal business settings', 'casual conversations'). Omit if not applicable."
+}
 
-Write your analysis in ${targetLangName}. Maximum 200 words.`
-      : `You are a language expert. Analyze this ${sourceLangName} sentence and explain its grammar structure.
-
-Text to analyze: "${text}"
-
-Provide (in ${targetLangName} language):
-1. Parts of speech: Identify key words and their grammatical roles
-2. Sentence structure: How the sentence is constructed
-3. Verb forms: Tense, mood, aspect (if applicable)
-4. Key grammar points: Important grammatical features for language learners
-5. Example sentences: When possible, provide 2 new example sentences in ${sourceLangName} that follow the same grammar structure as the analyzed sentence. These should demonstrate the same grammatical patterns. Only create examples if you can do so naturally without forcing or inventing unrealistic content. If no natural examples are possible, skip this section entirely.
-6. Keep it accessible - avoid overwhelming technical jargon
-
-Write your analysis in ${targetLangName}. Maximum 200 words.`;
+RULES:
+- Keep all explanations SHORT and practical
+- Example notes must be under 10 words
+- Examples should progress: simple → intermediate → natural/casual
+- Particles array only needed for languages that use them (Japanese, Korean)
+- Focus only on what helps the learner USE the word correctly
+- If baseForm is the same as word, omit the baseForm field
+- commonContext should briefly mention typical situations, relationships, or settings where the phrase appears
+- Write all content in ${targetLangName}`;
     
     const scopeMetrics = apiLogger.startAPICall('https://api.anthropic.com/v1/messages', {
       text: text.substring(0, 100),
       targetLanguage,
       forcedLanguage,
-      analysisType: isWord ? 'etymology' : 'grammar'
+      analysisType: 'grammar'
     });
     
     const response = await axios.post(
       'https://api.anthropic.com/v1/messages',
       {
-        model: 'claude-3-haiku-20240307',
+        model: 'claude-3-5-haiku-20241022',  // Using Claude 3.5 Haiku for WordScope
         max_tokens: 512,
         temperature: 0.3,
         messages: [{ role: 'user', content: scopePrompt }]
@@ -5818,20 +6162,69 @@ Write your analysis in ${targetLangName}. Maximum 200 words.`;
     const scopeOutputTokens = scopeUsage?.output_tokens;
     
     const content = response.data.content as ClaudeContentItem[];
-    const scopeAnalysis = content.find((item) => item.type === 'text')?.text || '';
+    const rawScopeResponse = content.find((item) => item.type === 'text')?.text || '';
     
-    await logClaudeAPI(scopeMetrics, true, scopeAnalysis, undefined, {
-      model: 'claude-3-haiku-20240307',
+    // Parse JSON response using robust parser and format it
+    // The fallback response is just the scopeAnalysis JSON object
+    let formattedScopeAnalysis: string;
+    try {
+      // Try parsing as direct scopeAnalysis object
+      const cleanedResponse = rawScopeResponse.trim();
+      const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
+      
+      if (jsonMatch) {
+        let parsedAnalysis: any = null;
+        
+        // Strategy 1: Direct parse
+        try {
+          parsedAnalysis = JSON.parse(jsonMatch[0]);
+        } catch (e) {
+          // Strategy 2: Try with trailing comma removal
+          try {
+            const cleaned = jsonMatch[0].replace(/,(\s*[}\]])/g, '$1');
+            parsedAnalysis = JSON.parse(cleaned);
+          } catch (e2) {
+            // Strategy 3: Try extracting from markdown
+            const markdownMatch = cleanedResponse.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+            if (markdownMatch) {
+              try {
+                parsedAnalysis = JSON.parse(markdownMatch[1]);
+              } catch (e3) {
+                throw new Error('All parsing strategies failed');
+              }
+            } else {
+              throw new Error('All parsing strategies failed');
+            }
+          }
+        }
+        
+        if (parsedAnalysis && typeof parsedAnalysis === 'object') {
+          formattedScopeAnalysis = formatScopeAnalysis(parsedAnalysis);
+          logger.log(`[WordScope Fallback] Formatted scopeAnalysis: ${formattedScopeAnalysis.length} chars`);
+        } else {
+          throw new Error('Parsed result is not an object');
+        }
+      } else {
+        throw new Error('No JSON object found in response');
+      }
+    } catch (parseError) {
+      logger.error('[WordScope Fallback] Failed to parse scope analysis JSON:', parseError);
+      logger.log(`[WordScope Fallback] Raw response preview: ${rawScopeResponse.substring(0, 200)}`);
+      formattedScopeAnalysis = rawScopeResponse;
+    }
+    
+    await logClaudeAPI(scopeMetrics, true, formattedScopeAnalysis, undefined, {
+      model: 'claude-3-5-haiku-20241022',
       targetLanguage,
       forcedLanguage,
       textLength: text.length,
-      analysisType: isWord ? 'etymology' : 'grammar',
+      analysisType: 'grammar',
       operationType: 'scope_analysis_fallback'
     }, scopeInputTokens, scopeOutputTokens);
     
     return {
       ...translationResult,
-      scopeAnalysis
+      scopeAnalysis: formattedScopeAnalysis
     };
   } catch (error) {
     logger.error('[WordScope Fallback] Scope analysis failed, returning translation only:', error);
@@ -6775,4 +7168,5 @@ function validateHindiRomanization(originalText: string, romanizedText: string):
 /**
  * Exported validation functions for use in other parts of the app
  */
+export { validateJapaneseFurigana, validateKoreanRomanization, validateRussianTransliteration, validateArabicRomanization, validateHindiRomanization }; 
 export { validateJapaneseFurigana, validateKoreanRomanization, validateRussianTransliteration, validateArabicRomanization, validateHindiRomanization }; 

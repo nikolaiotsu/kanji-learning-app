@@ -757,39 +757,6 @@ export default function SavedFlashcardsScreen() {
     }
   };
 
-  // Function to handle appending alternate analysis to a flashcard
-  const handleAppendAnalysis = async (flashcardId: string, newAnalysis: string) => {
-    try {
-      // Find the flashcard
-      const flashcard = flashcards.find(card => card.id === flashcardId);
-      if (!flashcard) {
-        throw new Error('Flashcard not found');
-      }
-
-      // Update the flashcard with new scope analysis
-      const updatedFlashcard = {
-        ...flashcard,
-        scopeAnalysis: newAnalysis
-      };
-
-      const success = await updateFlashcard(updatedFlashcard);
-      if (success) {
-        // Update the flashcard in the local state
-        setFlashcards(currentFlashcards => 
-          currentFlashcards.map(card => 
-            card.id === flashcardId ? updatedFlashcard : card
-          )
-        );
-        logger.log('🔬 [SavedFlashcards] Successfully appended analysis');
-      } else {
-        throw new Error('Failed to update flashcard');
-      }
-    } catch (error) {
-      logger.error('Error appending analysis:', error);
-      throw error; // Re-throw to let the caller handle the error
-    }
-  };
-
   const DeckChip: React.FC<{ item: Deck; index: number }> = ({ item, index }) => {
     return (
       <TouchableOpacity
@@ -908,7 +875,6 @@ export default function SavedFlashcardsScreen() {
         onDelete={handleDeleteFlashcard}
         onSend={handleSendFlashcard}
         onEdit={handleEditFlashcard}
-        onAppendAnalysis={handleAppendAnalysis}
         showRefreshButton={true}
         isOnline={isConnected}
         disableBackdropOverlay={true}
