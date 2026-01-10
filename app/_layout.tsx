@@ -153,7 +153,7 @@ export default function RootLayout() {
                               <Stack.Screen
                                 name="flashcards"
                                 options={{
-                                  title: 'Make a Flashcard',
+                                  headerShown: false,
                                   gestureEnabled: true,
                                   presentation: 'modal'
                                 }}

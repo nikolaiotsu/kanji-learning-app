@@ -1033,7 +1033,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
               
               <TouchableOpacity
                 style={styles.scopeAndTranslateButton}
-                onPress={handleScopeAndTranslate}
+                onPress={() => handleScopeAndTranslate()}
               >
                 {/* Main gradient background */}
                 <LinearGradient
