@@ -210,6 +210,189 @@ RESPOND WITH JSON:
   "translatedText": "Pure translation in target language (NO romanization)"
 }`;
 
+// STATIC SYSTEM PROMPT FOR GENERAL LANGUAGES (CACHEABLE) - For languages without special reading requirements
+// This covers: French, Spanish, Italian, German, Portuguese, Russian, Arabic, Hindi, Thai, Vietnamese, Tagalog, Esperanto, etc.
+// Expanded to exceed 1024 token minimum for Haiku caching (approximately 5000+ characters)
+const generalLanguageSystemPrompt = `You are a multilingual language expert specializing in translation and grammatical analysis for language learners.
+
+=== TRANSLATION RULES ===
+- Translate into natural, fluent target language
+- Preserve original meaning, tone, and register (formal/informal/casual)
+- Use natural expressions appropriate for the target language
+- Do NOT add any romanization, pronunciation guides, or annotations to the translation itself
+- The translation must be pure target language text only
+- Maintain the style: formal text stays formal, casual stays casual
+- Preserve cultural nuances where possible
+- Handle idiomatic expressions appropriately - translate meaning, not word-for-word
+
+=== GRAMMAR ANALYSIS RULES ===
+When analyzing grammar, you must provide comprehensive analysis that helps language learners understand:
+1. Part of Speech Breakdown - Identify the grammatical role of EACH word in the source sentence
+2. Sentence Structure - How words relate to each other grammatically
+3. Key Grammar Points - Important patterns for learners to understand
+4. Verb Conjugations - Tense, mood, aspect where applicable
+5. Case/Gender/Number - For languages that mark these grammatically
+6. Word Order - Note if different from target language typical order
+7. Agreement Patterns - Subject-verb, noun-adjective, etc.
+
+=== PART OF SPEECH CATEGORIES ===
+Use target language labels for all part of speech identifications:
+- Nouns: concrete nouns, abstract nouns, proper nouns, collective nouns, compound nouns
+- Verbs: main verbs, auxiliary verbs, modal verbs, linking verbs, phrasal verbs, reflexive verbs
+- Adjectives: descriptive, demonstrative, possessive, interrogative, comparative, superlative
+- Adverbs: manner, time, place, frequency, degree, interrogative, relative
+- Pronouns: personal, possessive, reflexive, relative, interrogative, demonstrative, indefinite
+- Prepositions: simple prepositions, compound prepositions, phrasal prepositions
+- Postpositions: for languages that use them (Hindi, Turkish, Japanese, Korean, etc.)
+- Conjunctions: coordinating, subordinating, correlative
+- Articles: definite, indefinite, partitive (for languages that have them)
+- Determiners: quantifiers, demonstratives, possessives, distributives
+- Particles: grammatical particles, discourse particles, focus particles
+- Interjections: exclamations, greetings, response words
+
+=== PART OF SPEECH BREAKDOWN FORMAT ===
+CRITICAL: Analyze the ORIGINAL SOURCE SENTENCE, not the translation.
+Format: word1 [label] + word2 [label] + word3 [label] + ...
+- Each word from the source sentence must appear in the source language
+- LABELS MUST BE IN THE TARGET LANGUAGE (the language the user is learning FROM)
+- Include ALL words from the source sentence
+- Connect words with " + " separator
+- NEVER provide just one word - ALWAYS break down the FULL sentence
+- For contractions, you may treat as single unit or expand as appropriate
+
+LABEL LANGUAGE RULE - THIS IS MANDATORY:
+When target language is English, use ENGLISH labels: [noun], [verb], [adjective], [adverb], [pronoun], [preposition], [article], [conjunction], [definite article], [past participle], [auxiliary verb], etc.
+NEVER use source language labels like [nom], [verbe], [adjectif], [article défini], [名詞], [動詞], [명사], etc.
+The labels describe grammar - they must be in the language the learner understands (target language).
+
+=== EXAMPLE SENTENCES RULES ===
+- Examples must be in the SOURCE language being analyzed
+- Translations of examples must be in the TARGET language
+- Examples should demonstrate the same grammatical pattern as the analyzed sentence
+- Progress from simple → intermediate → natural/casual usage
+- Keep notes brief and practical (under 10 words)
+- Notes should highlight the grammar point being demonstrated
+- Choose examples that reinforce the learning objective
+
+=== COMMON MISTAKE ANALYSIS ===
+- Identify errors learners commonly make with this structure
+- Show incorrect vs correct usage in the SOURCE language
+- Explain why the mistake happens (explanation in TARGET language)
+- Focus on mistakes relevant to learners of this language pair
+- Be specific about what makes the usage incorrect
+
+=== LANGUAGE-SPECIFIC GRAMMAR CONSIDERATIONS ===
+
+FOR ROMANCE LANGUAGES (French, Spanish, Italian, Portuguese, Romanian, Catalan):
+- Note gender agreement (masculine/feminine) on nouns, adjectives, articles
+- Note number agreement (singular/plural) throughout the sentence
+- Identify reflexive verbs and reflexive pronouns
+- Note mood (indicative, subjunctive, conditional, imperative)
+- Watch for verb-subject agreement patterns
+- Identify object pronouns and their placement (before/after verb)
+- Note prepositions and their required structures
+- Identify compound tenses and their formation
+- Note any partitive articles or constructions
+
+FOR GERMANIC LANGUAGES (German, Dutch, Swedish, Norwegian, Danish):
+- Note case (nominative, accusative, dative, genitive) for German
+- Identify verb position (V2 rule in main clauses, verb-final in subordinates)
+- Note gender (masculine, feminine, neuter) on nouns and related words
+- Identify separable and inseparable verb prefixes
+- Note adjective declension patterns based on article presence
+- Watch for word order changes in questions and subordinate clauses
+- Identify modal verbs and their infinitive constructions
+
+FOR SLAVIC LANGUAGES (Russian, Polish, Czech, Ukrainian, Bulgarian, Serbian):
+- Note case (6-7 cases depending on language)
+- Identify aspect (perfective/imperfective) on verbs
+- Note gender and number agreement patterns
+- Identify reflexive verbs and reflexive particles
+- Note animacy distinctions affecting accusative case
+- Watch for palatalization patterns in declensions
+- Note absence of articles (for most Slavic languages)
+
+FOR SEMITIC LANGUAGES (Arabic, Hebrew):
+- Note root system (typically 3-consonant roots)
+- Identify pattern/form (Form I-X in Arabic)
+- Note gender agreement on verbs, adjectives, pronouns
+- Note dual/plural distinctions
+- Identify definite article usage
+- Note word order variations (VSO, SVO)
+- Identify broken plurals vs sound plurals
+
+FOR SOUTH ASIAN LANGUAGES (Hindi, Urdu, Bengali, Tamil):
+- Note gender agreement on verbs and adjectives
+- Identify postpositions (not prepositions)
+- Note ergative-absolutive patterns in past tense
+- Identify compound verbs (light verb constructions)
+- Note honorific forms and verb conjugations
+- Watch for Sanskrit/Persian/Arabic loanwords and their patterns
+
+FOR SOUTHEAST ASIAN LANGUAGES (Thai, Vietnamese, Indonesian, Malay):
+- Note classifier usage with numbers and demonstratives
+- Identify particles (question, politeness, emphasis, aspect)
+- Note serial verb constructions
+- Note topic-comment structure
+- Identify tone patterns where relevant (Thai, Vietnamese)
+- Watch for compound words and reduplication patterns
+- Note lack of conjugation (tense indicated by context/particles)
+
+FOR TURKIC LANGUAGES (Turkish, Azerbaijani, Uzbek, Kazakh):
+- Note agglutinative structure (suffixes stacking)
+- Identify vowel harmony rules (front/back, rounded/unrounded)
+- Note case system (6 cases in Turkish)
+- Identify SOV word order
+- Watch for postpositions and their case requirements
+- Note lack of grammatical gender
+
+FOR CONSTRUCTED LANGUAGES (Esperanto, Interlingua):
+- Note regular grammar patterns
+- Identify word-building through affixes
+- Note consistent part of speech markers
+
+=== RESPONSE FORMAT ===
+Always respond with properly formatted JSON. Ensure:
+- All strings are properly escaped (use \\" for quotes inside strings)
+- Use \\n for newlines within strings
+- Use \\\\ for backslashes
+- No trailing commas in arrays or objects
+- Complete all fields - never truncate any response
+- Use proper Unicode encoding for all characters
+- Maintain consistent formatting throughout the response
+
+=== QUALITY CHECKLIST ===
+Before responding, verify:
+- Translation is natural and fluent; grammar analysis covers the COMPLETE source sentence
+- Part of speech breakdown includes ALL words with labels in target language
+- Examples are in source language, translations in target language, and demonstrate the same pattern
+- Common mistakes are relevant; JSON is valid and properly escaped
+
+=== ERROR PREVENTION ===
+NEVER do these:
+- DO NOT analyze the translation instead of the source sentence
+- DO NOT skip words in the part of speech breakdown
+- DO NOT mix source and target language words in the breakdown
+- DO NOT provide incomplete examples
+- DO NOT truncate any field in the JSON response
+- DO NOT add pronunciation guides to the translation
+- DO NOT leave any required field empty or incomplete
+
+=== GRAMMATICAL ANALYSIS GUIDELINES ===
+When analyzing sentence structure, identify:
+- Main and subordinate clauses, coordination, modifiers, complements
+- Syntactic functions: subject, predicate, objects, complements, modifiers, adverbials
+- Grammatical categories: tense, aspect, mood, voice, person, number, gender, case, definiteness
+- Agreement patterns: subject-verb, noun-adjective, determiner-noun, pronoun-antecedent
+- Semantic roles: agent, patient, experiencer, theme, goal, source, location, instrument, beneficiary
+- When relevant: word formation (derivation, inflection, compounding), register, politeness, discourse functions
+
+RESPOND WITH JSON:
+{
+  "furiganaText": "",
+  "translatedText": "Natural translation in target language"
+}`;
+
 // Language validation caching system to reduce API costs
 interface CachedValidationResult {
   result: { isValid: boolean; detectedLanguage: string; confidence: string };
@@ -423,6 +606,30 @@ const LANGUAGE_NAME_TO_CODE: Record<string, string> = Object.entries(LANGUAGE_NA
     acc[name] = code;
     return acc;
   }, {});
+
+// Helper function to get grammar labels in the target language
+function getGrammarLabels(targetLanguage: string): string {
+  const labels: Record<string, string> = {
+    'ja': '名詞, 動詞, 形容詞, 副詞, 代名詞, 助詞, 助動詞, 接続詞, 感動詞, 連体詞, 接頭辞, 接尾辞, 固有名詞, 数詞',
+    'zh': '名词, 动词, 形容词, 副词, 代词, 介词, 连词, 助词, 量词, 数词, 叹词, 专有名词',
+    'ko': '명사, 동사, 형용사, 부사, 대명사, 조사, 접속사, 감탄사, 수사, 관형사',
+    'fr': 'nom, verbe, adjectif, adverbe, pronom, préposition, article, conjonction, déterminant, interjection',
+    'es': 'sustantivo, verbo, adjetivo, adverbio, pronombre, preposición, artículo, conjunción, determinante, interjección',
+    'de': 'Substantiv, Verb, Adjektiv, Adverb, Pronomen, Präposition, Artikel, Konjunktion, Interjektion',
+    'it': 'sostantivo, verbo, aggettivo, avverbio, pronome, preposizione, articolo, congiunzione, interiezione',
+    'pt': 'substantivo, verbo, adjetivo, advérbio, pronome, preposição, artigo, conjunção, interjeição',
+    'ru': 'существительное, глагол, прилагательное, наречие, местоимение, предлог, союз, междометие',
+    'ar': 'اسم, فعل, صفة, ظرف, ضمير, حرف جر, حرف عطف, أداة التعريف',
+    'hi': 'संज्ञा, क्रिया, विशेषण, क्रिया विशेषण, सर्वनाम, संबंधबोधक, समुच्चयबोधक',
+    'th': 'คำนาม, คำกริยา, คำคุณศัพท์, คำวิเศษณ์, คำสรรพนาม, คำบุพบท, คำสันธาน',
+    'vi': 'danh từ, động từ, tính từ, trạng từ, đại từ, giới từ, liên từ, thán từ',
+    'tl': 'pangngalan, pandiwa, pang-uri, pang-abay, panghalip, pang-ukol, pangatnig',
+    'eo': 'substantivo, verbo, adjektivo, adverbo, pronomo, prepozicio, artikolo, konjunkcio',
+  };
+  
+  // Default to English if language not found
+  return labels[targetLanguage] || 'noun, verb, adjective, adverb, pronoun, preposition, article, conjunction, auxiliary verb, modal verb, past participle, present participle, infinitive, gerund, relative pronoun, possessive, determiner, interjection, proper noun, cardinal number, ordinal number, reflexive pronoun, definite article, indefinite article';
+}
 
 function getLanguageCodeFromName(name?: string): string | undefined {
   if (!name) {
@@ -1878,7 +2085,7 @@ Format your response as valid JSON with these exact keys:
               // This ensures we catch cases where Claude returns romanization-only without Korean characters
               let earlyFuriganaText = applyKoreanRomanizationGuards(parsedContent.furiganaText || "", "initial-parse-early");
               
-              if ((primaryLanguage === "Korean" || forcedLanguage === 'ko') && earlyFuriganaText) {
+              if ((primaryLanguage === "Korean" || forcedLanguage as string === 'ko') && earlyFuriganaText) {
                 const koreanValidation = validateKoreanRomanization(text, earlyFuriganaText);
                 logger.log(`Korean romanization validation (early path): ${koreanValidation.details}`);
                 
@@ -3290,81 +3497,47 @@ Format your response as valid JSON with these exact keys:
       // Make API request to Claude using latest API format
       logger.log('🎯 [Claude API] Starting API request to Claude...');
       
-      // Check if we should use cached system prompt for Chinese, Japanese, or Korean
+      // ALL LANGUAGES NOW USE CACHING - Select appropriate system prompt based on language
       const isChineseWithCaching = (primaryLanguage === "Chinese" || forcedLanguage === 'zh') && targetLanguage !== 'zh';
       const isJapaneseWithCaching = (primaryLanguage === "Japanese" || forcedLanguage === 'ja') && targetLanguage !== 'ja';
       const isKoreanWithCaching = (primaryLanguage === "Korean" || forcedLanguage === 'ko') && targetLanguage !== 'ko';
-      const useCachedPrompt = isChineseWithCaching || isJapaneseWithCaching || isKoreanWithCaching;
+      const isCJKLanguage = isChineseWithCaching || isJapaneseWithCaching || isKoreanWithCaching;
+      
+      // Select the appropriate system prompt - CJK languages have specialized prompts, others use general prompt
+      const systemPrompt = isChineseWithCaching ? chineseSystemPrompt : 
+                           isJapaneseWithCaching ? japaneseSystemPrompt : 
+                           isKoreanWithCaching ? koreanSystemPrompt :
+                           generalLanguageSystemPrompt;
+      
+      // Determine language name for logging
+      const languageDisplayNames: Record<string, string> = {
+        'zh': 'Chinese', 'ja': 'Japanese', 'ko': 'Korean',
+        'fr': 'French', 'es': 'Spanish', 'it': 'Italian', 'pt': 'Portuguese', 'de': 'German',
+        'ru': 'Russian', 'ar': 'Arabic', 'hi': 'Hindi', 'th': 'Thai', 'vi': 'Vietnamese',
+        'tl': 'Tagalog', 'eo': 'Esperanto', 'en': 'English'
+      };
+      const languageDisplayName = languageDisplayNames[forcedLanguage] || forcedLanguage.toUpperCase();
+      
+      logger.log(`🔄 [Prompt Caching] Sending ${languageDisplayName} request with caching enabled - system prompt: ${systemPrompt.length} chars, user message: ${processedPrompt.length} chars`);
       
       let response;
-      if (useCachedPrompt) {
-        // Use cached system prompt for Chinese, Japanese, or Korean
-        const systemPrompt = isChineseWithCaching ? chineseSystemPrompt : 
-                            isJapaneseWithCaching ? japaneseSystemPrompt : 
-                            koreanSystemPrompt;
-        const languageName = isChineseWithCaching ? 'Chinese' : 
-                            isJapaneseWithCaching ? 'Japanese' : 
-                            'Korean';
-        
-        logger.log(`🔄 [Prompt Caching] Sending ${languageName} request with caching enabled - system prompt: ${systemPrompt.length} chars, user message: ${processedPrompt.length} chars`);
-        
-        response = await axios.post(
-          'https://api.anthropic.com/v1/messages',
-          {
-            model: "claude-3-haiku-20240307",
-            max_tokens: 4000,
-            temperature: 0,
-            system: [
-              {
-                type: "text",
-                text: systemPrompt,
-                cache_control: { type: "ephemeral" }  // ENABLES PROMPT CACHING
-              }
-            ],
-            messages: [
-              {
-                role: "user",
-                content: processedPrompt  // Only dynamic content here
-              }
-            ]
-          },
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'anthropic-version': '2023-06-01',
-              'anthropic-beta': 'prompt-caching-2024-07-31',  // REQUIRED FOR CACHING
-              'x-api-key': apiKey
-            }
-          }
-        );
-        
-        // Extract cache metrics
-        const usage = response.data?.usage;
-        const cacheCreationTokens = usage?.cache_creation_input_tokens || 0;
-        const cacheReadTokens = usage?.cache_read_input_tokens || 0;
-        
-        if (cacheCreationTokens > 0) {
-          logger.log(`🔄 [Cache] 💾 CREATED - ${cacheCreationTokens} tokens cached (full price)`);
-        } else if (cacheReadTokens > 0) {
-          const cacheCost = Math.round(cacheReadTokens * 0.1);
-          const cacheSavings = Math.round(cacheReadTokens * 0.9);
-          logger.log(`🔄 [Cache] ✅ HIT - ${cacheReadTokens} tokens read (90% discount = ${cacheCost} billed)`);
-          logger.log(`💵 [Savings] ${cacheSavings} tokens saved (90% off cached portion)`);
-        } else {
-          logger.log(`🔄 [Cache] ⚠️ NONE - Prompt may be too small`);
-        }
-      } else {
-        // Regular API call without caching
-        response = await axios.post(
+      response = await axios.post(
         'https://api.anthropic.com/v1/messages',
         {
           model: "claude-3-haiku-20240307",
-          max_tokens: 4000,  // Increased from 1000 to ensure we get complete responses
+          max_tokens: 4000,
           temperature: 0,
+          system: [
+            {
+              type: "text",
+              text: systemPrompt,
+              cache_control: { type: "ephemeral" }  // ENABLES PROMPT CACHING
+            }
+          ],
           messages: [
             {
               role: "user",
-              content: processedPrompt
+              content: processedPrompt  // Only dynamic content here
             }
           ]
         },
@@ -3372,10 +3545,26 @@ Format your response as valid JSON with these exact keys:
           headers: {
             'Content-Type': 'application/json',
             'anthropic-version': '2023-06-01',
+            'anthropic-beta': 'prompt-caching-2024-07-31',  // REQUIRED FOR CACHING
             'x-api-key': apiKey
           }
         }
       );
+      
+      // Extract cache metrics
+      const cacheUsage = response.data?.usage;
+      const cacheCreationTokens = cacheUsage?.cache_creation_input_tokens || 0;
+      const cacheReadTokens = cacheUsage?.cache_read_input_tokens || 0;
+      
+      if (cacheCreationTokens > 0) {
+        logger.log(`🔄 [Cache] 💾 CREATED - ${cacheCreationTokens} tokens cached (full price)`);
+      } else if (cacheReadTokens > 0) {
+        const cacheCost = Math.round(cacheReadTokens * 0.1);
+        const cacheSavings = Math.round(cacheReadTokens * 0.9);
+        logger.log(`🔄 [Cache] ✅ HIT - ${cacheReadTokens} tokens read (90% discount = ${cacheCost} billed)`);
+        logger.log(`💵 [Savings] ${cacheSavings} tokens saved (90% off cached portion)`);
+      } else {
+        logger.log(`🔄 [Cache] ⚠️ NONE - Prompt may be too small`);
       }
 
       // Checkpoint 2: API request completed, response received (purple light)
@@ -5142,8 +5331,8 @@ function parseWordScopeResponse(rawResponse: string): {
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);
     }
-  } catch (e) {
-    logger.log('[WordScope Parser] Strategy 1 (direct parse) failed, trying next...');
+  } catch (e: any) {
+    logger.log(`[WordScope Parser] Strategy 1 (direct parse) failed: ${e.message}, trying next...`);
   }
   
   // Strategy 2: Try extracting from markdown code blocks
@@ -5152,8 +5341,8 @@ function parseWordScopeResponse(rawResponse: string): {
     if (jsonBlockMatch) {
       return JSON.parse(jsonBlockMatch[1]);
     }
-  } catch (e) {
-    logger.log('[WordScope Parser] Strategy 2 (markdown blocks) failed, trying next...');
+  } catch (e: any) {
+    logger.log(`[WordScope Parser] Strategy 2 (markdown blocks) failed: ${e.message}, trying next...`);
   }
   
   // Strategy 3: Try with aggressive JSON extraction and cleaning
@@ -5172,13 +5361,13 @@ function parseWordScopeResponse(rawResponse: string): {
       // This is tricky for nested objects, so we'll try parsing first
       try {
         return JSON.parse(jsonString);
-      } catch (e) {
+      } catch (e: any) {
         // If still failing, try more aggressive cleaning
-        logger.log('[WordScope Parser] Strategy 3a failed, trying aggressive cleaning...');
+        logger.log(`[WordScope Parser] Strategy 3a failed: ${e.message}, trying aggressive cleaning...`);
       }
     }
-  } catch (e) {
-    logger.log('[WordScope Parser] Strategy 3 failed, trying next...');
+  } catch (e: any) {
+    logger.log(`[WordScope Parser] Strategy 3 failed: ${e.message}, trying next...`);
   }
   
   // Strategy 4: Manual extraction for nested structures using balanced brace matching
@@ -5320,12 +5509,15 @@ function parseWordScopeResponse(rawResponse: string): {
         return result;
       }
     }
-  } catch (e) {
-    logger.log('[WordScope Parser] Strategy 4 (manual extraction) failed:', e);
+  } catch (e: any) {
+    logger.log(`[WordScope Parser] Strategy 4 (manual extraction) failed: ${e.message}`);
   }
   
-  // All strategies failed
+  // All strategies failed - log the problematic response for debugging
   logger.error('[WordScope Parser] All parsing strategies failed');
+  logger.error(`[WordScope Parser] Response length: ${cleanedResponse.length} chars`);
+  logger.error(`[WordScope Parser] First 500 chars: ${cleanedResponse.substring(0, 500)}`);
+  logger.error(`[WordScope Parser] Last 500 chars: ${cleanedResponse.substring(Math.max(0, cleanedResponse.length - 500))}`);
   return null;
 }
 
@@ -5349,11 +5541,11 @@ function formatScopeAnalysis(analysisJson: {
   };
   commonContext?: string;
 }): string {
-  let formatted = `${analysisJson.word}（${analysisJson.reading}）\n`;
+  let formatted = '';
   
-  // Part of speech and base form
+  // Part of speech breakdown (with Grammar header above it)
   if (analysisJson.baseForm) {
-    formatted += `${analysisJson.partOfSpeech} → Base: ${analysisJson.baseForm}\n`;
+    formatted += `${analysisJson.partOfSpeech}\n→ Base: ${analysisJson.baseForm}\n`;
   } else {
     formatted += `${analysisJson.partOfSpeech}\n`;
   }
@@ -5544,7 +5736,7 @@ Respond in valid JSON:
 {
   "word": "word in original script",
   "reading": "pronunciation guide",
-  "partOfSpeech": "part of speech",
+  "partOfSpeech": "FULL sentence breakdown: word1 [label] + word2 [label] + word3 [label] + ... - analyze ALL words from '${normalizedText}' NOT the translation",
   "baseForm": "dictionary form if different, otherwise omit this field",
   "grammar": {
     "explanation": "one clear sentence explaining the grammar pattern",
@@ -5583,7 +5775,22 @@ RULES:
 - Particles array only needed for languages that use them (Japanese, Korean)
 - Focus only on what helps the learner USE the word correctly
 - If baseForm is the same as word, omit the baseForm field
-- Write all content in ${targetLangName}`;
+- CRITICAL for "partOfSpeech": 
+  * YOU MUST ANALYZE THE SOURCE SENTENCE: "${normalizedText}"
+  * DO NOT analyze the translation - analyze the ORIGINAL SOURCE TEXT above
+  * FORMAT: word1 [label] + word2 [label] + word3 [label] + ...
+  * Use square brackets for labels, e.g.: I [pronom] + want [verbe] + to [préposition] + go [verbe]
+  * The words MUST come from "${normalizedText}" - the ${sourceLangName} source
+  * The labels MUST be in ${targetLangName}
+  * Include ALL words from the source: nouns, verbs, pronouns, adverbs, adjectives, prepositions, particles, conjunctions
+  * WRONG: Analyzing the ${targetLangName} translation instead of the source
+  * CORRECT: Breaking down "${normalizedText}" word by word
+- LANGUAGE REQUIREMENTS:
+  * Example sentences ("sentence" field) must be in ${sourceLangName} (the scanned language)
+  * Translations ("translation" field) must be in ${targetLangName}
+  * Notes, explanations, and all other text must be in ${targetLangName}
+  * Common mistake examples ("wrong" and "correct" fields) must be in ${sourceLangName}
+  * Common mistake explanation ("reason" field) must be in ${targetLangName}`;
 
     // Build detailed reading instructions based on source language
     // These match the quality of the regular Translate button prompts
@@ -5773,9 +5980,9 @@ You MUST respond with valid JSON in this exact format:
   ${furiganaFieldInstruction}
   "translatedText": "Your ${targetLangName} translation here",
   "scopeAnalysis": {
-    "word": "word in original script",
+    "word": "main word or key phrase from the source sentence",
     "reading": "pronunciation guide",
-    "partOfSpeech": "part of speech",
+    "partOfSpeech": "FULL sentence breakdown: word1 [label] + word2 [label] + word3 [label] + ... - analyze ALL words from '${normalizedText}'",
     "baseForm": "dictionary form if different, otherwise omit this field",
     "grammar": {
       "explanation": "one clear sentence explaining the grammar pattern",
@@ -5817,31 +6024,44 @@ CRITICAL REQUIREMENTS:
 - Do not include any text outside the JSON object
 - Ensure proper JSON escaping: use \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes
 - Do NOT truncate or abbreviate any field
-- commonContext should briefly mention typical situations, relationships, or settings where the phrase appears`;
+- commonContext should briefly mention typical situations, relationships, or settings where the phrase appears
+- partOfSpeech MUST be a COMPLETE breakdown of ALL words in "${normalizedText}" - format: "word1 [label] + word2 [label] + word3 [label] + ..." with ALL words from the source sentence`;
 
     // Progress callback
     onProgress?.(1);
     
-    // Check if we should use cached system prompt for Chinese, Japanese, or Korean (similar to regular translation)
+    // ALL LANGUAGES NOW USE CACHING - Select appropriate system prompt based on language
     const isChineseWithCaching = forcedLanguage === 'zh';
     const isJapaneseWithCaching = forcedLanguage === 'ja';
     const isKoreanWithCaching = forcedLanguage === 'ko';
-    const useCachedPrompt = isChineseWithCaching || isJapaneseWithCaching || isKoreanWithCaching;
+    const isCJKLanguage = isChineseWithCaching || isJapaneseWithCaching || isKoreanWithCaching;
+    
+    // Select the appropriate system prompt - CJK languages have specialized prompts, others use general prompt
+    const systemPrompt = isChineseWithCaching ? chineseSystemPrompt : 
+                         isJapaneseWithCaching ? japaneseSystemPrompt : 
+                         isKoreanWithCaching ? koreanSystemPrompt :
+                         generalLanguageSystemPrompt;
+    
+    // Determine language name for logging
+    const languageDisplayNames: Record<string, string> = {
+      'zh': 'Chinese', 'ja': 'Japanese', 'ko': 'Korean',
+      'fr': 'French', 'es': 'Spanish', 'it': 'Italian', 'pt': 'Portuguese', 'de': 'German',
+      'ru': 'Russian', 'ar': 'Arabic', 'hi': 'Hindi', 'th': 'Thai', 'vi': 'Vietnamese',
+      'tl': 'Tagalog', 'eo': 'Esperanto', 'en': 'English'
+    };
+    const languageDisplayName = languageDisplayNames[forcedLanguage] || forcedLanguage.toUpperCase();
     
     let response;
-    if (useCachedPrompt) {
-      // Use cached system prompt for Chinese, Japanese, or Korean WordScope
-      // The system prompt already includes translation and reading instructions
-      // We only need to add scope analysis instructions in the dynamic message
-      const systemPrompt = isChineseWithCaching ? chineseSystemPrompt : 
-                           isJapaneseWithCaching ? japaneseSystemPrompt : 
-                           koreanSystemPrompt;
+    let dynamicUserMessage: string;
+    
+    if (isCJKLanguage) {
+      // CJK languages need special handling for readings (furigana/pinyin/romanization)
       const readingType = isChineseWithCaching ? 'pinyin' : 
                          isJapaneseWithCaching ? 'furigana' : 
                          'romanization';
       const wordType = isJapaneseWithCaching ? 'kanji' : 'word';
       
-      const dynamicUserMessage = `TEXT TO PROCESS: "${normalizedText}"
+      dynamicUserMessage = `TEXT TO PROCESS: "${normalizedText}"
 
 === TASK 2: GRAMMAR ANALYSIS ===
 ${scopeInstructions}
@@ -5852,12 +6072,12 @@ You MUST respond with valid JSON in this exact format:
   ${furiganaFieldInstruction}
   "translatedText": "Your ${targetLangName} translation here",
   "scopeAnalysis": {
-    "word": "word in original script",
+    "word": "main word or key phrase from the source sentence",
     "reading": "pronunciation guide",
-    "partOfSpeech": "part of speech",
+    "partOfSpeech": "SEE MANDATORY FORMAT BELOW",
     "baseForm": "dictionary form if different, otherwise omit this field",
     "grammar": {
-      "explanation": "one clear sentence explaining the grammar pattern",
+      "explanation": "one clear sentence explaining the grammar pattern in ${targetLangName}",
       "particles": [
         {"particle": "particle", "use": "what it marks", "example": "short example"}
       ]
@@ -5884,9 +6104,21 @@ You MUST respond with valid JSON in this exact format:
       "correct": "correct usage",
       "reason": "brief explanation (under 15 words)"
     },
-    "commonContext": "brief note about when/where this phrase is commonly used (e.g., 'customer-to-patron contexts', 'formal business settings', 'casual conversations'). Omit if not applicable."
+    "commonContext": "brief note about when/where this phrase is commonly used. Omit if not applicable."
   }
 }
+
+=== MANDATORY partOfSpeech FORMAT ===
+The partOfSpeech field MUST use ${targetLangName} grammar labels:
+- Format: [source word] [${targetLangName} label] + [source word] [${targetLangName} label] + ...
+- Words from "${normalizedText}", labels in ${targetLangName}
+
+ALLOWED ${targetLangName} LABELS ONLY (use these in ${targetLangName}):
+${getGrammarLabels(targetLanguage)}
+
+EXAMPLE (${sourceLangName} to ${targetLangName}):
+✗ WRONG: Using labels in ${sourceLangName} like [${forcedLanguage === 'ja' ? '代名詞' : forcedLanguage === 'zh' ? '代词' : 'grammar term'}]
+✓ CORRECT: Using labels in ${targetLangName} like [${targetLanguage === 'ja' ? '代名詞' : targetLanguage === 'en' ? 'pronoun' : 'grammar term'}]
 
 CRITICAL REQUIREMENTS:
 - ALL fields are required and must be complete
@@ -5898,14 +6130,13 @@ CRITICAL REQUIREMENTS:
 - Do NOT truncate or abbreviate any field
 - commonContext should briefly mention typical situations, relationships, or settings where the phrase appears`;
 
-      const languageName = isChineseWithCaching ? 'Chinese' : isJapaneseWithCaching ? 'Japanese' : 'Korean';
-      logger.log(`🔄 [WordScope Prompt Caching] Sending ${languageName} request with caching enabled - system prompt: ${systemPrompt.length} chars, user message: ${dynamicUserMessage.length} chars`);
+      logger.log(`🔄 [WordScope Prompt Caching] Sending ${languageDisplayName} request with caching enabled - system prompt: ${systemPrompt.length} chars, user message: ${dynamicUserMessage.length} chars`);
       
       response = await axios.post(
         'https://api.anthropic.com/v1/messages',
         {
           model: wordScopeModel,  // Haiku 3.5 for Japanese, regular Haiku for others
-          max_tokens: 1024,
+          max_tokens: 4000, // Increased to handle full scope analysis with examples
           temperature: 0.3,
           system: [
             {
@@ -5937,6 +6168,10 @@ CRITICAL REQUIREMENTS:
       const cacheCreationTokens = usage?.cache_creation_input_tokens || 0;
       const cacheReadTokens = usage?.cache_read_input_tokens || 0;
       
+      // Debug: Log full usage object to diagnose caching
+      logger.log(`🔍 [WordScope Cache Debug CJK] Full usage object: ${JSON.stringify(usage)}`);
+      logger.log(`🔍 [WordScope Cache Debug CJK] cache_creation_input_tokens: ${usage?.cache_creation_input_tokens}, cache_read_input_tokens: ${usage?.cache_read_input_tokens}`);
+      
       if (cacheCreationTokens > 0) {
         logger.log(`🔄 [WordScope Cache] 💾 CREATED - ${cacheCreationTokens} tokens cached (full price)`);
       } else if (cacheReadTokens > 0) {
@@ -5945,27 +6180,140 @@ CRITICAL REQUIREMENTS:
         logger.log(`🔄 [WordScope Cache] ✅ HIT - ${cacheReadTokens} tokens read (90% discount = ${cacheCost} billed)`);
         logger.log(`💵 [WordScope Savings] ${cacheSavings} tokens saved (90% off cached portion)`);
       } else {
-        logger.log(`🔄 [WordScope Cache] ⚠️ NONE - Prompt may be too small`);
+        logger.log(`🔄 [WordScope Cache] ⚠️ NONE - Prompt may be too small (need 2048+ tokens for Haiku)`);
       }
     } else {
-      // Regular API call without caching (for other languages)
-      response = await axios.post(
-      'https://api.anthropic.com/v1/messages',
+      // NON-CJK LANGUAGES: Use general system prompt with caching
+      // These languages don't need special reading annotations (furigana/pinyin/romanization)
+      dynamicUserMessage = `TEXT TO PROCESS: "${normalizedText}"
+SOURCE LANGUAGE: ${sourceLangName}
+TARGET LANGUAGE: ${targetLangName}
+
+=== TASK 1: TRANSLATION ===
+Translate the text from ${sourceLangName} to ${targetLangName}.
+- Produce a natural, fluent translation
+- Do NOT add any pronunciation guides or annotations
+
+=== TASK 2: GRAMMAR ANALYSIS ===
+${scopeInstructions}
+
+=== RESPONSE FORMAT ===
+You MUST respond with valid JSON in this exact format:
+{
+  "furiganaText": "",
+  "translatedText": "Your ${targetLangName} translation here",
+  "scopeAnalysis": {
+    "word": "main word or key phrase from the source sentence",
+    "reading": "",
+    "partOfSpeech": "SEE MANDATORY FORMAT BELOW",
+    "baseForm": "dictionary form if different, otherwise omit this field",
+    "grammar": {
+      "explanation": "one clear sentence explaining the grammar pattern in ${targetLangName}",
+      "particles": [
+        {"particle": "key grammatical element", "use": "its function", "example": "short example"}
+      ]
+    },
+    "examples": [
       {
-        model: wordScopeModel,  // Haiku 3.5 for Japanese, regular Haiku for others
-        max_tokens: 1024, // Increased for combined response
-        temperature: 0.3,
-        messages: [{ role: 'user', content: combinedPrompt }]
+        "sentence": "simple example in ${sourceLangName}",
+        "translation": "translation in ${targetLangName}",
+        "note": "brief grammar point (under 10 words)"
       },
       {
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01'
-        },
-        timeout: 30000 // Increased timeout for combined call
+        "sentence": "intermediate example in ${sourceLangName}",
+        "translation": "translation in ${targetLangName}",
+        "note": "different usage point"
+      },
+      {
+        "sentence": "natural/casual example in ${sourceLangName}",
+        "translation": "translation in ${targetLangName}",
+        "note": "casual speech pattern or nuance"
       }
-    );
+    ],
+    "commonMistake": {
+      "wrong": "incorrect usage in ${sourceLangName}",
+      "correct": "correct usage in ${sourceLangName}",
+      "reason": "brief explanation in ${targetLangName} (under 15 words)"
+    },
+    "commonContext": "brief note about when/where this phrase is commonly used. Omit if not applicable."
+  }
+}
+
+=== MANDATORY partOfSpeech FORMAT ===
+The partOfSpeech field MUST follow this EXACT pattern:
+- Format: [${sourceLangName} word] [${targetLangName} grammar label] + [${sourceLangName} word] [${targetLangName} grammar label] + ...
+- The WORDS come from the source text "${normalizedText}"
+- The LABELS must be common ${targetLangName} grammar terms
+
+ALLOWED ${targetLangName} LABELS (use ONLY these in ${targetLangName}):
+${getGrammarLabels(targetLanguage)}
+
+EXAMPLE (if translating ${sourceLangName} to ${targetLangName}):
+✗ WRONG: Using labels in ${sourceLangName} like [${sourceLangName === 'French' ? 'article défini' : sourceLangName === 'Spanish' ? 'artículo' : 'grammar term'}]
+✓ CORRECT: Using labels in ${targetLangName} like [${targetLanguage === 'ja' ? '名詞' : targetLanguage === 'fr' ? 'nom' : targetLanguage === 'es' ? 'sustantivo' : 'noun'}]
+
+CRITICAL REQUIREMENTS:
+- ALL fields are required and must be complete
+- furiganaText should be empty for non-CJK languages (no reading annotations needed)
+- Write translation and analysis in ${targetLangName}
+- Example sentences MUST be in ${sourceLangName}
+- Do not include any text outside the JSON object
+- Ensure proper JSON escaping: use \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes
+- Do NOT truncate or abbreviate any field
+- commonContext should briefly mention typical situations, relationships, or settings where the phrase appears`;
+
+      logger.log(`🔄 [WordScope Prompt Caching] Sending ${languageDisplayName} request with caching enabled - system prompt: ${systemPrompt.length} chars, user message: ${dynamicUserMessage.length} chars`);
+      
+      response = await axios.post(
+        'https://api.anthropic.com/v1/messages',
+        {
+          model: wordScopeModel,
+          max_tokens: 4000,
+          temperature: 0.3,
+          system: [
+            {
+              type: "text",
+              text: systemPrompt,
+              cache_control: { type: "ephemeral" }  // ENABLES PROMPT CACHING
+            }
+          ],
+          messages: [
+            {
+              role: "user",
+              content: dynamicUserMessage
+            }
+          ]
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-beta': 'prompt-caching-2024-07-31'  // REQUIRED FOR CACHING
+          },
+          timeout: 30000
+        }
+      );
+      
+      // Extract cache metrics for general languages
+      const usage = response.data?.usage;
+      const cacheCreationTokens = usage?.cache_creation_input_tokens || 0;
+      const cacheReadTokens = usage?.cache_read_input_tokens || 0;
+      
+      // Debug: Log full usage object to diagnose caching
+      logger.log(`🔍 [WordScope Cache Debug] Full usage object: ${JSON.stringify(usage)}`);
+      logger.log(`🔍 [WordScope Cache Debug] cache_creation_input_tokens: ${usage?.cache_creation_input_tokens}, cache_read_input_tokens: ${usage?.cache_read_input_tokens}`);
+      
+      if (cacheCreationTokens > 0) {
+        logger.log(`🔄 [WordScope Cache] 💾 CREATED - ${cacheCreationTokens} tokens cached (full price)`);
+      } else if (cacheReadTokens > 0) {
+        const cacheCost = Math.round(cacheReadTokens * 0.1);
+        const cacheSavings = Math.round(cacheReadTokens * 0.9);
+        logger.log(`🔄 [WordScope Cache] ✅ HIT - ${cacheReadTokens} tokens read (90% discount = ${cacheCost} billed)`);
+        logger.log(`💵 [WordScope Savings] ${cacheSavings} tokens saved (90% off cached portion)`);
+      } else {
+        logger.log(`🔄 [WordScope Cache] ⚠️ NONE - Prompt may be too small (need 2048+ tokens for Haiku)`);
+      }
     }
     
     onProgress?.(2);
@@ -6091,7 +6439,7 @@ async function processWithClaudeAndScopeFallback(
     const targetLangName = LANGUAGE_NAMES_MAP[targetLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'English';
     const sourceLangName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'the source language';
     
-    const scopePrompt = `You are a ${sourceLangName} language teacher helping a ${targetLanguage} speaker.
+    const scopePrompt = `You are a ${sourceLangName} language teacher helping a ${targetLangName} speaker.
 
 Analyze: "${text}"
 
@@ -6099,7 +6447,7 @@ Respond in valid JSON:
 {
   "word": "word in original script",
   "reading": "pronunciation guide",
-  "partOfSpeech": "part of speech",
+  "partOfSpeech": "FORMAT: word1 [${targetLangName} label] + word2 [${targetLangName} label] + ... - use ${sourceLangName} words with ${targetLangName} labels like [noun], [verb], [adjective]",
   "baseForm": "dictionary form if different, otherwise omit this field",
   "grammar": {
     "explanation": "one clear sentence explaining the grammar pattern",
@@ -6140,7 +6488,21 @@ RULES:
 - Focus only on what helps the learner USE the word correctly
 - If baseForm is the same as word, omit the baseForm field
 - commonContext should briefly mention typical situations, relationships, or settings where the phrase appears
-- Write all content in ${targetLangName}`;
+- CRITICAL for "partOfSpeech": 
+  * YOU MUST ANALYZE THE SOURCE SENTENCE: "${text}"
+  * DO NOT analyze the translation - analyze the ORIGINAL SOURCE TEXT above
+  * FORMAT: word1 [${targetLangName} label] + word2 [${targetLangName} label] + word3 [${targetLangName} label] + ...
+  * The words MUST come from "${text}" - the ${sourceLangName} source
+  * The labels MUST be in ${targetLangName} - use these: ${getGrammarLabels(targetLanguage)}
+  * Include ALL words from the source
+  * WRONG: Using labels in ${sourceLangName} like [${sourceLangName === 'French' ? 'nom' : sourceLangName === 'Spanish' ? 'sustantivo' : 'grammar term'}]
+  * CORRECT: Using labels in ${targetLangName} like [${targetLanguage === 'ja' ? '名詞' : targetLanguage === 'en' ? 'noun' : targetLanguage === 'fr' ? 'nom' : 'grammar term'}]
+- LANGUAGE REQUIREMENTS:
+  * Example sentences ("sentence" field) must be in ${sourceLangName} (the scanned language)
+  * Translations ("translation" field) must be in ${targetLangName}
+  * Notes, explanations, and all other text must be in ${targetLangName}
+  * Common mistake examples ("wrong" and "correct" fields) must be in ${sourceLangName}
+  * Common mistake explanation ("reason" field) must be in ${targetLangName}`;
     
     const scopeMetrics = apiLogger.startAPICall('https://api.anthropic.com/v1/messages', {
       text: text.substring(0, 100),
@@ -6149,23 +6511,49 @@ RULES:
       analysisType: 'grammar'
     });
     
+    // Select appropriate system prompt for scope analysis caching
+    const isCJKLanguage = ['zh', 'ja', 'ko'].includes(forcedLanguage);
+    const scopeSystemPrompt = forcedLanguage === 'zh' ? chineseSystemPrompt :
+                               forcedLanguage === 'ja' ? japaneseSystemPrompt :
+                               forcedLanguage === 'ko' ? koreanSystemPrompt :
+                               generalLanguageSystemPrompt;
+    
     const response = await axios.post(
       'https://api.anthropic.com/v1/messages',
       {
-        model: wordScopeModel,  // Haiku 3.5 for Japanese, regular Haiku for others
-        max_tokens: 512,
+        model: wordScopeModel,
+        max_tokens: 2000, // Increased from 512 to prevent truncation
         temperature: 0.3,
+        system: [
+          {
+            type: "text",
+            text: scopeSystemPrompt,
+            cache_control: { type: "ephemeral" }  // ENABLES PROMPT CACHING
+          }
+        ],
         messages: [{ role: 'user', content: scopePrompt }]
       },
       {
         headers: {
           'Content-Type': 'application/json',
           'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01'
+          'anthropic-version': '2023-06-01',
+          'anthropic-beta': 'prompt-caching-2024-07-31'  // REQUIRED FOR CACHING
         },
         timeout: 15000
       }
     );
+    
+    // Log cache metrics for fallback scope analysis
+    const fallbackUsage = response.data?.usage;
+    const fallbackCacheCreation = fallbackUsage?.cache_creation_input_tokens || 0;
+    const fallbackCacheRead = fallbackUsage?.cache_read_input_tokens || 0;
+    
+    if (fallbackCacheCreation > 0) {
+      logger.log(`🔄 [WordScope Fallback Cache] 💾 CREATED - ${fallbackCacheCreation} tokens cached`);
+    } else if (fallbackCacheRead > 0) {
+      logger.log(`🔄 [WordScope Fallback Cache] ✅ HIT - ${fallbackCacheRead} tokens read (90% discount)`);
+    }
     
     const scopeUsage = response.data?.usage;
     const scopeInputTokens = scopeUsage?.input_tokens;
@@ -7178,5 +7566,4 @@ function validateHindiRomanization(originalText: string, romanizedText: string):
 /**
  * Exported validation functions for use in other parts of the app
  */
-export { validateJapaneseFurigana, validateKoreanRomanization, validateRussianTransliteration, validateArabicRomanization, validateHindiRomanization }; 
 export { validateJapaneseFurigana, validateKoreanRomanization, validateRussianTransliteration, validateArabicRomanization, validateHindiRomanization }; 
