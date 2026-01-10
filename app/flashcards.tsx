@@ -439,7 +439,6 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
         hasJapanese ||
         hasChinese ||
         hasKorean ||
-        hasRussian ||
         hasArabic ||
         hasHindi ||
         hasThai

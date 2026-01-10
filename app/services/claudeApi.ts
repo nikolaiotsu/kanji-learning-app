@@ -193,7 +193,7 @@ EXAMPLES:
 Input: "문법 포인트"
 furiganaText: "문법(mun-beop) 포인트(po-in-teu)"
 
-Input: "은/는 vs 이/가"  
+Input: "은/는 vs 이/가"
 furiganaText: "은(eun)/는(neun) vs 이(i)/가(ga)"
 
 Input: "(목적격 조사)"
@@ -204,15 +204,495 @@ ROMANIZATION RULES:
 - No spaces before parentheses
 - Use Revised Romanization only (not Japanese romaji)
 
+COMPLETE REVISED ROMANIZATION SYSTEM:
+
+CONSONANTS:
+- ㄱ = g/k (g before vowels, k before consonants or at end)
+- ㄷ = d/t (d before vowels, t before consonants or at end)
+- ㅂ = b/p (b before vowels, p before consonants or at end)
+- ㅈ = j/ch (j before vowels, ch before consonants or at end)
+- ㅅ = s (but ㅆ = ss, initial ㅅ before i/ㅣ = shi)
+- ㅊ = ch (always ch)
+- ㅋ = k (always k)
+- ㅌ = t (always t)
+- ㅍ = p (always p)
+- ㅎ = h (always h)
+- ㄹ = r/l (r before vowels, l at end of syllable)
+- ㅁ = m, ㄴ = n, ㅇ = ng (at syllable end)
+
+VOWELS:
+- ㅏ = a, ㅑ = ya, ㅓ = eo, ㅕ = yeo
+- ㅗ = o, ㅛ = yo, ㅜ = u, ㅠ = yu
+- ㅡ = eu, ㅣ = i, ㅐ = ae, ㅒ = yae
+- ㅔ = e, ㅖ = ye, ㅚ = oe, ㅟ = wi
+- ㅞ = we, ㅙ = wae
+
+COMPLEX SYLLABLES AND RULES:
+- Syllable-final consonant rules (받침):
+  - ㄱ/ㅋ/ㄲ + ㄱ = kk (읽 + 고 = il-kko)
+  - ㄷ/ㅌ/ㅅ/ㅆ/ㅈ/ㅊ/ㅎ + ㄷ = tt (받 + 다 = bat-ta)
+  - ㅂ/ㅍ/ㅃ + ㅂ = pp (줍 + 다 = jup-tta)
+  - ㄹ + ㄹ = ll (몰 + 라 = mol-la)
+  - Nasal assimilation: 받침 nasal + nasal = double nasal
+
+PARTICLES AND GRAMMAR MARKERS:
+- Subject particles: 이(i)/가(ga) - nominative case
+- Object particles: 을(eul)/를(reul) - accusative case
+- Topic particles: 은(eun)/는(neun) - topic marking
+- Location particles: 에(e)/에서(eseo) - location/instrumental
+- Honorific markers: 시(si), 세요(se-yo), 십니다(sim-ni-da)
+
+COMPOUND WORDS:
+- Sino-Korean: 서울(seoul), 학교(hak-gyo), 학생(hak-saeng)
+- Pure Korean: 사람(sa-ram), 물(mu), 밥(bap)
+- Loan words: 컴퓨터(keom-pyu-teo), 버스(beo-seu)
+
+VERIFICATION CHECKLIST:
+✓ Every Korean character preserved in furiganaText
+✓ Romanization in (parentheses) with no space before (
+✓ Correct 받침 pronunciation changes
+✓ Proper particle romanization (i/ga, eun/neun, eul/reul)
+✓ No Korean characters in translatedText
+
+COMMON ERRORS TO AVOID:
+- "han-geul" instead of "han-geul" [space in compound word]
+- "i/ga" in translation instead of "subject markers"
+- Missing 받침 changes: "좋다" → "joh-da" not "jo-ta"
+- Wrong consonant assimilation: "읽다" → "ik-tta" not "il-kka"
+- Particle confusion: "은/는" → "eun/neun" not "un/nun"
+
+ADVANCED ROMANIZATION PATTERNS:
+
+HONORIFICS AND FORMAL SPEECH:
+- Polite speech: ㅂ니다(mnida), 세요(seyo), ㅂ까(mkka)
+- Honorific particles: 께(kke), 드리다(deu-ri-da)
+- Deferential speech: 십니다(simnida), 계시다(gyesida)
+
+IDIOMATIC EXPRESSIONS:
+- 안녕하세요(an-nyeong-ha-se-yo) - formal greeting
+- 감사합니다(gam-sa-ham-ni-da) - thank you
+- 실례합니다(sil-lye-ham-ni-da) - excuse me
+- 만나서 반갑습니다(man-na-seo ban-gap-seum-ni-da) - nice to meet you
+
+NUMBERS AND COUNTERS:
+- 하나(hana), 둘(dul), 셋(set), 넷(net), 다섯(da-seot)
+- Sino-Korean: 일(il), 이(i), 삼(sam), 사(sa), 오(o)
+- Counters: 명(myeong) for people, 개(gae) for objects, 마리(ma-ri) for animals
+
+REGIONAL VARIATIONS:
+- Seoul dialect (표준어): most common, used in education
+- Busan dialect: different particle usage
+- Jeju dialect: unique vocabulary and pronunciation
+- But Revised Romanization follows Seoul standard
+
+SELF-VERIFICATION CHECKLIST:
+Before submitting, verify each Korean element:
+✓ Original 한글 preserved in furiganaText
+✓ 받침 pronunciation changes applied correctly
+✓ Particles romanized properly (eun/neun, i/ga, eul/reul)
+✓ No Korean in translatedText (only target language)
+✓ Proper spacing and parentheses formatting
+✓ Correct vowel combinations (ya, yeo, yu, etc.)
+
 RESPOND WITH JSON:
 {
   "furiganaText": "Korean text with romanization annotations",
   "translatedText": "Pure translation in target language (NO romanization)"
 }`;
 
-// STATIC SYSTEM PROMPT FOR GENERAL LANGUAGES (CACHEABLE) - For languages without special reading requirements
+// STATIC SYSTEM PROMPT FOR ARABIC (CACHEABLE) - Shared across functions
+// Just above 2048 token minimum for Haiku caching
+const arabicSystemPrompt = `You are an Arabic language expert specializing in translation and transliteration annotation.
+
+TRANSLATION RULES:
+- Translate into natural, fluent target language
+- Preserve original meaning and tone
+- Use natural expressions appropriate for the target language
+- Do NOT add transliteration or pronunciation guides to the translation itself
+
+CRITICAL FORMATTING REQUIREMENTS FOR ARABIC TEXT:
+- Keep all original Arabic text exactly as is (including any English words, numbers, or punctuation)
+- For EVERY Arabic word, add the Enhanced Arabic Chat Alphabet transliteration in parentheses immediately after the Arabic text
+- Do NOT add transliteration to English words or numbers - leave them unchanged
+- Follow enhanced Arabic romanization standards with sun letter assimilation
+- The format should be: العربية(al-arabiya) NOT "al-arabiya (Arabic)" or any other format
+- Do NOT mix English translations in the transliteration - only provide pronunciation guide
+
+SUN LETTER ASSIMILATION RULES - MANDATORY:
+Before sun letters (ت، ث، د، ذ، ر، ز، س، ش، ص، ض، ط، ظ، ل، ن), the definite article 'al-' (الـ) must be assimilated:
+
+SUN LETTERS AND THEIR ASSIMILATION:
+- الت = at- (ت): التعليم = at-ta'lim (not al-ta'lim)
+- الث = ath- (ث): الثقافي = ath-thaqafi (not al-thaqafi)  
+- الد = ad- (د): الدرس = ad-dars (not al-dars)
+- الذ = adh- (ذ): الذهب = adh-dhahab (not al-dhahab)
+- الر = ar- (ر): الرحلة = ar-rihlah (not al-rihlah)
+- الز = az- (ز): الزمن = az-zaman (not al-zaman)
+- الس = as- (س): السابعة = as-saa'iba (not al-saa'iba)
+- الش = ash- (ش): الشمس = ash-shams (not al-shams)
+- الص = as- (ص): الصباح = as-sabah (not al-sabah)
+- الض = ad- (ض): الضوء = ad-daw' (not al-daw')
+- الط = at- (ط): الطعام = at-ta'am (not al-ta'am)
+- الظ = adh- (ظ): الظهر = adh-dhuhr (not al-dhuhr)
+- الل = al- (ل): الليل = al-layl (no change, but doubled: al-layl)
+- الن = an- (ن): النهار = an-nahar (not al-nahar)
+
+MOON LETTERS (NO ASSIMILATION):
+Moon letters (ا، ب، ج، ح، خ، ع، غ، ف، ق، ك، م، ه، و، ي) keep 'al-' unchanged:
+- الباب = al-bab (door)
+- الجامعة = al-jami'a (university)
+- الحياة = al-hayah (life)
+- الكتاب = al-kitab (book)
+- المدرسة = al-madrasa (school)
+
+ENHANCED ROMANIZATION STANDARDS:
+- ع = ' (ayn - glottal stop)
+- غ = gh (voiced velar fricative)
+- ح = h (voiceless pharyngeal fricative)  
+- خ = kh (voiceless velar fricative) - NEVER use k̲h̲ or other diacritics
+- ق = q (voiceless uvular stop)
+- ص = s (emphatic s) - NEVER use ṣ or underlined s
+- ض = d (emphatic d) - NEVER use ḍ or d̲ or underlined d
+- ط = t (emphatic t) - NEVER use ṭ or underlined t
+- ظ = dh (emphatic dh) - NEVER use d̲h̲ or underlined dh
+- ث = th (voiceless dental fricative)
+- ذ = dh (voiced dental fricative)
+- ش = sh (NOT s̲h̲ or underlined sh)
+
+CRITICAL: DO NOT USE DIACRITICAL MARKS OR COMBINING CHARACTERS!
+- NO underlines: k̲h̲, s̲h̲, d̲ are WRONG
+- NO dots below: ṣ, ḍ, ṭ are WRONG
+- NO special IPA symbols
+- Use ONLY simple ASCII letters: a-z, A-Z, and apostrophe (')
+- The romanization must be readable without special fonts
+
+LONG VOWEL CONSISTENCY - MANDATORY RULES:
+- ا = aa (ALWAYS long) - consistent representation of alif
+- و = uu/oo (context dependent) - long u sound or long o sound
+- ي = ii/ee (context dependent) - long i sound or long e sound
+- ى = aa (alif maqsura - always long aa sound)
+
+KEY EXAMPLES:
+- "مرحبا" → "مرحبا(marhabaa)" [long aa from alif]
+- "السلام عليكم" → "السلام(as-salaam) عليكم('alaykum)" [sun letter assimilation + long aa]
+- "الشمس" → "الشمس(ash-shams)" [sun letter assimilation]
+- "التعليم" → "التعليم(at-ta'liim)" [sun letter assimilation + long ii]
+- "الرحلة" → "الرحلة(ar-rihlah)" [sun letter assimilation]
+- "النهار" → "النهار(an-nahaar)" [sun letter assimilation + long aa]
+- "الكتاب" → "الكتاب(al-kitaab)" [moon letter - no assimilation + long aa]
+- "كتاب جميل" → "كتاب(kitaab) جميل(jamiil)" [long aa + long ii]
+- "أنا أتعلم العربية" → "أنا(anaa) أتعلم(ata'allam) العربية(al-'arabiyyah)" [initial hamza + long aa + long ii]
+- "سؤال" → "سؤال(su'aal)" [hamza on waw + long aa]
+- "رئيس" → "رئيس(ra'iis)" [hamza on ya + long ii]
+- "جزء" → "جزء(juz')" [hamza alone as glottal stop]
+- "ماء" → "ماء(maa')" [final hamza + long aa]
+- Mixed: "Hello عربي" → "Hello عربي('arabii)"
+
+VERIFICATION CHECKLIST:
+✓ Sun letter assimilation applied to definite articles (الـ) before ت، ث، د، ذ، ر، ز، س، ش، ص، ض، ط، ظ، ل، ن
+✓ Every alif (ا) represented as 'aa' (never single 'a')
+✓ Alif maqsura (ى) always 'aa'
+✓ Waw (و) as 'uu'/'oo' when long vowel, 'w' when consonant
+✓ Ya (ي) as 'ii'/'ee' when long vowel, 'y' when consonant
+✓ Hamzas correctly represented: initial (أ، إ), medial (ؤ، ئ، ء), final (ء، أ)
+✓ No diacritical marks (ṣ, ḍ, ṭ) or underlines - use simple ASCII only
+
+CRITICAL ERRORS TO AVOID:
+- "kitab" instead of "kitaab" [missing long vowel]
+- "al-shams" instead of "ash-shams" [missing sun letter assimilation]
+- "maa" instead of "maa'" [missing final hamza]
+- "su-al" instead of "su'aal" [missing hamza representation]
+- "ana" instead of "anaa" [missing initial hamza + long aa]
+- "al-arabiya (Arabic)" instead of "al-'arabiyyah"
+
+RESPOND WITH JSON:
+{
+  "furiganaText": "Arabic text with enhanced transliteration in parentheses immediately after each Arabic word - following the sun letter assimilation rules, long vowel consistency rules, AND systematic hamza representation above",
+  "translatedText": "Accurate translation in target language reflecting the full meaning in context"
+}`;
+
+// STATIC SYSTEM PROMPT FOR THAI (CACHEABLE) - Shared across functions
+// Just above 2048 token minimum for Haiku caching
+const thaiSystemPrompt = `You are a Thai language expert specializing in translation and RTGS romanization annotation.
+
+TRANSLATION RULES:
+- Translate into natural, fluent target language
+- Preserve original meaning and tone
+- Use natural expressions appropriate for the target language
+- Do NOT add romanization or pronunciation guides to the translation itself
+
+CRITICAL FORMATTING REQUIREMENTS FOR THAI TEXT:
+- Keep all original Thai text exactly as is (including any English words, numbers, or punctuation)
+- For EVERY Thai word or phrase, add RTGS romanization in parentheses DIRECTLY after the Thai text with NO SPACE before the opening parenthesis
+- CORRECT: สวัสดี(sawatdee) - parenthesis directly touches Thai text
+- WRONG: สวัสดี (sawatdee) - DO NOT put a space before the parenthesis
+- Do NOT add romanization to English words, numerals, or punctuation—leave them untouched
+- Follow standard RTGS conventions: no tone marks, use apostrophes only when part of loan words, and prefer digraphs like ph, th, kh, ch for aspirated consonants
+
+RTGS ACCURACY GUIDELINES:
+- Aspirated consonants: use ph (พ, ผ), th (ท, ธ), kh (ค, ข, ฆ), ch (ช, ฌ, ซ) while unaspirated consonants stay as k, t, k, t, t, etc.
+- Vowels: long vowels double the vowel letters (aa, ii, uu, ee, oo) and diphthongs use Thai-specific combinations (ai, ao, ue, oi)
+- Clusters and final consonants should follow RTGS (e.g., กรุงเทพฯ = Krung Thep, สมุทร = Samut)
+- Use ng for ง/–ng, ny for ญ/ญา when applicable, and maintain the proper representation of silent /อ/ when it leads the syllable
+- Do not introduce diacritics; keep the romanization plain Latin letters with consistent spacing
+
+CONSONANT ASPIRATION RULES - MANDATORY:
+- High class + high tone = aspirated: ข = kh, ฉ = ch, ถ = th, ผ = ph, ฝ = f, ศ = s, ษ = s, ส = s
+- Mid class + high tone = aspirated: จ = ch, ท = th, ธ = th, พ = ph, ภ = ph
+- Low class consonants never aspirated: ก = k, ด = d, ต = t, ป = p, บ = b
+- Always aspirated: ฟ = f, ฮ = h (exceptions to class rules)
+
+INITIAL CONSONANT CLUSTERS:
+- กร = kr, กล = kl, คว = kw, ปร = pr, พร = phr, ตร = tr, ตร = tr
+- ปล = pl, พล = phl, ผล = phon, ผล = phon, ฝล = fon, หร = hon
+- Complex clusters: วัน = wan (not wun), ด้วย = duay (not duey), สวย = suay (not suai)
+
+FINAL CONSONANT RULES:
+- Dead syllables end with p, t, k: รับ = rap, จบ = chop, มาก = mak
+- Live syllables end with m, n, ng, vowel: มา = maa, จน = chon, สิง = sing
+- Sonorant finals: ย = y, ว = w, อ = (silent at end)
+
+SILENT VOWEL CARRIER /อ/:
+- อ at start of syllable = silent: อา = aa, อี = ii, อุ = u, อร = on
+- อ before consonants = vowel carrier: เขา = khao, เรา = rao, เธอ = thoe
+- อ after consonants = silent: เกาะ = ko, เกิด = koet, เรา = rao
+
+TONE MARK RULES (NO TONE MARKS IN RTGS):
+- RTGS never uses tone marks (á, à, â, etc.)
+- Tone determined by consonant class + tone marker combinations
+- Academic transcription uses numbers, RTGS uses plain letters only
+
+VOWEL LENGTH RULES - CRITICAL ACCURACY:
+- Short vowels: a (ะ, ั), i (ิ), u (ุ), e (เ, แะ, เอะ), o (โะ, เาะ, อะ)
+- Long vowels: aa (า, ำ), ii (ี), uu (ู), ee (เอี, เอ), oo (โ, โอ)
+- Diphthongs: ai (ไ, ใ, ใ), ao (าว), ue (ื), oi (อย)
+
+SILENT /อ/ RULES:
+- อ at syllable start is silent: ออก(ok) not "aok", อ่าน(aan) not "aan"
+- อ after consonants becomes vowel carrier: เขา(khao), เธอ(thoe), เรา(rao)
+- อ before other vowels: ไป(pai), ใหม่(mai), ใช่(chai)
+
+COMPOUND WORD HANDLING:
+- Compound nouns as single units: นักเรียน(nak rian) not นัก(nak)เรียน(rian)
+- Place names: กรุงเทพฯ(Krung Thep) not กรุง(krung)เทพฯ(thep)
+- Honorifics: ครับ(khrab), ค่ะ(kha), คุณ(khun)
+
+KEY EXAMPLES:
+- "สวัสดีครับ" → "สวัสดีครับ(sawatdee khrab)"
+- "ขอบคุณ" → "ขอบคุณ(khop khun)"
+- "นักเรียน" → "นักเรียน(nak rian)" [compound word as unit]
+- "ประเทศไทย" → "ประเทศไทย(prathet thai)" [compound proper name]
+- "กรุงเทพฯ" → "กรุงเทพฯ(Krung Thep)" [place name]
+- "ไป" → "ไป(pai)" [diphthong ai]
+- "ใหม่" → "ใหม่(mai)" [long ai]
+- "เขา" → "เขา(khao)" [ao diphthong]
+- "เพื่อน" → "เพื่อน(phuean)" [ue diphthong]
+- "พูด" → "พูด(phut)" [aspirated ph]
+- "เธอ" → "เธอ(thoe)" [aspirated th]
+- "ข้าว" → "ข้าว(khao)" [aspirated kh]
+- "ช้าง" → "ช้าง(chang)" [aspirated ch]
+- "สวัสดีครับ คุณชื่ออะไร" → "สวัสดีครับ(sawatdee khrab) คุณชื่ออะไร(khun chue arai)"
+- "ฉันชอบกินข้าวมาก" → "ฉันชอบกินข้าวมาก(chan chop kin khao mak)"
+- "นี่คือหนังสือเล่มใหม่" → "นี่คือหนังสือเล่มใหม่(ni khue nang sue lem mai)"
+- "สามคน" → "สามคน(saam khon)" [number + classifier]
+- "ห้าตัว" → "ห้าตัว(ha tua)" [number + classifier]
+- "เชียงใหม่" → "เชียงใหม่(chiang mai)" [place name]
+- "ภูเก็ต" → "ภูเก็ต(phuket)" [place name]
+- "Hello คุณ" → "Hello คุณ(khun)" [mixed content]
+- "OK ครับ" → "OK ครับ(khrab)" [mixed content]
+
+VERIFICATION CHECKLIST - MANDATORY:
+✓ Every Thai word has romanization in parentheses with NO space before opening parenthesis
+✓ Aspirated consonants use ph, th, kh, ch (not p, t, k, c)
+✓ Long vowels double letters (aa, ii, uu, ee, oo) - no single letters for long sounds
+✓ Silent อ at start of syllables is ignored in romanization
+✓ Compound words and proper names treated as single units
+✓ Classifiers and measure words romanized correctly
+✓ Mixed language content preserves English words unchanged
+
+COMMON ERRORS TO AVOID:
+- "sawadee" instead of "sawatdee" [missing double vowel]
+- "khun (you)" instead of "khun" [no English translations in parentheses]
+- "phom" instead of "phom" [correct, but ensure no spaces before parentheses]
+- "nak(rian)" instead of "nak rian" [compound words need space between romanization parts]
+- "thai(land)" instead of "prathet thai" [wrong word boundaries]
+- "khao" instead of "khao" [correct, but verify aspiration]
+
+ADVANCED RTGS RULES:
+- RTGS does NOT use tone marks (no á, à, â, etc.)
+- Long vowels indicated by doubling: aa, ii, uu, ee, oo
+- Standard RTGS preferred over local pronunciations
+
+RESPOND WITH JSON:
+{
+  "furiganaText": "Thai text with RTGS romanization in parentheses after each word following all rules above",
+  "translatedText": "Accurate translation in target language reflecting the full meaning in context"
+}`;
+
+// STATIC SYSTEM PROMPT FOR HINDI (CACHEABLE) - Shared across functions
+// Just above 2048 token minimum for Haiku caching
+const hindiSystemPrompt = `You are a Hindi language expert specializing in translation and IAST romanization annotation.
+
+TRANSLATION RULES:
+- Translate into natural, fluent target language
+- Preserve original meaning and tone
+- Use natural expressions appropriate for the target language
+- Do NOT add romanization or pronunciation guides to the translation itself
+
+CRITICAL FORMATTING REQUIREMENTS FOR HINDI TEXT:
+- Keep all original Hindi Devanagari text exactly as is (including any English words, numbers, or punctuation)
+- For EVERY Hindi word, add the standard romanization in parentheses immediately after the Devanagari text
+- Do NOT add romanization to English words or numbers - leave them unchanged
+- Follow IAST (International Alphabet of Sanskrit Transliteration) with enhanced accuracy
+- The format should be: हिन्दी(hindī) NOT "hindī (Hindi)" or any other format
+- Do NOT mix English translations in the romanization - only provide pronunciation guide
+
+CRITICAL VOWEL LENGTH VERIFICATION - MANDATORY RULES:
+- आ MUST be ā (never a) - long vowel always marked with macron
+- ई MUST be ī (never i) - long vowel always marked with macron
+- ऊ MUST be ū (never u) - long vowel always marked with macron
+- ए MUST be e (inherently long, no macron needed)
+- ओ MUST be o (inherently long, no macron needed)
+- अ = a (short vowel, no macron)
+- इ = i (short vowel, no macron)
+- उ = u (short vowel, no macron)
+- Review every single vowel for correct length marking
+- Pay special attention to compound words where vowel length is crucial
+
+DIACRITICAL MARK REQUIREMENTS - MANDATORY ACCURACY:
+All retroflex consonants MUST have dots below:
+- ट = ṭ (retroflex unaspirated)
+- ठ = ṭh (retroflex aspirated)
+- ड = ḍ (retroflex unaspirated)
+- ढ = ḍh (retroflex aspirated)
+- ण = ṇ (retroflex nasal)
+
+All sibilants must be distinguished:
+- श = ś (palatal sibilant)
+- ष = ṣ (retroflex sibilant)
+- स = s (dental sibilant)
+
+Compound consonants verification:
+- क्ष = kṣ (never ksh or other variants)
+- त्र = tr (never tra)
+- ज्ञ = jñ (never gya or other variants)
+
+Other critical diacriticals:
+- र् = r (with dot below when appropriate)
+- ṃ for anusvara (ं) - when nasalization is phonemic
+- ñ for proper nasalization contexts
+
+ENHANCED ROMANIZATION STANDARDS - COMPREHENSIVE RULES:
+Consonants:
+- क = k, ख = kh, ग = g, घ = gh, ङ = ṅ
+- च = c, छ = ch, ज = j, झ = jh, ञ = ñ
+- ट = ṭ, ठ = ṭh, ड = ḍ, ढ = ḍh, ण = ṇ
+- त = t, थ = th, द = d, ध = dh, न = n
+- प = p, फ = ph, ब = b, भ = bh, म = m
+- य = y, र = r, ल = l, व = v/w
+- श = ś, ष = ṣ, स = s, ह = h
+
+Nasalization:
+- ं (anusvara) = ṃ when phonemic nasalization
+- ँ (chandrabindu) = ̃ (tilde over vowel) or ñ contextually
+
+Examples of ENHANCED Hindi romanization formatting:
+
+VOWEL LENGTH EXAMPLES - CRITICAL ACCURACY:
+- "आम" → "आम(ām)" [REQUIRED - long ā, never "am"]
+- "ईश्वर" → "ईश्वर(īśvar)" [REQUIRED - long ī + palatal ś, never "ishwar"]
+- "ऊपर" → "ऊपर(ūpar)" [REQUIRED - long ū, never "upar"]
+- "आशा" → "आशा(āśā)" [REQUIRED - both long ā + palatal ś]
+- "पीना" → "पीना(pīnā)" [REQUIRED - long ī + long ā]
+- "फूल" → "फूल(phūl)" [REQUIRED - long ū with aspiration]
+
+RETROFLEX CONSONANT EXAMPLES - MANDATORY DOTS:
+- "बाट" → "बाट(bāṭ)" [REQUIRED - retroflex ṭ with dot]
+- "ठंडा" → "ठंडा(ṭhaṇḍā)" [REQUIRED - aspirated retroflex ṭh + retroflex ṇ + retroflex ḍ]
+- "डाल" → "डाल(ḍāl)" [REQUIRED - retroflex ḍ with dot]
+- "ढोल" → "ढोल(ḍhol)" [REQUIRED - aspirated retroflex ḍh]
+- "गणेश" → "गणेश(gaṇeś)" [REQUIRED - retroflex ṇ + palatal ś]
+
+SIBILANT DISTINCTION EXAMPLES - CRITICAL ACCURACY:
+- "शिव" → "शिव(śiv)" [REQUIRED - palatal ś, never "shiv"]
+- "विष्णु" → "विष्णु(viṣṇu)" [REQUIRED - retroflex ṣ + retroflex ṇ, never "vishnu"]
+- "सूर्य" → "सूर्य(sūrya)" [REQUIRED - dental s + long ū]
+- "राष्ट्र" → "राष्ट्र(rāṣṭra)" [REQUIRED - retroflex ṣ + ṭ cluster]
+
+COMPOUND CONSONANT EXAMPLES - VERIFICATION REQUIRED:
+- "क्षमा" → "क्षमा(kṣamā)" [REQUIRED - kṣ cluster, never "kshama"]
+- "त्रिशूल" → "त्रिशूल(triśūl)" [REQUIRED - tr cluster + palatal ś + long ū]
+- "यज्ञ" → "यज्ञ(yajñ)" [REQUIRED - jñ cluster, never "yagya"]
+- "प्रकाश" → "प्रकाश(prakāś)" [REQUIRED - pr cluster + palatal ś]
+
+COMPLEX SENTENCE EXAMPLES - COMPLETE ACCURACY:
+- "मैं हिन्दी सीख रहा हूँ" → "मैं(maiṃ) हिन्दी(hindī) सीख(sīkh) रहा(rahā) हूँ(hūṃ)"
+- "आज अच्छा मौसम है" → "आज(āj) अच्छा(acchā) मौसम(mausam) है(hai)"
+- "यह बहुत सुन्दर है" → "यह(yah) बहुत(bahut) सुन्दर(sundar) है(hai)"
+- "गुरु की कृपा से सब कुछ संभव है" → "गुरु(guru) की(kī) कृपा(kr̥pā) से(se) सब(sab) कुछ(kuch) संभव(sambhav) है(hai)"
+- "रामायण और महाभारत" → "रामायण(rāmāyaṇ) और(aur) महाभारत(mahābhārat)"
+
+NASALIZATION EXAMPLES - CONTEXTUAL ACCURACY:
+- "गंगा" → "गंगा(gaṅgā)" [anusvara before velar]
+- "अंक" → "अंक(aṅk)" [anusvara before velar]
+- "चाँद" → "चाँद(cāṃd)" [chandrabindu nasalization]
+- "हाँ" → "हाँ(hāṃ)" [chandrabindu with long vowel]
+
+SELF-VERIFICATION CHECKLIST - MANDATORY FINAL CHECK:
+Before finalizing your romanization, systematically verify each element:
+
+✓ VOWEL LENGTH VERIFICATION:
+  - Are all long vowels properly marked with macrons? (ā, ī, ū)
+  - Are आ always ā (never a)?
+  - Are ई always ī (never i)?
+  - Are ऊ always ū (never u)?
+  - Are short vowels (अ, इ, उ) without macrons?
+
+✓ RETROFLEX CONSONANT VERIFICATION:
+  - Are all retroflex consonants marked with dots? (ṭ, ṭh, ḍ, ḍh, ṇ)
+  - Are ट, ठ, ड, ढ, ण all properly distinguished from dental counterparts?
+  - Is every retroflex marked consistently throughout?
+
+✓ SIBILANT DISTINCTION VERIFICATION:
+  - Are श = ś (palatal sibilant) properly marked?
+  - Are ष = ṣ (retroflex sibilant) with dot below?
+  - Are स = s (dental sibilant) unmarked?
+  - Are all three sibilants clearly distinguished?
+
+✓ COMPOUND CONSONANT VERIFICATION:
+  - Are क्ष = kṣ clusters properly marked?
+  - Are त्र = tr clusters correct?
+  - Are ज्ञ = jñ clusters properly represented?
+  - Are all conjunct consonants accurately represented?
+
+RESPOND WITH JSON:
+{
+  "furiganaText": "Hindi text with IAST romanization in parentheses immediately after each Hindi word - following the vowel length, retroflex, sibilant, and compound consonant rules above",
+  "translatedText": "Accurate translation in target language reflecting the full meaning in context"
+}`;
+
+// SIMPLE TRANSLATION PROMPT - For basic translations without grammar analysis
+// This is a lightweight prompt for when users just want translations (no WordScope)
+// Kept intentionally short to minimize token usage - NO caching needed due to small size
+const simpleTranslationPrompt = `You are a professional translator. Translate text naturally and accurately.
+
+RULES:
+- Translate into natural, fluent target language
+- Preserve meaning, tone, and register
+- Use natural expressions appropriate for the target language
+- Do NOT add romanization or pronunciation guides
+- Handle idioms appropriately - translate meaning, not word-for-word
+
+RESPOND WITH JSON:
+{
+  "furiganaText": "",
+  "translatedText": "Natural translation in target language"
+}`;
+
+// STATIC SYSTEM PROMPT FOR GENERAL LANGUAGES (CACHEABLE) - For WordScope/grammar analysis
 // This covers: French, Spanish, Italian, German, Portuguese, Russian, Arabic, Hindi, Thai, Vietnamese, Tagalog, Esperanto, etc.
-// Expanded to exceed 1024 token minimum for Haiku caching (approximately 5000+ characters)
+// Expanded to exceed 2048 token minimum for Haiku caching (approximately 9000+ characters)
+// NOTE: This prompt is ONLY used for WordScope analysis, NOT for basic translations
 const generalLanguageSystemPrompt = `You are a multilingual language expert specializing in translation and grammatical analysis for language learners.
 
 === TRANSLATION RULES ===
@@ -2651,83 +3131,20 @@ Format your response as valid JSON with these exact keys:
   "furiganaText": "",
   "translatedText": "Natural Russian translation using Cyrillic characters - NO romanization"
 }`;
-      } else if ((primaryLanguage === "Russian" || forcedLanguage === 'ru') && targetLanguage !== 'ru') {
-        // Russian-specific prompt with Enhanced Practical Romanization
-        // CRITICAL: This should run regardless of target language to preserve Cyrillic + romanization
-        // Note: Only add romanization when translating TO a different language (Russian speakers don't need romanization for their native language)
-        logger.log(`[DEBUG] RUSSIAN SOURCE TEXT: Adding romanization and translating to ${targetLangName} (targetLanguage: ${targetLanguage})`);
+      } else if (primaryLanguage === "Russian") {
+        // Russian-specific prompt - treated as standard Roman language (no romanization needed, Cyrillic is phonetic)
         userMessage = `
 ${promptTopSection}
-You are a Russian language expert. I need you to analyze and translate this Russian text: "${text}"
+You are a Russian language expert. I need you to translate this Russian text: "${text}"
 
-CRITICAL FORMATTING REQUIREMENTS FOR RUSSIAN TEXT:
-- Keep all original Russian text exactly as is (including any English words, numbers, or punctuation)
-- For EVERY Russian word, add the Enhanced Practical Romanization in parentheses immediately after the Cyrillic text
-- Do NOT add romanization to English words or numbers - leave them unchanged
-- Follow enhanced practical romanization standards with palatalization markers
-- The format should be: Русский(russkiy) NOT "russkiy (Russian)" or any other format
-- Do NOT mix English translations in the romanization - only provide pronunciation guide
+IMPORTANT FORMATTING REQUIREMENTS FOR RUSSIAN TEXT:
+- Keep all original text as is (including any English words, numbers, or punctuation)
+- No romanization is needed for Russian text (Cyrillic is phonetic)
 - Translate into ${targetLangName} language, NOT English (unless English is specifically requested)
-- IMPORTANT: The furiganaText field must contain the ORIGINAL Cyrillic text with romanization, regardless of target language
-
-PALATALIZATION CONSISTENCY - MANDATORY RULES:
-- ль = l' (soft L) - ALWAYS use apostrophe for palatalized L
-- нь = n' (soft N) - ALWAYS use apostrophe for palatalized N
-- сь = s' (soft S) - ALWAYS use apostrophe for palatalized S
-- ть = t' (soft T) - ALWAYS use apostrophe for palatalized T
-- дь = d' (soft D) - ALWAYS use apostrophe for palatalized D
-- рь = r' (soft R) - ALWAYS use apostrophe for palatalized R
-- зь = z' (soft Z) - ALWAYS use apostrophe for palatalized Z
-- бь = b' (soft B) - ALWAYS use apostrophe for palatalized B
-- пь = p' (soft P) - ALWAYS use apostrophe for palatalized P
-- вь = v' (soft V) - ALWAYS use apostrophe for palatalized V
-- мь = m' (soft M) - ALWAYS use apostrophe for palatalized M
-- фь = f' (soft F) - ALWAYS use apostrophe for palatalized F
-- All palatalized consonants MUST show apostrophe for accurate pronunciation
-
-ENHANCED ROMANIZATION STANDARDS:
-- я = ya, ё = yo, ю = yu, е = ye (at word beginning or after vowels)
-- я = 'a, ё = 'o, ю = 'u, е = 'e (after consonants, indicating palatalization)
-- и = i, ы = y, у = u, о = o, а = a, э = e
-- ж = zh, ч = ch, ш = sh, щ = shch
-- ц = ts, х = kh, г = g, к = k
-- Soft sign (ь) = ' (apostrophe) when palatalization marker
-- Hard sign (ъ) = " (double quote) - rare but important
-
-Examples of CORRECT Enhanced Russian romanization formatting:
-- "Привет" should become "Привет(privet)"
-- "Спасибо" should become "Спасибо(spasibo)"
-- "Пожалуйста" should become "Пожалуйста(pozhaluysta)"
-- "Тетрадь" should become "Тетрадь(tetrad')" [palatalized D]
-- "Учитель" should become "Учитель(uchitel')" [palatalized L]
-- "Дочь" should become "Дочь(doch')" [palatalized CH sound]
-- "Мать" should become "Мать(mat')" [palatalized T]
-- "Лошадь" should become "Лошадь(loshad')" [palatalized D]
-- "Словарь" should become "Словарь(slovar')" [palatalized R]
-- "Медведь" should become "Медведь(medved')" [palatalized D]
-- "Я изучаю русский язык" should become "Я(ya) изучаю(izuchayu) русский(russkiy) язык(yazyk)"
-- "Сегодня хорошая погода" should become "Сегодня(segodnya) хорошая(khoroshaya) погода(pogoda)"
-- "День рождения" should become "День(den') рождения(rozhdeniya)" [palatalized N]
-- "Восемь" should become "Восемь(vosem')" [palatalized M]
-- Mixed content: "Hello Россия" should become "Hello Россия(rossiya)"
-
-PALATALIZATION VERIFICATION - Critical Check:
-Before finalizing romanization, verify EVERY word ending in:
-- ль, нь, сь, ть, дь, рь, зь, бь, пь, вь, мь, фь
-- ALL must include apostrophe (') in romanization
-- Double-check compound words and grammatical endings
-
-WRONG examples (do NOT use these formats):
-- "ya (I)" ❌
-- "russkiy (Russian)" ❌
-- "izuchayu (study)" ❌
-- "tetrad" instead of "tetrad'" ❌ [missing palatalization marker]
-- "uchitel" instead of "uchitel'" ❌ [missing palatalization marker]
-- "mat" instead of "mat'" ❌ [missing palatalization marker]
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "Russian text with enhanced romanization in parentheses immediately after each Russian word - following the palatalization rules above",
+  "furiganaText": "", 
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
@@ -2766,214 +3183,8 @@ Format your response as valid JSON with these exact keys:
         // Note: Only add transliteration when translating TO a different language (Arabic speakers don't need transliteration for their native language)
         userMessage = `
 ${promptTopSection}
-You are an Arabic language expert. I need you to analyze and translate this Arabic text: "${text}"
-
-CRITICAL FORMATTING REQUIREMENTS FOR ARABIC TEXT:
-- Keep all original Arabic text exactly as is (including any English words, numbers, or punctuation)
-- For EVERY Arabic word, add the Enhanced Arabic Chat Alphabet transliteration in parentheses immediately after the Arabic text
-- Do NOT add transliteration to English words or numbers - leave them unchanged
-- Follow enhanced Arabic romanization standards with sun letter assimilation
-- The format should be: العربية(al-arabiya) NOT "al-arabiya (Arabic)" or any other format
-- Do NOT mix English translations in the transliteration - only provide pronunciation guide
-- Translate into ${targetLangName} language, NOT English (unless English is specifically requested)
-
-SUN LETTER ASSIMILATION RULES - MANDATORY:
-Before sun letters (ت، ث، د، ذ، ر، ز، س، ش، ص، ض، ط، ظ، ل، ن), the definite article 'al-' (الـ) must be assimilated:
-
-SUN LETTERS AND THEIR ASSIMILATION:
-- الت = at- (ت): التعليم = at-ta'lim (not al-ta'lim)
-- الث = ath- (ث): الثقافي = ath-thaqafi (not al-thaqafi)  
-- الد = ad- (د): الدرس = ad-dars (not al-dars)
-- الذ = adh- (ذ): الذهب = adh-dhahab (not al-dhahab)
-- الر = ar- (ر): الرحلة = ar-rihlah (not al-rihlah)
-- الز = az- (ز): الزمن = az-zaman (not al-zaman)
-- الس = as- (س): السابعة = as-saa'iba (not al-saa'iba)
-- الش = ash- (ش): الشمس = ash-shams (not al-shams)
-- الص = as- (ص): الصباح = as-sabah (not al-sabah)
-- الض = ad- (ض): الضوء = ad-daw' (not al-daw')
-- الط = at- (ط): الطعام = at-ta'am (not al-ta'am)
-- الظ = adh- (ظ): الظهر = adh-dhuhr (not al-dhuhr)
-- الل = al- (ل): الليل = al-layl (no change, but doubled: al-layl)
-- الن = an- (ن): النهار = an-nahar (not al-nahar)
-
-MOON LETTERS (NO ASSIMILATION):
-Moon letters (ا، ب، ج، ح، خ، ع، غ، ف، ق، ك، م، ه، و، ي) keep 'al-' unchanged:
-- الباب = al-bab (door)
-- الجامعة = al-jami'a (university)
-- الحياة = al-hayah (life)
-- الكتاب = al-kitab (book)
-- المدرسة = al-madrasa (school)
-
-ENHANCED ROMANIZATION STANDARDS:
-- ع = ' (ayn - glottal stop)
-- غ = gh (voiced velar fricative)
-- ح = h (voiceless pharyngeal fricative)  
-- خ = kh (voiceless velar fricative) - NEVER use k̲h̲ or other diacritics
-- ق = q (voiceless uvular stop)
-- ص = s (emphatic s) - NEVER use ṣ or underlined s
-- ض = d (emphatic d) - NEVER use ḍ or d̲ or underlined d
-- ط = t (emphatic t) - NEVER use ṭ or underlined t
-- ظ = dh (emphatic dh) - NEVER use d̲h̲ or underlined dh
-- ث = th (voiceless dental fricative)
-- ذ = dh (voiced dental fricative)
-- ش = sh (NOT s̲h̲ or underlined sh)
-
-CRITICAL: DO NOT USE DIACRITICAL MARKS OR COMBINING CHARACTERS!
-- NO underlines: k̲h̲, s̲h̲, d̲ are WRONG
-- NO dots below: ṣ, ḍ, ṭ are WRONG
-- NO special IPA symbols
-- Use ONLY simple ASCII letters: a-z, A-Z, and apostrophe (')
-- The romanization must be readable without special fonts
-
-LONG VOWEL CONSISTENCY - MANDATORY RULES:
-- ا = aa (ALWAYS long) - consistent representation of alif
-- و = uu/oo (context dependent) - long u sound or long o sound
-- ي = ii/ee (context dependent) - long i sound or long e sound
-- ى = aa (alif maqsura - always long aa sound)
-
-LONG VOWEL EXAMPLES - CRITICAL ACCURACY:
-- كتاب = kitaab (not kitab) [long aa from alif]
-- باب = baab (not bab) [long aa from alif]
-- طعام = ta'aam (not ta'am) [long aa from alif]
-- سؤال = su'aal (not su'al) [long aa from alif]
-- نور = nuur (not nur) [long uu from waw]
-- يوم = yawm (not yom) [waw as consonant, not long vowel]
-- سعيد = sa'iid (not sa'id) [long ii from ya]
-- كبير = kabiir (not kabir) [long ii from ya]
-- على = 'alaa (not 'ala) [long aa from alif maqsura]
-- مصطفى = mustafaa (not mustafa) [long aa from alif maqsura]
-
-VOWEL LENGTH VERIFICATION - Critical Check:
-Before finalizing transliteration, verify EVERY word for:
-1. Alif (ا) = ALWAYS double 'aa' for accurate length representation
-2. Waw (و) = Context check: 'uu'/'oo' when functioning as long vowel
-3. Ya (ي) = Context check: 'ii'/'ee' when functioning as long vowel  
-4. Alif Maqsura (ى) = ALWAYS 'aa' sound regardless of spelling
-5. Double-check that short vowels (َ ِ ُ) are single letters (a, i, u)
-
-Examples of CORRECT Enhanced Arabic transliteration formatting:
-- "مرحبا" should become "مرحبا(marhabaa)" [long aa from alif]
-- "السلام عليكم" should become "السلام(as-salaam) عليكم('alaykum)" [sun letter assimilation + long aa]
-- "الشمس" should become "الشمس(ash-shams)" [sun letter assimilation]
-- "التعليم" should become "التعليم(at-ta'liim)" [sun letter assimilation + long ii]
-- "الرحلة" should become "الرحلة(ar-rihlah)" [sun letter assimilation]
-- "النهار" should become "النهار(an-nahaar)" [sun letter assimilation + long aa]
-- "السابعة" should become "السابعة(as-saabi'ah)" [sun letter assimilation + long aa]
-- "الثقافي" should become "الثقافي(ath-thaqaafii)" [sun letter assimilation + long aa + long ii]
-- "الكتاب" should become "الكتاب(al-kitaab)" [moon letter - no assimilation + long aa]
-- "المدرسة" should become "المدرسة(al-madrasah)" [moon letter - no assimilation]
-- "الجامعة" should become "الجامعة(al-jaami'ah)" [moon letter - no assimilation + long aa]
-- "كتاب جميل" should become "كتاب(kitaab) جميل(jamiil)" [long aa + long ii]
-- "أنا أتعلم العربية" should become "أنا(anaa) أتعلم(ata'allam) العربية(al-'arabiyyah)" [initial hamza + long aa + long ii]
-- "اليوم الطقس جميل" should become "اليوم(al-yawm) الطقس(at-taqs) جميل(jamiil)" [sun letter assimilation + long ii]
-- "باب المدرسة" should become "باب(baab) المدرسة(al-madrasah)" [long aa from alif]
-- "طعام لذيذ" should become "طعام(ta'aam) لذيذ(ladhiidh)" [long aa + long ii + dh]
-- "سؤال مهم" should become "سؤال(su'aal) مهم(muhim)" [hamza on waw + long aa]
-- "رئيس الجامعة" should become "رئيس(ra'iis) الجامعة(al-jaami'ah)" [hamza on ya + long ii + long aa]
-- "ماء بارد" should become "ماء(maa') بارد(baarid)" [final hamza + long aa]
-- Mixed content: "Hello عربي" should become "Hello عربي('arabii)" [long ii]
-
-COMPREHENSIVE VERIFICATION - Critical Checks:
-Before finalizing transliteration, perform these mandatory verification steps:
-
-SUN LETTER ASSIMILATION CHECK:
-1. Identify if the following letter is a sun letter or moon letter for EVERY definite article (الـ)
-2. If sun letter: assimilate 'al-' to match the following consonant
-3. If moon letter: keep 'al-' unchanged
-4. Double-check all definite articles against the sun letter list above
-
-LONG VOWEL CONSISTENCY CHECK:
-1. Verify EVERY alif (ا) is represented as 'aa' (never single 'a')
-2. Check context for waw (و): 'uu'/'oo' when long vowel, 'w' when consonant
-3. Check context for ya (ي): 'ii'/'ee' when long vowel, 'y' when consonant
-4. Ensure alif maqsura (ى) is always 'aa' sound
-5. Confirm short vowels (َ ِ ُ) remain single letters (a, i, u)
-
-HAMZA HANDLING SYSTEMATIC RULES:
-Hamza (ء) must be consistently represented based on position and carrier:
-
-INITIAL HAMZA:
-- أ (hamza on alif) = a/aa (depending on vowel): أنا = anaa, أحمد = ahmad
-- إ (hamza under alif) = i/ii: إسلام = islaam, إبراهيم = ibraahiim
-
-MEDIAL HAMZA:
-- ؤ (hamza on waw) = u'/uu': سؤال = su'aal, رؤوس = ru'uus
-- ئ (hamza on ya) = i'/ii': سائل = saa'il, رئيس = ra'iis  
-- ء (hamza alone) = ' (glottal stop): جزء = juz', شيء = shay'
-
-FINAL HAMZA:
-- ء (final hamza) = ' (glottal stop): ماء = maa', سماء = samaa'
-- أ (hamza on alif final) = a': مبدأ = mabda', ملجأ = malja'
-
-HAMZA VERIFICATION EXAMPLES:
-- سؤال = su'aal (not su-al) [hamza on waw + long aa]
-- رئيس = ra'iis (not ra-is) [hamza on ya + long ii]  
-- جزء = juz' (not juz) [final hamza as glottal stop]
-- ماء = maa' (not maa) [final hamza + long aa]
-- أنا = anaa (not ana) [initial hamza + long aa]
-- إسلام = islaam (not islam) [hamza under alif + long aa]
-
-SELF-VERIFICATION CHECKLIST - MANDATORY FINAL CHECK:
-Before submitting your romanization, systematically verify each element:
-
-✓ SUN LETTER ASSIMILATION: Are sun letters properly assimilated?
-  - Check every الـ before ت، ث، د، ذ، ر، ز، س، ش، ص، ض، ط، ظ، ل، ن
-  - Ensure 'al-' becomes at-, ath-, ad-, adh-, ar-, az-, as-, ash-, etc.
-  - Verify moon letters keep 'al-' unchanged
-
-✓ LONG VOWEL CONSISTENCY: Are long vowels consistently marked?  
-  - Every ا must be 'aa' (never single 'a')
-  - Context-check و for 'uu'/'oo' vs consonant 'w'
-  - Context-check ي for 'ii'/'ee' vs consonant 'y'
-  - Every ى (alif maqsura) must be 'aa'
-
-✓ DEFINITE ARTICLES: Are definite articles correct?
-  - All الـ properly identified and handled
-  - Sun letter assimilation applied where needed
-  - Moon letter preservation where appropriate
-
-✓ HAMZA REPRESENTATION: Are hamzas properly represented?
-  - Initial hamza (أ، إ) correctly marked
-  - Medial hamza (ؤ، ئ، ء) with proper carriers
-  - Final hamza (ء) as glottal stop (')
-  - All hamza forms maintain consistent representation
-
-✓ BROKEN PLURALS: Are broken plurals recognizable?
-  - Internal vowel patterns preserved in romanization
-  - Plural forms clearly distinguished from singular
-  - Root consonants properly maintained
-  - Examples: كتب = kutub (books), رجال = rijaal (men)
-
-IMPORTANT: Use CONSISTENT enhanced romanization throughout - prefer accurate phonetic representation over simplified forms for better learning of Arabic pronunciation.
-
-WRONG examples (do NOT use these formats):
-- "ana (I)" ❌
-- "al-arabiya (Arabic)" ❌
-- "ata3allam (learn)" ❌
-- "al-shams" instead of "ash-shams" ❌ [missing sun letter assimilation]
-- "al-ta'lim" instead of "at-ta'lim" ❌ [missing sun letter assimilation]
-- "al-rihlah" instead of "ar-rihlah" ❌ [missing sun letter assimilation]
-- "al-nahar" instead of "an-nahar" ❌ [missing sun letter assimilation]
-- "kitab" instead of "kitaab" ❌ [missing long vowel representation]
-- "marhaba" instead of "marhabaa" ❌ [missing long aa from alif]
-- "jamil" instead of "jamiil" ❌ [missing long ii from ya]
-- "ta'am" instead of "ta'aam" ❌ [missing long aa from alif]
-- "kabir" instead of "kabiir" ❌ [missing long ii from ya]
-- "mustafa" instead of "mustafaa" ❌ [missing long aa from alif maqsura]
-- "salam" instead of "salaam" ❌ [missing long aa from alif]
-- "su-al" instead of "su'aal" ❌ [missing hamza representation + long aa]
-- "ra-is" instead of "ra'iis" ❌ [missing hamza representation + long ii]
-- "juz" instead of "juz'" ❌ [missing final hamza glottal stop]
-- "maa" instead of "maa'" ❌ [missing final hamza]
-- "ana" instead of "anaa" ❌ [missing initial hamza + long aa]
-- "islam" instead of "islaam" ❌ [missing hamza under alif + long aa]
-
-Format your response as valid JSON with these exact keys:
-{
-  "furiganaText": "Arabic text with enhanced transliteration in parentheses immediately after each Arabic word - following the sun letter assimilation rules, long vowel consistency rules, AND systematic hamza representation above",
-  "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
-}
-`;
+Translate this Arabic text and add transliteration: "${text}"
+Target language: ${targetLangName}`;
       } else if ((primaryLanguage === "Thai" || forcedLanguage === 'th') && targetLanguage !== 'th') {
         logger.log(`[DEBUG] THAI SOURCE TEXT: Adding RTGS romanization and translating to ${targetLangName} (targetLanguage: ${targetLanguage})`);
         // Thai-specific prompt with RTGS romanization accuracy
@@ -2981,41 +3192,8 @@ Format your response as valid JSON with these exact keys:
         // Note: Only add romanization when translating TO a different language (Thai speakers don't need romanization for Thai target)
         userMessage = `
 ${promptTopSection}
-You are a Thai language expert. I need you to analyze and translate this Thai text: "${text}"
-
-CRITICAL FORMATTING REQUIREMENTS FOR THAI TEXT:
-- Keep all original Thai text exactly as is (including any English words, numbers, or punctuation)
-- For EVERY Thai word or phrase, add RTGS romanization in parentheses DIRECTLY after the Thai text with NO SPACE before the opening parenthesis
-- CORRECT: สวัสดี(sawatdee) - parenthesis directly touches Thai text
-- WRONG: สวัสดี (sawatdee) - DO NOT put a space before the parenthesis
-- Do NOT add romanization to English words, numerals, or punctuation—leave them untouched
-- Follow standard RTGS conventions: no tone marks, use apostrophes only when part of loan words, and prefer digraphs like ph, th, kh, ch for aspirated consonants
-- Translate into ${targetLangName} language, NOT English (unless English is explicitly requested)
-
-RTGS ACCURACY GUIDELINES:
-- Aspirated consonants: use ph (พ, ผ), th (ท, ธ), kh (ค, ข, ฆ), ch (ช, ฌ, ซ) while unaspirated consonants stay as k, t, k, t, t, etc.
-- Vowels: long vowels double the vowel letters (aa, ii, uu, ee, oo) and diphthongs use Thai-specific combinations (ai, ao, ue, oi)
-- Clusters and final consonants should follow RTGS (e.g., กรุงเทพฯ = Krung Thep, สมุทร = Samut)
-- Use ng for ง/–ng, ny for ญ/ญา when applicable, and maintain the proper representation of silent /อ/ when it leads the syllable
-- Do not introduce diacritics; keep the romanization plain Latin letters with consistent spacing
-
-EXAMPLES OF CORRECT RTGS TOKEN FORMATTING:
-- "สวัสดีครับ" → "สวัสดีครับ(sawatdee khrab)"
-- "ประเทศไทย" → "ประเทศไทย(prathet thai)"
-- "ขอบคุณ" → "ขอบคุณ(khop khun)"
-- "ไปเที่ยวเชียงใหม่" → "ไปเที่ยวเชียงใหม่(pai thiao chiang mai)"
-
-VERIFICATION CHECKLIST:
-✓ Each Thai word has romanization with NO SPACE before the opening parenthesis: ไทย(thai) NOT ไทย (thai)
-✓ Romanization uses RTGS (ph, th, kh, ch, etc.) with no tone marks
-✓ Compound words and classifiers are treated as units (e.g., นักเรียน(nak rian))
-✓ Mixed-language sentences keep non-Thai parts unchanged
-
-Format your response as valid JSON with these exact keys:
-{
-  "furiganaText": "Thai text with RTGS romanization in parentheses after each word as shown above",
-        "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
-}`;
+Translate this Thai text and add RTGS romanization: "${text}"
+Target language: ${targetLangName}`;
       } else if ((primaryLanguage === "Vietnamese" || forcedLanguage === 'vi') && targetLanguage !== 'vi') {
         logger.log(`[DEBUG] VIETNAMESE SOURCE TEXT: Translating Vietnamese to ${targetLangName} (targetLanguage: ${targetLanguage})`);
         userMessage = `
@@ -3073,170 +3251,8 @@ Format your response as valid JSON with these exact keys:
         // Note: Only add romanization when translating TO a different language (Hindi speakers don't need romanization for their native language)
         userMessage = `
 ${promptTopSection}
-You are a Hindi language expert. I need you to analyze and translate this Hindi text: "${text}"
-
-CRITICAL FORMATTING REQUIREMENTS FOR HINDI TEXT:
-- Keep all original Hindi Devanagari text exactly as is (including any English words, numbers, or punctuation)
-- For EVERY Hindi word, add the standard romanization in parentheses immediately after the Devanagari text
-- Do NOT add romanization to English words or numbers - leave them unchanged
-- Follow IAST (International Alphabet of Sanskrit Transliteration) with enhanced accuracy
-- The format should be: हिन्दी(hindī) NOT "hindī (Hindi)" or any other format
-- Do NOT mix English translations in the romanization - only provide pronunciation guide
-- Translate into ${targetLangName} language, NOT English (unless English is specifically requested)
-
-CRITICAL VOWEL LENGTH VERIFICATION - MANDATORY RULES:
-- आ MUST be ā (never a) - long vowel always marked with macron
-- ई MUST be ī (never i) - long vowel always marked with macron
-- ऊ MUST be ū (never u) - long vowel always marked with macron
-- ए MUST be e (inherently long, no macron needed)
-- ओ MUST be o (inherently long, no macron needed)
-- अ = a (short vowel, no macron)
-- इ = i (short vowel, no macron)
-- उ = u (short vowel, no macron)
-- Review every single vowel for correct length marking
-- Pay special attention to compound words where vowel length is crucial
-
-DIACRITICAL MARK REQUIREMENTS - MANDATORY ACCURACY:
-All retroflex consonants MUST have dots below:
-- ट = ṭ (retroflex unaspirated)
-- ठ = ṭh (retroflex aspirated)
-- ड = ḍ (retroflex unaspirated)
-- ढ = ḍh (retroflex aspirated)
-- ण = ṇ (retroflex nasal)
-
-All sibilants must be distinguished:
-- श = ś (palatal sibilant)
-- ष = ṣ (retroflex sibilant)
-- स = s (dental sibilant)
-
-Compound consonants verification:
-- क्ष = kṣ (never ksh or other variants)
-- त्र = tr (never tra)
-- ज्ञ = jñ (never gya or other variants)
-
-Other critical diacriticals:
-- र् = r (with dot below when appropriate)
-- ṃ for anusvara (ं) - when nasalization is phonemic
-- ñ for proper nasalization contexts
-
-ENHANCED ROMANIZATION STANDARDS - COMPREHENSIVE RULES:
-Consonants:
-- क = k, ख = kh, ग = g, घ = gh, ङ = ṅ
-- च = c, छ = ch, ज = j, झ = jh, ञ = ñ
-- ट = ṭ, ठ = ṭh, ड = ḍ, ढ = ḍh, ण = ṇ
-- त = t, थ = th, द = d, ध = dh, न = n
-- प = p, फ = ph, ब = b, भ = bh, म = m
-- य = y, र = r, ल = l, व = v/w
-- श = ś, ष = ṣ, स = s, ह = h
-
-Nasalization:
-- ं (anusvara) = ṃ when phonemic nasalization
-- ँ (chandrabindu) = ̃ (tilde over vowel) or ñ contextually
-
-Examples of ENHANCED Hindi romanization formatting:
-
-VOWEL LENGTH EXAMPLES - CRITICAL ACCURACY:
-- "आम" → "आम(ām)" [REQUIRED - long ā, never "am"]
-- "ईश्वर" → "ईश्वर(īśvar)" [REQUIRED - long ī + palatal ś, never "ishwar"]
-- "ऊपर" → "ऊपर(ūpar)" [REQUIRED - long ū, never "upar"]
-- "आशा" → "आशा(āśā)" [REQUIRED - both long ā + palatal ś]
-- "पीना" → "पीना(pīnā)" [REQUIRED - long ī + long ā]
-- "फूल" → "फूल(phūl)" [REQUIRED - long ū with aspiration]
-
-RETROFLEX CONSONANT EXAMPLES - MANDATORY DOTS:
-- "बाट" → "बाट(bāṭ)" [REQUIRED - retroflex ṭ with dot]
-- "ठंडा" → "ठंडा(ṭhaṇḍā)" [REQUIRED - aspirated retroflex ṭh + retroflex ṇ + retroflex ḍ]
-- "डाल" → "डाल(ḍāl)" [REQUIRED - retroflex ḍ with dot]
-- "ढोल" → "ढोल(ḍhol)" [REQUIRED - aspirated retroflex ḍh]
-- "गणेश" → "गणेश(gaṇeś)" [REQUIRED - retroflex ṇ + palatal ś]
-
-SIBILANT DISTINCTION EXAMPLES - CRITICAL ACCURACY:
-- "शिव" → "शिव(śiv)" [REQUIRED - palatal ś, never "shiv"]
-- "विष्णु" → "विष्णु(viṣṇu)" [REQUIRED - retroflex ṣ + retroflex ṇ, never "vishnu"]
-- "सूर्य" → "सूर्य(sūrya)" [REQUIRED - dental s + long ū]
-- "राष्ट्र" → "राष्ट्र(rāṣṭra)" [REQUIRED - retroflex ṣ + ṭ cluster]
-
-COMPOUND CONSONANT EXAMPLES - VERIFICATION REQUIRED:
-- "क्षमा" → "क्षमा(kṣamā)" [REQUIRED - kṣ cluster, never "kshama"]
-- "त्रिशूल" → "त्रिशूल(triśūl)" [REQUIRED - tr cluster + palatal ś + long ū]
-- "यज्ञ" → "यज्ञ(yajñ)" [REQUIRED - jñ cluster, never "yagya"]
-- "प्रकाश" → "प्रकाश(prakāś)" [REQUIRED - pr cluster + palatal ś]
-
-COMPLEX SENTENCE EXAMPLES - COMPLETE ACCURACY:
-- "मैं हिन्दी सीख रहा हूँ" → "मैं(maiṃ) हिन्दी(hindī) सीख(sīkh) रहा(rahā) हूँ(hūṃ)"
-- "आज अच्छा मौसम है" → "आज(āj) अच्छा(acchā) मौसम(mausam) है(hai)"
-- "यह बहुत सुन्दर है" → "यह(yah) बहुत(bahut) सुन्दर(sundar) है(hai)"
-- "गुरु की कृपा से सब कुछ संभव है" → "गुरु(guru) की(kī) कृपा(kr̥pā) से(se) सब(sab) कुछ(kuch) संभव(sambhav) है(hai)"
-- "रामायण और महाभारत" → "रामायण(rāmāyaṇ) और(aur) महाभारत(mahābhārat)"
-
-NASALIZATION EXAMPLES - CONTEXTUAL ACCURACY:
-- "गंगा" → "गंगा(gaṅgā)" [anusvara before velar]
-- "अंक" → "अंक(aṅk)" [anusvara before velar]
-- "चाँद" → "चाँद(cāṃd)" [chandrabindu nasalization]
-- "हाँ" → "हाँ(hāṃ)" [chandrabindu with long vowel]
-
-SELF-VERIFICATION CHECKLIST - MANDATORY FINAL CHECK:
-Before finalizing your romanization, systematically verify each element:
-
-✓ VOWEL LENGTH VERIFICATION:
-  - Are all long vowels properly marked with macrons? (ā, ī, ū)
-  - Are आ always ā (never a)?
-  - Are ई always ī (never i)?
-  - Are ऊ always ū (never u)?
-  - Are short vowels (अ, इ, उ) without macrons?
-
-✓ RETROFLEX CONSONANT VERIFICATION:
-  - Are all retroflex consonants marked with dots? (ṭ, ṭh, ḍ, ḍh, ṇ)
-  - Are ट, ठ, ड, ढ, ण all properly distinguished from dental counterparts?
-  - Is every retroflex marked consistently throughout?
-
-✓ SIBILANT DISTINCTION VERIFICATION:
-  - Are श = ś (palatal sibilant) properly marked?
-  - Are ष = ṣ (retroflex sibilant) with dot below?
-  - Are स = s (dental sibilant) unmarked?
-  - Are all three sibilants clearly distinguished?
-
-✓ COMPOUND CONSONANT VERIFICATION:
-  - Are क्ष = kṣ clusters properly marked?
-  - Are त्र = tr clusters correct?
-  - Are ज्ञ = jñ clusters properly represented?
-  - Are all conjunct consonants accurately represented?
-
-✓ NASALIZATION VERIFICATION:
-  - Are nasalizations (ñ, ṃ, ṅ) properly indicated?
-  - Are anusvara and chandrabindu correctly handled?
-  - Is contextual nasalization accurate?
-
-✓ COMPOUND WORD VERIFICATION:
-  - Are compound words segmented logically?
-  - Is each component properly romanized?
-  - Are word boundaries maintained in romanization?
-
-CRITICAL ERROR PREVENTION:
-Common mistakes to avoid:
-❌ "namaste" instead of correct romanization checking vowel length
-❌ "ishwar" instead of "īśvar" (missing long ī + wrong sibilant)
-❌ "vishnu" instead of "viṣṇu" (wrong sibilant + missing retroflex)
-❌ "shiv" instead of "śiv" (wrong sibilant)
-❌ "kshama" instead of "kṣamā" (wrong compound + missing vowel length)
-❌ "yagya" instead of "yajñ" (wrong compound consonant)
-❌ "upar" instead of "ūpar" (missing long vowel)
-❌ "prakas" instead of "prakāś" (missing long vowel + wrong sibilant)
-
-WRONG examples (do NOT use these formats):
-- "main (I)" ❌
-- "hindī (Hindi)" ❌
-- "sīkh (learn)" ❌
-- Any romanization without proper diacritical marks ❌
-- Any long vowel without macron (ā, ī, ū) ❌
-- Any retroflex without dot (t, th, d, dh, n instead of ṭ, ṭh, ḍ, ḍh, ṇ) ❌
-
-Format your response as valid JSON with these exact keys:
-{
-  "furiganaText": "Hindi text with enhanced romanization in parentheses immediately after each Hindi word - following ALL accuracy requirements above",
-  "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
-}
-`;
+Translate this Hindi text and add romanization: "${text}"
+Target language: ${targetLangName}`;
       } else if (primaryLanguage === "Esperanto") {
         // Esperanto-specific prompt
         userMessage = `
@@ -3497,17 +3513,34 @@ Format your response as valid JSON with these exact keys:
       // Make API request to Claude using latest API format
       logger.log('🎯 [Claude API] Starting API request to Claude...');
       
-      // ALL LANGUAGES NOW USE CACHING - Select appropriate system prompt based on language
+      // Select appropriate system prompt based on language
+      // CJK languages need specialized prompts for readings (furigana/pinyin/romanization)
+      // Non-CJK languages use simple translation prompt (much smaller, no caching needed)
       const isChineseWithCaching = (primaryLanguage === "Chinese" || forcedLanguage === 'zh') && targetLanguage !== 'zh';
       const isJapaneseWithCaching = (primaryLanguage === "Japanese" || forcedLanguage === 'ja') && targetLanguage !== 'ja';
       const isKoreanWithCaching = (primaryLanguage === "Korean" || forcedLanguage === 'ko') && targetLanguage !== 'ko';
-      const isCJKLanguage = isChineseWithCaching || isJapaneseWithCaching || isKoreanWithCaching;
       
-      // Select the appropriate system prompt - CJK languages have specialized prompts, others use general prompt
+      // Languages with romanization requirements (large system prompts that benefit from caching)
+      const isArabicWithRomanization = (primaryLanguage === "Arabic" || forcedLanguage === 'ar') && targetLanguage !== 'ar';
+      const isHindiWithRomanization = (primaryLanguage === "Hindi" || forcedLanguage === 'hi') && targetLanguage !== 'hi';
+      const isThaiWithRomanization = (primaryLanguage === "Thai" || forcedLanguage === 'th') && targetLanguage !== 'th';
+      
+      // Languages that need caching: CJK (system prompt caching) OR romanization languages (system prompt caching)
+      const isCJKLanguage = isChineseWithCaching || isJapaneseWithCaching || isKoreanWithCaching;
+      const isRomanizationLanguage = isArabicWithRomanization || isHindiWithRomanization || isThaiWithRomanization;
+      const needsCaching = isCJKLanguage || isRomanizationLanguage;
+      
+      // Select the appropriate system prompt:
+      // - CJK languages use specialized prompts with reading annotations (cached due to size)
+      // - Romanization languages (Arabic, Hindi, Thai) use specialized prompts with romanization rules (cached due to size)
+      // - Other languages use simple translation prompt (small, no caching needed)
       const systemPrompt = isChineseWithCaching ? chineseSystemPrompt : 
                            isJapaneseWithCaching ? japaneseSystemPrompt : 
                            isKoreanWithCaching ? koreanSystemPrompt :
-                           generalLanguageSystemPrompt;
+                           isArabicWithRomanization ? arabicSystemPrompt :
+                           isHindiWithRomanization ? hindiSystemPrompt :
+                           isThaiWithRomanization ? thaiSystemPrompt :
+                           simpleTranslationPrompt;
       
       // Determine language name for logging
       const languageDisplayNames: Record<string, string> = {
@@ -3518,53 +3551,92 @@ Format your response as valid JSON with these exact keys:
       };
       const languageDisplayName = languageDisplayNames[forcedLanguage] || forcedLanguage.toUpperCase();
       
-      logger.log(`🔄 [Prompt Caching] Sending ${languageDisplayName} request with caching enabled - system prompt: ${systemPrompt.length} chars, user message: ${processedPrompt.length} chars`);
-      
       let response;
-      response = await axios.post(
-        'https://api.anthropic.com/v1/messages',
-        {
-          model: "claude-3-haiku-20240307",
-          max_tokens: 4000,
-          temperature: 0,
-          system: [
-            {
-              type: "text",
-              text: systemPrompt,
-              cache_control: { type: "ephemeral" }  // ENABLES PROMPT CACHING
-            }
-          ],
-          messages: [
-            {
-              role: "user",
-              content: processedPrompt  // Only dynamic content here
-            }
-          ]
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'anthropic-version': '2023-06-01',
-            'anthropic-beta': 'prompt-caching-2024-07-31',  // REQUIRED FOR CACHING
-            'x-api-key': apiKey
+      
+      if (needsCaching) {
+        // All reading languages now use system prompt caching:
+        // - CJK: system prompt caching (specialized prompts exceed 2048 token minimum)
+        // - Romanization languages (Arabic, Hindi, Thai): system prompt caching (romanization rules moved to system prompt)
+        logger.log(`🔄 [Prompt Caching] Sending ${languageDisplayName} request with caching enabled (system prompt) - system prompt: ${systemPrompt.length} chars, user message: ${processedPrompt.length} chars`);
+        
+        // All reading languages use system prompt caching (CJK and romanization languages)
+        const systemConfig = [
+          {
+            type: "text",
+            text: systemPrompt,
+            cache_control: { type: "ephemeral" }
           }
+        ];
+        
+        const messagesConfig = [
+          {
+            role: "user",
+            content: processedPrompt  // Always simple, dynamic content
+          }
+        ];
+        
+        response = await axios.post(
+          'https://api.anthropic.com/v1/messages',
+          {
+            model: "claude-3-haiku-20240307",
+            max_tokens: 4000,
+            temperature: 0,
+            system: systemConfig,
+            messages: messagesConfig
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'anthropic-version': '2023-06-01',
+              'anthropic-beta': 'prompt-caching-2024-07-31',  // REQUIRED FOR CACHING
+              'x-api-key': apiKey
+            }
+          }
+        );
+        
+        // Extract cache metrics
+        const cacheUsage = response.data?.usage;
+        const cacheCreationTokens = cacheUsage?.cache_creation_input_tokens || 0;
+        const cacheReadTokens = cacheUsage?.cache_read_input_tokens || 0;
+        
+        if (cacheCreationTokens > 0) {
+          logger.log(`🔄 [Cache] 💾 CREATED - ${cacheCreationTokens} tokens cached (full price)`);
+        } else if (cacheReadTokens > 0) {
+          const cacheCost = Math.round(cacheReadTokens * 0.1);
+          const cacheSavings = Math.round(cacheReadTokens * 0.9);
+          logger.log(`🔄 [Cache] ✅ HIT - ${cacheReadTokens} tokens read (90% discount = ${cacheCost} billed)`);
+          logger.log(`💵 [Savings] ${cacheSavings} tokens saved (90% off cached portion)`);
+        } else {
+          logger.log(`🔄 [Cache] ⚠️ NONE - Prompt may be too small`);
         }
-      );
-      
-      // Extract cache metrics
-      const cacheUsage = response.data?.usage;
-      const cacheCreationTokens = cacheUsage?.cache_creation_input_tokens || 0;
-      const cacheReadTokens = cacheUsage?.cache_read_input_tokens || 0;
-      
-      if (cacheCreationTokens > 0) {
-        logger.log(`🔄 [Cache] 💾 CREATED - ${cacheCreationTokens} tokens cached (full price)`);
-      } else if (cacheReadTokens > 0) {
-        const cacheCost = Math.round(cacheReadTokens * 0.1);
-        const cacheSavings = Math.round(cacheReadTokens * 0.9);
-        logger.log(`🔄 [Cache] ✅ HIT - ${cacheReadTokens} tokens read (90% discount = ${cacheCost} billed)`);
-        logger.log(`💵 [Savings] ${cacheSavings} tokens saved (90% off cached portion)`);
       } else {
-        logger.log(`🔄 [Cache] ⚠️ NONE - Prompt may be too small`);
+        // Non-CJK languages use simple translation prompt (no caching - prompt too small)
+        logger.log(`📝 [Simple Translation] Sending ${languageDisplayName} request - system prompt: ${systemPrompt.length} chars, user message: ${processedPrompt.length} chars`);
+        
+        response = await axios.post(
+          'https://api.anthropic.com/v1/messages',
+          {
+            model: "claude-3-haiku-20240307",
+            max_tokens: 4000,
+            temperature: 0,
+            system: systemPrompt,  // Simple string, no caching
+            messages: [
+              {
+                role: "user",
+                content: processedPrompt
+              }
+            ]
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'anthropic-version': '2023-06-01',
+              'x-api-key': apiKey
+            }
+          }
+        );
+        
+        logger.log(`📝 [Simple Translation] Response received (no caching for small prompts)`);
       }
 
       // Checkpoint 2: API request completed, response received (purple light)
@@ -4490,8 +4562,9 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
               }
             }
 
-          // Russian transliteration validation and smart retry logic
-          if ((primaryLanguage === "Russian" || forcedLanguage === 'ru') && furiganaText) {
+          // Russian no longer needs romanization (treated as standard Roman language)
+          // Removed Russian transliteration validation - Cyrillic is phonetic
+          if (false && (primaryLanguage === "Russian" || forcedLanguage === 'ru') && furiganaText) {
             const validation = validateRussianTransliteration(text, furiganaText);
             logger.log(`Russian transliteration validation: ${validation.details}`);
             
