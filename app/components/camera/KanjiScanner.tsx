@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, ActivityIndicator, Dimensions, Animated, ScrollView } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons, MaterialIcons, FontAwesome5, AntDesign, FontAwesome6, Feather } from '@expo/vector-icons';
@@ -2617,25 +2618,97 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
             <View style={styles.modalFooter} pointerEvents="auto">
               <View style={styles.modalButtonsContainer}>
                 <TouchableOpacity 
-                  style={[styles.modalCancelButton, (localProcessing || isImageProcessing) ? styles.disabledButton : null]} 
+                  style={styles.modalButton} 
                   onPress={handleCancelTextInput}
                   disabled={localProcessing || isImageProcessing}
                 >
-                  <Text style={styles.modalButtonText}>{t('textInput.cancel')}</Text>
+                  <LinearGradient
+                    colors={(localProcessing || isImageProcessing) 
+                      ? ['rgba(100, 116, 139, 0.5)', 'rgba(71, 85, 105, 0.6)']
+                      : ['rgba(140, 140, 140, 0.35)', 'rgba(100, 100, 100, 0.45)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  {!(localProcessing || isImageProcessing) && (
+                    <LinearGradient
+                      colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 0, y: 0.6 }}
+                      style={StyleSheet.absoluteFill}
+                    />
+                  )}
+                  <View style={styles.modalButtonContent}>
+                    <Text style={styles.modalButtonText}>{t('textInput.cancel')}</Text>
+                  </View>
                 </TouchableOpacity>
                 <TouchableOpacity 
-                  style={[styles.modalWordScopeButton, (localProcessing || isImageProcessing) ? styles.disabledButton : null]} 
+                  style={styles.modalButton} 
                   onPress={handleWordScopeTextInput}
                   disabled={localProcessing || isImageProcessing}
                 >
-                  <Text style={styles.modalButtonText}>{t('textInput.wordScope')}</Text>
+                  <LinearGradient
+                    colors={(localProcessing || isImageProcessing) 
+                      ? ['rgba(100, 116, 139, 0.5)', 'rgba(71, 85, 105, 0.6)']
+                      : ['rgba(140, 140, 140, 0.35)', 'rgba(100, 100, 100, 0.45)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  {!(localProcessing || isImageProcessing) && (
+                    <LinearGradient
+                      colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 0, y: 0.6 }}
+                      style={StyleSheet.absoluteFill}
+                    />
+                  )}
+                  <View style={styles.modalButtonContent}>
+                    <View style={styles.modalDualIconContainer}>
+                      <FontAwesome5 
+                        name="microscope" 
+                        size={14} 
+                        color="#ffffff" 
+                      />
+                      <Ionicons 
+                        name="language" 
+                        size={14} 
+                        color="#ffffff" 
+                      />
+                    </View>
+                    <Text style={styles.modalWordScopeButtonText}>{t('textInput.wordScope')}</Text>
+                  </View>
                 </TouchableOpacity>
                 <TouchableOpacity 
-                  style={[styles.modalSaveButton, (localProcessing || isImageProcessing) ? styles.disabledButton : null]} 
+                  style={styles.modalButton} 
                   onPress={handleSubmitTextInput}
                   disabled={localProcessing || isImageProcessing}
                 >
-                  <Text style={styles.modalButtonText}>{t('textInput.translate')}</Text>
+                  <LinearGradient
+                    colors={(localProcessing || isImageProcessing) 
+                      ? ['rgba(100, 116, 139, 0.5)', 'rgba(71, 85, 105, 0.6)']
+                      : ['rgba(140, 140, 140, 0.35)', 'rgba(100, 100, 100, 0.45)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  {!(localProcessing || isImageProcessing) && (
+                    <LinearGradient
+                      colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 0, y: 0.6 }}
+                      style={StyleSheet.absoluteFill}
+                    />
+                  )}
+                  <View style={styles.modalButtonContent}>
+                    <Ionicons 
+                      name="language" 
+                      size={14} 
+                      color="#ffffff" 
+                      style={styles.modalButtonIcon}
+                    />
+                    <Text style={styles.modalButtonText}>{t('textInput.translate')}</Text>
+                  </View>
                 </TouchableOpacity>
               </View>
             </View>
@@ -2889,34 +2962,64 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     justifyContent: 'space-between',
     gap: 8,
   },
-  modalCancelButton: {
-    backgroundColor: COLORS.mediumSurface,
+  modalButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 12,
     flex: 1,
-    alignItems: 'center',
+    overflow: 'hidden',
+    position: 'relative',
+    // Glassmorphism border
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    // Soft shadow for depth
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    // Background for gradient overlay
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
   },
-  modalWordScopeButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    flex: 1,
+  modalButtonContent: {
     alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
   },
-  modalSaveButton: {
-    backgroundColor: COLORS.mediumSurface,
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    flex: 1,
-    alignItems: 'center',
+  dualIconContainer: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 4,
+  },
+  modalDualIconContainer: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 2,
+  },
+  modalButtonIcon: {
+    marginBottom: 4,
   },
   modalButtonText: {
     color: 'white',
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 13,
+    textAlign: 'center',
+    zIndex: 1,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  modalWordScopeButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 11,
+    textAlign: 'center',
+    zIndex: 1,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   instructionContainer: {
     position: 'absolute',
