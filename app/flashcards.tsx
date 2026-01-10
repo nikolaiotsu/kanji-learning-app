@@ -65,6 +65,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
   const params = useLocalSearchParams();
   const textParam = params.text;
   const imageUriParam = params.imageUri;
+  const useScopeParam = params.useScope;
   
   const displayText = typeof textParam === 'string' 
     ? textParam 
@@ -73,6 +74,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       : '';
   
   const imageUri = typeof imageUriParam === 'string' ? imageUriParam : undefined;
+  const useScope = useScopeParam === 'true' || useScopeParam === true;
 
   // Clean the detected text, preserving spaces for languages that need them
   const cleanedText = cleanText(displayText);
@@ -143,9 +145,14 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
   // Only auto-process if text didn't come from OCR (no imageUri)
   useEffect(() => {
     if (cleanedText && !textProcessed && !isLoading && !isManualOperation && !imageUri) {
-      processTextWithClaude(cleanedText);
+      // Check if useScope param is set to trigger scope analysis
+      if (useScope) {
+        handleScopeAndTranslate(cleanedText);
+      } else {
+        processTextWithClaude(cleanedText);
+      }
     }
-  }, [cleanedText, textProcessed, isLoading, isManualOperation, imageUri]);
+  }, [cleanedText, textProcessed, isLoading, isManualOperation, imageUri, useScope]);
 
   const progressCallback = (checkpoint: number) => {
     logger.log('🚀 [Flashcards] Progress callback triggered:', checkpoint);
@@ -300,7 +307,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     return swapResult;
   };
 
-  const runTranslationWithAutoSwitch = async (includeScope: boolean): Promise<ClaudeResponse> => {
+  const runTranslationWithAutoSwitch = async (includeScope: boolean, textToTranslate: string): Promise<ClaudeResponse> => {
     // Preserve the original target language to prevent accidental swaps during retries
     const originalTargetLanguage = targetLanguage;
     const originalSourceLanguage = forcedDetectionLanguage;
@@ -311,9 +318,9 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     
     const attempt = async (sourceLang: string, targetLang: string) => {
       if (includeScope) {
-        return processWithClaudeAndScope(editedText, targetLang, sourceLang, progressCallback);
+        return processWithClaudeAndScope(textToTranslate, targetLang, sourceLang, progressCallback);
       }
-      return processWithClaude(editedText, targetLang, sourceLang, progressCallback);
+      return processWithClaude(textToTranslate, targetLang, sourceLang, progressCallback);
     };
 
     let result = await attempt(originalSourceLanguage, originalTargetLanguage);
@@ -467,7 +474,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       // Store the original target language before processing (in case it gets swapped)
       setActualTargetLanguage(targetLanguage);
       
-      const result = await runTranslationWithAutoSwitch(false);
+      const result = await runTranslationWithAutoSwitch(false, text);
       
       // Check if we got valid results back
       if (result.translatedText) {
@@ -719,9 +726,10 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
   };
 
   // Function to handle scope and translate button
-  const handleScopeAndTranslate = async () => {
+  const handleScopeAndTranslate = async (textToProcess?: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (!editedText) {
+    const text = textToProcess || editedText;
+    if (!text) {
       Alert.alert(t('common.error'), t('flashcard.edit.enterText'));
       return;
     }
@@ -735,15 +743,15 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     
     try {
       // Check if the text contains Japanese, Chinese, Korean, Russian, Arabic, Hindi, Esperanto, Thai characters
-      const hasJapanese = containsJapanese(editedText);
-      const hasChinese = containsChinese(editedText);
-      const hasKorean = containsKoreanText(editedText);
-      const hasRussian = containsRussianText(editedText);
-      const hasArabic = containsArabicText(editedText);
-      const hasHindi = containsHindiText(editedText);
-      const hasEsperanto = containsEsperantoText(editedText);
-      const hasThai = containsThaiText(editedText);
-      const hasVietnamese = containsVietnameseText(editedText);
+      const hasJapanese = containsJapanese(text);
+      const hasChinese = containsChinese(text);
+      const hasKorean = containsKoreanText(text);
+      const hasRussian = containsRussianText(text);
+      const hasArabic = containsArabicText(text);
+      const hasHindi = containsHindiText(text);
+      const hasEsperanto = containsEsperantoText(text);
+      const hasThai = containsThaiText(text);
+      const hasVietnamese = containsVietnameseText(text);
       
       const needsRomanization = (
         hasJapanese || 
@@ -785,7 +793,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       setActualTargetLanguage(targetLanguage);
       
       // Progress callback
-      const result = await runTranslationWithAutoSwitch(true);
+      const result = await runTranslationWithAutoSwitch(true, text);
       
       // Check if we got valid results back
       if (result.translatedText) {

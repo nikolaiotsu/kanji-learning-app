@@ -35,6 +35,7 @@ import { ensureMeasuredThenAdvance, measureButton } from '../../utils/walkthroug
 
 import { logger } from '../../utils/logger';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 interface KanjiScannerProps {
   onCardSwipe?: () => void;
   onContentReady?: (isReady: boolean) => void;
@@ -681,6 +682,23 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     router.push({
       pathname: "/flashcards",
       params: { text: inputText.trim() }
+    });
+
+    // Reset the input and close the modal
+    setInputText('');
+    setShowTextInputModal(false);
+  };
+
+  const handleSubmitTextInputWithScope = () => {
+    if (!inputText.trim()) {
+      Alert.alert(t('camera.emptyInputTitle'), t('camera.emptyInputMessage'));
+      return;
+    }
+
+    // Navigate to flashcards with the custom text and scope flag
+    router.push({
+      pathname: "/flashcards",
+      params: { text: inputText.trim(), useScope: 'true' }
     });
 
     // Reset the input and close the modal
@@ -2566,13 +2584,17 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
         animationType="slide"
         onRequestClose={handleCancelTextInput}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-            style={styles.modalContainer}
-          >
-            <View style={styles.modalContent}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+          style={styles.modalContainer}
+          pointerEvents="box-none"
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={StyleSheet.absoluteFill} />
+          </TouchableWithoutFeedback>
+          <View style={styles.modalContent} pointerEvents="box-none">
+            <View pointerEvents="auto">
               <ScrollView 
                 style={styles.modalScrollContent}
                 contentContainerStyle={styles.modalScrollContentContainer}
@@ -2589,29 +2611,113 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                   placeholder={t('textInput.placeholder')}
                   placeholderTextColor="#999"
                   autoFocus
+                  editable
                 />
               </ScrollView>
-              <View style={styles.modalFooter}>
-                <View style={styles.modalButtonsContainer}>
-                  <TouchableOpacity 
-                    style={[styles.modalCancelButton, (localProcessing || isImageProcessing) ? styles.disabledButton : null]} 
-                    onPress={handleCancelTextInput}
-                    disabled={localProcessing || isImageProcessing}
-                  >
-                    <Text style={styles.modalButtonText}>{t('textInput.cancel')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.modalSaveButton, (localProcessing || isImageProcessing) ? styles.disabledButton : null]} 
-                    onPress={handleSubmitTextInput}
-                    disabled={localProcessing || isImageProcessing}
-                  >
-                    <Text style={styles.modalButtonText}>{t('textInput.translate')}</Text>
-                  </TouchableOpacity>
-                </View>
+            </View>
+            <View style={styles.modalFooter} pointerEvents="auto">
+              <View style={styles.modalButtonsContainer}>
+                <TouchableOpacity 
+                  style={[styles.modalCancelButton, (localProcessing || isImageProcessing) ? styles.disabledButton : null]} 
+                  onPress={handleCancelTextInput}
+                  disabled={localProcessing || isImageProcessing}
+                >
+                  {/* Main gradient background */}
+                  <LinearGradient
+                    colors={(localProcessing || isImageProcessing) 
+                      ? ['rgba(100, 116, 139, 0.5)', 'rgba(71, 85, 105, 0.6)']
+                      : ['rgba(140, 140, 140, 0.35)', 'rgba(100, 100, 100, 0.45)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  
+                  {/* Glass highlight overlay (top shine) - only when not disabled */}
+                  {!(localProcessing || isImageProcessing) && (
+                    <LinearGradient
+                      colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 0, y: 0.6 }}
+                      style={styles.modalGlassOverlay}
+                    />
+                  )}
+                  
+                  {/* Inner glow border */}
+                  <View style={styles.modalInnerBorder} />
+                  
+                  {/* Button content */}
+                  <Text style={styles.modalButtonText}>{t('textInput.cancel')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.modalScopeButton, (localProcessing || isImageProcessing) ? styles.disabledButton : null]} 
+                  onPress={handleSubmitTextInputWithScope}
+                  disabled={localProcessing || isImageProcessing}
+                >
+                  {/* Main gradient background */}
+                  <LinearGradient
+                    colors={(localProcessing || isImageProcessing) 
+                      ? ['rgba(100, 116, 139, 0.5)', 'rgba(71, 85, 105, 0.6)']
+                      : ['rgba(140, 140, 140, 0.35)', 'rgba(100, 100, 100, 0.45)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  
+                  {/* Glass highlight overlay (top shine) - only when not disabled */}
+                  {!(localProcessing || isImageProcessing) && (
+                    <LinearGradient
+                      colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 0, y: 0.6 }}
+                      style={styles.modalGlassOverlay}
+                    />
+                  )}
+                  
+                  {/* Inner glow border */}
+                  <View style={styles.modalInnerBorder} />
+                  
+                  {/* Button content */}
+                  <View style={styles.modalScopeButtonContent}>
+                    <FontAwesome5 name="microscope" size={14} color="#ffffff" />
+                    <Ionicons name="language" size={14} color="#ffffff" style={{ marginLeft: 4 }} />
+                  </View>
+                  <Text style={styles.modalScopeButtonText}>Wordscope</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.modalSaveButton, (localProcessing || isImageProcessing) ? styles.disabledButton : null]} 
+                  onPress={handleSubmitTextInput}
+                  disabled={localProcessing || isImageProcessing}
+                >
+                  {/* Main gradient background */}
+                  <LinearGradient
+                    colors={(localProcessing || isImageProcessing) 
+                      ? ['rgba(100, 116, 139, 0.5)', 'rgba(71, 85, 105, 0.6)']
+                      : ['rgba(140, 140, 140, 0.35)', 'rgba(100, 100, 100, 0.45)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  
+                  {/* Glass highlight overlay (top shine) - only when not disabled */}
+                  {!(localProcessing || isImageProcessing) && (
+                    <LinearGradient
+                      colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 0, y: 0.6 }}
+                      style={styles.modalGlassOverlay}
+                    />
+                  )}
+                  
+                  {/* Inner glow border */}
+                  <View style={styles.modalInnerBorder} />
+                  
+                  {/* Button content */}
+                  <Text style={styles.modalButtonText}>{t('textInput.translate')}</Text>
+                </TouchableOpacity>
               </View>
             </View>
-          </KeyboardAvoidingView>
-        </TouchableWithoutFeedback>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Walkthrough Overlay - completely excluded from tree when navigating to prevent flash */}
@@ -2821,9 +2927,10 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     overflow: 'hidden',
+    flexDirection: 'column',
   },
   modalScrollContent: {
-    flex: 1,
+    maxHeight: 300,
   },
   modalScrollContentContainer: {
     padding: 20,
@@ -2852,34 +2959,117 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     minHeight: 120,
     maxHeight: 180,
     color: COLORS.text,
-    backgroundColor: COLORS.darkSurface,
+    backgroundColor: COLORS.mediumSurface,
   },
   modalButtonsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   modalCancelButton: {
-    backgroundColor: COLORS.mediumSurface,
+    position: 'relative',
     borderRadius: 8,
     paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     flex: 1,
-    marginRight: 10,
+    marginRight: 5,
     alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    // Glassmorphism border
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    // Soft shadow for depth
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    // Background for gradient to work on
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+  },
+  modalScopeButton: {
+    position: 'relative',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    flex: 1,
+    marginHorizontal: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    // Glassmorphism border
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    // Soft shadow for depth
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    // Background for gradient to work on
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+  },
+  modalScopeButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+    zIndex: 1,
+  },
+  modalScopeButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 10,
+    textAlign: 'center',
+    zIndex: 1,
   },
   modalSaveButton: {
-    backgroundColor: COLORS.mediumSurface,
+    position: 'relative',
     borderRadius: 8,
     paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     flex: 1,
-    marginLeft: 10,
+    marginLeft: 5,
     alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    // Glassmorphism border
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    // Soft shadow for depth
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    // Background for gradient to work on
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+  },
+  modalGlassOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '60%',
+    borderRadius: 8,
+  },
+  modalInnerBorder: {
+    position: 'absolute',
+    top: 1,
+    left: 1,
+    right: 1,
+    bottom: 1,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 7,
+    pointerEvents: 'none',
   },
   modalButtonText: {
     color: 'white',
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 14,
+    textAlign: 'center',
+    zIndex: 1,
   },
   instructionContainer: {
     position: 'absolute',
