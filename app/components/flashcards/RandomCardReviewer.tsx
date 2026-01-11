@@ -24,6 +24,18 @@ import { logger } from '../../utils/logger';
 const getSelectedDeckIdsStorageKey = (userId: string) => `selectedDeckIds_${userId}`;
 const LEGACY_SELECTED_DECK_IDS_STORAGE_KEY = 'selectedDeckIds'; // For migration
 
+// Storage key generator for daily review stats (user-specific)
+const getDailyReviewStatsStorageKey = (userId: string) => `dailyReviewStats_${userId}`;
+
+// Get today's date string in YYYY-MM-DD format for comparison
+const getTodayDateString = () => new Date().toISOString().split('T')[0];
+
+// Interface for daily review stats stored in AsyncStorage
+interface DailyReviewStats {
+  date: string; // YYYY-MM-DD format
+  reviewedCardIds: string[]; // IDs of cards reviewed today (unique)
+}
+
 interface RandomCardReviewerProps {
   // Add onCardSwipe callback prop
   onCardSwipe?: () => void;
@@ -179,11 +191,20 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const [buttonDisplayActive, setButtonDisplayActive] = useState(false);
   
   // SRS state for tracking review progress
-  const [reviewedCount, setReviewedCount] = useState(0); // Cards reviewed in current session (right swipes)
   const [dueCardsCount, setDueCardsCount] = useState(0); // Cards due for review today
   const [totalDeckCards, setTotalDeckCards] = useState(0); // Total cards in selected decks
-  const [uniqueRightSwipedIds, setUniqueRightSwipedIds] = useState<Set<string>>(new Set()); // Track unique cards swiped right
+  const [dailyReviewedCardIds, setDailyReviewedCardIds] = useState<Set<string>>(new Set()); // Track unique cards reviewed today (persisted)
+  const [dailyStatsLoaded, setDailyStatsLoaded] = useState(false); // Track if daily stats are loaded from storage
+  const [sessionSwipedCardIds, setSessionSwipedCardIds] = useState<Set<string>>(new Set()); // Track cards swiped right in current review session
   const [isResettingSRS, setIsResettingSRS] = useState(false); // Track if reset is in progress
+  
+  // Derive reviewedCount from dailyReviewedCardIds filtered by current deck selection
+  // This makes the counter deck-aware: only shows cards reviewed from selected decks
+  const reviewedCount = useMemo(() => {
+    if (dailyReviewedCardIds.size === 0 || filteredCards.length === 0) return 0;
+    const filteredCardIds = new Set(filteredCards.map(c => c.id));
+    return Array.from(dailyReviewedCardIds).filter(id => filteredCardIds.has(id)).length;
+  }, [dailyReviewedCardIds, filteredCards]);
   
   // Animated value for transition loading overlay
   const transitionLoadingOpacity = useRef(new Animated.Value(0)).current;
@@ -282,6 +303,28 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     }
   };
 
+  // Reset Daily Review Stats - For testing the daily count reset (long press)
+  const handleResetDailyStats = async () => {
+    if (!user?.id) return;
+
+    try {
+      const storageKey = getDailyReviewStatsStorageKey(user.id);
+      const today = getTodayDateString();
+
+      // Reset daily stats
+      const newStats: DailyReviewStats = { date: today, reviewedCardIds: [] };
+      await AsyncStorage.setItem(storageKey, JSON.stringify(newStats));
+
+      setDailyReviewedCardIds(new Set());
+
+      logger.log('🧪 [Test] Daily review stats reset for testing');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      logger.error('Error resetting daily stats:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
+  };
+
   // Reset SRS Progress - Resets all cards in selected decks to box 1 and today's date (for testing)
   const handleResetSRSProgress = async () => {
     if (isResettingSRS || selectedDeckIds.length === 0) {
@@ -315,9 +358,18 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 // Refresh the flashcards to reflect the reset
                 await fetchAllFlashcards(true);
                 
-                // Reset counters
-                setReviewedCount(0);
-                setUniqueRightSwipedIds(new Set());
+                // Reset daily stats and session swiped cards
+                setDailyReviewedCardIds(new Set());
+                setSessionSwipedCardIds(new Set());
+                
+                // Also clear daily stats from AsyncStorage
+                if (user?.id) {
+                  const storageKey = getDailyReviewStatsStorageKey(user.id);
+                  const today = getTodayDateString();
+                  const newStats: DailyReviewStats = { date: today, reviewedCardIds: [] };
+                  await AsyncStorage.setItem(storageKey, JSON.stringify(newStats));
+                  logger.log('📊 [SRS Reset] Daily stats cleared');
+                }
                 
                 Alert.alert('Success', `Reset ${resetCount} cards to box 1`);
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -421,6 +473,84 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     };
 
     loadSelectedDeckIds();
+  }, [user?.id]);
+
+  // Load daily review stats from AsyncStorage on initialization (user-specific)
+  // Resets stats if it's a new day (midnight reset)
+  useEffect(() => {
+    const loadDailyReviewStats = async () => {
+      if (!user?.id) {
+        logger.log('📊 [DailyStats] No user, skipping daily stats load');
+        setDailyStatsLoaded(true);
+        return;
+      }
+
+      try {
+        const storageKey = getDailyReviewStatsStorageKey(user.id);
+        const storedStats = await AsyncStorage.getItem(storageKey);
+        const today = getTodayDateString();
+        
+        if (storedStats) {
+          const stats: DailyReviewStats = JSON.parse(storedStats);
+          
+          if (stats.date === today) {
+            // Same day - restore the stats
+            const reviewedIds = new Set(stats.reviewedCardIds);
+            setDailyReviewedCardIds(reviewedIds);
+            logger.log('📊 [DailyStats] Loaded daily stats for today:', reviewedIds.size, 'cards reviewed');
+          } else {
+            // New day - reset stats
+            logger.log('📊 [DailyStats] New day detected, resetting daily stats (old:', stats.date, 'new:', today, ')');
+            const newStats: DailyReviewStats = { date: today, reviewedCardIds: [] };
+            await AsyncStorage.setItem(storageKey, JSON.stringify(newStats));
+            setDailyReviewedCardIds(new Set());
+          }
+        } else {
+          // No stats found - initialize for today
+          logger.log('📊 [DailyStats] No daily stats found, initializing for today');
+          const newStats: DailyReviewStats = { date: today, reviewedCardIds: [] };
+          await AsyncStorage.setItem(storageKey, JSON.stringify(newStats));
+          setDailyReviewedCardIds(new Set());
+        }
+      } catch (error) {
+        logger.error('Error loading daily review stats from AsyncStorage:', error);
+        setDailyReviewedCardIds(new Set());
+      } finally {
+        setDailyStatsLoaded(true);
+      }
+    };
+
+    loadDailyReviewStats();
+  }, [user?.id]);
+
+  // Helper function to persist daily review stats
+  const persistDailyReviewStats = useCallback(async (cardId: string) => {
+    if (!user?.id) return;
+    
+    try {
+      const storageKey = getDailyReviewStatsStorageKey(user.id);
+      const today = getTodayDateString();
+      
+      // Update state first for immediate UI feedback
+      setDailyReviewedCardIds((prevSet) => {
+        const newSet = new Set(prevSet);
+        if (!newSet.has(cardId)) {
+          newSet.add(cardId);
+          
+          // Persist to storage asynchronously
+          const statsToSave: DailyReviewStats = {
+            date: today,
+            reviewedCardIds: Array.from(newSet)
+          };
+          AsyncStorage.setItem(storageKey, JSON.stringify(statsToSave))
+            .then(() => logger.log('📊 [DailyStats] Persisted daily stats:', newSet.size, 'cards'))
+            .catch((err) => logger.error('📊 [DailyStats] Error persisting stats:', err));
+        }
+        return newSet;
+      });
+    } catch (error) {
+      logger.error('Error persisting daily review stats:', error);
+    }
   }, [user?.id]);
 
   // NOTE: Filtering is now handled synchronously by useMemo (filteredCards above)
@@ -739,12 +869,14 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         if (cardIdToTrack) {
           incrementRightSwipe(cardIdToTrack);
           
-          // Track unique right swipes and update reviewed count
-          setUniqueRightSwipedIds((prevSet) => {
+          // Persist daily review stats (survives app restarts, resets at midnight)
+          persistDailyReviewStats(cardIdToTrack);
+          
+          // Track card swiped right in current session to prevent it from coming back
+          setSessionSwipedCardIds((prevSet) => {
             const newSet = new Set(prevSet);
             newSet.add(cardIdToTrack);
-            // Update reviewed count immediately
-            setReviewedCount(newSet.size);
+            logger.log('🎯 [SRS] Card swiped right, added to sessionSwipedCardIds:', cardIdToTrack, 'Total in session:', newSet.size);
             return newSet;
           });
         }
@@ -812,6 +944,8 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     // Reset delay states when refreshing
     setDelaySessionFinish(false);
     setIsTransitionLoading(false);
+    // Reset session swiped cards when starting fresh session
+    setSessionSwipedCardIds(new Set());
     // Clear session finished state to allow new session
     // Stay in browse mode - don't enable review mode
     // Start browse session with all filtered cards (not review mode)
@@ -865,30 +999,46 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       // If filteredCards is empty but allFlashcards has data, it means the user
       // selected decks that have no cards - this is a valid state, not a loading state.
       
-      // GATE 6: Prevent duplicate initialization for the same cards
+      // GATE 6: Prevent mid-session re-initialization in review mode
+      // Skip re-initialization if we're actively in a review session with cards remaining
+      // Allow initialization on first load (isInitializing === true) even if reviewSessionCards has items
+      if (isSrsModeActive && reviewSessionCards.length > 0 && !isInitializing) {
+        logger.log('🔄 [Component] Gate 6: Active review session in progress, skipping re-initialization (sessionCards:', reviewSessionCards.length, ')');
+        return;
+      }
+      
+      // GATE 7: Prevent duplicate initialization for the same cards
       const cardsHash = filteredCards.map(card => card.id).sort().join(',');
       if (initializationInProgressRef.current) {
-        logger.log('🔄 [Component] Gate 6: Initialization already in progress');
+        logger.log('🔄 [Component] Gate 7: Initialization already in progress');
         return;
       }
       
       // Skip if we have the exact same cards (prevents redundant initializations)
       if (cardsHash && cardsHash === lastFilteredCardsHashRef.current && !isInitializing) {
-        logger.log('🔄 [Component] Gate 6: Same cards, no re-initialization needed');
+        logger.log('🔄 [Component] Gate 7: Same cards, no re-initialization needed');
         return;
       }
       
       // === ALL GATES PASSED - PROCEED WITH INITIALIZATION ===
       
       if (filteredCards.length > 0) {
-        logger.log('🚀 [Component] Starting review session with', filteredCards.length, 'cards, dataVersion:', dataVersion);
+        // Filter to due cards only in SRS mode, and exclude cards already swiped in this session
+        let cardsToReview = isSrsModeActive ? filterDueCards(filteredCards) : filteredCards;
+        
+        // Exclude cards that were already swiped right in the current session
+        if (sessionSwipedCardIds.size > 0) {
+          cardsToReview = cardsToReview.filter(card => !sessionSwipedCardIds.has(card.id));
+        }
+        
+        logger.log('🚀 [Component] Starting review session with', cardsToReview.length, 'cards (from', filteredCards.length, 'filtered, SRS mode:', isSrsModeActive, '), dataVersion:', dataVersion);
         
         // Mark initialization as in progress
         initializationInProgressRef.current = true;
         lastFilteredCardsHashRef.current = cardsHash;
         
         // Start session atomically - respect current review mode state
-        startReviewWithCards(filteredCards, isSrsModeActive);
+        startReviewWithCards(cardsToReview, isSrsModeActive);
         
         // Wait for next tick to ensure hook state is fully updated
         setTimeout(() => {
@@ -1006,8 +1156,11 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     if (modeActuallyChanged && !isTransitionLoading && !isSessionFinished) {
       logger.log('📚 [SRS Mode] Mode changed to:', isSrsModeActive ? 'Review' : 'Browse');
       
+      // Reset session swiped cards when mode changes (starting fresh session)
+      setSessionSwipedCardIds(new Set());
+      
       if (isSrsModeActive) {
-        // Entering SRS Mode: Filter to due cards only
+        // Entering SRS Mode: Filter to due cards only (starting fresh session, no need to exclude sessionSwipedCardIds)
         if (dueCards.length > 0) {
           startReviewWithCards(dueCards);
         } else {
@@ -1018,9 +1171,8 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         startReviewWithCards(filteredCards, false);
       }
       
-      // Reset reviewed count when mode changes
-      setReviewedCount(0);
-      setUniqueRightSwipedIds(new Set());
+      // NOTE: Daily reviewedCount is NOT reset when toggling mode
+      // It persists throughout the day as expected in Leitner SRS
     }
     
     // Update the ref for next comparison
@@ -1642,6 +1794,22 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 alignItems: 'center',
                 justifyContent: 'center',
                 overflow: 'hidden',
+              }}
+              onLongPress={() => {
+                // Test feature: Long press counter to show debug info and reset daily stats
+                const currentDate = getTodayDateString();
+                Alert.alert(
+                  'Daily Stats Debug',
+                  `📅 Current Date: ${currentDate}\n📊 Today's Reviews: ${reviewedCount}\n🃏 Total Cards: ${totalDeckCards}\n\nLong press again to reset today's count to 0 for testing.`,
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Reset Count',
+                      style: 'destructive',
+                      onPress: handleResetDailyStats
+                    }
+                  ]
+                );
               }}
             >
               {/* Left side: Green background with X/Y */}

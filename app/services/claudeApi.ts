@@ -5383,8 +5383,8 @@ function parseWordScopeResponse(rawResponse: string): {
     reading: string;
     partOfSpeech: string;
     baseForm?: string;
-    grammar: {
-      explanation: string;
+    grammar?: {
+      explanation?: string;
       particles?: Array<{ particle: string; use: string; example: string }>;
     };
     examples: Array<{ sentence: string; translation: string; note: string }>;
@@ -5602,8 +5602,8 @@ function formatScopeAnalysis(analysisJson: {
   reading: string;
   partOfSpeech: string;
   baseForm?: string;
-  grammar: {
-    explanation: string;
+  grammar?: {
+    explanation?: string;
     particles?: Array<{ particle: string; use: string; example: string }>;
   };
   examples: Array<{ sentence: string; translation: string; note: string }>;
@@ -5624,10 +5624,14 @@ function formatScopeAnalysis(analysisJson: {
   }
   
   formatted += '\nGrammar\n';
-  formatted += `${analysisJson.grammar.explanation}\n`;
-  
+  if (analysisJson.grammar?.explanation) {
+    formatted += `${analysisJson.grammar.explanation}\n`;
+  } else {
+    formatted += 'Grammar information unavailable.\n';
+  }
+
   // Particles section (if applicable)
-  if (analysisJson.grammar.particles && analysisJson.grammar.particles.length > 0) {
+  if (analysisJson.grammar?.particles && analysisJson.grammar.particles.length > 0) {
     formatted += '\nCommon particles:\n';
     analysisJson.grammar.particles.forEach((p) => {
       formatted += `- ${p.particle} (${p.use}): ${p.example}\n`;
