@@ -253,6 +253,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const srsCounterOpacity = useRef(new Animated.Value(0)).current;
   const [shouldShowCounter, setShouldShowCounter] = useState(false); // Control counter visibility for smooth fade-out
   const isFadingOutRef = useRef(false); // Track if we're currently fading out to prevent conflicts
+  const noCardsMessageOpacity = useRef(new Animated.Value(0)).current; // Animation for no cards message
   
   // Animate counter in/out when SRS Mode changes (for manual toggle)
   useEffect(() => {
@@ -1187,6 +1188,25 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     }
   }, [isSessionFinished, isSrsModeActive, srsCounterOpacity, transitionLoadingOpacity]);
 
+  // Animate no cards message fade-in smoothly when there are no cards due
+  useEffect(() => {
+    const shouldShowNoCardsDue = isSrsModeActive && dueCardsCount === 0 && !currentCard && !isInitializing && !isTransitionLoading && !isSessionFinished;
+    const shouldShowFinishedView = isSessionFinished && !delaySessionFinish && !isTransitionLoading;
+    
+    if (shouldShowNoCardsDue || shouldShowFinishedView) {
+      // Fade in the message
+      Animated.timing(noCardsMessageOpacity, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.quad),
+      }).start();
+    } else {
+      // Reset opacity when hiding
+      noCardsMessageOpacity.setValue(0);
+    }
+  }, [isSrsModeActive, dueCardsCount, currentCard, isInitializing, isTransitionLoading, isSessionFinished, delaySessionFinish, noCardsMessageOpacity]);
+
   // Filter cards and update counts when SRS Mode is toggled
   // CRITICAL FIX: Only call startReviewWithCards when isSrsModeActive ACTUALLY changes
   // (not when filteredCards changes - that's handled by initializeReviewSession)
@@ -1615,10 +1635,15 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         </View>
       );
     }
+    // Show message when in SRS mode with 0 due cards (even if session hasn't finished)
+    // This handles the case when user presses review button but there are no cards due
+    const shouldShowNoCardsDue = isSrsModeActive && dueCardsCount === 0 && !currentCard && !isInitializing && !isTransitionLoading && !isSessionFinished;
+    
     // Session finished – show "Review again" option or "No cards due" in SRS Mode
     // But delay showing this view if counter is still fading out or if loading transition
     const shouldShowFinishedView = isSessionFinished && !delaySessionFinish && !isTransitionLoading;
-    if (shouldShowFinishedView) {
+    
+    if (shouldShowNoCardsDue || shouldShowFinishedView) {
       // Check if this is SRS Mode with no cards due vs. completed review session
       const isEmptyReviewMode = isSrsModeActive && dueCardsCount === 0;
       
@@ -1731,11 +1756,97 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               </Text>
             </TouchableOpacity>
             
+            {/* SRS Counter - Keep visible when showing no cards message */}
+            {shouldShowCounter && (
+              <Animated.View style={{ opacity: srsCounterOpacity, marginLeft: 8 }}>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={{
+                    flexDirection: 'row',
+                    padding: 0,
+                    borderRadius: 8,
+                    minWidth: 90,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                  }}
+                  onLongPress={() => {
+                    const currentDate = getTodayDateString();
+                    Alert.alert(
+                      'Daily Stats Debug',
+                      `📅 Current Date: ${currentDate}\n📊 Today's Reviews (Daily): ${reviewedCount}\n📊 Session Swiped: ${sessionSwipedCardIds.size}/${sessionStartDueCount || dueCardsCount}\n🃏 Total Cards (Stable): ${totalDeckCards}\n🎓 SRS Mode: ${isSrsModeActive ? 'Active' : 'Inactive'}\n\nLong press again to reset today's count to 0 for testing.`,
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Reset Count',
+                          style: 'destructive',
+                          onPress: handleResetDailyStats
+                        }
+                      ]
+                    );
+                  }}
+                >
+                  {/* Left side: Green background with X/Y */}
+                  <View
+                    style={{
+                      backgroundColor: 'rgba(52, 199, 89, 0.5)',
+                      paddingVertical: 10,
+                      paddingLeft: 8,
+                      paddingRight: 6,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderTopLeftRadius: 8,
+                      borderBottomLeftRadius: 8,
+                    }}
+                  >
+                    <Text
+                      allowFontScaling={false}
+                      suppressHighlighting={true}
+                      style={{
+                        color: '#FFFFFF',
+                        fontSize: 13,
+                        fontWeight: '900',
+                        opacity: 0.7,
+                      }}
+                    >
+                      {isSrsModeActive ? sessionSwipedCardIds.size : reviewedCount}/{isSrsModeActive ? (sessionStartDueCount || dueCardsCount) : dueCardsCount}
+                    </Text>
+                  </View>
+                  {/* Right side: Purple background with Z */}
+                  <View
+                    style={{
+                      backgroundColor: 'rgba(138, 43, 226, 0.5)',
+                      paddingVertical: 10,
+                      paddingLeft: 6,
+                      paddingRight: 8,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderTopRightRadius: 8,
+                      borderBottomRightRadius: 8,
+                    }}
+                  >
+                    <Text
+                      allowFontScaling={false}
+                      suppressHighlighting={true}
+                      style={{
+                        color: '#FFFFFF',
+                        fontSize: 13,
+                        fontWeight: '900',
+                        opacity: 0.7,
+                      }}
+                    >
+                      {totalDeckCards}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </Animated.View>
+            )}
+            
             {/* Offline Indicator */}
             <OfflineBanner visible={!isConnected} />
           </View>
           <View style={styles.cardStage}>
-            <View style={styles.noCardsContainer}>
+            <Animated.View style={[styles.noCardsContainer, { opacity: noCardsMessageOpacity }]}>
               <Text style={styles.noCardsText}>
                 {isEmptyReviewMode ? t('review.noCardsDue') : t('review.finishedReview')}
               </Text>
@@ -1747,7 +1858,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                   <Text style={styles.reviewAgainText}>{t('review.reviewAgain')}</Text>
                 </TouchableOpacity>
               )}
-            </View>
+            </Animated.View>
           </View>
           <View style={styles.controlsContainer}>
             <Text 

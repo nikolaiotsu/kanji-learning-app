@@ -220,7 +220,7 @@
     "remaining": "{{count}} remaining - swipe ← to review again - swipe → to dismiss",
     "srsCounter": "{{reviewed}}/{{due}}({{total}})",
     "reviewMode": "Review",
-    "noCardsDue": "No cards due today",
+    "noCardsDue": "You're done your reviews for today! Go ahead and collect more words.",
     "nextReviewDate": "Next review: {{date}}",
     "browseCount": "{{count}} cards",
     "nothingToReview": "Nothing to review",
