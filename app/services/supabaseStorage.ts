@@ -3,6 +3,7 @@ import { Flashcard } from '../types/Flashcard';
 import { Deck } from '../types/Deck';
 import { decode } from 'base64-arraybuffer';
 import * as FileSystem from 'expo-file-system';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logFlashcardCreation } from './apiUsageLogger';
 import { validateImageFile, validateDeckName, VALIDATION_LIMITS } from '../utils/inputValidation';
 import { isOnline, isNetworkError } from './networkManager';
@@ -740,6 +741,11 @@ export const getFlashcards = async (): Promise<Flashcard[]> => {
           // If we have cached data, return it immediately
           if (cachedCards.length > 0) {
             logger.log('📦 [Cache-First] Returning all cached flashcards:', cachedCards.length);
+            // Log SRS data from cache for debugging
+            if (cachedCards.length > 0) {
+              const sampleCard = cachedCards[0];
+              logger.log(`🔍 [Cache-First] Sample cached card SRS data - ID: ${sampleCard.id.substring(0, 8)}..., Box: ${sampleCard.box ?? 1}, Next review: ${sampleCard.nextReviewDate ? new Date(sampleCard.nextReviewDate).toISOString().split('T')[0] : 'N/A'}`);
+            }
             
             // If online, fetch fresh data in background and update cache
             if (online) {
@@ -826,6 +832,13 @@ const fetchAndCacheAllFlashcards = async (userId?: string): Promise<Flashcard[]>
     
     // Transform from database format to app format
     const transformedCards = transformFlashcards(flashcards || []);
+    
+    // Log SRS data for debugging
+    if (transformedCards.length > 0) {
+      const sampleCard = transformedCards[0];
+      logger.log(`🔍 [fetchAndCacheAllFlashcards] Fetched ${transformedCards.length} cards from database`);
+      logger.log(`🔍 [fetchAndCacheAllFlashcards] Sample card SRS data - ID: ${sampleCard.id.substring(0, 8)}..., Box: ${sampleCard.box ?? 1}, Next review: ${sampleCard.nextReviewDate ? new Date(sampleCard.nextReviewDate).toISOString().split('T')[0] : 'N/A'}`);
+    }
     
     // Cache flashcards for offline use (grouped by deck)
     if (userId && transformedCards.length > 0) {
@@ -1570,6 +1583,20 @@ export const resetSRSProgress = async (deckIds: string[]): Promise<number> => {
 
     const resetCount = data?.length || 0;
     logger.log(`✅ [SRS Reset] Reset ${resetCount} cards to box 1 with review date today`);
+
+    // Also clear daily review stats so cards can be swiped again
+    try {
+      const userId = await getUserIdOffline();
+      if (userId) {
+        const storageKey = `dailyReviewStats_${userId}`;
+        const today = new Date().toISOString().split('T')[0];
+        const newStats = { date: today, reviewedCardIds: [] };
+        await AsyncStorage.setItem(storageKey, JSON.stringify(newStats));
+        logger.log(`✅ [SRS Reset] Cleared daily review stats for user ${userId}`);
+      }
+    } catch (statsErr) {
+      logger.error('Error clearing daily review stats during SRS reset:', statsErr);
+    }
 
     // Refresh cache for affected decks
     try {

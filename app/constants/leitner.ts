@@ -4,21 +4,22 @@
  */
 
 import { Flashcard } from '../types/Flashcard';
+import { logger } from '../utils/logger';
 
 /**
  * Box interval mapping (days until next review)
- * Box 1 → 1 day
- * Box 2 → 3 days
- * Box 3 → 7 days
- * Box 4 → 14 days
- * Box 5 → 30 days
+ * Box 1 → 1 day (daily)
+ * Box 2 → 2 days
+ * Box 3 → 4 days
+ * Box 4 → 7 days (weekly)
+ * Box 5 → 14 days (bi-weekly)
  */
 export const BOX_INTERVALS: Record<number, number> = {
-  1: 1,   // 1 day
-  2: 3,   // 3 days
-  3: 7,   // 7 days
-  4: 14,  // 14 days
-  5: 30,  // 30 days
+  1: 1,   // 1 day (daily)
+  2: 2,   // 2 days
+  3: 4,   // 4 days
+  4: 7,   // 7 days (weekly)
+  5: 14,  // 14 days (bi-weekly)
 };
 
 /**
@@ -72,15 +73,40 @@ export const isDueForReview = (card: Flashcard): boolean => {
  * @returns Filtered and sorted array of due cards
  */
 export const filterDueCards = (cards: Flashcard[]): Flashcard[] => {
-  return cards
-    .filter(isDueForReview)
-    .sort((a, b) => {
-      // Handle cards without dates (backward compatibility)
-      if (!a.nextReviewDate) return -1;
-      if (!b.nextReviewDate) return 1;
-      
-      return new Date(a.nextReviewDate).getTime() - new Date(b.nextReviewDate).getTime();
-    });
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const dueCards: Flashcard[] = [];
+  const notDueCards: Flashcard[] = [];
+  
+  for (const card of cards) {
+    if (isDueForReview(card)) {
+      dueCards.push(card);
+    } else {
+      notDueCards.push(card);
+    }
+  }
+  
+  // Log filtering results for debugging
+  if (cards.length > 0) {
+    logger.log(`🔍 [filterDueCards] Filtered ${cards.length} cards: ${dueCards.length} due, ${notDueCards.length} not due`);
+    
+    // Log sample of not-due cards for debugging
+    if (notDueCards.length > 0 && notDueCards.length <= 5) {
+      notDueCards.forEach(card => {
+        const reviewDate = card.nextReviewDate ? new Date(card.nextReviewDate).toISOString().split('T')[0] : 'N/A';
+        logger.log(`🔍 [filterDueCards] Not due - Card ID: ${card.id.substring(0, 8)}..., Box: ${card.box ?? 1}, Next review: ${reviewDate}, Today: ${today.toISOString().split('T')[0]}`);
+      });
+    }
+  }
+  
+  return dueCards.sort((a, b) => {
+    // Handle cards without dates (backward compatibility)
+    if (!a.nextReviewDate) return -1;
+    if (!b.nextReviewDate) return 1;
+    
+    return new Date(a.nextReviewDate).getTime() - new Date(b.nextReviewDate).getTime();
+  });
 };
 
 /**
@@ -94,9 +120,12 @@ export const getNewBoxOnCorrect = (currentBox: number): number => {
 
 /**
  * Calculate the new box number when a card is answered incorrectly
- * @returns Box 1 (cards go back to the beginning)
+ * Lenient variant: drops to previous box (minimum Box 1)
+ * @param currentBox The current box number (1-5)
+ * @returns The new box number (previous box, minimum 1)
  */
-export const getNewBoxOnIncorrect = (): number => {
-  return 1;
+export const getNewBoxOnIncorrect = (currentBox: number): number => {
+  // Lenient variant: drop to previous box (minimum Box 1)
+  return Math.max(currentBox - 1, 1);
 };
 

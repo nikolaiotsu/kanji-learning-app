@@ -52,7 +52,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { incrementRightSwipe, incrementLeftSwipe, setDeckCardIds } = useSwipeCounter();
+  const { incrementRightSwipe, incrementLeftSwipe, setDeckCardIds, resetSwipeCounts } = useSwipeCounter();
   const { isConnected } = useNetworkState();
   
   // State that needs to be set before session finishes
@@ -84,7 +84,9 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     setCurrentCard,
     removeCardFromSession,
     fetchAllFlashcards,
-    dataVersion // Used to detect when fresh data arrives from background fetch
+    dataVersion, // Used to detect when fresh data arrives from background fetch
+    currentCardRef,           // Use refs for reliable card lookups
+    reviewSessionCardsRef,    // Use refs for reliable card lookups
   } = useRandomCardReview(handleSessionFinishing);
 
   // Internal spacing constants for card layout
@@ -140,7 +142,39 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     logger.log('🔍 [useMemo] Filtered', allFlashcards.length, 'cards by', selectedDeckIds.length, 'decks →', filtered.length, 'cards');
     return filtered;
   }, [selectedDeckIds, allFlashcards, deckIdsLoaded]);
-  
+
+  // Separate effect to update total cards in selected decks - STABLE COUNTER
+  // This counter should ONLY change when deck selection changes, not during background fetches or swipes
+  const prevSelectedDeckIdsRef = useRef<string[]>([]);
+  useEffect(() => {
+    if (!deckIdsLoaded) {
+      totalDeckCardsRef.current = 0;
+      setTotalDeckCards(0);
+      return;
+    }
+
+    // Only update if deck selection actually changed (not just data refresh)
+    const deckSelectionChanged = JSON.stringify(prevSelectedDeckIdsRef.current.sort()) !== JSON.stringify(selectedDeckIds.sort());
+    if (deckSelectionChanged) {
+      // Calculate total cards in selected decks
+      let totalCards = 0;
+      if (selectedDeckIds.length === 0) {
+        totalCards = allFlashcards.length;
+      } else {
+        totalCards = allFlashcards.filter(card => selectedDeckIds.includes(card.deckId)).length;
+      }
+
+      // Store in ref and update state
+      totalDeckCardsRef.current = totalCards;
+      setTotalDeckCards(totalCards);
+      prevSelectedDeckIdsRef.current = [...selectedDeckIds];
+      logger.log('🃏 [Counter] Total cards in selected decks updated:', totalCards, 'for decks:', selectedDeckIds.length);
+    } else {
+      // Data refresh - update state from stable ref value
+      setTotalDeckCards(totalDeckCardsRef.current);
+    }
+  }, [selectedDeckIds, deckIdsLoaded, allFlashcards]); // Runs on data changes, but only updates counter on deck selection changes
+
   // Simplified loading state management for smooth UX
   const [isInitializing, setIsInitializing] = useState(true);
   const [isCardTransitioning, setIsCardTransitioning] = useState(false);
@@ -191,8 +225,10 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const [buttonDisplayActive, setButtonDisplayActive] = useState(false);
   
   // SRS state for tracking review progress
-  const [dueCardsCount, setDueCardsCount] = useState(0); // Cards due for review today
-  const [totalDeckCards, setTotalDeckCards] = useState(0); // Total cards in selected decks
+  const [dueCardsCount, setDueCardsCount] = useState(0); // Cards due for review today (locked when session starts)
+  const [sessionStartDueCount, setSessionStartDueCount] = useState(0); // Initial due cards count when session started (NEVER changes during session)
+  const [totalDeckCards, setTotalDeckCards] = useState(0); // Total cards in selected decks (STABLE COUNTER)
+  const totalDeckCardsRef = useRef(0); // Ref to store stable count, unaffected by data changes
   const [dailyReviewedCardIds, setDailyReviewedCardIds] = useState<Set<string>>(new Set()); // Track unique cards reviewed today (persisted)
   const [dailyStatsLoaded, setDailyStatsLoaded] = useState(false); // Track if daily stats are loaded from storage
   const [sessionSwipedCardIds, setSessionSwipedCardIds] = useState<Set<string>>(new Set()); // Track cards swiped right in current review session
@@ -284,20 +320,25 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       const currentBox = card.box ?? 1;
       const newBox = isCorrect 
         ? getNewBoxOnCorrect(currentBox)
-        : getNewBoxOnIncorrect();
+        : getNewBoxOnIncorrect(currentBox);
       
       const newNextReviewDate = calculateNextReviewDate(newBox);
       
       logger.log('🎯 [SRS] Updating card:', card.id, 'Box:', currentBox, '->', newBox, 'Next review:', newNextReviewDate.toISOString().split('T')[0]);
+      logger.log('🎯 [SRS] Card details - ID:', card.id.substring(0, 8), 'Current box:', currentBox, 'Is correct:', isCorrect, 'New box:', newBox, 'New review date:', newNextReviewDate.toISOString().split('T')[0]);
       
       // Update database immediately
-      await updateFlashcard({
+      const updateResult = await updateFlashcard({
         ...card,
         box: newBox,
         nextReviewDate: newNextReviewDate,
       });
       
-      logger.log('✅ [SRS] Card updated successfully');
+      if (updateResult) {
+        logger.log('✅ [SRS] Card updated successfully in database');
+      } else {
+        logger.error('❌ [SRS] Card update returned false');
+      }
     } catch (error) {
       logger.error('❌ [SRS] Error updating card:', error);
     }
@@ -361,15 +402,14 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 // Reset daily stats and session swiped cards
                 setDailyReviewedCardIds(new Set());
                 setSessionSwipedCardIds(new Set());
-                
-                // Also clear daily stats from AsyncStorage
-                if (user?.id) {
-                  const storageKey = getDailyReviewStatsStorageKey(user.id);
-                  const today = getTodayDateString();
-                  const newStats: DailyReviewStats = { date: today, reviewedCardIds: [] };
-                  await AsyncStorage.setItem(storageKey, JSON.stringify(newStats));
-                  logger.log('📊 [SRS Reset] Daily stats cleared');
-                }
+
+                // Reset session start due count so next SRS session recalculates
+                setSessionStartDueCount(0);
+
+                // NOTE: totalDeckCards ref is preserved - it only changes on deck selection
+
+                // Also reset swipe counter context to clear "already swiped right today" state
+                await resetSwipeCounts();
                 
                 Alert.alert('Success', `Reset ${resetCount} cards to box 1`);
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -856,7 +896,15 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     const cardIdToTrack = currentDisplayedCardIdRef.current;
     
     // Capture the current card for SRS updates
-    const cardToUpdate = currentCard;
+    // Use ref-based lookup to avoid timing issues with state updates
+    // Refs are updated immediately in startReviewWithCards, while state may be stale
+    let cardToUpdate = currentCardRef.current;
+    if (!cardToUpdate && cardIdToTrack && reviewSessionCardsRef.current.length > 0) {
+      cardToUpdate = reviewSessionCardsRef.current.find(card => card.id === cardIdToTrack) || null;
+      if (cardToUpdate) {
+        logger.log('🔍 [SRS] Found card from reviewSessionCardsRef:', cardToUpdate.id.substring(0, 8));
+      }
+    }
     
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
@@ -885,7 +933,10 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       // Handle SRS updates in SRS Mode
       if (cardToUpdate) {
         const isCorrect = direction === 'right'; // Right = remembered, Left = forgot
+        logger.log('🎯 [SRS] Calling handleSRSUpdate for card:', cardToUpdate.id.substring(0, 8), 'isCorrect:', isCorrect, 'SRS mode active:', isSrsModeActiveRef.current);
         handleSRSUpdate(cardToUpdate, isCorrect);
+      } else {
+        logger.warn('⚠️ [SRS] cardToUpdate is null/undefined, cannot update SRS data');
       }
     }
     
@@ -1024,11 +1075,24 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       
       if (filteredCards.length > 0) {
         // Filter to due cards only in SRS mode, and exclude cards already swiped in this session
+        logger.log('🔍 [Component] Before filterDueCards - Total filtered cards:', filteredCards.length, 'SRS mode:', isSrsModeActive);
+        if (isSrsModeActive && filteredCards.length > 0) {
+          // Log sample cards before filtering
+          filteredCards.slice(0, 3).forEach(card => {
+            const reviewDate = card.nextReviewDate ? new Date(card.nextReviewDate).toISOString().split('T')[0] : 'N/A';
+            logger.log(`🔍 [Component] Sample card before filter - ID: ${card.id.substring(0, 8)}..., Box: ${card.box ?? 1}, Next review: ${reviewDate}`);
+          });
+        }
+        
         let cardsToReview = isSrsModeActive ? filterDueCards(filteredCards) : filteredCards;
+        
+        logger.log('🔍 [Component] After filterDueCards - Due cards:', cardsToReview.length, 'SRS mode:', isSrsModeActive);
         
         // Exclude cards that were already swiped right in the current session
         if (sessionSwipedCardIds.size > 0) {
+          const beforeSessionFilter = cardsToReview.length;
           cardsToReview = cardsToReview.filter(card => !sessionSwipedCardIds.has(card.id));
+          logger.log(`🔍 [Component] After session filter - Removed ${beforeSessionFilter - cardsToReview.length} already-swiped cards, remaining: ${cardsToReview.length}`);
         }
         
         logger.log('🚀 [Component] Starting review session with', cardsToReview.length, 'cards (from', filteredCards.length, 'filtered, SRS mode:', isSrsModeActive, '), dataVersion:', dataVersion);
@@ -1128,56 +1192,78 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   // (not when filteredCards changes - that's handled by initializeReviewSession)
   useEffect(() => {
     if (!filteredCards || filteredCards.length === 0) {
-      setTotalDeckCards(0);
-      setDueCardsCount(0);
+      // Only reset dueCardsCount if not in SRS mode or session hasn't started
+      if (!isSrsModeActive || sessionStartDueCount === 0) {
+        setDueCardsCount(0);
+        setSessionStartDueCount(0);
+      }
       prevIsReviewModeActiveRef.current = isSrsModeActive;
       return;
     }
 
-    // Always track total cards in selected decks
-    setTotalDeckCards(filteredCards.length);
+    // NOTE: totalDeckCards is now managed by separate stable counter useEffect
     
-    // Calculate due cards count (always needed for display)
+    // Calculate due cards (always needed for session start)
     const dueCards = filterDueCards(filteredCards);
-    if (isSrsModeActive) {
-      setDueCardsCount(dueCards.length);
-    } else {
-      setDueCardsCount(filteredCards.length); // In browse mode, all cards are "available"
-    }
     
     // CRITICAL: Only call startReviewWithCards if isSrsModeActive actually changed
     // This prevents the duplicate card selection that causes the flash
     const modeActuallyChanged = prevIsReviewModeActiveRef.current !== null && 
                                  prevIsReviewModeActiveRef.current !== isSrsModeActive;
     
-    // CRITICAL: Don't change cards during transition loading to prevent flashing
-    // Wait until loading overlay is fully visible before changing cards
+    // NOTE: We removed the isTransitionLoading check here because it was causing a circular dependency:
+    // - isTransitionLoading is set to true when button is pressed
+    // - This effect needs to run to set up the session, but was blocked by isTransitionLoading
+    // - isTransitionLoading never gets set to false because cards never change
     // CRITICAL: Don't restart session if session is finished - keep showing finished view
-    if (modeActuallyChanged && !isTransitionLoading && !isSessionFinished) {
+    if (modeActuallyChanged && !isSessionFinished) {
       logger.log('📚 [SRS Mode] Mode changed to:', isSrsModeActive ? 'Review' : 'Browse');
       
       // Reset session swiped cards when mode changes (starting fresh session)
       setSessionSwipedCardIds(new Set());
       
       if (isSrsModeActive) {
-        // Entering SRS Mode: Filter to due cards only (starting fresh session, no need to exclude sessionSwipedCardIds)
+        // Entering SRS Mode: Start fresh SRS session with due cards and enableReviewMode=true
+        logger.log('📚 [SRS Mode] Mode changed to: Review');
+        
+        // CRITICAL: Lock the due cards count when session starts - this is the denominator
+        // This count should NOT change during the session, even as cards are swiped
+        const initialDueCount = dueCards.length;
+        setDueCardsCount(initialDueCount);
+        setSessionStartDueCount(initialDueCount);
+        logger.log('📊 [SRS Mode] Session started with', initialDueCount, 'due cards (locked denominator)');
+        
+        // Don't call resetReviewSession() - it causes race conditions
+        // Just start fresh with due cards
         if (dueCards.length > 0) {
-          startReviewWithCards(dueCards);
+          startReviewWithCards(dueCards, true); // true = enable review mode for SRS
         } else {
-          startReviewWithCards([]);
+          startReviewWithCards([], true);
         }
+        
+        // Also refresh data in background to ensure we have latest SRS data
+        fetchAllFlashcards(true).catch(error => {
+          logger.error('❌ [SRS Mode] Error refreshing flashcards:', error);
+        });
       } else {
         // Entering Browse Mode: Show all cards (but don't enable review mode)
+        // Reset the session start count since we're leaving SRS mode
+        setDueCardsCount(filteredCards.length);
+        setSessionStartDueCount(0);
         startReviewWithCards(filteredCards, false);
       }
       
       // NOTE: Daily reviewedCount is NOT reset when toggling mode
       // It persists throughout the day as expected in Leitner SRS
+    } else if (!isSrsModeActive) {
+      // In browse mode, update dueCardsCount freely (it shows total available cards)
+      setDueCardsCount(filteredCards.length);
     }
+    // In SRS mode but no mode change: DO NOT update dueCardsCount - it's locked!
     
     // Update the ref for next comparison
     prevIsReviewModeActiveRef.current = isSrsModeActive;
-  }, [isSrsModeActive, filteredCards, startReviewWithCards, isTransitionLoading, isSessionFinished]);
+  }, [isSrsModeActive, filteredCards, startReviewWithCards, resetReviewSession, isSessionFinished, sessionStartDueCount]);
 
   // SIMPLIFIED: Handle deck selection
   // Filtering is now automatic via useMemo - no async operations needed
@@ -1435,7 +1521,13 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                   useNativeDriver: true,
                 }).start(() => {
                   // Only change mode after loading overlay is fully visible to prevent card flashing
-                  setIsSrsModeActive(!isSrsModeActive);
+                  const newSrsMode = !isSrsModeActive;
+                  logger.log('🎓 [Review Button] Toggling SRS mode:', isSrsModeActive, '->', newSrsMode);
+                  
+                  // Update ref immediately (don't wait for useEffect) to ensure swipes use new value
+                  isSrsModeActiveRef.current = newSrsMode;
+                  
+                  setIsSrsModeActive(newSrsMode);
                   
                   // Hide loading after cards are ready with smooth fade out
                   loadingTimeoutRef.current = setTimeout(() => {
@@ -1602,7 +1694,13 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                   useNativeDriver: true,
                 }).start(() => {
                   // Only change mode after loading overlay is fully visible to prevent card flashing
-                  setIsSrsModeActive(!isSrsModeActive);
+                  const newSrsMode = !isSrsModeActive;
+                  logger.log('🎓 [Review Button] Toggling SRS mode:', isSrsModeActive, '->', newSrsMode);
+                  
+                  // Update ref immediately (don't wait for useEffect) to ensure swipes use new value
+                  isSrsModeActiveRef.current = newSrsMode;
+                  
+                  setIsSrsModeActive(newSrsMode);
                   
                   // Hide loading after cards are ready with smooth fade out
                   loadingTimeoutRef.current = setTimeout(() => {
@@ -1748,7 +1846,13 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               useNativeDriver: true,
             }).start(() => {
               // Only change mode after loading overlay is fully visible to prevent card flashing
-              setIsSrsModeActive(!isSrsModeActive);
+              const newSrsMode = !isSrsModeActive;
+              logger.log('🎓 [Review Button] Toggling SRS mode:', isSrsModeActive, '->', newSrsMode);
+              
+              // Update ref immediately (don't wait for useEffect) to ensure swipes use new value
+              isSrsModeActiveRef.current = newSrsMode;
+              
+              setIsSrsModeActive(newSrsMode);
               
               // Hide loading after cards are ready with smooth fade out
               loadingTimeoutRef.current = setTimeout(() => {
@@ -1800,7 +1904,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 const currentDate = getTodayDateString();
                 Alert.alert(
                   'Daily Stats Debug',
-                  `📅 Current Date: ${currentDate}\n📊 Today's Reviews: ${reviewedCount}\n🃏 Total Cards: ${totalDeckCards}\n\nLong press again to reset today's count to 0 for testing.`,
+                  `📅 Current Date: ${currentDate}\n📊 Today's Reviews (Daily): ${reviewedCount}\n📊 Session Swiped: ${sessionSwipedCardIds.size}/${sessionStartDueCount || dueCardsCount}\n🃏 Total Cards (Stable): ${totalDeckCards}\n🎓 SRS Mode: ${isSrsModeActive ? 'Active' : 'Inactive'}\n\nLong press again to reset today's count to 0 for testing.`,
                   [
                     { text: 'Cancel', style: 'cancel' },
                     {
@@ -1835,7 +1939,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                     opacity: 0.7,
                   }}
                 >
-                  {reviewedCount}/{dueCardsCount}
+                  {isSrsModeActive ? sessionSwipedCardIds.size : reviewedCount}/{isSrsModeActive ? (sessionStartDueCount || dueCardsCount) : dueCardsCount}
                 </Text>
               </View>
               {/* Right side: Purple background with Z */}
