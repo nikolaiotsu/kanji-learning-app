@@ -12,7 +12,8 @@
     "retry": "再試行",
     "or": "または",
     "delete": "削除",
-    "save": "保存"
+    "save": "保存",
+    "reset": "リセット"
   },
   "auth": {
     "login": {
@@ -44,6 +45,14 @@
       "accountExistsMessage": "このメールアドレスのアカウントは既に存在します。代わりにログインしてください。",
       "goToLogin": "ログインページへ",
       "registrationFailed": "登録に失敗しました"
+    },
+    "social": {
+      "googleSignInFailed": "Googleサインインに失敗しました",
+      "googleSignUpFailed": "Googleサインアップに失敗しました",
+      "appleSignInFailed": "Appleサインインに失敗しました",
+      "appleSignInUnavailable": "Appleサインインが利用できません",
+      "appleSignInUnavailableMessage": "このデバイスではAppleサインインが利用できません。メール/パスワードまたはGoogleサインインをお試しください。",
+      "pleaseTryAgain": "もう一度お試しください"
     }
   },
   "deck": {
@@ -60,7 +69,9 @@
     "reorder": {
       "title": "コレクションの並び替え",
       "instruction": "長押ししてドラッグしてコレクションを並び替えます",
-      "failed": "コレクションの順序の更新に失敗しました"
+      "failed": "コレクションの順序の更新に失敗しました",
+      "dataCorruption": "データの破損が検出されました。もう一度お試しください。",
+      "databaseUpdateRequired": "データベースの更新が必要です。サポートにお問い合わせいただくか、移行手順を確認してください。"
     },
     "limit": {
       "title": "コレクション数の上限に達しました",
@@ -240,7 +251,15 @@
       "viewCards": "保存したカードを表示",
       "uploadImage": "ギャラリーから画像をアップロード",
       "takePhoto": "写真を撮ってテキストをスキャン"
-    }
+    },
+    "srsReset": {
+      "title": "SRS進捗をリセット",
+      "message": "選択したデッキのすべてのカードをボックス1にリセットし、今日の復習日に設定します。続行しますか？",
+      "success": "{{count}}枚のカードをボックス1にリセットしました",
+      "error": "カードのリセットに失敗しました。もう一度お試しください。",
+      "errorGeneric": "カードのリセット中にエラーが発生しました。"
+    },
+    "noCardsToDisplay": "表示するカードがありません"
   },
   "savedFlashcards": {
     "title": "あなたのコレクション",
@@ -318,7 +337,8 @@
     "ocrErrorTitle": "OCRエラー",
     "ocrErrorMessage": "選択した領域でテキストを認識できませんでした。もう一度お試しください。",
     "rotationError": "回転を適用できませんでした。",
-    "permissionDenied": "申し訳ありませんが、カメラの権限が必要です！"
+    "permissionDenied": "申し訳ありませんが、カメラの権限が必要です！",
+    "failedToTakePhoto": "写真の撮影に失敗しました"
   },
   "reviewPrompt": {
     "title": "コレクションを楽しんでいますか？",
@@ -326,5 +346,10 @@
     "rateButton": "WordDexを評価",
     "laterButton": "後で",
     "noThanksButton": "いいえ、結構です"
+  },
+  "debug": {
+    "dailyStatsTitle": "日次統計デバッグ",
+    "dailyStatsMessage": "📅 現在の日付: {{date}}\n📊 今日の復習（日次）: {{reviewedCount}}\n📊 セッションでスワイプ: {{sessionSwiped}}/{{dueCount}}\n🃏 総カード数（安定）: {{totalCards}}\n🎓 SRSモード: {{srsMode}}\n\nテスト用に今日のカウントを0にリセットするには、もう一度長押ししてください。",
+    "resetCount": "カウントをリセット"
   }
 } 

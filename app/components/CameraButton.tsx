@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { TouchableOpacity, View, StyleSheet, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { COLORS } from '../constants/colors';
 
 import { logger } from '../utils/logger';
@@ -14,16 +15,17 @@ interface CameraButtonProps {
 }
 
 export default function CameraButton({ onPhotoCapture }: CameraButtonProps) {
+  const { t } = useTranslation();
   const [hasPhoto, setHasPhoto] = useState(false);
 
   useEffect(() => {
     (async () => {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Sorry, we need camera permissions to make this work!');
+        Alert.alert(t('camera.permissionDenied'));
       }
     })();
-  }, []);
+  }, [t]);
 
   const takePhoto = async () => {
     try {
@@ -42,7 +44,7 @@ export default function CameraButton({ onPhotoCapture }: CameraButtonProps) {
         });
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to take photo');
+      Alert.alert(t('common.error'), t('camera.failedToTakePhoto'));
       logger.error(error);
     }
   };

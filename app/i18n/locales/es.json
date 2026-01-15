@@ -13,7 +13,8 @@
     "or": "o",
     "delete": "Eliminar",
     "save": "Guardar",
-    "done": "Listo"
+    "done": "Listo",
+    "reset": "Restablecer"
   },
   "auth": {
     "login": {
@@ -45,6 +46,14 @@
       "accountExistsMessage": "Ya existe una cuenta con este correo electrónico. Por favor inicia sesión.",
       "goToLogin": "Ir a iniciar sesión",
       "registrationFailed": "Error en el registro"
+    },
+    "social": {
+      "googleSignInFailed": "Error al iniciar sesión con Google",
+      "googleSignUpFailed": "Error al registrarse con Google",
+      "appleSignInFailed": "Error al iniciar sesión con Apple",
+      "appleSignInUnavailable": "Inicio de sesión con Apple no disponible",
+      "appleSignInUnavailableMessage": "El inicio de sesión con Apple no está disponible en este dispositivo. Por favor intenta con correo/contraseña o inicio de sesión con Google.",
+      "pleaseTryAgain": "Por favor intenta de nuevo"
     }
   },
   "deck": {
@@ -61,7 +70,9 @@
     "reorder": {
       "title": "Reordenar colecciones",
       "instruction": "Mantén presionado y arrastra para reordenar tus colecciones",
-      "failed": "Error al actualizar el orden de las colecciones"
+      "failed": "Error al actualizar el orden de las colecciones",
+      "dataCorruption": "Se detectó corrupción de datos. Por favor intenta de nuevo.",
+      "databaseUpdateRequired": "Se necesita actualizar la base de datos. Por favor contacta al soporte o revisa las instrucciones de migración."
     },
     "limit": {
       "title": "Límite de colecciones alcanzado",
@@ -241,7 +252,15 @@
       "viewCards": "Ver tarjetas guardadas",
       "uploadImage": "Subir imagen de la galería",
       "takePhoto": "Tomar foto para escanear texto"
-    }
+    },
+    "srsReset": {
+      "title": "Restablecer progreso SRS",
+      "message": "Esto restablecerá todas las tarjetas en los mazos seleccionados a la caja 1 con la fecha de revisión de hoy. ¿Continuar?",
+      "success": "Se restablecieron {{count}} tarjetas a la caja 1",
+      "error": "Error al restablecer las tarjetas. Por favor intenta de nuevo.",
+      "errorGeneric": "Ocurrió un error al restablecer las tarjetas."
+    },
+    "noCardsToDisplay": "No hay tarjetas para mostrar"
   },
   "savedFlashcards": {
     "title": "Tus colecciones",
@@ -319,7 +338,8 @@
     "ocrErrorTitle": "Error de OCR",
     "ocrErrorMessage": "Hubo un problema al reconocer el texto en el área seleccionada. Por favor intenta de nuevo.",
     "rotationError": "No se pudo aplicar la rotación.",
-    "permissionDenied": "¡Lo sentimos, necesitamos permisos de cámara para que esto funcione!"
+    "permissionDenied": "¡Lo sentimos, necesitamos permisos de cámara para que esto funcione!",
+    "failedToTakePhoto": "Error al tomar la foto"
   },
   "reviewPrompt": {
     "title": "¿Disfrutando coleccionando?",
@@ -327,6 +347,11 @@
     "rateButton": "Calificar WordDex",
     "laterButton": "Tal vez después",
     "noThanksButton": "No, gracias"
+  },
+  "debug": {
+    "dailyStatsTitle": "Depuración de estadísticas diarias",
+    "dailyStatsMessage": "📅 Fecha actual: {{date}}\n📊 Revisiones de hoy (Diarias): {{reviewedCount}}\n📊 Deslizadas en sesión: {{sessionSwiped}}/{{dueCount}}\n🃏 Total de tarjetas (Estable): {{totalCards}}\n🎓 Modo SRS: {{srsMode}}\n\nPresiona largo de nuevo para restablecer el conteo de hoy a 0 para pruebas.",
+    "resetCount": "Restablecer conteo"
   }
 }
 

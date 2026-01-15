@@ -71,7 +71,7 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
       setDecks(savedDecks);
     } catch (error) {
       logger.error('Error loading collections:', error);
-      Alert.alert('Error', 'Failed to load collections. Please try again.');
+      Alert.alert(t('common.error'), t('review.failedToLoad'));
     } finally {
       setIsLoading(false);
     }

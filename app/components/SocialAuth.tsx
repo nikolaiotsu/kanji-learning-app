@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Alert, ActivityIndicator, Platform, Animated } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { signInWithGoogle, signInWithApple, signUpWithGoogle } from '../services/authService';
 import { COLORS } from '../constants/colors';
 import { AntDesign, FontAwesome } from '@expo/vector-icons';
@@ -12,6 +13,7 @@ interface SocialAuthProps {
 }
 
 const SocialAuth = ({ mode }: SocialAuthProps) => {
+  const { t } = useTranslation();
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isAppleLoading, setIsAppleLoading] = useState(false);
   const [isAppleSignInSupported, setIsAppleSignInSupported] = useState(false);
@@ -79,8 +81,8 @@ const SocialAuth = ({ mode }: SocialAuthProps) => {
       logger.error(`Google ${mode} error:`, error);
       
       // Show appropriate error message
-      const action = mode === 'signup' ? 'Sign Up' : 'Sign In';
-      Alert.alert(`Google ${action} Failed`, error.message || 'Please try again');
+      const actionKey = mode === 'signup' ? 'auth.social.googleSignUpFailed' : 'auth.social.googleSignInFailed';
+      Alert.alert(t(actionKey), error.message || t('auth.social.pleaseTryAgain'));
     } finally {
       // Don't set loading to false immediately as the browser will open
       // It will be reset when the component unmounts or when returning to the app
@@ -106,11 +108,11 @@ const SocialAuth = ({ mode }: SocialAuthProps) => {
         logger.log('🍎 User cancelled Apple Sign In');
       } else if (error.message?.includes('not available')) {
         Alert.alert(
-          'Apple Sign In Unavailable', 
-          'Apple Sign In is not available on this device. Please try email/password or Google sign in.'
+          t('auth.social.appleSignInUnavailable'), 
+          t('auth.social.appleSignInUnavailableMessage')
         );
       } else {
-        Alert.alert('Apple Sign In Failed', error.message || 'Please try again');
+        Alert.alert(t('auth.social.appleSignInFailed'), error.message || t('auth.social.pleaseTryAgain'));
       }
     } finally {
       // Reset loading state

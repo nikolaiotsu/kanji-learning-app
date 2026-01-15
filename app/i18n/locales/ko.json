@@ -13,7 +13,8 @@
     "or": "또는",
     "delete": "삭제",
     "save": "저장",
-    "done": "완료"
+    "done": "완료",
+    "reset": "재설정"
   },
   "auth": {
     "login": {
@@ -45,6 +46,14 @@
       "accountExistsMessage": "이 이메일로 이미 계정이 존재합니다. 대신 로그인해주세요.",
       "goToLogin": "로그인으로 이동",
       "registrationFailed": "등록 실패"
+    },
+    "social": {
+      "googleSignInFailed": "Google 로그인 실패",
+      "googleSignUpFailed": "Google 회원가입 실패",
+      "appleSignInFailed": "Apple 로그인 실패",
+      "appleSignInUnavailable": "Apple 로그인 사용 불가",
+      "appleSignInUnavailableMessage": "이 기기에서는 Apple 로그인을 사용할 수 없습니다. 이메일/비밀번호 또는 Google 로그인을 시도해주세요.",
+      "pleaseTryAgain": "다시 시도해주세요"
     }
   },
   "deck": {
@@ -61,7 +70,9 @@
     "reorder": {
       "title": "컬렉션 순서 변경",
       "instruction": "길게 누르고 드래그하여 컬렉션 순서를 변경하세요",
-      "failed": "컬렉션 순서 업데이트에 실패했습니다"
+      "failed": "컬렉션 순서 업데이트에 실패했습니다",
+      "dataCorruption": "데이터 손상이 감지되었습니다. 다시 시도해주세요.",
+      "databaseUpdateRequired": "데이터베이스 업데이트가 필요합니다. 지원팀에 문의하거나 마이그레이션 지침을 확인해주세요."
     },
     "limit": {
       "title": "컬렉션 한도 도달",
@@ -241,7 +252,15 @@
       "viewCards": "저장된 카드 보기",
       "uploadImage": "갤러리에서 이미지 업로드",
       "takePhoto": "사진을 찍어 텍스트 스캔"
-    }
+    },
+    "srsReset": {
+      "title": "SRS 진행 상황 재설정",
+      "message": "선택한 덱의 모든 카드를 박스 1로 재설정하고 오늘의 복습 날짜로 설정합니다. 계속하시겠습니까?",
+      "success": "{{count}}개의 카드를 박스 1로 재설정했습니다",
+      "error": "카드 재설정에 실패했습니다. 다시 시도해주세요.",
+      "errorGeneric": "카드 재설정 중 오류가 발생했습니다."
+    },
+    "noCardsToDisplay": "표시할 카드 없음"
   },
   "savedFlashcards": {
     "title": "내 컬렉션",
@@ -319,7 +338,8 @@
     "ocrErrorTitle": "OCR 오류",
     "ocrErrorMessage": "선택한 영역에서 텍스트를 인식하는 데 문제가 있었습니다. 다시 시도해주세요.",
     "rotationError": "회전을 적용할 수 없습니다.",
-    "permissionDenied": "죄송합니다. 카메라 권한이 필요합니다!"
+    "permissionDenied": "죄송합니다. 카메라 권한이 필요합니다!",
+    "failedToTakePhoto": "사진 촬영에 실패했습니다"
   },
   "reviewPrompt": {
     "title": "수집을 즐기고 계신가요?",
@@ -327,6 +347,11 @@
     "rateButton": "WordDex 평가하기",
     "laterButton": "나중에",
     "noThanksButton": "아니요, 괜찮습니다"
+  },
+  "debug": {
+    "dailyStatsTitle": "일일 통계 디버그",
+    "dailyStatsMessage": "📅 현재 날짜: {{date}}\n📊 오늘의 복습 (일일): {{reviewedCount}}\n📊 세션 스와이프: {{sessionSwiped}}/{{dueCount}}\n🃏 총 카드 수 (안정): {{totalCards}}\n🎓 SRS 모드: {{srsMode}}\n\n테스트를 위해 오늘의 카운트를 0으로 재설정하려면 다시 길게 누르세요.",
+    "resetCount": "카운트 재설정"
   }
 }
 

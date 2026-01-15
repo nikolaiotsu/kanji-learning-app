@@ -13,7 +13,8 @@
     "or": "or",
     "delete": "Delete",
     "save": "Save",
-    "done": "Done"
+    "done": "Done",
+    "reset": "Reset"
   },
   "auth": {
     "login": {
@@ -26,6 +27,14 @@
       "forgotPassword": "Forgot Password?",
       "loginFailed": "Login Failed",
       "missingCredentials": "Please enter both email and password"
+    },
+    "social": {
+      "googleSignInFailed": "Google Sign In Failed",
+      "googleSignUpFailed": "Google Sign Up Failed",
+      "appleSignInFailed": "Apple Sign In Failed",
+      "appleSignInUnavailable": "Apple Sign In Unavailable",
+      "appleSignInUnavailableMessage": "Apple Sign In is not available on this device. Please try email/password or Google sign in.",
+      "pleaseTryAgain": "Please try again"
     },
     "signup": {
       "title": "Create Your Account",
@@ -61,7 +70,9 @@
     "reorder": {
       "title": "Reorder Collections",
       "instruction": "Long press and drag to reorder your collections",
-      "failed": "Failed to update collection order"
+      "failed": "Failed to update collection order",
+      "dataCorruption": "Data corruption detected. Please try again.",
+      "databaseUpdateRequired": "Database needs to be updated. Please contact support or check the migration instructions."
     },
     "limit": {
       "title": "Collection Limit Reached",
@@ -248,7 +259,15 @@
       "viewCards": "View saved cards",
       "uploadImage": "Upload image from gallery",
       "takePhoto": "Take a photo to scan text"
-    }
+    },
+    "srsReset": {
+      "title": "Reset SRS Progress",
+      "message": "This will reset all cards in selected decks to box 1 with today's review date. Continue?",
+      "success": "Reset {{count}} cards to box 1",
+      "error": "Failed to reset cards. Please try again.",
+      "errorGeneric": "An error occurred while resetting cards."
+    },
+    "noCardsToDisplay": "No cards to display"
   },
   "savedFlashcards": {
     "title": "Your Collections",
@@ -327,7 +346,8 @@
     "ocrErrorTitle": "OCR Error",
     "ocrErrorMessage": "There was a problem recognizing text in the selected area. Please try again.",
     "rotationError": "Could not apply rotation.",
-    "permissionDenied": "Sorry, we need camera permissions to make this work!"
+    "permissionDenied": "Sorry, we need camera permissions to make this work!",
+    "failedToTakePhoto": "Failed to take photo"
   },
   "reviewPrompt": {
     "title": "Enjoying collecting?",
@@ -335,5 +355,62 @@
     "rateButton": "Rate WordDex",
     "laterButton": "Maybe Later",
     "noThanksButton": "No, Thanks"
+  },
+  "walkthrough": {
+    "camera": {
+      "title": "Take Picture",
+      "description": "Tap here to take a photo of text you want to learn. The camera will scan and create flashcards from your photos."
+    },
+    "gallery": {
+      "title": "Gallery",
+      "description": "Choose an existing photo from your gallery to create flashcards from. Great for images you've saved previously."
+    },
+    "flashcards": {
+      "title": "View your Collection",
+      "description": "Access your flashcard collection to organize, edit, and manage your saved cards."
+    },
+    "customCard": {
+      "title": "Add Custom Card",
+      "description": "Create a custom flashcard manually by entering text directly. Perfect for adding cards without taking a photo."
+    },
+    "reviewCards": {
+      "title": "Review Cards",
+      "description": "This area is where your captured flashcards will appear for review. Swipe right to take cards out of the review session. Swipe left to review cards again.  The flip flashcard and see image buttons will be on the bottom right of your flashcards."
+    },
+    "collections": {
+      "title": "Collections",
+      "description": "Tap here to select which deck of flashcards you want to review.  Long press a deck to isolate it. You can choose multiple collections to review cards from all of them at once."
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "Manage translation languages, subscription plan, sign out, and other account settings here."
+    },
+    "galleryConfirm": {
+      "title": "Upload from Gallery",
+      "description": "Let's try uploading an image from the gallery. After you choose one, we'll guide you through rotate, crop, and highlight."
+    },
+    "rotate": {
+      "title": "Rotate Image",
+      "description": "Rotate your photo if you need before cropping or highlighting text."
+    },
+    "crop": {
+      "title": "Crop Image",
+      "description": "Crop the photo to the important area so you only process the text you need."
+    },
+    "highlight": {
+      "title": "Highlight Text",
+      "description": "Let's try highlighting some text in the image. Draw a box around the text you want to translate."
+    },
+    "confirmHighlight": {
+      "title": "Confirm Selection",
+      "description": "Does the yellow highlight box neatly surround text that you want to translate? If so, press next, and then the checkmark, if not, press the back button and try again."
+    },
+    "continueWalkthrough": "No, Continue Walkthrough",
+    "endWalkthrough": "Yes, End Walkthrough"
+  },
+  "debug": {
+    "dailyStatsTitle": "Daily Stats Debug",
+    "dailyStatsMessage": "📅 Current Date: {{date}}\n📊 Today's Reviews (Daily): {{reviewedCount}}\n📊 Session Swiped: {{sessionSwiped}}/{{dueCount}}\n🃏 Total Cards (Stable): {{totalCards}}\n🎓 SRS Mode: {{srsMode}}\n\nLong press again to reset today's count to 0 for testing.",
+    "resetCount": "Reset Count"
   }
 } 

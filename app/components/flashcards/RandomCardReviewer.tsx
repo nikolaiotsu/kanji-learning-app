@@ -20,6 +20,10 @@ import { useFocusEffect } from 'expo-router';
 import { filterDueCards, calculateNextReviewDate, getNewBoxOnCorrect, getNewBoxOnIncorrect } from '../../constants/leitner';
 
 import { logger } from '../../utils/logger';
+
+// Create AnimatedTouchableOpacity to support animated border colors without re-renders
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
+
 // Storage key generator for selected deck IDs (user-specific)
 const getSelectedDeckIdsStorageKey = (userId: string) => `selectedDeckIds_${userId}`;
 const LEGACY_SELECTED_DECK_IDS_STORAGE_KEY = 'selectedDeckIds'; // For migration
@@ -190,6 +194,41 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const [isSrsModeActive, setIsSrsModeActive] = useState(false);
   const isSrsModeActiveRef = useRef(isSrsModeActive);
   
+  // Check if there are cards due for review in the selected decks
+  // Uses allFlashcards directly to avoid false negatives during cache refetch
+  // Also checks reviewSessionCards as fallback when cache is stale (e.g., after exiting review mode)
+  // Recalculates when allFlashcards, selectedDeckIds, deckIdsLoaded, reviewSessionCards, or isSrsModeActive changes
+  // Note: isSrsModeActive is included to force recalculation when toggling modes
+  const hasCardsDueForReview = useMemo(() => {
+    // Don't check until deck IDs are loaded
+    if (!deckIdsLoaded) return false;
+    
+    // If no decks selected, no cards due
+    if (selectedDeckIds.length === 0) return false;
+    
+    // Filter cards by selected deck IDs directly from allFlashcards
+    // This is more reliable than using filteredCards which might be temporarily empty during cache refetch
+    let cardsInSelectedDecks = allFlashcards.filter(card => selectedDeckIds.includes(card.deckId));
+    
+    // If allFlashcards doesn't have cards from selected decks (cache might be stale),
+    // also check reviewSessionCards as a fallback - these cards were in the session and should still be due
+    if (cardsInSelectedDecks.length === 0 && reviewSessionCards.length > 0) {
+      const sessionCardsInSelectedDecks = reviewSessionCards.filter(card => selectedDeckIds.includes(card.deckId));
+      if (sessionCardsInSelectedDecks.length > 0) {
+        logger.log('🌈 [Rainbow Border] Using reviewSessionCards as fallback - allFlashcards empty, sessionCards:', sessionCardsInSelectedDecks.length);
+        cardsInSelectedDecks = sessionCardsInSelectedDecks;
+      }
+    }
+    
+    if (cardsInSelectedDecks.length === 0) return false;
+    
+    // Check if any of these cards are due for review
+    const dueCards = filterDueCards(cardsInSelectedDecks);
+    const result = dueCards.length > 0;
+    logger.log('🌈 [Rainbow Border] hasCardsDueForReview recalculated:', result, 'due cards:', dueCards.length, 'total in decks:', cardsInSelectedDecks.length, 'isSrsModeActive:', isSrsModeActive, 'source:', cardsInSelectedDecks.length > 0 && allFlashcards.filter(card => selectedDeckIds.includes(card.deckId)).length === 0 ? 'reviewSessionCards' : 'allFlashcards');
+    return result;
+  }, [allFlashcards, selectedDeckIds, deckIdsLoaded, reviewSessionCards, isSrsModeActive]);
+  
   // Display state for button appearance - updates immediately on press to prevent flashing
   const [buttonDisplayActive, setButtonDisplayActive] = useState(false);
   
@@ -227,6 +266,16 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const [fadeOutSwipedCount, setFadeOutSwipedCount] = useState<number | null>(null);
   const [fadeOutDueCount, setFadeOutDueCount] = useState<number | null>(null);
   const [fadeOutTotalDeckCards, setFadeOutTotalDeckCards] = useState<number | null>(null);
+
+  // Rainbow border animation for review button - uses interpolate instead of setState to prevent re-renders
+  const reviewButtonRainbowAnim = useRef(new Animated.Value(0)).current;
+  const rainbowAnimationLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+  
+  // Create interpolated color value directly - no setState means no re-renders during animation
+  const reviewButtonRainbowColor = reviewButtonRainbowAnim.interpolate({
+    inputRange: [0, 0.166, 0.333, 0.5, 0.666, 0.833, 1],
+    outputRange: ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#FF0000'],
+  });
 
   // Separate effect to update total cards in selected decks - STABLE COUNTER
   // This counter updates when deck selection changes OR when cards are added to selected decks
@@ -374,6 +423,48 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   // Define swipe threshold
   const SWIPE_THRESHOLD = 120;
 
+  // Rainbow border animation effect for review button
+  // Stops when review mode (SRS mode) is active
+  // Uses Animated.interpolate instead of setState to prevent re-render cascades
+  useEffect(() => {
+    logger.log('🌈 [Rainbow Animation] Effect triggered:', { hasCardsDueForReview, isSrsModeActive });
+    
+    // Stop any existing animation first
+    if (rainbowAnimationLoopRef.current) {
+      rainbowAnimationLoopRef.current.stop();
+      rainbowAnimationLoopRef.current = null;
+    }
+    reviewButtonRainbowAnim.stopAnimation();
+    reviewButtonRainbowAnim.setValue(0);
+    
+    if (hasCardsDueForReview && !isSrsModeActive) {
+      logger.log('🌈 [Rainbow Animation] Starting animation loop');
+      // Start rainbow animation only when cards are due AND not in review mode
+      const loop = Animated.loop(
+        Animated.timing(reviewButtonRainbowAnim, {
+          toValue: 1,
+          duration: 2000,
+          easing: Easing.linear,
+          useNativeDriver: false, // Required for color interpolation
+        })
+      );
+      rainbowAnimationLoopRef.current = loop;
+      loop.start();
+      
+      return () => {
+        logger.log('🌈 [Rainbow Animation] Cleaning up animation');
+        if (rainbowAnimationLoopRef.current) {
+          rainbowAnimationLoopRef.current.stop();
+          rainbowAnimationLoopRef.current = null;
+        }
+        reviewButtonRainbowAnim.stopAnimation();
+        reviewButtonRainbowAnim.setValue(0);
+      };
+    } else {
+      logger.log('🌈 [Rainbow Animation] Not starting - hasCardsDueForReview:', hasCardsDueForReview, 'isSrsModeActive:', isSrsModeActive);
+    }
+  }, [hasCardsDueForReview, isSrsModeActive, reviewButtonRainbowAnim]);
+
   // SRS Update Handler - Updates box and nextReviewDate for cards in SRS Mode
   const handleSRSUpdate = async (card: Flashcard, isCorrect: boolean) => {
     // Only update SRS data in SRS Mode
@@ -440,15 +531,15 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
 
     // Show confirmation dialog
     Alert.alert(
-      'Reset SRS Progress',
-      'This will reset all cards in selected decks to box 1 with today\'s review date. Continue?',
+      t('review.srsReset.title'),
+      t('review.srsReset.message'),
       [
         {
-          text: 'Cancel',
+          text: t('common.cancel'),
           style: 'cancel',
         },
         {
-          text: 'Reset',
+          text: t('common.reset'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -477,16 +568,16 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 // Also reset swipe counter context to clear "already swiped right today" state
                 await resetSwipeCounts();
                 
-                Alert.alert('Success', `Reset ${resetCount} cards to box 1`);
+                Alert.alert(t('common.success'), t('review.srsReset.success', { count: resetCount }));
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               } else {
                 logger.error('❌ [SRS Reset] Failed to reset cards');
-                Alert.alert('Error', 'Failed to reset cards. Please try again.');
+                Alert.alert(t('common.error'), t('review.srsReset.error'));
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
               }
             } catch (error) {
               logger.error('❌ [SRS Reset] Error:', error);
-              Alert.alert('Error', 'An error occurred while resetting cards.');
+              Alert.alert(t('common.error'), t('review.srsReset.errorGeneric'));
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             } finally {
               setIsResettingSRS(false);
@@ -1549,11 +1640,12 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           </View>
           
           {/* SRS Mode Toggle */}
-          <TouchableOpacity
+          <AnimatedTouchableOpacity
             style={[
               styles.reviewModeButton,
               buttonDisplayActive && styles.reviewModeButtonActive,
-              styles.deckButtonDisabled
+              styles.deckButtonDisabled,
+              hasCardsDueForReview && !isSrsModeActive && { borderColor: reviewButtonRainbowColor, borderWidth: 2 }
             ]}
             disabled={true}
           >
@@ -1570,7 +1662,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
             >
               {t('review.reviewMode')}
             </Text>
-          </TouchableOpacity>
+          </AnimatedTouchableOpacity>
           
           {/* Offline Indicator */}
           <OfflineBanner visible={!isConnected} />
@@ -1667,11 +1759,12 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
             </View>
             
             {/* SRS Mode Toggle */}
-            <TouchableOpacity
+            <AnimatedTouchableOpacity
               style={[
                 styles.reviewModeButton,
                 buttonDisplayActive && styles.reviewModeButtonActive,
                 (reviewSessionCards.length === 0 && filteredCards.length === 0) && styles.reviewModeButtonDisabled,
+                hasCardsDueForReview && !isSrsModeActive && { borderColor: reviewButtonRainbowColor, borderWidth: 2 }
               ]}
               disabled={reviewSessionCards.length === 0 && filteredCards.length === 0}
               onPress={() => {
@@ -1753,7 +1846,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               >
                 {t('review.reviewMode')}
               </Text>
-            </TouchableOpacity>
+            </AnimatedTouchableOpacity>
             
             {/* Offline Indicator */}
             <OfflineBanner visible={!isConnected} />
@@ -1765,7 +1858,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 const subKey = 'review.noCardsInSelectionSubtitle';
                 const titleT = t(titleKey);
                 const subT = t(subKey);
-                const resolvedTitle = titleT === titleKey ? 'No cards to review' : titleT;
+                const resolvedTitle = titleT === titleKey ? t('review.noCardsInSelectionTitle') : titleT;
                 const resolvedSub = subT === subKey ? 'The selected collection(s) contain no cards. Choose a different collection or add cards.' : subT;
                 return (
                   <>
@@ -1890,11 +1983,12 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
             </View>
             
             {/* SRS Mode Toggle */}
-            <TouchableOpacity
+            <AnimatedTouchableOpacity
               style={[
                 styles.reviewModeButton,
                 buttonDisplayActive && styles.reviewModeButtonActive,
                 isSessionFinished && styles.reviewModeButtonDisabled,
+                hasCardsDueForReview && !isSrsModeActive && { borderColor: reviewButtonRainbowColor, borderWidth: 2 }
               ]}
               disabled={isSessionFinished}
               onPress={() => {
@@ -1971,7 +2065,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               >
                 {t('review.reviewMode')}
               </Text>
-            </TouchableOpacity>
+            </AnimatedTouchableOpacity>
             
             {/* SRS Counter - Keep visible when showing no cards message */}
             {shouldShowCounter && (
@@ -1990,12 +2084,19 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                   onLongPress={() => {
                     const currentDate = getTodayDateString();
                     Alert.alert(
-                      'Daily Stats Debug',
-                      `📅 Current Date: ${currentDate}\n📊 Today's Reviews (Daily): ${reviewedCount}\n📊 Session Swiped: ${sessionSwipedCardIds.size}/${sessionStartDueCount || dueCardsCount}\n🃏 Total Cards (Stable): ${totalDeckCards}\n🎓 SRS Mode: ${isSrsModeActive ? 'Active' : 'Inactive'}\n\nLong press again to reset today's count to 0 for testing.`,
+                      t('debug.dailyStatsTitle'),
+                      t('debug.dailyStatsMessage', {
+                        date: currentDate,
+                        reviewedCount,
+                        sessionSwiped: sessionSwipedCardIds.size,
+                        dueCount: sessionStartDueCount || dueCardsCount,
+                        totalCards: totalDeckCards,
+                        srsMode: isSrsModeActive ? 'Active' : 'Inactive'
+                      }),
                       [
-                        { text: 'Cancel', style: 'cancel' },
+                        { text: t('common.cancel'), style: 'cancel' },
                         {
-                          text: 'Reset Count',
+                          text: t('debug.resetCount'),
                           style: 'destructive',
                           onPress: handleResetDailyStats
                         }
@@ -2139,12 +2240,13 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         </View>
         
         {/* SRS Mode Toggle */}
-        <TouchableOpacity
+        <AnimatedTouchableOpacity
           style={[
             styles.reviewModeButton,
             buttonDisplayActive && styles.reviewModeButtonActive,
             (!isWalkthroughActive && (isCardTransitioning || isInitializing)) && styles.deckButtonDisabled,
-            isResettingSRS && { opacity: 0.6 }
+            isResettingSRS && { opacity: 0.6 },
+            hasCardsDueForReview && !isSrsModeActive && { borderColor: reviewButtonRainbowColor, borderWidth: 2 }
           ]}
           onPress={() => {
             // Prevent rapid button presses from causing overlapping transitions
@@ -2219,7 +2321,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           >
             {t('review.reviewMode')}
           </Text>
-        </TouchableOpacity>
+        </AnimatedTouchableOpacity>
         
         {/* SRS Counter - Only visible in SRS Mode, positioned right after Review button */}
         {shouldShowCounter && (
@@ -2239,12 +2341,19 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 // Test feature: Long press counter to show debug info and reset daily stats
                 const currentDate = getTodayDateString();
                 Alert.alert(
-                  'Daily Stats Debug',
-                  `📅 Current Date: ${currentDate}\n📊 Today's Reviews (Daily): ${reviewedCount}\n📊 Session Swiped: ${sessionSwipedCardIds.size}/${sessionStartDueCount || dueCardsCount}\n🃏 Total Cards (Stable): ${totalDeckCards}\n🎓 SRS Mode: ${isSrsModeActive ? 'Active' : 'Inactive'}\n\nLong press again to reset today's count to 0 for testing.`,
+                  t('debug.dailyStatsTitle'),
+                  t('debug.dailyStatsMessage', {
+                    date: currentDate,
+                    reviewedCount,
+                    sessionSwiped: sessionSwipedCardIds.size,
+                    dueCount: sessionStartDueCount || dueCardsCount,
+                    totalCards: totalDeckCards,
+                    srsMode: isSrsModeActive ? 'Active' : 'Inactive'
+                  }),
                   [
-                    { text: 'Cancel', style: 'cancel' },
+                    { text: t('common.cancel'), style: 'cancel' },
                     {
-                      text: 'Reset Count',
+                      text: t('debug.resetCount'),
                       style: 'destructive',
                       onPress: handleResetDailyStats
                     }
@@ -2479,6 +2588,8 @@ const createStyles = (
     zIndex: 1001,
     position: 'relative',
     elevation: 13,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.5)', // Default blue when no cards due
   },
   reviewModeButtonActive: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',

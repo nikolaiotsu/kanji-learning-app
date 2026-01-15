@@ -182,8 +182,8 @@ export default function MultiDeckSelector({
           const msgKey = 'review.noCardsInSelectionSubtitle';
           const titleT = t(titleKey);
           const msgT = t(msgKey);
-          const resolvedTitle = titleT === titleKey ? 'No cards to display' : titleT;
-          const resolvedMsg = msgT === msgKey ? 'The selected collection(s) contain no cards. Choose a different collection or add cards.' : msgT;
+          const resolvedTitle = titleT === titleKey ? t('review.noCardsToDisplay') : titleT;
+          const resolvedMsg = msgT === msgKey ? t('review.noCardsInSelectionSubtitle') : msgT;
           Alert.alert(resolvedTitle, resolvedMsg);
           return; // Keep the modal open so they can change selection
         }

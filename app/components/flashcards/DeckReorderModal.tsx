@@ -153,7 +153,7 @@ export default function DeckReorderModal({
       if (error && typeof error === 'object' && 'message' in error) {
         const errorMsg = (error as { message: string }).message.toLowerCase();
         if (errorMsg.includes('order_index') && (errorMsg.includes('column') || errorMsg.includes('does not exist'))) {
-          errorMessage = 'Database needs to be updated. Please contact support or check the migration instructions.';
+          errorMessage = t('deck.reorder.databaseUpdateRequired');
         }
       }
       
