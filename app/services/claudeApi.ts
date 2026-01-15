@@ -84,6 +84,7 @@ EXTRA QUALITY NOTES:
 - Confirm dictionary readings for multi-character compounds and proper nouns
 - Avoid adding new characters that were not in the original and never invent new phrases
 - Verify tone marks are complete including neutral tones (marked without tone marks)
+- Double check that your output meets all requirements.
 
 RESPOND WITH JSON:
 {
@@ -106,7 +107,9 @@ FURIGANA REQUIREMENTS:
 2. For EVERY word containing kanji, add complete hiragana readings in parentheses immediately after
 3. USE STANDARD DICTIONARY READINGS for compound words - do NOT combine individual kanji sounds phonetically
 4. Every single kanji character must have a reading - zero exceptions
-5. Pure hiragana/katakana words, foreign loanwords, and numerals remain untouched
+5. CRITICAL: Pure hiragana/katakana words, foreign loanwords, and numerals remain COMPLETELY UNTOUCHED - NEVER add furigana to words that contain NO kanji
+   - WRONG: うそ(うそ), それは(それは), ない(ない) ❌
+   - CORRECT: うそ, それは, ない ✓ (no furigana needed - already in hiragana)
 
 READING PRIORITY (PROCESS IN THIS ORDER):
 - 1. COMPOUND WORDS: Multi-kanji words with established dictionary pronunciations
@@ -141,6 +144,10 @@ SENTENCE EXAMPLES:
 図書館で勉強しました → 図書館(としょかん)で勉強(べんきょう)しました
 友達と映画を見に行きます → 友達(ともだち)と映画(えいが)を見(み)に行(い)きます
 
+CRITICAL: Hiragana-only words NEVER get furigana:
+うそでしょ → うそでしょ ✓ (NOT うそ(うそ)でしょ ❌)
+それはない → それはない ✓ (NOT それは(それは)ない(ない) ❌)
+
 
 FORMAT RULES:
 NO spaces before parentheses: 東京(とうきょう) ✓, 東京 (とうきょう) ✗
@@ -162,6 +169,7 @@ EXTRA QUALITY NOTES:
 - Keep spacing around punctuation consistent with the source text.
 - Confirm dictionary readings for multi-kanji compounds and proper nouns.
 - Avoid adding new kanji that were not in the original and never invent new phrases.
+- Double check that your output meets all requirements.
 
 RESPOND WITH JSON:
 {
@@ -293,6 +301,7 @@ Before submitting, verify each Korean element:
 ✓ No Korean in translatedText (only target language)
 ✓ Proper spacing and parentheses formatting
 ✓ Correct vowel combinations (ya, yeo, yu, etc.)
+✓ Double check that your output meets all requirements.
 
 RESPOND WITH JSON:
 {
@@ -404,6 +413,7 @@ CRITICAL ERRORS TO AVOID:
 - "su-al" instead of "su'aal" [missing hamza representation]
 - "ana" instead of "anaa" [missing initial hamza + long aa]
 - "al-arabiya (Arabic)" instead of "al-'arabiyyah"
+- Double check that your output meets all requirements.
 
 RESPOND WITH JSON:
 {
@@ -522,6 +532,7 @@ ADVANCED RTGS RULES:
 - RTGS does NOT use tone marks (no á, à, â, etc.)
 - Long vowels indicated by doubling: aa, ii, uu, ee, oo
 - Standard RTGS preferred over local pronunciations
+- Double check that your output meets all requirements.
 
 RESPOND WITH JSON:
 {
@@ -664,6 +675,7 @@ Before finalizing your romanization, systematically verify each element:
   - Are त्र = tr clusters correct?
   - Are ज्ञ = jñ clusters properly represented?
   - Are all conjunct consonants accurately represented?
+  - Double check that your output meets all requirements.
 
 RESPOND WITH JSON:
 {
@@ -678,10 +690,12 @@ const simpleTranslationPrompt = `You are a professional translator. Translate te
 
 RULES:
 - Translate into natural, fluent target language
-- Preserve meaning, tone, and register
-- Use natural expressions appropriate for the target language
-- Do NOT add romanization or pronunciation guides
+- Preserve the original meaning and tone
+- Use natural expressions in the target language
+- Do NOT add any readings, romanization, or furigana to the TRANSLATION
 - Handle idioms appropriately - translate meaning, not word-for-word
+- Consider vulgarity level and match the emotional intensity of the original text
+- Double check that your output is a natural translation of the input text that matches its emotional intensity and context
 
 RESPOND WITH JSON:
 {
@@ -2090,11 +2104,18 @@ export async function processWithClaude(
             const aiValidation = await validateLanguageWithClaude(text, forcedLanguage, apiKey);
 
             // Check if AI detected a different CJK language
+            // Only treat as mismatch if:
+            // 1. The detected language is explicitly different (not "Unknown")
+            // 2. The confidence is not "low" (low confidence means API failed or uncertain)
             const aiDetectedLanguage = aiValidation.detectedLanguage;
-            const isMismatch = aiDetectedLanguage && aiDetectedLanguage !== LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP];
+            const expectedLanguage = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP];
+            const isMismatch = aiDetectedLanguage && 
+                              aiDetectedLanguage !== 'Unknown' && 
+                              aiDetectedLanguage !== expectedLanguage &&
+                              aiValidation.confidence !== 'low';
 
             if (isMismatch) {
-              logger.log(`[Claude API] AI detected CJK language mismatch: expected ${LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP]}, got ${aiDetectedLanguage} (confidence: ${aiValidation.confidence})`);
+              logger.log(`[Claude API] AI detected CJK language mismatch: expected ${expectedLanguage}, got ${aiDetectedLanguage} (confidence: ${aiValidation.confidence})`);
 
               const mismatchInfo = buildLanguageMismatchInfo(
                 forcedLanguage,
@@ -2106,8 +2127,14 @@ export async function processWithClaude(
                 translatedText: '',
                 languageMismatch: mismatchInfo
               };
+            } else if (aiDetectedLanguage === 'Unknown' && aiValidation.confidence === 'low') {
+              // API failed or uncertain - fall back to pattern-based validation
+              logger.log(`[Claude API] AI validation returned Unknown with low confidence (likely API failure), falling back to pattern-based validation`);
             } else {
               logger.log(`[Claude API] AI validation confirmed ${forcedLanguage} language (confidence: ${aiValidation.confidence})`);
+              // Add a small delay after validation to space out API calls and reduce 529 overload errors
+              // This helps prevent hitting rate limits when validation + translation happen back-to-back
+              await sleep(200); // 200ms delay to space out requests
             }
           } else {
             logger.warn(`[Claude API] No API key available for CJK AI validation, using pattern-based detection`);
@@ -2208,6 +2235,8 @@ export async function processWithClaude(
             }
             
             logger.log(`[Claude API] AI validation passed: text is ${aiValidation.detectedLanguage} (confidence: ${aiValidation.confidence})`);
+            // Add a small delay after validation to space out API calls and reduce 529 overload errors
+            await sleep(200); // 200ms delay to space out requests
           } else {
             logger.warn(`[Claude API] No API key available for Latin-to-Latin AI validation, proceeding without validation`);
           }
@@ -3407,7 +3436,9 @@ CRITICAL REQUIREMENTS FOR JAPANESE TEXT - THESE ARE MANDATORY:
 3. The reading should cover the entire word (including any hiragana/katakana parts attached to the kanji)
 4. USE STANDARD DICTIONARY READINGS for all compound words - do NOT create readings by combining individual kanji sounds phonetically
 5. You MUST NOT skip any kanji - every single kanji character must have furigana
-6. Non-kanji words (pure hiragana/katakana), English words, and numbers should remain unchanged
+6. CRITICAL: Non-kanji words (pure hiragana/katakana), English words, and numbers should remain COMPLETELY UNCHANGED - NEVER add furigana to words with NO kanji
+   - WRONG: うそ(うそ), それは(それは), ない(ない), でしょ(でしょ) ❌
+   - CORRECT: うそ, それは, ない, でしょ ✓ (no furigana - already readable as hiragana)
 7. Translate into ${targetLangName}
 
 CRITICAL WORD-LEVEL READING PRIORITY:
@@ -5778,6 +5809,8 @@ export async function processWithClaudeAndScope(
               };
             }
             logger.log(`[WordScope Combined] AI validation passed: text is ${aiValidation.detectedLanguage}`);
+            // Add a small delay after validation to space out API calls and reduce 529 overload errors
+            await sleep(200); // 200ms delay to space out requests
           } catch (validationError) {
             logger.warn(`[WordScope Combined] AI validation failed, proceeding:`, validationError);
           }
@@ -5887,7 +5920,11 @@ CRITICAL REQUIREMENTS:
 3. The reading should cover the entire word (including any hiragana/katakana parts attached to the kanji)
 4. USE STANDARD DICTIONARY READINGS for all compound words - do NOT create readings by combining individual kanji sounds phonetically
 5. You MUST NOT skip any kanji - every single kanji character must have furigana
-6. Non-kanji words (pure hiragana/katakana), English words, and numbers should remain unchanged
+6. CRITICAL: Non-kanji words (pure hiragana/katakana), English words, and numbers should remain COMPLETELY UNCHANGED - NEVER add furigana to words with NO kanji
+   - WRONG: うそ(うそ), それは(それは), ない(ない) ❌
+   - CORRECT: うそ, それは, ない ✓ (no furigana needed - already in hiragana)
+7. Double check that your output meets all requirements.
+
 
 WORD-LEVEL READING PRIORITY:
 - FIRST analyze the text for compound words, counter words, and context-dependent readings
@@ -5922,6 +5959,7 @@ CRITICAL REQUIREMENTS:
 3. Format: 中文(zhōngwén) - Chinese characters followed by pinyin in parentheses
 4. Include tone marks in pinyin (ā, á, ǎ, à, etc.)
 5. Group characters into meaningful words - don't add pinyin to each character separately unless it's a single-character word
+6. Double check that your output meets all requirements.
 
 Examples:
 - "中国" → "中国(zhōngguó)"
@@ -5941,6 +5979,7 @@ CRITICAL REQUIREMENTS:
 2. Add romanization in parentheses IMMEDIATELY AFTER each Korean word
 3. Use standard Revised Romanization of Korean
 4. Format: 한글(hangeul) - Hangul followed by romanization
+5. Double check that your output meets all requirements.
 
 Examples:
 - "한국어" → "한국어(han-gug-eo)"
@@ -5960,6 +5999,7 @@ CRITICAL REQUIREMENTS:
 2. Add romanization in parentheses IMMEDIATELY AFTER each Russian word
 3. Use standard Latin transliteration
 4. Format: Русский(russkiy) - Cyrillic followed by romanization
+5. Double check that your output meets all requirements.
 
 Examples:
 - "Россия" → "Россия(rossiya)"
@@ -5979,6 +6019,7 @@ CRITICAL REQUIREMENTS:
 2. Add transliteration in parentheses IMMEDIATELY AFTER each Arabic word
 3. Use Arabic Chat Alphabet or standard transliteration
 4. Format: العربية(al-arabiya) - Arabic followed by transliteration
+5. Double check that your output meets all requirements.
 
 Examples:
 - "مرحبا" → "مرحبا(marhaba)"
@@ -5997,6 +6038,7 @@ CRITICAL REQUIREMENTS:
 2. Add IAST romanization in parentheses IMMEDIATELY AFTER each Hindi word
 3. Include diacritical marks (ā, ī, ū, etc.)
 4. Format: हिन्दी(hindī) - Devanagari followed by romanization
+5. Double check that your output meets all requirements.
 
 Examples:
 - "नमस्ते" → "नमस्ते(namaste)"
@@ -6015,6 +6057,7 @@ CRITICAL REQUIREMENTS:
 2. Add RTGS romanization in parentheses IMMEDIATELY AFTER each Thai word
 3. Use standard RTGS transliteration (may include periods for abbreviations)
 4. Format: ภาษา(phaasaa) - Thai followed by romanization
+5. Double check that your output meets all requirements.
 
 Examples:
 - "สวัสดี" → "สวัสดี(sawatdi)"
@@ -6044,10 +6087,13 @@ NO spaces between Thai script and the opening parenthesis.
 TEXT TO PROCESS: "${normalizedText}"
 
 === TASK 1: TRANSLATION ===
-Translate the text into natural, fluent ${targetLangName}.
+- Translate the text into natural, fluent ${targetLangName}.
 - Preserve the original meaning and tone
 - Use natural expressions in ${targetLangName}
 - Do NOT add any readings, romanization, or furigana to the TRANSLATION
+- Handle idioms appropriately - translate meaning, not word-for-word
+-Consider vulgarity level and match the emotional intensity of the original text.
+- Double check that your output is a natural translation of the input text that matches its emotional intensity and context
 
 === TASK 2: GRAMMAR ANALYSIS ===
 ${scopeInstructions}

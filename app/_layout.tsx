@@ -171,7 +171,14 @@ export default function RootLayout() {
                                 options={{ 
                                   title: 'Settings',
                                   presentation: 'modal',
-                                  gestureEnabled: true
+                                  gestureEnabled: true,
+                                  headerStyle: {
+                                    backgroundColor: COLORS.background,
+                                  },
+                                  headerTintColor: '#FFFFFF',
+                                  headerTitleStyle: {
+                                    fontWeight: 'bold',
+                                  },
                                 }} 
                               />
                               <Stack.Screen name="login" options={{ title: 'Login', headerShown: false }} />
