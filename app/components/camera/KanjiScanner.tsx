@@ -2330,7 +2330,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           icon="arrow-back"
           iconColor="black" // Black icon color to match other buttons
           color="grey" // Grey gradient to match card reviewer page
-          size="small"
+          size="medium"
           shape="square"
           style={styles.toolbarFarButton}
           disabled={localProcessing || isImageProcessing}
@@ -2351,7 +2351,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                     icon="arrow-undo"
                     iconColor={(imageHistory.length === 0 || localProcessing || isImageProcessing) ? '#888888' : 'black'}
                     color="grey" // Grey gradient to match card reviewer page
-                    size="small"
+                    size="medium"
                     shape="square"
                     disabled={imageHistory.length === 0 || localProcessing || isImageProcessing}
                     darkDisabled={imageHistory.length === 0 || localProcessing || isImageProcessing}
@@ -2361,7 +2361,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                     icon="arrow-redo"
                     iconColor={(forwardHistory.length === 0 || localProcessing || isImageProcessing) ? '#888888' : 'black'}
                     color="grey" // Grey gradient to match card reviewer page
-                    size="small"
+                    size="medium"
                     shape="square"
                     disabled={forwardHistory.length === 0 || localProcessing || isImageProcessing}
                     darkDisabled={forwardHistory.length === 0 || localProcessing || isImageProcessing}
@@ -2391,7 +2391,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                             : 'black' // Black icon color
                         }
                         color="grey" // Grey gradient to match card reviewer page
-                        size="small"
+                        size="medium"
                         shape="square"
                         disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'highlight')}
                       />
@@ -2413,7 +2413,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                             : 'black' // Black icon color
                         }
                         color="grey" // Grey gradient to match card reviewer page
-                        size="small"
+                        size="medium"
                         shape="square"
                         disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'crop')}
                       />
@@ -2435,7 +2435,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                             : 'black' // Black icon color
                         }
                         color="grey" // Grey gradient to match card reviewer page
-                        size="small"
+                        size="medium"
                         shape="square"
                         disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'rotate')}
                       />
@@ -2451,7 +2451,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                       icon="close"
                       iconColor="black"
                       color="grey" // Grey gradient to match card reviewer page
-                      size="small"
+                      size="medium"
                       shape="square"
                       disabled={localProcessing || isImageProcessing}
                     />
@@ -2463,7 +2463,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                           icon="refresh-outline" 
                           iconColor="black"
                           color="grey" // Grey gradient to match card reviewer page
-                          size="small"
+                          size="medium"
                           shape="square"
                           disabled={localProcessing || isImageProcessing}
                         />
@@ -2484,7 +2484,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                                 : 'black'
                             }
                             color="grey" // Grey gradient to match card reviewer page
-                            size="small"
+                            size="medium"
                             shape="square"
                             disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'confirm-highlight')}
                           />
@@ -2499,7 +2499,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                           icon="refresh-outline" 
                           iconColor="black"
                           color="grey" // Grey gradient to match card reviewer page
-                          size="small"
+                          size="medium"
                           shape="square"
                           disabled={localProcessing || isImageProcessing}
                         />
@@ -2508,7 +2508,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                           icon="checkmark"
                           iconColor="black"
                           color="grey" // Grey gradient to match card reviewer page
-                          size="small"
+                          size="medium"
                           shape="square"
                           disabled={localProcessing || isImageProcessing}
                         />
@@ -2524,7 +2524,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                             icon="arrow-undo"
                             iconColor="black"
                             color="grey" // Grey gradient to match card reviewer page
-                            size="small"
+                            size="medium"
                             shape="square"
                           disabled={localProcessing || isImageProcessing}
                           />
@@ -2535,7 +2535,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                             icon="arrow-redo"
                             iconColor="black"
                             color="grey" // Grey gradient to match card reviewer page
-                            size="small"
+                            size="medium"
                             shape="square"
                           disabled={localProcessing || isImageProcessing}
                           />
@@ -2546,7 +2546,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                             icon="checkmark"
                             iconColor="black"
                             color="grey" // Grey gradient to match card reviewer page
-                            size="small"
+                            size="medium"
                             shape="square"
                             disabled={localProcessing || isImageProcessing}
                           />
