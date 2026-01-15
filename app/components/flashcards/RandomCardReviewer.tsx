@@ -143,39 +143,6 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     return filtered;
   }, [selectedDeckIds, allFlashcards, deckIdsLoaded]);
 
-  // Separate effect to update total cards in selected decks - STABLE COUNTER
-  // This counter should ONLY change when deck selection changes, not during background fetches or swipes
-  const prevSelectedDeckIdsRef = useRef<string[]>([]);
-  useEffect(() => {
-    if (!deckIdsLoaded) {
-      totalDeckCardsRef.current = 0;
-      setTotalDeckCards(0);
-      return;
-    }
-
-    // Only update if deck selection actually changed (not just data refresh)
-    const deckSelectionChanged = JSON.stringify(prevSelectedDeckIdsRef.current.sort()) !== JSON.stringify(selectedDeckIds.sort());
-    if (deckSelectionChanged) {
-      // Calculate total cards in selected decks
-      let totalCards = 0;
-      if (selectedDeckIds.length === 0) {
-        // No decks selected - show 0 cards (will display "no cards to review" screen)
-        totalCards = 0;
-      } else {
-        totalCards = allFlashcards.filter(card => selectedDeckIds.includes(card.deckId)).length;
-      }
-
-      // Store in ref and update state
-      totalDeckCardsRef.current = totalCards;
-      setTotalDeckCards(totalCards);
-      prevSelectedDeckIdsRef.current = [...selectedDeckIds];
-      logger.log('🃏 [Counter] Total cards in selected decks updated:', totalCards, 'for decks:', selectedDeckIds.length);
-    } else {
-      // Data refresh - update state from stable ref value
-      setTotalDeckCards(totalDeckCardsRef.current);
-    }
-  }, [selectedDeckIds, deckIdsLoaded, allFlashcards]); // Runs on data changes, but only updates counter on deck selection changes
-
   // Simplified loading state management for smooth UX
   const [isInitializing, setIsInitializing] = useState(true);
   const [isCardTransitioning, setIsCardTransitioning] = useState(false);
@@ -259,6 +226,57 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   // Store session counter values during fade-out to prevent value changes
   const [fadeOutSwipedCount, setFadeOutSwipedCount] = useState<number | null>(null);
   const [fadeOutDueCount, setFadeOutDueCount] = useState<number | null>(null);
+  const [fadeOutTotalDeckCards, setFadeOutTotalDeckCards] = useState<number | null>(null);
+
+  // Separate effect to update total cards in selected decks - STABLE COUNTER
+  // This counter updates when deck selection changes OR when cards are added to selected decks
+  // CRITICAL: Don't update during fade-out or active review sessions to prevent flicker
+  const prevSelectedDeckIdsRef = useRef<string[]>([]);
+  useEffect(() => {
+    if (!deckIdsLoaded) {
+      totalDeckCardsRef.current = 0;
+      setTotalDeckCards(0);
+      return;
+    }
+
+    // Calculate current total cards in selected decks
+    let totalCards = 0;
+    if (selectedDeckIds.length === 0) {
+      // No decks selected - show 0 cards (will display "no cards to review" screen)
+      totalCards = 0;
+    } else {
+      totalCards = allFlashcards.filter(card => selectedDeckIds.includes(card.deckId)).length;
+    }
+
+    // Check if deck selection changed
+    const deckSelectionChanged = JSON.stringify(prevSelectedDeckIdsRef.current.sort()) !== JSON.stringify(selectedDeckIds.sort());
+    
+    // CRITICAL: During active review sessions, only update if deck selection changed
+    // This prevents the counter from flickering to 0 when background fetches temporarily
+    // return empty or stale data during card swipes
+    const isActiveReviewSession = isInReviewMode && reviewSessionCards.length > 0;
+    const countChanged = totalCards !== totalDeckCardsRef.current;
+    
+    // Update if:
+    // 1. Deck selection changed (always update), OR
+    // 2. Count changed AND we're not in an active review session (to prevent flicker during swipes)
+    if (deckSelectionChanged || (countChanged && !isActiveReviewSession)) {
+      // Store in ref (always update ref to keep it current)
+      totalDeckCardsRef.current = totalCards;
+      prevSelectedDeckIdsRef.current = [...selectedDeckIds];
+      
+      // CRITICAL: Don't update state during fade-out to prevent flicker
+      // The ref is updated so when fade-out completes, we'll have the correct value
+      if (!isFadingOut) {
+        setTotalDeckCards(totalCards);
+        logger.log('🃏 [Counter] Total cards in selected decks updated:', totalCards, 'for decks:', selectedDeckIds.length, deckSelectionChanged ? '(deck selection changed)' : '(card count changed)');
+      } else {
+        logger.log('🃏 [Counter] Total cards recalculated during fade-out, ref updated but state preserved:', totalCards, 'current state:', totalDeckCards);
+      }
+    } else if (countChanged && isActiveReviewSession) {
+      logger.log('🃏 [Counter] Skipping update during active review session to prevent flicker. Current count:', totalDeckCardsRef.current, 'Calculated:', totalCards);
+    }
+  }, [selectedDeckIds, deckIdsLoaded, allFlashcards, isFadingOut, isInReviewMode, reviewSessionCards.length]); // Runs on data changes, updates counter when deck selection or card count changes
 
   // Memoize counter display value to prevent flicker during mode transitions
   // Priority: fade-out values (frozen) > session values > browse values
@@ -289,6 +307,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       setIsFadingOut(false);
       setFadeOutSwipedCount(null);
       setFadeOutDueCount(null);
+      setFadeOutTotalDeckCards(null);
       setShouldShowCounter(true);
       Animated.timing(srsCounterOpacity, {
         toValue: 1,
@@ -304,6 +323,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         if (fadeOutSwipedCount === null) {
           setFadeOutSwipedCount(sessionSwipedCardIds.size);
           setFadeOutDueCount(sessionStartDueCount || dueCardsCount);
+          setFadeOutTotalDeckCards(totalDeckCards);
         }
         
         // Ensure fade-out state is set
@@ -322,6 +342,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           setIsFadingOut(false);
           setFadeOutSwipedCount(null);
           setFadeOutDueCount(null);
+          setFadeOutTotalDeckCards(null);
         });
       }
     }
@@ -1206,6 +1227,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       // Capture counter values IMMEDIATELY before any animation
       setFadeOutSwipedCount(sessionSwipedCardIds.size);
       setFadeOutDueCount(sessionStartDueCount || dueCardsCount);
+      setFadeOutTotalDeckCards(totalDeckCards);
       setIsFadingOut(true);
       
       // NOTE: delaySessionFinish and isTransitionLoading are already set by onSessionFinishing callback
@@ -1251,6 +1273,12 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           setIsFadingOut(false);
           setFadeOutSwipedCount(null);
           setFadeOutDueCount(null);
+          setFadeOutTotalDeckCards(null);
+          // Sync totalDeckCards from ref after fade-out completes (in case it changed during fade-out)
+          if (totalDeckCards !== totalDeckCardsRef.current) {
+            setTotalDeckCards(totalDeckCardsRef.current);
+            logger.log('🃏 [Counter] Synced totalDeckCards from ref after fade-out:', totalDeckCardsRef.current);
+          }
           logger.log('🔄 [Component] Fade-out complete, exiting to browse mode');
         });
       }, 100); // Small delay to let card finish animating
@@ -1648,6 +1676,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                   if (isSrsModeActive && !newSrsMode) {
                     setFadeOutSwipedCount(sessionSwipedCardIds.size);
                     setFadeOutDueCount(sessionStartDueCount || dueCardsCount);
+                    setFadeOutTotalDeckCards(totalDeckCards);
                     setIsFadingOut(true);
                   }
                   
@@ -1827,7 +1856,9 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               style={[
                 styles.reviewModeButton,
                 buttonDisplayActive && styles.reviewModeButtonActive,
+                isSessionFinished && styles.reviewModeButtonDisabled,
               ]}
+              disabled={isSessionFinished}
               onPress={() => {
                 // Prevent rapid button presses from causing overlapping transitions
                 if (isTransitionLoading || isCardTransitioning || isInitializing) {
@@ -1863,6 +1894,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                   if (isSrsModeActive && !newSrsMode) {
                     setFadeOutSwipedCount(sessionSwipedCardIds.size);
                     setFadeOutDueCount(sessionStartDueCount || dueCardsCount);
+                    setFadeOutTotalDeckCards(totalDeckCards);
                     setIsFadingOut(true);
                   }
                   
@@ -1888,12 +1920,15 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               <Ionicons 
                 name={buttonDisplayActive ? "school" : "school-outline"} 
                 size={18} 
-                color={buttonDisplayActive ? COLORS.text : COLORS.primary}
+                color={isSessionFinished 
+                  ? COLORS.lightGray 
+                  : (buttonDisplayActive ? COLORS.text : COLORS.primary)}
               />
               <Text 
                 style={[
                   styles.reviewModeButtonText,
-                  buttonDisplayActive && styles.reviewModeButtonTextActive
+                  buttonDisplayActive && styles.reviewModeButtonTextActive,
+                  isSessionFinished && styles.reviewModeButtonTextDisabled,
                 ]}
               >
                 {t('review.reviewMode')}
@@ -1979,7 +2014,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                         opacity: 0.7,
                       }}
                     >
-                      {totalDeckCards}
+                      {isFadingOut && fadeOutTotalDeckCards !== null ? fadeOutTotalDeckCards : totalDeckCards}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -2108,6 +2143,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               if (isSrsModeActive && !newSrsMode) {
                 setFadeOutSwipedCount(sessionSwipedCardIds.size);
                 setFadeOutDueCount(sessionStartDueCount || dueCardsCount);
+                setFadeOutTotalDeckCards(totalDeckCards);
                 setIsFadingOut(true);
               }
               
@@ -2227,7 +2263,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                     opacity: 0.7,
                   }}
                 >
-                  {totalDeckCards}
+                  {isFadingOut && fadeOutTotalDeckCards !== null ? fadeOutTotalDeckCards : totalDeckCards}
                 </Text>
               </View>
             </TouchableOpacity>
