@@ -363,6 +363,8 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   
   // Track previous isSrsModeActive to detect actual mode changes vs card changes
   const prevIsReviewModeActiveRef = useRef<boolean | null>(null);
+  // Track if we're waiting for data after entering SRS mode with empty cards
+  const waitingForDataRef = useRef<boolean>(false);
   
   // Animation values - Initialize with proper starting values
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -1309,11 +1311,52 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   // CRITICAL FIX: Only call startReviewWithCards when isSrsModeActive ACTUALLY changes
   // (not when filteredCards changes - that's handled by initializeReviewSession)
   useEffect(() => {
+    // CRITICAL: Check if mode actually changed BEFORE any early returns
+    // This ensures sessionSwipedCardIds is reset even when filteredCards is empty
+    const modeActuallyChanged = prevIsReviewModeActiveRef.current !== null && 
+                                 prevIsReviewModeActiveRef.current !== isSrsModeActive;
+    
+    // Always reset sessionSwipedCardIds when mode changes, regardless of filtered cards state
+    // This prevents stale swipe counts from persisting across sessions
+    if (modeActuallyChanged && !isSessionFinished) {
+      logger.log('📚 [SRS Mode] Mode changed to:', isSrsModeActive ? 'Review' : 'Browse', '(resetting session swipes)');
+      setSessionSwipedCardIds(new Set());
+    }
+    
     if (!filteredCards || filteredCards.length === 0) {
+      // Determine if we're entering SRS mode with no cards
+      const isEnteringSrsModeWithNoCards = modeActuallyChanged && isSrsModeActive;
+      
+      if (isEnteringSrsModeWithNoCards && !waitingForDataRef.current) {
+        // CRITICAL: First time entering SRS mode with empty filteredCards - likely a timing issue
+        // where cache was just invalidated. Set flag and trigger data refresh.
+        logger.log('📊 [SRS Mode] Entering SRS with empty filteredCards - waiting for data refresh');
+        waitingForDataRef.current = true;
+        
+        // Trigger a data refresh to get fresh cards
+        fetchAllFlashcards(true).catch(error => {
+          logger.error('❌ [SRS Mode] Error refreshing flashcards:', error);
+        });
+        
+        // Update ref to prevent infinite loop - modeActuallyChanged will be false on next render
+        // but waitingForDataRef will ensure we initialize session when cards arrive
+        prevIsReviewModeActiveRef.current = isSrsModeActive;
+        return;
+      }
+      
+      // If we're waiting for data but still have no cards, just return (don't re-fetch)
+      if (waitingForDataRef.current && isSrsModeActive) {
+        return;
+      }
+      
       // Only reset dueCardsCount if not in SRS mode or session hasn't started
       if (!isSrsModeActive || sessionStartDueCount === 0) {
         setDueCardsCount(0);
         setSessionStartDueCount(0);
+      }
+      // Clear waiting flag if we're leaving SRS mode
+      if (!isSrsModeActive) {
+        waitingForDataRef.current = false;
       }
       prevIsReviewModeActiveRef.current = isSrsModeActive;
       return;
@@ -1324,32 +1367,26 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     // Calculate due cards (always needed for session start)
     const dueCards = filterDueCards(filteredCards);
     
-    // CRITICAL: Only call startReviewWithCards if isSrsModeActive actually changed
-    // This prevents the duplicate card selection that causes the flash
-    const modeActuallyChanged = prevIsReviewModeActiveRef.current !== null && 
-                                 prevIsReviewModeActiveRef.current !== isSrsModeActive;
-    
     // NOTE: We removed the isTransitionLoading check here because it was causing a circular dependency:
     // - isTransitionLoading is set to true when button is pressed
     // - This effect needs to run to set up the session, but was blocked by isTransitionLoading
     // - isTransitionLoading never gets set to false because cards never change
     // CRITICAL: Don't restart session if session is finished - keep showing finished view
-    if (modeActuallyChanged && !isSessionFinished) {
-      logger.log('📚 [SRS Mode] Mode changed to:', isSrsModeActive ? 'Review' : 'Browse');
-      
-      // Reset session swiped cards when mode changes (starting fresh session)
-      setSessionSwipedCardIds(new Set());
-      
+    // Also handle case where we were waiting for data and cards just became available
+    const shouldInitializeSession = (modeActuallyChanged || waitingForDataRef.current) && !isSessionFinished;
+    
+    if (shouldInitializeSession) {
       if (isSrsModeActive) {
         // Entering SRS Mode: Start fresh SRS session with due cards and enableReviewMode=true
-        logger.log('📚 [SRS Mode] Mode changed to: Review');
-        
         // CRITICAL: Lock the due cards count when session starts - this is the denominator
         // This count should NOT change during the session, even as cards are swiped
         const initialDueCount = dueCards.length;
         setDueCardsCount(initialDueCount);
         setSessionStartDueCount(initialDueCount);
-        logger.log('📊 [SRS Mode] Session started with', initialDueCount, 'due cards (locked denominator)');
+        logger.log('📊 [SRS Mode] Starting review session with', initialDueCount, 'due cards (locked denominator)', waitingForDataRef.current ? '(data just arrived)' : '');
+        
+        // Clear waiting flag now that we have data
+        waitingForDataRef.current = false;
         
         // Don't call resetReviewSession() - it causes race conditions
         // Just start fresh with due cards
@@ -1371,6 +1408,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           setDueCardsCount(filteredCards.length);
         }
         setSessionStartDueCount(0);
+        waitingForDataRef.current = false; // Clear waiting flag when leaving SRS mode
         startReviewWithCards(filteredCards, false);
       }
       
