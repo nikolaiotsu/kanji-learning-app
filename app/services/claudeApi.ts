@@ -1662,6 +1662,19 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
 
   // Special handling for similar languages or scripts that might be confused
 
+  // Korean validation - check first before other CJK logic, regardless of detected language
+  if (expectedLanguage === 'Korean') {
+    const hasKorean = containsKoreanText(text);
+    logger.log(`[validateTextMatchesLanguage] Korean force mode: hasKorean=${hasKorean}`);
+
+    if (!hasKorean) {
+      logger.log('[validateTextMatchesLanguage] Korean forced but no Korean characters found');
+      return buildResult(false);
+    }
+    logger.log('[validateTextMatchesLanguage] Korean force mode validation passed - allowing mixed content');
+    return buildResult(true);
+  }
+
   const cjkLanguages = ['Chinese', 'Japanese', 'Korean'];
   if (cjkLanguages.includes(expectedLanguage) && cjkLanguages.includes(detectedLang)) {
     logger.log('[validateTextMatchesLanguage] Handling CJK language validation');
@@ -1684,18 +1697,6 @@ export function validateTextMatchesLanguage(text: string, forcedLanguage: string
       logger.log(`[validateTextMatchesLanguage] Japanese validation: containsJapanese=${containsJapanese(text)}`);
       logger.log(`[validateTextMatchesLanguage] Japanese validation: containsChinese=${containsChinese(text)}`);
       logger.log(`[validateTextMatchesLanguage] Text sample: "${text.substring(0, 50)}..."`);
-    }
-
-    if (expectedLanguage === 'Korean') {
-      const hasKorean = containsKoreanText(text);
-      logger.log(`[validateTextMatchesLanguage] Korean force mode: hasKorean=${hasKorean}`);
-
-      if (!hasKorean) {
-        logger.log('[validateTextMatchesLanguage] Korean forced but no Korean characters found');
-        return buildResult(false);
-      }
-      logger.log('[validateTextMatchesLanguage] Korean force mode validation passed - allowing mixed content');
-      return buildResult(true);
     }
 
     if (expectedLanguage === 'Chinese') {

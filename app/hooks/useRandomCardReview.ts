@@ -419,7 +419,9 @@ export const useRandomCardReview = (onSessionFinishing?: () => void) => {
       setReviewSessionCards([]);
       setCurrentCard(null);
       setIsInReviewMode(false);
-      setIsSessionFinished(false);
+      // CRITICAL: Don't reset isSessionFinished here - this causes flicker when refresh is pressed
+      // Only reset isSessionFinished when actually starting a new session with cards (above)
+      // setIsSessionFinished(false);
       setLoadingState(LoadingState.CONTENT_READY);
     }
   }, []);
