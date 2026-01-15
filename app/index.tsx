@@ -10,15 +10,18 @@ import { logger } from './utils/logger';
 const worddexLogo = require('../assets/images/worddexlogo.png'); // Adjusted path
 
 export default function App() {
-  const [triggerLightAnimation, setTriggerLightAnimation] = useState(false);
+  // Use a counter instead of boolean so each swipe creates a new trigger value
+  // This allows the animation to restart immediately even if previous animation is still running
+  const [triggerLightAnimation, setTriggerLightAnimation] = useState(0);
   // Logo is always visible - simplified from complex content-ready sync
   const [logoVisible, setLogoVisible] = useState(true);
   const [logoUri, setLogoUri] = useState<string | null>(null);
 
   // Callback to trigger the light animation
   const handleCardSwipe = useCallback(() => {
-    // Just set the trigger to true and let the useEffect handle the reset
-    setTriggerLightAnimation(true);
+    // Increment the counter to create a new trigger value
+    // This ensures the animation starts immediately and cancels any running animation
+    setTriggerLightAnimation(prev => prev + 1);
   }, []);
 
   // Callback for content readiness (used by KanjiScanner for other purposes)
@@ -27,17 +30,6 @@ export default function App() {
     // Logo visibility is no longer controlled by content readiness
     // It stays visible permanently after initial fade-in
   }, []);
-
-  // Reset animation trigger after it's been activated
-  useEffect(() => {
-    if (triggerLightAnimation) {
-      const timer = setTimeout(() => {
-        setTriggerLightAnimation(false);
-      }, 1500); // Allow more time for the animation sequence
-      
-      return () => clearTimeout(timer);
-    }
-  }, [triggerLightAnimation]);
 
   // Preload logo so it renders offline in development too
   useEffect(() => {

@@ -25,8 +25,8 @@ interface PokedexLayoutProps {
   logoSource?: ImageSourcePropType;
   logoStyle?: ImageStyle;
   logoVisible?: boolean; // Control when logo should be visible/animated
-  triggerLightAnimation?: boolean;
-  textureVariant?: 'gradient' | 'subtle' | 'modern' | 'radial' | 'default';
+  triggerLightAnimation?: number;
+  textureVariant?: 'gradient' | 'subtle' | 'modern' | 'radial' | 'liquid' | 'default';
   // Progressive loading props
   loadingProgress?: number; // 0-4 indicating how many lights should be on
   isProcessing?: boolean; // Whether processing is currently active
@@ -42,8 +42,8 @@ export default memo(function PokedexLayout({
   logoSource,
   logoStyle,
   logoVisible = true,
-  triggerLightAnimation = false,
-  textureVariant = 'default',
+  triggerLightAnimation = 0,
+  textureVariant = 'liquid',
   loadingProgress = 0,
   isProcessing = false,
   processingFailed = false,
@@ -88,12 +88,18 @@ export default memo(function PokedexLayout({
   const flashcardsControlIconSize = 18;
 
   // Animation effect for light-up sequence
+  // triggerLightAnimation is now a counter that increments on each swipe
+  // This allows the animation to restart immediately and cancel any running animation
   useEffect(() => {
-    if (triggerLightAnimation) {
+    // Only trigger if counter is greater than 0 (i.e., a swipe has occurred)
+    if (triggerLightAnimation > 0) {
+      // Stop any currently running animation sequence
       if (animationSequenceRef.current) {
         animationSequenceRef.current.stop();
+        animationSequenceRef.current = null;
       }
 
+      // Stop all individual animations and reset them to start position
       mainLightAnim.stopAnimation();
       mainLightAnim.setValue(0);
       smallLightsAnim.forEach(anim => {
@@ -101,6 +107,7 @@ export default memo(function PokedexLayout({
         anim.setValue(0);
       });
 
+      // Start new animation sequence immediately
       const sequence = Animated.sequence([
         Animated.timing(mainLightAnim, {
           toValue: 1,
@@ -329,10 +336,31 @@ export default memo(function PokedexLayout({
           styles.topSection, 
           topSectionVariantStyle
         ]}>
-          {/* Gradient overlay for top bar */}
+          {/* Liquid gradient overlay for top bar - flows down and right */}
           <LinearGradient
-            colors={[COLORS.background, COLORS.background]}
+            colors={[
+              '#0A1628',  // Base
+              '#0B1729',  // Subtle lift
+              '#0D1A2F',  // Gentle increase
+              '#0C182B',  // Soft return
+              '#0A1628'   // Back to base
+            ]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
             style={StyleSheet.absoluteFill}
+          />
+          {/* Very subtle blue accent in top bar - flows down and right */}
+          <LinearGradient
+            colors={[
+              'rgba(59, 130, 246, 0.04)',   // Very subtle start
+              'rgba(59, 130, 246, 0.025)',  // Gentle fade
+              'transparent',                 // Clear middle
+              'rgba(30, 64, 175, 0.02)',    // Subtle end
+              'rgba(30, 64, 175, 0.015)'     // Soft finish
+            ]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0.8 }}
+            style={styles.topBarAccent}
           />
           
           {variant === 'flashcards' ? (
@@ -418,8 +446,8 @@ export default memo(function PokedexLayout({
                 >
                   <LinearGradient
                     colors={['#F87171', '#EF4444', '#DC2626']}
-                    start={{ x: 0.3, y: 0 }}
-                    end={{ x: 0.7, y: 1 }}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
                     style={[StyleSheet.absoluteFill, { borderRadius: 22.5 }]}
                   />
                   <View style={styles.mainLightReflection} />
@@ -450,6 +478,45 @@ export default memo(function PokedexLayout({
         )}
         {/* Main screen area */}
         <View style={[styles.screen, screenStyle, screenVariantStyle]}>
+          {/* Liquid gradient background for screen - smooth transitions with blue hints */}
+          <LinearGradient
+            colors={
+              variant === 'flashcards'
+                ? [
+                    'rgba(15, 23, 42, 0.65)',  // Base dark
+                    'rgba(15, 23, 42, 0.68)',  // Slight lift
+                    'rgba(13, 26, 47, 0.70)',  // Gentle blue hint
+                    'rgba(10, 22, 40, 0.67)',  // Soft return
+                    'rgba(13, 26, 47, 0.69)',  // Blue hint again
+                    'rgba(15, 23, 42, 0.66)'   // Back to base
+                  ]
+                : [
+                    'rgba(15, 23, 42, 0.55)',  // Base dark
+                    'rgba(15, 23, 42, 0.58)',  // Slight lift
+                    'rgba(13, 26, 47, 0.60)',  // Gentle blue hint
+                    'rgba(10, 22, 40, 0.57)',  // Soft return
+                    'rgba(13, 26, 47, 0.59)',  // Blue hint again
+                    'rgba(15, 23, 42, 0.56)'   // Back to base
+                  ]
+            }
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+          {/* Very subtle blue liquid glow - flows up and left (complementary to background) */}
+          <LinearGradient
+            colors={[
+              'rgba(59, 130, 246, 0.03)',   // Very subtle start
+              'rgba(59, 130, 246, 0.02)',   // Gentle fade
+              'transparent',                 // Clear middle
+              'rgba(37, 99, 235, 0.015)',   // Subtle return
+              'rgba(30, 64, 175, 0.02)',    // Soft finish
+              'rgba(30, 64, 175, 0.015)'    // Gentle end
+            ]}
+            start={{ x: 0.3, y: 0.3 }}
+            end={{ x: 0.9, y: 0.9 }}
+            style={styles.screenInnerGlow}
+          />
           {/* Modern corner accents */}
           <View style={styles.screenCorner} />
           <View style={[styles.screenCorner, styles.screenCornerTopRight]} />
@@ -478,11 +545,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
     position: 'relative',
     zIndex: 100,
     elevation: 20,
     overflow: 'hidden',
+  },
+  topBarAccent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1,
   },
   flashcardsTopSection: {
     backgroundColor: 'transparent',
@@ -569,7 +644,6 @@ const styles = StyleSheet.create({
   },
   screen: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
     padding: 10,
     borderRadius: 16,
     shadowColor: '#000',
@@ -583,9 +657,17 @@ const styles = StyleSheet.create({
     zIndex: 0,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.05)',
+    overflow: 'hidden',
+  },
+  screenInnerGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 0,
   },
   flashcardsScreen: {
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
     padding: 4,
   },
   cornerDecoration: {

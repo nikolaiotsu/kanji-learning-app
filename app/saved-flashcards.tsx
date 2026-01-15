@@ -54,7 +54,9 @@ export default function SavedFlashcardsScreen() {
   const [newDeckNameForSend, setNewDeckNameForSend] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
   const [flashcardToEdit, setFlashcardToEdit] = useState<Flashcard | null>(null);
-  const [triggerLightAnimation, setTriggerLightAnimation] = useState(false);
+  // Use a counter instead of boolean so each swipe creates a new trigger value
+  // This allows the animation to restart immediately even if previous animation is still running
+  const [triggerLightAnimation, setTriggerLightAnimation] = useState(0);
   const [hasAppliedRequestedDeck, setHasAppliedRequestedDeck] = useState(false);
   const { user } = useAuth();
   const router = useRouter();
@@ -71,20 +73,6 @@ export default function SavedFlashcardsScreen() {
   const screenWidth = Dimensions.get('window').width;
   const contentWidth = screenWidth - POKEDEX_LAYOUT_HORIZONTAL_REDUCTION;
   const isUserDragging = useRef(false);
-
-  // Reset animation trigger after it's been activated
-  useEffect(() => {
-    if (triggerLightAnimation) {
-      // Instead of directly modifying state inside a timer which might cause issues,
-      // we'll use a safe approach with cleanup
-      const timer = setTimeout(() => {
-        setTriggerLightAnimation(false);
-      }, 1500); // Allow more time for the animation to complete
-      
-      // Clean up timer on unmount or when triggerLightAnimation changes
-      return () => clearTimeout(timer);
-    }
-  }, [triggerLightAnimation]);
 
   // Track deck state changes
   useEffect(() => {
@@ -707,8 +695,9 @@ export default function SavedFlashcardsScreen() {
       if (index >= 0 && index < decks.length) {
         const deck = decks[index];
 
-        // Trigger the light animation
-        setTriggerLightAnimation(true);
+        // Trigger the light animation by incrementing the counter
+        // This ensures the animation starts immediately and cancels any running animation
+        setTriggerLightAnimation(prev => prev + 1);
 
         // Set loading state first to prevent showing stale content
         setIsLoadingFlashcards(true);

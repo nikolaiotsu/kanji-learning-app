@@ -5,7 +5,7 @@ import { COLORS } from '../../constants/colors';
 
 interface TexturedBackgroundProps {
   style?: ViewStyle;
-  variant?: 'gradient' | 'subtle' | 'modern' | 'radial' | 'default';
+  variant?: 'gradient' | 'subtle' | 'modern' | 'radial' | 'liquid' | 'default';
   children?: React.ReactNode;
 }
 
@@ -111,6 +111,97 @@ export default function TexturedBackground({
               start={{ x: 0.5, y: 0.5 }}
               end={{ x: 0.5, y: 1 }}
               style={styles.radialOuter}
+            />
+          </>
+        );
+      
+      case 'liquid':
+        return (
+          <>
+            {/* Base liquid gradient - ultra-smooth transitions with many color stops */}
+            <LinearGradient
+              colors={[
+                '#0A1628', // Deep navy base
+                '#0B1729', // Slightly lighter
+                '#0D1A2F', // Gentle lift
+                '#0C182B', // Subtle return
+                '#0A1628', // Back to base
+                '#0B1729', // Gentle wave
+                '#0D1A2F'  // Soft finish
+              ]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.baseLayer}
+            />
+            {/* Top-left very subtle blue pool - flows down and right */}
+            <LinearGradient
+              colors={[
+                'rgba(59, 130, 246, 0.06)',  // Very subtle start
+                'rgba(59, 130, 246, 0.04)',  // Gentle fade
+                'rgba(37, 99, 235, 0.03)',   // Softer
+                'rgba(30, 64, 175, 0.02)',   // Even softer
+                'rgba(30, 64, 175, 0.01)',   // Barely visible
+                'transparent'                  // Fade out
+              ]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0.7, y: 0.6 }}
+              style={styles.liquidPool1}
+            />
+            {/* Bottom-right complementary blue accent - ultra-gradual transition */}
+            <LinearGradient
+              colors={[
+                'transparent',                 // Start completely invisible
+                'transparent',                 // Stay invisible longer
+                'rgba(30, 64, 175, 0.005)',   // Barely perceptible
+                'rgba(30, 64, 175, 0.008)',   // Still very subtle
+                'rgba(30, 64, 175, 0.012)',   // Gentle increase
+                'rgba(37, 99, 235, 0.015)',   // Slightly more visible
+                'rgba(37, 99, 235, 0.018)',   // Continue gradual
+                'rgba(59, 130, 246, 0.022)',   // Gentle peak
+                'rgba(59, 130, 246, 0.025)',   // Slight increase
+                'rgba(37, 99, 235, 0.020)',   // Gentle decrease
+                'rgba(37, 99, 235, 0.015)',   // Continue fading
+                'rgba(30, 64, 175, 0.010)',   // Softer
+                'rgba(30, 64, 175, 0.005)',   // Very soft
+                'transparent'                  // Fade out completely
+              ]}
+              start={{ x: 0.2, y: 0.3 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.liquidPool2}
+            />
+            {/* Center subtle ambient glow - very gentle */}
+            <LinearGradient
+              colors={[
+                'transparent',
+                'rgba(96, 165, 250, 0.03)',   // Very subtle
+                'rgba(59, 130, 246, 0.025)',  // Gentle
+                'rgba(37, 99, 235, 0.02)',    // Softer
+                'transparent'
+              ]}
+              start={{ x: 0.4, y: 0.3 }}
+              end={{ x: 0.8, y: 0.7 }}
+              style={styles.liquidGlow}
+            />
+            {/* Soft ambient overlay for depth - ultra-gradual transitions */}
+            <LinearGradient
+              colors={[
+                'rgba(15, 23, 42, 0.12)',     // Subtle top
+                'rgba(15, 23, 42, 0.10)',     // Gentle fade
+                'rgba(15, 23, 42, 0.08)',     // Continue fading
+                'rgba(15, 23, 42, 0.05)',     // More transparent
+                'rgba(15, 23, 42, 0.03)',     // Almost clear
+                'transparent',                 // Clear middle
+                'rgba(10, 22, 40, 0.02)',     // Very subtle bottom start
+                'rgba(10, 22, 40, 0.05)',     // Gentle increase
+                'rgba(10, 22, 40, 0.08)',     // Continue
+                'rgba(13, 26, 47, 0.10)',     // Slight increase
+                'rgba(13, 26, 47, 0.12)',     // Gentle peak
+                'rgba(13, 26, 47, 0.10)',     // Soft decrease
+                'rgba(10, 22, 40, 0.08)'      // Gentle finish
+              ]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.liquidOverlay}
             />
           </>
         );
@@ -246,6 +337,36 @@ const styles = StyleSheet.create({
     opacity: 0.3,
   },
   radialOuter: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  
+  // Liquid variant layers
+  liquidPool1: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '60%',
+    height: '50%',
+  },
+  liquidPool2: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: '65%',
+    height: '55%',
+  },
+  liquidGlow: {
+    position: 'absolute',
+    top: '20%',
+    right: 0,
+    width: '40%',
+    height: '40%',
+  },
+  liquidOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
