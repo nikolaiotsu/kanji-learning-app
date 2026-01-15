@@ -93,13 +93,7 @@ export default function MultiDeckSelector({
     };
   }, [visible]);
 
-  // Ensure at least one deck is always selected
-  useEffect(() => {
-    if (decks.length > 0 && selectedDeckIds.length === 0) {
-      // Force select the first deck if no decks are selected
-      setSelectedDeckIds([decks[0].id]);
-    }
-  }, [decks, selectedDeckIds]);
+  // No longer enforcing at least one deck selected - users can choose to have no decks selected
 
   // Keep selectedDeckIds in sync with current decks (prune removed IDs)
   useEffect(() => {
@@ -139,16 +133,12 @@ export default function MultiDeckSelector({
       } catch {}
       
       // Filter out any invalid deck IDs from initial selection
-      const validSelectedIds = initialSelectedDeckIds.filter(id => 
+      const validSelectedIds = initialSelectedDeckIds.filter(id =>
         savedDecks.some(deck => deck.id === id)
       );
-      
-      // If no valid decks are selected and we have decks, select the first one
-      if (validSelectedIds.length === 0 && savedDecks.length > 0) {
-        setSelectedDeckIds([savedDecks[0].id]);
-      } else if (validSelectedIds.length > 0) {
-        setSelectedDeckIds(validSelectedIds);
-      }
+
+      // Keep valid selections, allow empty selections
+      setSelectedDeckIds(validSelectedIds);
     } catch (error) {
       logger.error('Error loading collections:', error);
       Alert.alert(t('common.error'), t('review.failedToLoad'));
@@ -161,11 +151,7 @@ export default function MultiDeckSelector({
   const toggleDeckSelection = (deckId: string) => {
     setSelectedDeckIds(prev => {
       if (prev.includes(deckId)) {
-        // If this is the last selected deck, don't allow deselection
-        if (prev.length === 1) {
-          Alert.alert(t('review.required'), t('review.atLeastOneCollection'));
-          return prev;
-        }
+        // Allow deselection of any deck, including the last one
         return prev.filter(id => id !== deckId);
       } else {
         return [...prev, deckId];
@@ -185,13 +171,10 @@ export default function MultiDeckSelector({
   // Function to handle saving the deck selection
   const handleSaveSelection = async () => {
     closeAllSwipeables();
-    
-    // Safety check: ensure at least one deck is selected
-    if (selectedDeckIds.length === 0 && decks.length > 0) {
-      setSelectedDeckIds([decks[0].id]);
-      onSelectDecks([decks[0].id]);
-    } else {
-      // If the user explicitly selected deck(s), validate they contain cards
+
+    // Allow saving with no decks selected
+    // Only validate cards if decks are actually selected
+    if (selectedDeckIds.length > 0) {
       try {
         const cards = await getFlashcardsByDecks(selectedDeckIds);
         if (cards.length === 0) {
@@ -207,9 +190,9 @@ export default function MultiDeckSelector({
       } catch (e) {
         // If validation fails, proceed without blocking
       }
-      onSelectDecks(selectedDeckIds);
     }
-    
+
+    onSelectDecks(selectedDeckIds);
     onClose();
   };
 

@@ -132,10 +132,10 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       return [];
     }
     // Allow filtering immediately even before CONTENT_READY so UI stays responsive
-    // If no decks selected, show all cards
+    // If no decks selected, return empty array to show "no cards to review" screen
     if (selectedDeckIds.length === 0) {
-      logger.log('🔍 [useMemo] No decks selected, showing all', allFlashcards.length, 'cards');
-      return allFlashcards;
+      logger.log('🔍 [useMemo] No decks selected, returning empty array to show "no cards" screen');
+      return [];
     }
     // Filter cards by selected deck IDs
     const filtered = allFlashcards.filter(card => selectedDeckIds.includes(card.deckId));
@@ -159,7 +159,8 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       // Calculate total cards in selected decks
       let totalCards = 0;
       if (selectedDeckIds.length === 0) {
-        totalCards = allFlashcards.length;
+        // No decks selected - show 0 cards (will display "no cards to review" screen)
+        totalCards = 0;
       } else {
         totalCards = allFlashcards.filter(card => selectedDeckIds.includes(card.deckId)).length;
       }
@@ -666,34 +667,8 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   }, [cardIdsString, filteredCards, setDeckCardIds]);
 
   // Update selected deck IDs (user-specific)
-  const updateSelectedDeckIds = async (deckIds: string[]) => {
-    if (!user?.id) {
-      logger.warn('Cannot save deck selection: No user logged in');
-      return;
-    }
 
-    try {
-      setSelectedDeckIds(deckIds);
-      const userStorageKey = getSelectedDeckIdsStorageKey(user.id);
-      await AsyncStorage.setItem(userStorageKey, JSON.stringify(deckIds));
-      logger.log('👤 [Component] Saved deck selection for user:', user.id, '- Decks:', deckIds.length);
-    } catch (error) {
-      logger.error('Error saving selected deck IDs to AsyncStorage:', error);
-    }
-  };
-
-  // Minimal helper: ensure we have a valid, populated selection when needed
-  const ensureSelection = useCallback(async () => {
-    try {
-      const decks = await getDecks();
-      const firstWithCards = decks.find(d => allFlashcards.some(c => c.deckId === d.id));
-      if (firstWithCards) {
-        await updateSelectedDeckIds([firstWithCards.id]);
-      }
-    } catch (e) {
-      // Best-effort only; ignore failures
-    }
-  }, [allFlashcards, updateSelectedDeckIds]);
+  // Removed ensureSelection - users can now have no decks selected
 
   // Update remaining count when reviewSessionCards changes
   // Both browse and review modes track session progress via reviewSessionCards
@@ -861,13 +836,8 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         selectedDeckIdsLength: selectedDeckIds.length
       });
       
-      // Minimal recovery: if selection is empty but cards exist (e.g., first card added), select first populated deck
-      // CRITICAL: Only run AFTER deckIdsLoaded is true to avoid race condition where we overwrite
-      // valid stored selection before it finishes loading from AsyncStorage
-      if (deckIdsLoaded && selectedDeckIds.length === 0 && allFlashcards.length > 0) {
-        logger.log('🔧 [Component] ensureSelection triggered: deckIdsLoaded=true, selectedDeckIds=[], allFlashcards > 0');
-        ensureSelection();
-      }
+      // Removed automatic deck selection - users can now have no decks selected
+      // This allows them to see the "no cards to review" screen when they explicitly deselect all decks
 
       // Only call onContentReady if the state actually changed
       if (lastContentReadyRef.current !== isContentReady && onContentReadyRef.current) {
@@ -878,7 +848,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       return () => {
         // Cleanup if needed
       };
-    }, [isInitializing, isCardTransitioning, loadingState, isLoading, isConnected, filteredCards.length, selectedDeckIds.length, allFlashcards.length, ensureSelection, deckIdsLoaded])
+    }, [isInitializing, isCardTransitioning, loadingState, isLoading, isConnected, filteredCards.length, selectedDeckIds.length, allFlashcards.length, deckIdsLoaded])
   );
 
   // Configure PanResponder
@@ -1417,6 +1387,12 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       // Update deck selection - filteredCards will update automatically via useMemo
       setSelectedDeckIds(deckIds);
       
+      // If no decks selected, immediately clear the review session to show "no cards" screen
+      if (deckIds.length === 0) {
+        logger.log('🎯 [Component] No decks selected, clearing review session');
+        resetReviewSession();
+      }
+      
       // Save to user-specific storage key
       if (user?.id) {
         try {
@@ -1430,7 +1406,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     }
     
     setShowDeckSelector(false);
-  }, [selectedDeckIds, setCurrentCard, user?.id, fadeAnim]);
+  }, [selectedDeckIds, setCurrentCard, user?.id, fadeAnim, resetReviewSession]);
 
   // Memoize the MultiDeckSelector to prevent unnecessary re-renders
   const deckSelector = useMemo(() => (
@@ -1629,10 +1605,17 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               style={[
                 styles.reviewModeButton,
                 buttonDisplayActive && styles.reviewModeButtonActive,
+                (reviewSessionCards.length === 0 && filteredCards.length === 0) && styles.reviewModeButtonDisabled,
               ]}
+              disabled={reviewSessionCards.length === 0 && filteredCards.length === 0}
               onPress={() => {
                 // Prevent rapid button presses from causing overlapping transitions
                 if (isTransitionLoading || isCardTransitioning || isInitializing) {
+                  return;
+                }
+                
+                // Prevent action when no cards available
+                if (reviewSessionCards.length === 0 && filteredCards.length === 0) {
                   return;
                 }
                 
@@ -1690,12 +1673,15 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               <Ionicons 
                 name={buttonDisplayActive ? "school" : "school-outline"} 
                 size={18} 
-                color={buttonDisplayActive ? COLORS.text : COLORS.primary}
+                color={(reviewSessionCards.length === 0 && filteredCards.length === 0) 
+                  ? COLORS.lightGray 
+                  : (buttonDisplayActive ? COLORS.text : COLORS.primary)}
               />
               <Text 
                 style={[
                   styles.reviewModeButtonText,
-                  buttonDisplayActive && styles.reviewModeButtonTextActive
+                  buttonDisplayActive && styles.reviewModeButtonTextActive,
+                  (reviewSessionCards.length === 0 && filteredCards.length === 0) && styles.reviewModeButtonTextDisabled,
                 ]}
               >
                 {t('review.reviewMode')}
@@ -2423,6 +2409,9 @@ const createStyles = (
   reviewModeButtonActive: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
+  reviewModeButtonDisabled: {
+    opacity: 0.5,
+  },
   reviewModeButtonText: {
     color: 'rgba(59, 130, 246, 0.5)', // More transparent blue
     marginLeft: 4,
@@ -2431,6 +2420,9 @@ const createStyles = (
   },
   reviewModeButtonTextActive: {
     color: COLORS.text,
+  },
+  reviewModeButtonTextDisabled: {
+    color: COLORS.lightGray,
   },
   highlightedCollectionsButtonWrapper: {
     borderRadius: 11, // Slightly larger to accommodate padding
