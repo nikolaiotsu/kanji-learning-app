@@ -49,6 +49,7 @@ interface FlashcardItemProps {
   isOnline?: boolean; // Whether the app is online (disables write operations when offline)
   isSrsModeActive?: boolean; // Whether review mode is active (for rainbow border effect)
   disableBackdropOverlay?: boolean; // If true, don't show the backdrop overlay (useful in list contexts)
+  useScreenBackground?: boolean; // If true, use screen background color instead of black for flipped cards
 }
 
 const FlashcardItem: React.FC<FlashcardItemProps> = ({ 
@@ -64,6 +65,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   isOnline = true, // Default to true for backward compatibility
   isSrsModeActive = false, // Default to false
   disableBackdropOverlay = false, // Default to false to maintain existing behavior
+  useScreenBackground = false, // Default to false to maintain existing black background
 }) => {
   const { t } = useTranslation();
   const { targetLanguage } = useSettings();
@@ -125,7 +127,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   }, [isSrsModeActive, rainbowAnim]);
   
   // Create styles with responsive card height
-  const styles = React.useMemo(() => createStyles(cardHeight), [cardHeight]);
+  const styles = React.useMemo(() => createStyles(cardHeight, useScreenBackground), [cardHeight, useScreenBackground]);
   // Track if content is scrollable (overflow)
   const [frontContentScrollable, setFrontContentScrollable] = useState(false);
   const [backContentScrollable, setBackContentScrollable] = useState(false);
@@ -831,7 +833,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
 };
 
 // Create styles function with responsive card height
-const createStyles = (responsiveCardHeight: number) => StyleSheet.create({
+const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean) => StyleSheet.create({
   cardContainer: {
     position: 'relative',
     width: '100%',
@@ -849,7 +851,7 @@ const createStyles = (responsiveCardHeight: number) => StyleSheet.create({
     maxHeight: responsiveCardHeight,
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: '#000000', // Black background to enhance flip effect
+    backgroundColor: useScreenBackground ? COLORS.flashcardScreenBackground : '#000000', // Use screen background in collections screen, black elsewhere
     position: 'relative',
     zIndex: 2, // Above the backdrop overlay (zIndex: 1)
   },

@@ -880,6 +880,7 @@ export default function SavedFlashcardsScreen() {
         showRefreshButton={true}
         isOnline={isConnected}
         disableBackdropOverlay={true}
+        useScreenBackground={true}
       />
     );
   };
