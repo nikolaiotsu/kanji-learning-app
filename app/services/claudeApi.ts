@@ -5,6 +5,7 @@ import { apiLogger, logClaudeAPI, APIUsageMetrics } from './apiUsageLogger';
 import { validateTextLength } from '../utils/inputValidation';
 import { logger } from '../utils/logger';
 import { sanitizeKoreanRomanization, analyzeKoreanRomanization } from './koreanRomanizationGuards';
+import { fetchSubscriptionStatus, getSubscriptionPlan } from './receiptValidationService';
 
 // STATIC SYSTEM PROMPT FOR CHINESE (CACHEABLE) - Shared across functions
 // Just above 2048 token minimum for Haiku caching
@@ -2048,6 +2049,25 @@ export async function processWithClaude(
     textLength: text.length
   });
 
+  // Check rate limits for translate API
+  try {
+    const subscription = await fetchSubscriptionStatus();
+    const subscriptionPlan = getSubscriptionPlan(subscription);
+    const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
+    
+    if (rateLimitStatus.translateCallsRemaining <= 0) {
+      const errorMessage = 'Daily translate API limit reached. Please upgrade to Premium for unlimited translations.';
+      logger.warn('[Claude API] Translate rate limit exceeded');
+      throw new Error(errorMessage);
+    }
+  } catch (error) {
+    // If rate limit check fails, log but don't block (fail open for better UX)
+    if (error instanceof Error && error.message.includes('Daily translate API limit')) {
+      throw error; // Re-throw rate limit errors
+    }
+    logger.warn('[Claude API] Rate limit check failed, proceeding:', error);
+  }
+
   // Validate text length (prevent API abuse)
   const textValidation = validateTextLength(text);
   if (!textValidation.isValid) {
@@ -2709,10 +2729,29 @@ Format your response as valid JSON:
               } else if (!qualityAssessment.needsVerification) {
                 logger.log("✅ [Smart Verification] High quality confirmed, skipping verification");
 
-                return {
+                const result = {
                   furiganaText: earlyFuriganaText,
                   translatedText: sanitizeTranslatedText(parsedContent.translatedText || "", targetLanguage)
                 };
+
+                // Log successful API call (early return path)
+                try {
+                  logger.log('[Claude API] About to log translate API call (early return path)...');
+                  await logClaudeAPI(metrics, true, JSON.stringify(result), undefined, {
+                    model: 'claude-3-haiku-20240307',
+                    targetLanguage,
+                    forcedLanguage,
+                    textLength: text.length,
+                    hasJapanese: result.furiganaText ? true : false,
+                    parseMethod: 'direct',
+                    operationType: 'translate'
+                  }, inputTokens, outputTokens);
+                  logger.log('[Claude API] Successfully logged translate API call (early return path)');
+                } catch (logError) {
+                  logger.error('[Claude API] Error logging translate API call (early return path):', logError);
+                }
+
+                return result;
               }
 
               if (qualityAssessment.needsVerification && retryCount < MAX_RETRIES - 1) {
@@ -5221,15 +5260,21 @@ Format your response as valid JSON with these exact keys:
             };
 
             // Log successful API call
-            await logClaudeAPI(metrics, true, JSON.stringify(result), undefined, {
-              model: 'claude-3-haiku-20240307',
-              targetLanguage,
-              forcedLanguage,
-              textLength: text.length,
-              hasJapanese: result.furiganaText ? true : false,
-              parseMethod: 'direct',
-              operationType: 'translation'
-            }, inputTokens, outputTokens);
+            try {
+              logger.log('[Claude API] About to log translate API call...');
+              await logClaudeAPI(metrics, true, JSON.stringify(result), undefined, {
+                model: 'claude-3-haiku-20240307',
+                targetLanguage,
+                forcedLanguage,
+                textLength: text.length,
+                hasJapanese: result.furiganaText ? true : false,
+                parseMethod: 'direct',
+                operationType: 'translate'
+              }, inputTokens, outputTokens);
+              logger.log('[Claude API] Successfully logged translate API call');
+            } catch (logError) {
+              logger.error('[Claude API] Error logging translate API call:', logError);
+            }
 
             return result;
           } catch (parseError) {
@@ -5260,7 +5305,7 @@ Format your response as valid JSON with these exact keys:
                   textLength: text.length,
                   hasJapanese: result.furiganaText ? true : false,
                   parseMethod: 'block',
-                  operationType: 'translation'
+                  operationType: 'translate'
                 }, inputTokens, outputTokens);
 
                 return result;
@@ -5286,7 +5331,7 @@ Format your response as valid JSON with these exact keys:
                   textLength: text.length,
                   hasJapanese: result.furiganaText ? true : false,
                   parseMethod: 'flexible',
-                  operationType: 'translation'
+                  operationType: 'translate'
                 }, inputTokens, outputTokens);
 
                 return result;
@@ -5317,7 +5362,7 @@ Format your response as valid JSON with these exact keys:
                   textLength: text.length,
                   hasJapanese: result.furiganaText ? true : false,
                   parseMethod: 'manual',
-                  operationType: 'translation'
+                  operationType: 'translate'
                 }, inputTokens, outputTokens);
 
                 return result;
@@ -5394,7 +5439,7 @@ Format your response as valid JSON with these exact keys:
     textLength: text.length,
     retryCount,
     maxRetries: MAX_RETRIES,
-    operationType: 'translation'
+    operationType: 'translate'
   });
   
   return {
@@ -5726,6 +5771,25 @@ export async function processWithClaudeAndScope(
     forcedLanguage,
     operationType: 'wordscope_combined'
   });
+
+  // Check rate limits for wordscope API
+  try {
+    const subscription = await fetchSubscriptionStatus();
+    const subscriptionPlan = getSubscriptionPlan(subscription);
+    const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
+    
+    if (rateLimitStatus.wordscopeCallsRemaining <= 0) {
+      const errorMessage = 'Daily WordScope API limit reached. Please upgrade to Premium for unlimited WordScope analysis.';
+      logger.warn('[WordScope Combined] WordScope rate limit exceeded');
+      throw new Error(errorMessage);
+    }
+  } catch (error) {
+    // If rate limit check fails, log but don't block (fail open for better UX)
+    if (error instanceof Error && error.message.includes('Daily WordScope API limit')) {
+      throw error; // Re-throw rate limit errors
+    }
+    logger.warn('[WordScope Combined] Rate limit check failed, proceeding:', error);
+  }
 
   try {
     const apiKey = Constants.expoConfig?.extra?.EXPO_PUBLIC_CLAUDE_API_KEY;

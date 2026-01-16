@@ -38,6 +38,8 @@ export interface SubscriptionPlanConfig {
   features: string[];
   price?: string;
   productId?: string;
+  translateApiCallsPerDay?: number; // Limit for translate API calls
+  wordscopeApiCallsPerDay?: number; // Limit for wordscope API calls
 }
 
 export interface SubscriptionState {

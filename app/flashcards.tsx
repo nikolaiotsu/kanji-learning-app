@@ -53,6 +53,8 @@ import * as Haptics from 'expo-haptics';
 import { useNetworkState } from './services/networkManager';
 import { incrementLifetimeCount, shouldShowReviewPrompt } from './services/reviewPromptService';
 import ReviewPromptModal from './components/shared/ReviewPromptModal';
+import { apiLogger } from './services/apiUsageLogger';
+import { fetchSubscriptionStatus, getSubscriptionPlan } from './services/receiptValidationService';
 
 import { logger } from './utils/logger';
 export default function LanguageFlashcardsScreen() {
@@ -60,8 +62,13 @@ export default function LanguageFlashcardsScreen() {
   const { user } = useAuth();
 const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, setBothLanguages } = useSettings();
   const { incrementFlashcardCount, canCreateFlashcard, remainingFlashcards } = useFlashcardCounter();
-  const { purchaseSubscription } = useSubscription();
+  const { purchaseSubscription, subscription } = useSubscription();
   const { isConnected } = useNetworkState();
+  
+  // State for API limits
+  const [translateCallsRemaining, setTranslateCallsRemaining] = useState<number>(Number.MAX_SAFE_INTEGER);
+  const [wordscopeCallsRemaining, setWordscopeCallsRemaining] = useState<number>(Number.MAX_SAFE_INTEGER);
+  const [isLoadingLimits, setIsLoadingLimits] = useState(false);
   const params = useLocalSearchParams();
   const textParam = params.text;
   const imageUriParam = params.imageUri;
@@ -74,7 +81,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       : '';
   
   const imageUri = typeof imageUriParam === 'string' ? imageUriParam : undefined;
-  const useScope = useScopeParam === 'true' || useScopeParam === true;
+  const useScope = useScopeParam === 'true' || (typeof useScopeParam === 'object' && useScopeParam?.[0] === 'true');
 
   // Clean the detected text, preserving spaces for languages that need them
   const cleanedText = cleanText(displayText);
@@ -140,6 +147,34 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     // Initialize the edited text with the cleaned text
     setEditedText(cleanedText);
   }, [cleanedText, imageUri]);
+
+  // Load API limits on mount and when subscription changes
+  useEffect(() => {
+    const loadAPILimits = async () => {
+      setIsLoadingLimits(true);
+      try {
+        const subscriptionStatus = await fetchSubscriptionStatus();
+        const subscriptionPlan = getSubscriptionPlan(subscriptionStatus);
+        const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
+        setTranslateCallsRemaining(rateLimitStatus.translateCallsRemaining);
+        setWordscopeCallsRemaining(rateLimitStatus.wordscopeCallsRemaining);
+      } catch (error) {
+        logger.error('Error loading API limits:', error);
+        // Default to allowing if check fails
+        setTranslateCallsRemaining(Number.MAX_SAFE_INTEGER);
+        setWordscopeCallsRemaining(Number.MAX_SAFE_INTEGER);
+      } finally {
+        setIsLoadingLimits(false);
+      }
+    };
+
+    loadAPILimits();
+  }, [subscription]);
+
+  // Helper to check if buttons should show locked state (both limits exhausted)
+  const areBothLimitsExhausted = translateCallsRemaining <= 0 && wordscopeCallsRemaining <= 0;
+  const canUseTranslate = translateCallsRemaining > 0;
+  const canUseWordscope = wordscopeCallsRemaining > 0;
 
   // Main useEffect to process the initial text when component loads
   // Only auto-process if text didn't come from OCR (no imageUri)
@@ -475,6 +510,18 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       
       const result = await runTranslationWithAutoSwitch(false, text);
       
+      // Update translate API limit after successful call
+      if (result.translatedText) {
+        try {
+          const subscriptionStatus = await fetchSubscriptionStatus();
+          const subscriptionPlan = getSubscriptionPlan(subscriptionStatus);
+          const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
+          setTranslateCallsRemaining(rateLimitStatus.translateCallsRemaining);
+        } catch (error) {
+          logger.error('Error updating translate limit:', error);
+        }
+      }
+      
       // Check if we got valid results back
       if (result.translatedText) {
         // Set translated text for all languages
@@ -711,6 +758,38 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     setShowEditModal(true);
   };
 
+  // Function to show upgrade alert for API limits
+  const showAPILimitUpgradeAlert = (limitType: 'translate' | 'wordscope') => {
+    const limitName = limitType === 'translate' ? 'translate' : 'WordScope';
+    Alert.alert(
+      t('subscription.limit.title'),
+      `You've reached your daily ${limitName} API limit. Upgrade to Premium for unlimited ${limitName} calls.`,
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        { 
+          text: t('subscription.limit.upgradeToPremium'), 
+          style: 'default',
+          onPress: async () => {
+            const success = await purchaseSubscription(PRODUCT_IDS.PREMIUM_MONTHLY);
+            if (success) {
+              Alert.alert(t('common.success'), t('subscription.test.premiumActivated'));
+              // Refresh limits after upgrade
+              try {
+                const subscriptionStatus = await fetchSubscriptionStatus();
+                const subscriptionPlan = getSubscriptionPlan(subscriptionStatus);
+                const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
+                setTranslateCallsRemaining(rateLimitStatus.translateCallsRemaining);
+                setWordscopeCallsRemaining(rateLimitStatus.wordscopeCallsRemaining);
+              } catch (error) {
+                logger.error('Error refreshing API limits after upgrade:', error);
+              }
+            }
+          }
+        }
+      ]
+    );
+  };
+
   // Function to handle translate button
   const handleTranslate = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -718,6 +797,13 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       Alert.alert(t('common.error'), t('flashcard.edit.enterText'));
       return;
     }
+    
+    // Check translate limit before processing
+    if (!canUseTranslate) {
+      showAPILimitUpgradeAlert('translate');
+      return;
+    }
+    
     processTextWithClaude(editedText);
     
     // Walkthrough will automatically advance to save-button step after translation completes
@@ -730,6 +816,12 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     const text = textToProcess || editedText;
     if (!text) {
       Alert.alert(t('common.error'), t('flashcard.edit.enterText'));
+      return;
+    }
+    
+    // Check wordscope limit before processing
+    if (!canUseWordscope) {
+      showAPILimitUpgradeAlert('wordscope');
       return;
     }
     
@@ -793,6 +885,18 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       
       // Progress callback
       const result = await runTranslationWithAutoSwitch(true, text);
+      
+      // Update wordscope API limit after successful call
+      if (result.translatedText) {
+        try {
+          const subscriptionStatus = await fetchSubscriptionStatus();
+          const subscriptionPlan = getSubscriptionPlan(subscriptionStatus);
+          const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
+          setWordscopeCallsRemaining(rateLimitStatus.wordscopeCallsRemaining);
+        } catch (error) {
+          logger.error('Error updating wordscope limit:', error);
+        }
+      }
       
       // Check if we got valid results back
       if (result.translatedText) {
@@ -1031,8 +1135,13 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={styles.scopeAndTranslateButton}
-                onPress={() => handleScopeAndTranslate()}
+                style={[
+                  styles.scopeAndTranslateButton,
+                  !canUseWordscope ? styles.disabledButton : null,
+                  areBothLimitsExhausted ? styles.darkDisabledButton : null
+                ]}
+                onPress={() => !canUseWordscope ? showAPILimitUpgradeAlert('wordscope') : handleScopeAndTranslate()}
+                disabled={isLoadingLimits}
               >
                 {/* Main gradient background */}
                 <LinearGradient
@@ -1056,26 +1165,37 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                 {/* Button content */}
                 <View style={styles.buttonContent}>
                   <View style={styles.dualIconContainer}>
-                    <FontAwesome5 
-                      name="microscope" 
-                      size={16} 
-                      color="#ffffff" 
-                    />
-                    <Ionicons 
-                      name="language" 
-                      size={16} 
-                      color="#ffffff" 
-                    />
+                    {!canUseWordscope ? (
+                      <Ionicons name="lock-closed" size={18} color={COLORS.darkGray} />
+                    ) : (
+                      <>
+                        <FontAwesome5 
+                          name="microscope" 
+                          size={16} 
+                          color="#ffffff" 
+                        />
+                        <Ionicons 
+                          name="language" 
+                          size={16} 
+                          color="#ffffff" 
+                        />
+                      </>
+                    )}
                   </View>
-                  <Text style={styles.buttonText}>
-                    Wordscope
+                  <Text style={[styles.buttonText, !canUseWordscope ? { color: COLORS.darkGray } : null]}>
+                    {!canUseWordscope ? 'Locked' : 'Wordscope'}
                   </Text>
                 </View>
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={styles.translateButton}
-                onPress={handleTranslate}
+                style={[
+                  styles.translateButton,
+                  !canUseTranslate ? styles.disabledButton : null,
+                  areBothLimitsExhausted ? styles.darkDisabledButton : null
+                ]}
+                onPress={() => !canUseTranslate ? showAPILimitUpgradeAlert('translate') : handleTranslate()}
+                disabled={isLoadingLimits}
               >
                 {/* Main gradient background */}
                 <LinearGradient
@@ -1099,13 +1219,13 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                 {/* Button content */}
                 <View style={styles.buttonContent}>
                   <Ionicons 
-                    name="language" 
+                    name={!canUseTranslate ? "lock-closed" : "language"} 
                     size={20} 
-                    color="#ffffff" 
+                    color={!canUseTranslate ? COLORS.darkGray : "#ffffff"} 
                     style={styles.buttonIcon} 
                   />
-                  <Text style={styles.buttonText}>
-                    Translate
+                  <Text style={[styles.buttonText, !canUseTranslate ? { color: COLORS.darkGray } : null]}>
+                    {!canUseTranslate ? 'Locked' : 'Translate'}
                   </Text>
                 </View>
               </TouchableOpacity>

@@ -6,7 +6,7 @@ import { SubscriptionPlan } from '../../types';
 import { logger } from '../utils/logger';
 // Types for logging
 export interface APIUsageLogEntry {
-  operationType: 'claude_api' | 'vision_api' | 'flashcard_create' | 'ocr_scan';
+  operationType: 'claude_api' | 'vision_api' | 'flashcard_create' | 'ocr_scan' | 'translate_api' | 'wordscope_api';
   endpoint?: string;
   requestSize?: number;
   responseSize?: number;
@@ -88,7 +88,10 @@ class APIUsageLogger {
 
       // Update daily usage counters
       if (entry.success) {
-        this.updateDailyUsage(entry.operationType, entry.metadata?.tokens || 0);
+        // Don't await - fire and forget, but log if it fails
+        this.updateDailyUsage(entry.operationType, entry.metadata?.tokens || 0).catch((error) => {
+          logger.error('[APILogger] updateDailyUsage promise rejected:', error);
+        });
       }
 
       // Console log for development
@@ -167,7 +170,9 @@ class APIUsageLogger {
         flashcards_created: 0,
         ocr_scans_performed: 0,
         total_claude_tokens: 0,
-        total_vision_requests: 0
+        total_vision_requests: 0,
+        translate_api_calls: 0,
+        wordscope_api_calls: 0
       };
     } catch (error) {
       logger.error('[APILogger] Error getting daily usage:', error);
@@ -207,6 +212,8 @@ class APIUsageLogger {
     visionCallsRemaining: number;
     flashcardsRemaining: number;
     ocrScansRemaining: number;
+    translateCallsRemaining: number;
+    wordscopeCallsRemaining: number;
   }> {
     try {
       const usage = await this.getDailyUsage();
@@ -224,11 +231,27 @@ class APIUsageLogger {
         ? Number.MAX_SAFE_INTEGER 
         : Math.max(0, flashcardLimit - (usage?.flashcards_created || 0));
 
+      // Translate API limit
+      const translateLimit = planConfig.translateApiCallsPerDay ?? -1;
+      const isUnlimitedTranslate = translateLimit === -1;
+      const translateCallsRemaining = isUnlimitedTranslate
+        ? Number.MAX_SAFE_INTEGER
+        : Math.max(0, translateLimit - (usage?.translate_api_calls || 0));
+
+      // WordScope API limit
+      const wordscopeLimit = planConfig.wordscopeApiCallsPerDay ?? -1;
+      const isUnlimitedWordscope = wordscopeLimit === -1;
+      const wordscopeCallsRemaining = isUnlimitedWordscope
+        ? Number.MAX_SAFE_INTEGER
+        : Math.max(0, wordscopeLimit - (usage?.wordscope_api_calls || 0));
+
       return {
         claudeCallsRemaining: totalApiCallsRemaining, // Combined limit for all API calls
         visionCallsRemaining: totalApiCallsRemaining, // Combined limit for all API calls
         flashcardsRemaining: flashcardsRemaining,
-        ocrScansRemaining: totalApiCallsRemaining // OCR scans use the same API call limit
+        ocrScansRemaining: totalApiCallsRemaining, // OCR scans use the same API call limit
+        translateCallsRemaining: translateCallsRemaining,
+        wordscopeCallsRemaining: wordscopeCallsRemaining
       };
     } catch (error) {
       logger.error('[APILogger] Error checking rate limits:', error);
@@ -236,7 +259,9 @@ class APIUsageLogger {
         claudeCallsRemaining: 0,
         visionCallsRemaining: 0,
         flashcardsRemaining: 0,
-        ocrScansRemaining: 0
+        ocrScansRemaining: 0,
+        translateCallsRemaining: 0,
+        wordscopeCallsRemaining: 0
       };
     }
   }
@@ -258,7 +283,8 @@ class APIUsageLogger {
 
   private async updateDailyUsage(operationType: string, tokens: number = 0): Promise<void> {
     try {
-      const { error } = await supabase
+      logger.log(`[APILogger] Updating daily usage for operationType: ${operationType}, tokens: ${tokens}`);
+      const { data, error } = await supabase
         .rpc('update_daily_usage', {
           p_operation_type: operationType,
           p_tokens: tokens
@@ -266,9 +292,20 @@ class APIUsageLogger {
 
       if (error) {
         logger.error('[APILogger] Daily usage update error:', error);
+        logger.error('[APILogger] Error code:', error.code);
+        logger.error('[APILogger] Error message:', error.message);
+        logger.error('[APILogger] Error details:', error.details);
+        logger.error('[APILogger] Operation type that failed:', operationType);
+        logger.error('[APILogger] If you see this error, the migration may not have been applied to Supabase');
+      } else {
+        logger.log(`[APILogger] Successfully updated daily usage for ${operationType}`);
       }
     } catch (error) {
       logger.error('[APILogger] Failed to update daily usage:', error);
+      logger.error('[APILogger] Operation type that failed:', operationType);
+      if (error instanceof Error) {
+        logger.error('[APILogger] Error stack:', error.stack);
+      }
     }
   }
 
@@ -308,17 +345,32 @@ export const logClaudeAPI = async (
   inputTokens?: number,
   outputTokens?: number
 ) => {
+  // Determine operation type from metadata
+  // If metadata has operationType 'wordscope_combined', use 'wordscope_api'
+  // If metadata has operationType 'translation' or 'translate', use 'translate_api'
+  // Otherwise default to claude_api for backward compatibility
+  let operationType: APIUsageLogEntry['operationType'] = 'claude_api';
+  
+  if (metadata?.operationType === 'wordscope_combined') {
+    operationType = 'wordscope_api';
+    logger.log('[APILogger] Detected wordscope_combined, using wordscope_api operation type');
+  } else if (metadata?.operationType === 'translation' || metadata?.operationType === 'translate') {
+    operationType = 'translate_api';
+    logger.log(`[APILogger] Detected ${metadata?.operationType}, using translate_api operation type`);
+  } else {
+    logger.log(`[APILogger] Using default claude_api operation type (metadata.operationType: ${metadata?.operationType})`);
+  }
+  
   if (success) {
     const totalTokens = (inputTokens || 0) + (outputTokens || 0);
     
     // Log token usage in development mode
     if (__DEV__ && (inputTokens !== undefined || outputTokens !== undefined)) {
       const model = metadata?.model || 'unknown';
-      const operation = metadata?.operationType || 'claude_api';
-      logger.log(`[Token Usage] ${operation} (${model}) - Input: ${inputTokens || 0}, Output: ${outputTokens || 0}, Total: ${totalTokens}`);
+      logger.log(`[Token Usage] ${operationType} (${model}) - Input: ${inputTokens || 0}, Output: ${outputTokens || 0}, Total: ${totalTokens}`);
     }
     
-    await apiLogger.logSuccess('claude_api', metrics, responseText?.length, {
+    await apiLogger.logSuccess(operationType, metrics, responseText?.length, {
       ...metadata,
       inputTokens: inputTokens || 0,
       outputTokens: outputTokens || 0,
@@ -329,7 +381,7 @@ export const logClaudeAPI = async (
         : undefined
     });
   } else {
-    await apiLogger.logError('claude_api', metrics, error || 'Unknown error', metadata);
+    await apiLogger.logError(operationType, metrics, error || 'Unknown error', metadata);
   }
 };
 

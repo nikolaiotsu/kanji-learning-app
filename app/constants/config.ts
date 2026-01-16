@@ -15,7 +15,9 @@ export const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanConfig> = {
     flashcardsPerDay: 5, // 5 flashcards per day for free users
     maxDecks: 2, // Free users can create up to 2 decks
     showAds: true,
-    features: ['basic_scanning', 'flashcards', 'basic_ocr']
+    features: ['basic_scanning', 'flashcards', 'basic_ocr'],
+    translateApiCallsPerDay: 5, // 5 translate API calls per day for free users
+    wordscopeApiCallsPerDay: 2 // 2 wordscope API calls per day for free users
   },
   PREMIUM: {
     ocrScansPerDay: 5000, // 5000 API calls per day for premium users (to prevent spam)
@@ -31,7 +33,9 @@ export const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanConfig> = {
       'advanced_features',
       'ad_free_experience',
       'priority_support'
-    ]
+    ],
+    translateApiCallsPerDay: -1, // -1 represents unlimited for premium users
+    wordscopeApiCallsPerDay: -1 // -1 represents unlimited for premium users
   }
 };
 

@@ -7,7 +7,9 @@ import { useAuth } from './context/AuthContext';
 import { useSettings, AVAILABLE_LANGUAGES, DETECTABLE_LANGUAGES } from './context/SettingsContext';
 import { useFlashcardCounter } from './context/FlashcardCounterContext';
 import { useSwipeCounter } from './context/SwipeCounterContext';
+import { useOCRCounter } from './context/OCRCounterContext';
 import { useSubscription } from './context/SubscriptionContext';
+import { supabase } from './services/supabaseClient';
 import { useRouter } from 'expo-router';
 import { COLORS } from './constants/colors';
 import { PRODUCT_IDS, PRODUCT_DETAILS } from './constants/config';
@@ -30,6 +32,7 @@ export default function SettingsScreen() {
   } = useSettings();
   const { resetFlashcardCount } = useFlashcardCounter();
   const { resetSwipeCounts } = useSwipeCounter();
+  const { resetOCRCount } = useOCRCounter();
   const { 
     subscription, 
     setTestingSubscriptionPlan, 
@@ -123,16 +126,46 @@ export default function SettingsScreen() {
   // Function to handle flashcard count reset for testing
   const handleResetFlashcardCount = async () => {
     Alert.alert(
-      'Reset Flashcard Count',
-      'This will reset your daily flashcard count to 0. Are you sure?',
+      'Reset Daily Limits',
+      'This will reset your daily flashcard count, OCR scan count, and API usage limits (translate & wordscope) to 0. Are you sure?',
       [
         { text: 'Cancel', style: 'cancel' },
         { 
           text: 'Reset', 
           style: 'destructive',
           onPress: async () => {
-            await resetFlashcardCount();
-            Alert.alert('Success', 'Flashcard count has been reset to 0.');
+            try {
+              // Reset flashcard count
+              await resetFlashcardCount();
+              
+              // Reset OCR count
+              await resetOCRCount();
+              
+              // Reset API usage in database (translate_api_calls and wordscope_api_calls)
+              // Only update if row exists - if no row exists, there's nothing to reset anyway
+              const today = new Date().toISOString().split('T')[0];
+              const { error } = await supabase
+                .from('user_daily_usage')
+                .update({
+                  translate_api_calls: 0,
+                  wordscope_api_calls: 0,
+                  ocr_scans_performed: 0
+                })
+                .eq('usage_date', today);
+              
+              if (error) {
+                logger.error('Error resetting API usage limits:', error);
+                // If error is "no rows found" (PGRST116), that's fine - no usage to reset
+                if (error.code !== 'PGRST116') {
+                  logger.warn('Non-critical error resetting API limits - may not affect functionality:', error.message);
+                }
+              }
+              
+              Alert.alert('Success', 'All daily limits have been reset to 0.');
+            } catch (error) {
+              logger.error('Error resetting daily limits:', error);
+              Alert.alert('Error', 'Failed to reset some limits. Please try again.');
+            }
           }
         }
       ]
