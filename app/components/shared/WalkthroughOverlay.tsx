@@ -56,7 +56,10 @@ export default function WalkthroughOverlay({
 }: WalkthroughOverlayProps) {
   // Animated opacity for cross-fade transitions between steps
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  // Separate animated value to track if layout is ready (prevents flicker on initial render)
+  const layoutReadyAnim = useRef(new Animated.Value(0)).current;
   const isFirstRender = useRef(true);
+  const previousStepIdRef = useRef<string | null>(null);
   
   // #region agent log - Track visibility changes
   useEffect(() => {
@@ -74,7 +77,41 @@ export default function WalkthroughOverlay({
   });
   // #endregion
 
-  // Trigger fade animation on step change
+  // Check if layout is ready for current step
+  const targetLayout = currentStep?.targetLayout;
+  const isReviewCardsStep = currentStep?.id === 'review-cards';
+  const isCollectionsStep = currentStep?.id === 'collections';
+  const canUseFallback = isReviewCardsStep || isCollectionsStep;
+  const isLayoutReady = targetLayout || canUseFallback;
+
+  // Handle layout ready state - fade in when layout becomes available
+  useEffect(() => {
+    if (!visible || !currentStep) {
+      layoutReadyAnim.setValue(0);
+      previousStepIdRef.current = null;
+      return;
+    }
+
+    // Check if step changed
+    const stepChanged = previousStepIdRef.current !== currentStep.id;
+    if (stepChanged) {
+      previousStepIdRef.current = currentStep.id;
+      // Reset opacity when step changes
+      layoutReadyAnim.setValue(0);
+    }
+
+    if (isLayoutReady) {
+      // Layout is ready, fade in smoothly
+      Animated.timing(layoutReadyAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+    // If layout not ready, keep invisible (already set to 0 above if step changed)
+  }, [visible, currentStep?.id, isLayoutReady, layoutReadyAnim]);
+
+  // Trigger fade animation on step change (for cross-fade between steps)
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
@@ -96,13 +133,6 @@ export default function WalkthroughOverlay({
 
   // Debug log when overlay is about to render
   console.log('[DEBUG WalkthroughOverlay] WILL RENDER:', { visible, stepId: currentStep.id, stepTitle: currentStep.title, currentStepIndex });
-
-  const targetLayout = currentStep.targetLayout;
-  
-  // Allow fallback positioning only for large static areas
-  const isReviewCardsStep = currentStep.id === 'review-cards';
-  const isCollectionsStep = currentStep.id === 'collections';
-  const canUseFallback = isReviewCardsStep || isCollectionsStep;
   
   if (!targetLayout && !canUseFallback) {
     // Wait for layout measurement before showing overlay on steps where we expect a measured layout
@@ -112,6 +142,9 @@ export default function WalkthroughOverlay({
   if (!targetLayout) {
     console.warn(`[WalkthroughOverlay] No layout for step ${currentStep.id}, using fallback positioning`);
   }
+
+  // Combine both animations: layoutReadyAnim prevents flicker, fadeAnim handles step transitions
+  const combinedOpacity = Animated.multiply(layoutReadyAnim, fadeAnim);
 
   // Calculate position for the tooltip box - position it above the button
   const TOOLTIP_PADDING = 16;
@@ -164,8 +197,18 @@ export default function WalkthroughOverlay({
       statusBarTranslucent={true}
     >
       <View style={[styles.container, { zIndex }]}>
-        {/* Dimmed overlay background */}
-        <Pressable style={styles.dimmedBackground} onPress={() => {}} />
+        {/* Dimmed overlay background - animated to fade in smoothly */}
+        <Animated.View 
+          style={[
+            styles.dimmedBackground, 
+            { opacity: combinedOpacity }
+          ]} 
+        >
+          <Pressable 
+            style={StyleSheet.absoluteFill} 
+            onPress={() => {}} 
+          />
+        </Animated.View>
 
         {/* Tooltip box positioned above the button */}
         <Animated.View
@@ -175,7 +218,7 @@ export default function WalkthroughOverlay({
               left: tooltipLeft,
               top: tooltipTop,
               width: TOOLTIP_WIDTH,
-              opacity: fadeAnim,
+              opacity: combinedOpacity,
             },
           ]}
         >

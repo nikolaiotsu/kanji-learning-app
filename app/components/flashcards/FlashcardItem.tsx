@@ -103,7 +103,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
         rainbowAnim.setValue(0);
       };
     } else {
-      setRainbowBorderColor(COLORS.royalBlue50);
+      setRainbowBorderColor(COLORS.appleLiquidGrey);
     }
   }, [isSrsModeActive, rainbowAnim]);
   
@@ -495,7 +495,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
             styles.cardBorderWrapper,
             {
               borderWidth: 1,
-              borderColor: isSrsModeActive ? rainbowBorderColor : COLORS.royalBlue50,
+              borderColor: isSrsModeActive ? rainbowBorderColor : COLORS.appleLiquidGrey,
               borderRadius: 16
             }
           ]}>
@@ -596,7 +596,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
             styles.cardBorderWrapper,
             {
               borderWidth: 1,
-              borderColor: isSrsModeActive ? rainbowBorderColor : COLORS.royalBlue50,
+              borderColor: isSrsModeActive ? rainbowBorderColor : COLORS.appleLiquidGrey,
               borderRadius: 16
             }
           ]}>

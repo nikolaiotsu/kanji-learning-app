@@ -170,7 +170,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     {
       id: 'gallery',
       title: 'Gallery',
-      description: 'Choose an existing photo from your gallery to create flashcards from. Great for images you\'ve saved previously.',
+      description: 'Choose an existing photo from your gallery to create flashcards from. This is useful for images you\'ve saved previously.',
     },
     {
       id: 'flashcards',
@@ -180,12 +180,12 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     {
       id: 'custom-card',
       title: 'Add Custom Card',
-      description: 'Create a custom flashcard manually by entering text directly. Perfect for adding cards without taking a photo.',
+      description: 'Create a new flashcard by entering text directly. This is useful for capturing words that don\'t have images.',
     },
     {
       id: 'review-cards',
       title: 'Review Cards',
-      description: 'This area is where your captured flashcards will appear for review. Swipe right to take cards out of the review session. Swipe left to review cards again.  The flip flashcard and see image buttons will be on the bottom right of your flashcards.',
+      description: 'Your captured words appear here. Press Review to start a spaced repetition session. Swipe right to remove cards from today\'s review, swipe left to keep them. In Browse mode, swipe freely without affecting your review schedule.  A rainbow Review button means there are cards to review!',
     },
     {
       id: 'collections',
@@ -210,17 +210,17 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     {
       id: 'crop',
       title: 'Crop Image',
-      description: 'Crop the photo to the important area so you only process the text you need.',
+      description: 'Cropping a photo can get you closer to the text you need to highlight.  Drag to create a crop box around the text you want to translate.',
     },
     {
       id: 'highlight',
       title: 'Highlight Text',
-      description: 'Let\'s try highlighting some text in the image. Draw a box around the text you want to translate.',
+      description: 'Let\'s try highlighting some text in the image with our rainbow highlighter.',
     },
     {
       id: 'confirm-highlight',
       title: 'Confirm Selection',
-      description: 'Does the yellow highlight box neatly surround text that you want to translate? If so, press next, and then the checkmark, if not, press the back button and try again.',
+      description: 'Does the rainbow highlight neatly surround text that you want to translate? If so, press next, and then the checkmark, if not, press the back button and try again!',
     },
   ];
 

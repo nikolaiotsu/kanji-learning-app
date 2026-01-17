@@ -44,6 +44,7 @@ export const COLORS = {
   error: '#EF4444', // Modern red
   royalBlue: '#3B82F6', // Vibrant blue for flashcard borders
   royalBlue50: 'rgba(59, 130, 246, 0.5)', // 50% opacity highlight
+  appleLiquidGrey: 'rgba(142, 142, 147, 0.4)', // Apple liquid border style grey
   pokedexAmber: '#F59E0B',      // Modern amber for flashcard main light
   pokedexAmberDark: '#D97706',  // Darker amber
   pokedexAmberGlow: '#FBBF24',  // Lighter amber glow
