@@ -47,12 +47,14 @@ interface RandomCardReviewerProps {
   onContentReady?: (isReady: boolean) => void;
   // Ref for collections button (for walkthrough)
   collectionsButtonRef?: React.RefObject<View>;
+  // Ref for review button (for walkthrough)
+  reviewButtonRef?: React.RefObject<View>;
   // Walkthrough state
   isWalkthroughActive?: boolean;
   currentWalkthroughStepId?: string;
 }
 
-const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, onContentReady, collectionsButtonRef, isWalkthroughActive = false, currentWalkthroughStepId }) => {
+const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, onContentReady, collectionsButtonRef, reviewButtonRef, isWalkthroughActive = false, currentWalkthroughStepId }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -2240,10 +2242,21 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         </View>
         
         {/* SRS Mode Toggle */}
+        <View
+          ref={reviewButtonRef}
+          collapsable={false}
+          style={
+            isWalkthroughActive && currentWalkthroughStepId === 'review-button'
+              ? styles.highlightedReviewButtonWrapper
+              : undefined
+          }
+          pointerEvents={isWalkthroughActive && currentWalkthroughStepId !== 'review-button' ? 'none' : 'auto'}
+        >
         <AnimatedTouchableOpacity
           style={[
             styles.reviewModeButton,
             buttonDisplayActive && styles.reviewModeButtonActive,
+            isWalkthroughActive && currentWalkthroughStepId === 'review-button' && { backgroundColor: 'transparent' },
             (!isWalkthroughActive && (isCardTransitioning || isInitializing)) && styles.deckButtonDisabled,
             isResettingSRS && { opacity: 0.6 },
             hasCardsDueForReview && !isSrsModeActive && { borderColor: reviewButtonRainbowColor, borderWidth: 2 }
@@ -2306,7 +2319,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
             });
           }}
           onLongPress={handleResetSRSProgress}
-          disabled={isCardTransitioning || isInitializing || isResettingSRS}
+          disabled={isCardTransitioning || isInitializing || isResettingSRS || (isWalkthroughActive && currentWalkthroughStepId !== 'review-button')}
         >
           <Ionicons 
             name={buttonDisplayActive ? "school" : "school-outline"} 
@@ -2322,6 +2335,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
             {t('review.reviewMode')}
           </Text>
         </AnimatedTouchableOpacity>
+        </View>
         
         {/* SRS Counter - Only visible in SRS Mode, positioned right after Review button */}
         {shouldShowCounter && (
@@ -2610,6 +2624,22 @@ const createStyles = (
     color: COLORS.lightGray,
   },
   highlightedCollectionsButtonWrapper: {
+    borderRadius: 11, // Slightly larger to accommodate padding
+    padding: 3,
+    backgroundColor: '#FFFF00', // Bright yellow background like other buttons
+    shadowColor: '#FFFF00',
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0.8,
+    shadowRadius: 12,
+    elevation: 12,
+    zIndex: 1000, // Ensure it's above other elements
+    overflow: 'visible', // Ensure children are visible
+    position: 'relative', // Create stacking context for children
+  },
+  highlightedReviewButtonWrapper: {
     borderRadius: 11, // Slightly larger to accommodate padding
     padding: 3,
     backgroundColor: '#FFFF00', // Bright yellow background like other buttons

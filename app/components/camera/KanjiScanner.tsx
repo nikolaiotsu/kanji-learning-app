@@ -153,6 +153,7 @@ const flashcardsButtonRef = useRef<View>(null);
 const customCardButtonRef = useRef<View>(null);
 const reviewerContainerRef = useRef<View>(null);
 const collectionsButtonRef = useRef<View>(null);
+const reviewButtonRef = useRef<View>(null);
 const settingsButtonRef = useRef<View>(null);
 const rotateButtonRef = useRef<View>(null);
 const cropButtonRef = useRef<View>(null);
@@ -191,6 +192,11 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       id: 'collections',
       title: t('walkthrough.collections.title'),
       description: t('walkthrough.collections.description'),
+    },
+    {
+      id: 'review-button',
+      title: t('walkthrough.reviewButton.title'),
+      description: t('walkthrough.reviewButton.description'),
     },
     {
       id: 'settings',
@@ -257,6 +263,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           step.id === 'confirm-highlight' ? checkmarkButtonRef :
           step.id === 'review-cards' ? reviewerContainerRef :
           step.id === 'collections' ? collectionsButtonRef :
+          step.id === 'review-button' ? reviewButtonRef :
           step.id === 'settings' ? settingsButtonRef :
           undefined,
       });
@@ -393,6 +400,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
         }
         measureButton(reviewerContainerRef, 'review-cards', updateStepLayout);
         measureButton(collectionsButtonRef, 'collections', updateStepLayout);
+        measureButton(reviewButtonRef, 'review-button', updateStepLayout);
         measureButton(settingsButtonRef, 'settings', updateStepLayout);
       };
 
@@ -425,6 +433,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           'highlight': highlightButtonRef,
           'review-cards': reviewerContainerRef,
           'collections': collectionsButtonRef,
+          'review-button': reviewButtonRef,
           'settings': settingsButtonRef,
         };
         const ref = refMap[currentStepId];
@@ -2291,10 +2300,11 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
               isWalkthroughActive && currentStep?.id === 'review-cards' && styles.highlightedReviewerContainer
             ]}
           >
-            <RandomCardReviewer 
-              onCardSwipe={onCardSwipe} 
+            <RandomCardReviewer
+              onCardSwipe={onCardSwipe}
               onContentReady={onContentReady}
               collectionsButtonRef={collectionsButtonRef}
+              reviewButtonRef={reviewButtonRef}
               isWalkthroughActive={isWalkthroughActive}
               currentWalkthroughStepId={currentStep?.id}
             />

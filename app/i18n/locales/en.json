@@ -223,12 +223,14 @@
     "setLanguageError": "Failed to set language. Please try again.",
     "invalidLanguageSelection": "Invalid Language Selection",
     "setDetectionLanguageError": "Failed to set detection language. Please try again.",
-    "resetSwipeCounter": "Reset Cards Remembered Counter",
-    "resetSwipeCounterDescription": "Reset your daily cards remembered counter",
+    "resetSwipeCounter": "Reset Swipe Counters",
+    "resetSwipeCounterDescription": "Reset daily swipe statistics for all decks. This clears right/left swipe counts from review sessions but doesn't affect SRS progress.",
     "resetSwipeCounterTitle": "Reset Counter?",
-    "resetSwipeCounterMessage": "This will reset your cards remembered counter to zero. Are you sure?",
+    "resetSwipeCounterMessage": "This will reset your daily swipe counters to zero. Are you sure?",
     "resetSwipeCounterConfirm": "Reset",
-    "resetSwipeCounterSuccess": "Cards remembered counter has been reset successfully!"
+    "resetSwipeCounterSuccess": "Swipe counters have been reset successfully!",
+    "showAppWalkthrough": "Show App Walkthrough",
+    "showAppWalkthroughDescription": "Replay the onboarding tutorial to learn about the app features"
   },
   "review": {
     "remaining": "{{count}} remaining - swipe ← to review again - swipe → to dismiss",
@@ -383,6 +385,10 @@
     "collections": {
       "title": "Collections",
       "description": "Tap here to select which deck of flashcards you want to review.  Long press a deck to isolate it. You can choose multiple collections to review cards from all of them at once."
+    },
+    "reviewButton": {
+      "title": "Review Button",
+      "description": "Tap this button to start an SRS (Spaced Repetition System) review session with your selected decks. A flashing rainbow button means there are cards available for review! Long press the button to reset the SRS tracking for all cards in the selected decks."
     },
     "settings": {
       "title": "Settings",

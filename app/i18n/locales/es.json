@@ -221,7 +221,15 @@
     "cannotSwapLanguages": "No se pueden intercambiar idiomas",
     "setLanguageError": "Error al establecer el idioma. Por favor intenta de nuevo.",
     "invalidLanguageSelection": "Selección de idioma inválida",
-    "setDetectionLanguageError": "Error al establecer el idioma de detección. Por favor intenta de nuevo."
+    "setDetectionLanguageError": "Error al establecer el idioma de detección. Por favor intenta de nuevo.",
+    "resetSwipeCounter": "Restablecer contadores de deslizamiento",
+    "resetSwipeCounterDescription": "Restablecer estadísticas diarias de deslizamiento para todos los mazos. Esto borra los conteos de deslizamientos hacia la derecha/izquierda de las sesiones de revisión pero no afecta el progreso SRS.",
+    "resetSwipeCounterTitle": "¿Restablecer contador?",
+    "resetSwipeCounterMessage": "Esto restablecerá tus contadores de deslizamiento diarios a cero. ¿Estás seguro?",
+    "resetSwipeCounterConfirm": "Restablecer",
+    "resetSwipeCounterSuccess": "¡Los contadores de deslizamiento se han restablecido exitosamente!",
+    "showAppWalkthrough": "Mostrar Tutorial de la App",
+    "showAppWalkthroughDescription": "Repite el tutorial de incorporación para aprender sobre las funciones de la app"
   },
   "review": {
     "remaining": "{{count}} restantes - desliza ← para revisar de nuevo - desliza → para descartar",
@@ -380,6 +388,10 @@
     "collections": {
       "title": "Colecciones",
       "description": "Toca aquí para seleccionar qué mazo de tarjetas quieres revisar. Mantén presionado un mazo para aislarlo. Puedes elegir múltiples colecciones para revisar tarjetas de todas a la vez."
+    },
+    "reviewButton": {
+      "title": "Botón de Revisión",
+      "description": "Toca este botón para iniciar una sesión de revisión SRS (Sistema de Repetición Espaciada) con tus mazos seleccionados. ¡Un botón arcoíris parpadeante significa que hay tarjetas disponibles para revisar! Mantén presionado el botón para reiniciar el seguimiento SRS de todas las tarjetas en los mazos seleccionados."
     },
     "settings": {
       "title": "Configuración",

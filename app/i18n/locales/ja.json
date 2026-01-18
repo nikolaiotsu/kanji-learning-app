@@ -221,7 +221,15 @@
     "cannotSwapLanguages": "言語を交換できません",
     "setLanguageError": "言語の設定に失敗しました。もう一度お試しください。",
     "invalidLanguageSelection": "無効な言語選択",
-    "setDetectionLanguageError": "検出言語の設定に失敗しました。もう一度お試しください。"
+    "setDetectionLanguageError": "検出言語の設定に失敗しました。もう一度お試しください。",
+    "resetSwipeCounter": "スワイプカウンターをリセット",
+    "resetSwipeCounterDescription": "すべてのデッキの毎日のスワイプ統計をリセットします。これは復習セッションの右/左スワイプカウントをクリアしますが、SRSの進捗には影響しません。",
+    "resetSwipeCounterTitle": "カウンターをリセットしますか？",
+    "resetSwipeCounterMessage": "これにより毎日のスワイプカウンターが0にリセットされます。よろしいですか？",
+    "resetSwipeCounterConfirm": "リセット",
+    "resetSwipeCounterSuccess": "スワイプカウンターが正常にリセットされました！",
+    "showAppWalkthrough": "アプリチュートリアルを表示",
+    "showAppWalkthroughDescription": "アプリの機能について学ぶためのオンボーディングチュートリアルを再度再生します"
   },
   "review": {
     "remaining": "残り{{count}}枚 - 左スワイプでもう一度復習 - 右スワイプで進む",
@@ -380,6 +388,10 @@
     "collections": {
       "title": "コレクション",
       "description": "ここをタップして復習するフラッシュカードのデッキを選択します。デッキを長押しすると分離できます。複数のコレクションを選択して、すべてのカードを一度に復習できます。"
+    },
+    "reviewButton": {
+      "title": "復習ボタン",
+      "description": "このボタンをタップして、選択したデッキでSRS（間隔反復システム）復習セッションを開始します。点滅する虹色のボタンは、復習可能なカードがあることを意味します！ボタンを長押しすると、選択したデッキ内のすべてのカードのSRSトラッキングをリセットできます。"
     },
     "settings": {
       "title": "設定",

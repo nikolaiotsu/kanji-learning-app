@@ -457,9 +457,9 @@ export default function SettingsScreen() {
           >
             <Ionicons name="help-circle-outline" size={24} color={COLORS.primary} style={styles.settingIcon} />
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingLabel}>Show App Walkthrough</Text>
+              <Text style={styles.settingLabel}>{t('settings.showAppWalkthrough')}</Text>
               <Text style={styles.settingDescription}>
-                Replay the onboarding tutorial to learn about the app features
+                {t('settings.showAppWalkthroughDescription')}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.darkGray} />

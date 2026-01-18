@@ -218,7 +218,15 @@
     "cannotSwapLanguages": "无法交换语言",
     "setLanguageError": "设置语言失败。请重试。",
     "invalidLanguageSelection": "无效的语言选择",
-    "setDetectionLanguageError": "设置检测语言失败。请重试。"
+    "setDetectionLanguageError": "设置检测语言失败。请重试。",
+    "resetSwipeCounter": "重置滑动计数器",
+    "resetSwipeCounterDescription": "重置所有牌组的每日滑动统计。这会清除复习会话中的右/左滑动计数，但不影响SRS进度。",
+    "resetSwipeCounterTitle": "重置计数器？",
+    "resetSwipeCounterMessage": "这会将您的每日滑动计数器重置为零。您确定吗？",
+    "resetSwipeCounterConfirm": "重置",
+    "resetSwipeCounterSuccess": "滑动计数器已成功重置！",
+    "showAppWalkthrough": "显示应用导览",
+    "showAppWalkthroughDescription": "重新播放入门教程，了解应用功能"
   },
   "review": {
     "remaining": "剩余{{count}}张 - ← 滑动再次复习 - → 滑动继续",
@@ -373,6 +381,10 @@
     "collections": {
       "title": "收藏",
       "description": "点击此处选择要复习的闪卡卡组。长按卡组可将其隔离。您可以选择多个收藏以一次复习所有卡片。"
+    },
+    "reviewButton": {
+      "title": "复习按钮",
+      "description": "点击此按钮以使用所选卡组开始SRS（间隔重复系统）复习会话。闪烁的彩虹按钮表示有卡片可供复习！长按此按钮可重置所选卡组中所有卡片的SRS跟踪。"
     },
     "settings": {
       "title": "设置",

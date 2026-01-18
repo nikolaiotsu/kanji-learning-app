@@ -99,12 +99,13 @@ export default function WalkthroughOverlay({
   const targetLayout = currentStep?.targetLayout;
   const isReviewCardsStep = currentStep?.id === 'review-cards';
   const isCollectionsStep = currentStep?.id === 'collections';
+  const isReviewButtonStep = currentStep?.id === 'review-button';
   const isChooseTranslationStep = currentStep?.id === 'choose-translation';
   const isCongratulationsStep = currentStep?.id === 'congratulations';
   const isSaveButtonStep = currentStep?.id === 'save-button';
   const isFinalSavePromptStep = currentStep?.id === 'final-save-prompt';
   // Note: save-button and final-save-prompt are NOT in canUseFallback - they require actual button measurement
-  const canUseFallback = isReviewCardsStep || isCollectionsStep || isChooseTranslationStep || isCongratulationsStep;
+  const canUseFallback = isReviewCardsStep || isCollectionsStep || isReviewButtonStep || isChooseTranslationStep || isCongratulationsStep;
   const isLayoutReady = targetLayout || canUseFallback;
 
   // Handle layout ready state - fade in when layout becomes available
@@ -181,9 +182,9 @@ export default function WalkthroughOverlay({
   const layout = targetLayout || { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2, width: 100, height: 50 };
 
   // Center tooltip horizontally
-  // review-cards, collections, choose-translation, congratulations ALWAYS center
+  // review-cards, collections, review-button, choose-translation, congratulations ALWAYS center
   // All other steps (including save-button) position over the measured button
-  const alwaysCenterSteps = isReviewCardsStep || isCollectionsStep || isChooseTranslationStep || isCongratulationsStep;
+  const alwaysCenterSteps = isReviewCardsStep || isCollectionsStep || isReviewButtonStep || isChooseTranslationStep || isCongratulationsStep;
   
   const tooltipLeft = alwaysCenterSteps
     ? (SCREEN_WIDTH - TOOLTIP_WIDTH) / 2  // Always center for review-cards, collections, etc.
