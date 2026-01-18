@@ -164,63 +164,63 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   const walkthroughSteps: WalkthroughStep[] = [
     {
       id: 'camera',
-      title: 'Take Picture',
-      description: 'Tap here to take a photo of text you want to learn. The camera will scan and create flashcards from your photos.',
+      title: t('walkthrough.camera.title'),
+      description: t('walkthrough.camera.description'),
     },
     {
       id: 'gallery',
-      title: 'Gallery',
-      description: 'Choose an existing photo from your gallery to create flashcards from. This is useful for images you\'ve saved previously.',
+      title: t('walkthrough.gallery.title'),
+      description: t('walkthrough.gallery.description'),
     },
     {
       id: 'flashcards',
-      title: 'View your Collection',
-      description: 'Access your flashcard collection to organize, edit, and manage your saved cards.',
+      title: t('walkthrough.flashcards.title'),
+      description: t('walkthrough.flashcards.description'),
     },
     {
       id: 'custom-card',
-      title: 'Add Custom Card',
-      description: 'Create a new flashcard by entering text directly. This is useful for capturing words that don\'t have images.',
+      title: t('walkthrough.customCard.title'),
+      description: t('walkthrough.customCard.description'),
     },
     {
       id: 'review-cards',
-      title: 'Review Cards',
-      description: 'Your captured words appear here. Press Review to start a spaced repetition session. Swipe right to remove cards from today\'s review, swipe left to keep them. In Browse mode, swipe freely without affecting your review schedule.  A rainbow Review button means there are cards to review!',
+      title: t('walkthrough.reviewCards.title'),
+      description: t('walkthrough.reviewCards.description'),
     },
     {
       id: 'collections',
-      title: 'Collections',
-      description: 'Tap here to select which deck of flashcards you want to review.  Long press a deck to isolate it. You can choose multiple collections to review cards from all of them at once.',
+      title: t('walkthrough.collections.title'),
+      description: t('walkthrough.collections.description'),
     },
     {
       id: 'settings',
-      title: 'Settings',
-      description: 'Manage translation languages, subscription plan, sign out, and other account settings here.',
+      title: t('walkthrough.settings.title'),
+      description: t('walkthrough.settings.description'),
     },
     {
       id: 'gallery-confirm',
-      title: 'Upload from Gallery',
-      description: 'Let\'s try uploading an image from the gallery. After you choose one, we\'ll guide you through rotate, crop, and highlight.',
+      title: t('walkthrough.galleryConfirm.title'),
+      description: t('walkthrough.galleryConfirm.description'),
     },
     {
       id: 'rotate',
-      title: 'Rotate Image',
-      description: 'Rotate your photo if you need before cropping or highlighting text.',
+      title: t('walkthrough.rotate.title'),
+      description: t('walkthrough.rotate.description'),
     },
     {
       id: 'crop',
-      title: 'Crop Image',
-      description: 'Cropping a photo can get you closer to the text you need to highlight.  Drag to create a crop box around the text you want to translate.',
+      title: t('walkthrough.crop.title'),
+      description: t('walkthrough.crop.description'),
     },
     {
       id: 'highlight',
-      title: 'Highlight Text',
-      description: 'Let\'s try highlighting some text in the image with our rainbow highlighter.',
+      title: t('walkthrough.highlight.title'),
+      description: t('walkthrough.highlight.description'),
     },
     {
       id: 'confirm-highlight',
-      title: 'Confirm Selection',
-      description: 'Does the rainbow highlight neatly surround text that you want to translate? If so, press next, and then the checkmark, if not, press the back button and try again!',
+      title: t('walkthrough.confirmHighlight.title'),
+      description: t('walkthrough.confirmHighlight.description'),
     },
   ];
 
@@ -1282,7 +1282,13 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           imageUri: uri // Send the full original image for maximum context
         };
 
-        // Navigation to flashcards - walkthrough is already completed at this point
+        // If walkthrough is active, pass the flag to continue walkthrough on flashcards page
+        if (isWalkthroughActive) {
+          params.walkthroughActive = 'true';
+          // Complete the walkthrough on the scanner side - it will continue on flashcards page
+          completeWalkthrough();
+        }
+
         router.push({
           pathname: "/flashcards",
           params
@@ -1465,9 +1471,10 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       nextStep();
       return;
     }
-    // For confirm-highlight step, complete the walkthrough - user will press checkmark to continue
+    // For confirm-highlight step, hide the overlay so user can press the checkmark
+    // The walkthrough will continue on the flashcards page
     if (currentStep?.id === 'confirm-highlight') {
-      completeWalkthrough();
+      setHideWalkthroughOverlay(true);
       return;
     }
     if (currentStep?.id === 'crop') {

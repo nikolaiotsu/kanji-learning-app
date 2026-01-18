@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Dimensions,
   Animated,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { COLORS } from '../../constants/colors';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -54,40 +55,64 @@ export default function WalkthroughOverlay({
   treatAsNonFinal,
   zIndex = 1000, // Default z-index, can be overridden
 }: WalkthroughOverlayProps) {
+  const { t } = useTranslation();
   // Animated opacity for cross-fade transitions between steps
   const fadeAnim = useRef(new Animated.Value(1)).current;
   // Separate animated value to track if layout is ready (prevents flicker on initial render)
   const layoutReadyAnim = useRef(new Animated.Value(0)).current;
+  // Track if we're currently closing (for fade-out animation)
+  const [isClosing, setIsClosing] = useState(false);
+  const [shouldRender, setShouldRender] = useState(false);
   const isFirstRender = useRef(true);
   const previousStepIdRef = useRef<string | null>(null);
-  
-  // #region agent log - Track visibility changes
-  useEffect(() => {
-    console.log('[DEBUG WalkthroughOverlay] VISIBILITY CHANGED:', { visible, stepId: currentStep?.id, stepTitle: currentStep?.title });
-  }, [visible, currentStep?.id]);
-  // #endregion
+  const previousVisibleRef = useRef(visible);
 
-  // #region agent log - Track ALL render attempts for debugging flash issue
-  console.log('[DEBUG WalkthroughOverlay] RENDER ATTEMPT:', { 
-    visible, 
-    stepId: currentStep?.id, 
-    stepTitle: currentStep?.title, 
-    currentStepIndex,
-    willRender: visible && !!currentStep
-  });
-  // #endregion
+  // Handle visibility changes with fade-out animation
+  useEffect(() => {
+    if (visible && !previousVisibleRef.current) {
+      // Opening - show immediately and let layoutReadyAnim handle fade-in
+      setShouldRender(true);
+      setIsClosing(false);
+    } else if (!visible && previousVisibleRef.current && shouldRender) {
+      // Closing - fade out first, then hide
+      setIsClosing(true);
+      Animated.timing(layoutReadyAnim, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }).start(() => {
+        setShouldRender(false);
+        setIsClosing(false);
+      });
+    }
+    previousVisibleRef.current = visible;
+  }, [visible]);
+
+  // Initial sync of shouldRender with visible
+  useEffect(() => {
+    if (visible) {
+      setShouldRender(true);
+    }
+  }, []);
 
   // Check if layout is ready for current step
   const targetLayout = currentStep?.targetLayout;
   const isReviewCardsStep = currentStep?.id === 'review-cards';
   const isCollectionsStep = currentStep?.id === 'collections';
-  const canUseFallback = isReviewCardsStep || isCollectionsStep;
+  const isChooseTranslationStep = currentStep?.id === 'choose-translation';
+  const isCongratulationsStep = currentStep?.id === 'congratulations';
+  const isSaveButtonStep = currentStep?.id === 'save-button';
+  const isFinalSavePromptStep = currentStep?.id === 'final-save-prompt';
+  // Note: save-button and final-save-prompt are NOT in canUseFallback - they require actual button measurement
+  const canUseFallback = isReviewCardsStep || isCollectionsStep || isChooseTranslationStep || isCongratulationsStep;
   const isLayoutReady = targetLayout || canUseFallback;
 
   // Handle layout ready state - fade in when layout becomes available
   useEffect(() => {
-    if (!visible || !currentStep) {
-      layoutReadyAnim.setValue(0);
+    if (!visible || !currentStep || isClosing) {
+      if (!isClosing) {
+        layoutReadyAnim.setValue(0);
+      }
       previousStepIdRef.current = null;
       return;
     }
@@ -109,7 +134,7 @@ export default function WalkthroughOverlay({
       }).start();
     }
     // If layout not ready, keep invisible (already set to 0 above if step changed)
-  }, [visible, currentStep?.id, isLayoutReady, layoutReadyAnim]);
+  }, [visible, currentStep?.id, isLayoutReady, layoutReadyAnim, isClosing]);
 
   // Trigger fade animation on step change (for cross-fade between steps)
   useEffect(() => {
@@ -118,6 +143,8 @@ export default function WalkthroughOverlay({
       return;
     }
 
+    if (isClosing) return; // Don't animate steps when closing
+
     // Fade out, then fade in
     fadeAnim.setValue(0);
     Animated.timing(fadeAnim, {
@@ -125,15 +152,13 @@ export default function WalkthroughOverlay({
       duration: 200,
       useNativeDriver: true,
     }).start();
-  }, [currentStepIndex]);
+  }, [currentStepIndex, isClosing]);
 
-  if (!visible || !currentStep) {
+  // Don't render if not visible and not in the process of closing
+  if (!shouldRender || !currentStep) {
     return null;
   }
 
-  // Debug log when overlay is about to render
-  console.log('[DEBUG WalkthroughOverlay] WILL RENDER:', { visible, stepId: currentStep.id, stepTitle: currentStep.title, currentStepIndex });
-  
   if (!targetLayout && !canUseFallback) {
     // Wait for layout measurement before showing overlay on steps where we expect a measured layout
     return null;
@@ -152,29 +177,42 @@ export default function WalkthroughOverlay({
   const TOOLTIP_WIDTH = Math.min(SCREEN_WIDTH - 32, 300);
   const TOOLTIP_HEIGHT = 160; // Approximate height
 
-  // Use fallback layout if not measured yet (only for review-cards/collections)
+  // Use fallback layout if not measured yet (only for review-cards/collections/choose-translation)
   const layout = targetLayout || { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2, width: 100, height: 50 };
 
   // Center tooltip horizontally
-  // For review-cards and collections, center on screen. For buttons, center over button
-  const tooltipLeft = (isReviewCardsStep || isCollectionsStep)
-    ? (SCREEN_WIDTH - TOOLTIP_WIDTH) / 2  // Center on screen
-    : Math.max(
-        TOOLTIP_PADDING,
-        Math.min(
-          layout.x + layout.width / 2 - TOOLTIP_WIDTH / 2,
-          SCREEN_WIDTH - TOOLTIP_WIDTH - TOOLTIP_PADDING
+  // review-cards, collections, choose-translation, congratulations ALWAYS center
+  // All other steps (including save-button) position over the measured button
+  const alwaysCenterSteps = isReviewCardsStep || isCollectionsStep || isChooseTranslationStep || isCongratulationsStep;
+  
+  const tooltipLeft = alwaysCenterSteps
+    ? (SCREEN_WIDTH - TOOLTIP_WIDTH) / 2  // Always center for review-cards, collections, etc.
+    : targetLayout
+      ? Math.max(
+          TOOLTIP_PADDING,
+          Math.min(
+            layout.x + layout.width / 2 - TOOLTIP_WIDTH / 2,
+            SCREEN_WIDTH - TOOLTIP_WIDTH - TOOLTIP_PADDING
+          )
         )
-      );
+      : (SCREEN_WIDTH - TOOLTIP_WIDTH) / 2; // Fallback center if no layout
 
-  // For review cards and collections, center on screen (same position)
-  // For buttons, position above or below
+  // For review cards, collections, choose-translation, congratulations: ALWAYS center
+  // For all other buttons (including save-button): position above or below the measured button
   let tooltipTop: number;
-  if (isReviewCardsStep || isCollectionsStep) {
-    // Use the same centered position for both review-cards and collections
-    // Center vertically on screen
-    tooltipTop = (SCREEN_HEIGHT - TOOLTIP_HEIGHT) / 2;
-  } else {
+  if (alwaysCenterSteps) {
+    // Always use centered position for review-cards, collections, choose-translation, congratulations
+    if (isChooseTranslationStep) {
+      // Position tooltip in the middle-lower portion of screen, above where buttons typically are
+      tooltipTop = SCREEN_HEIGHT * 0.4; // About 40% down from top
+    } else if (isCongratulationsStep) {
+      // Center congratulations message on screen
+      tooltipTop = (SCREEN_HEIGHT - TOOLTIP_HEIGHT) / 2;
+    } else {
+      // Center vertically on screen for review-cards and collections
+      tooltipTop = (SCREEN_HEIGHT - TOOLTIP_HEIGHT) / 2;
+    }
+  } else if (targetLayout) {
     // Try to position above button first, but fall back to below if not enough space
     const spaceAbove = layout.y;
     const spaceBelow = SCREEN_HEIGHT - (layout.y + layout.height);
@@ -183,6 +221,9 @@ export default function WalkthroughOverlay({
     tooltipTop = positionAbove
       ? Math.max(TOOLTIP_PADDING, layout.y - TOOLTIP_HEIGHT - TOOLTIP_SPACING)
       : layout.y + layout.height + TOOLTIP_SPACING;
+  } else {
+    // Fallback: center vertically (shouldn't reach here due to earlier checks, but TypeScript needs this)
+    tooltipTop = (SCREEN_HEIGHT - TOOLTIP_HEIGHT) / 2;
   }
 
   const isLastStep = currentStepIndex === totalSteps - 1;
@@ -228,7 +269,7 @@ export default function WalkthroughOverlay({
             onPress={onSkip}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Text style={styles.skipButtonText}>Skip</Text>
+            <Text style={styles.skipButtonText}>{t('common.skip')}</Text>
           </TouchableOpacity>
 
           {/* Tooltip content */}
@@ -238,24 +279,26 @@ export default function WalkthroughOverlay({
 
             {/* Action buttons */}
             <View style={styles.actionButtons}>
-              {/* Back button */}
-              <TouchableOpacity
-                style={[styles.backButton, isFirstStep && styles.backButtonDisabled]}
-                onPress={onPrevious}
-                disabled={isFirstStep}
-              >
-                <Ionicons name="chevron-back" size={16} color={isFirstStep ? COLORS.darkGray : COLORS.primary} />
-                <Text style={[styles.backButtonText, isFirstStep && styles.backButtonTextDisabled]}>Back</Text>
-              </TouchableOpacity>
+              {/* Back button - hidden on congratulations step */}
+              {!isCongratulationsStep && (
+                <TouchableOpacity
+                  style={[styles.backButton, isFirstStep && styles.backButtonDisabled]}
+                  onPress={onPrevious}
+                  disabled={isFirstStep}
+                >
+                  <Ionicons name="chevron-back" size={16} color={isFirstStep ? COLORS.darkGray : COLORS.primary} />
+                  <Text style={[styles.backButtonText, isFirstStep && styles.backButtonTextDisabled]}>{t('common.back')}</Text>
+                </TouchableOpacity>
+              )}
 
               {/* Next/Done button */}
               {isEffectivelyLastStep ? (
                 <TouchableOpacity style={styles.doneButton} onPress={onDone}>
-                  <Text style={styles.doneButtonText}>Done</Text>
+                  <Text style={styles.doneButtonText}>{t('common.done')}</Text>
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity style={styles.nextButton} onPress={onNext}>
-                  <Text style={styles.nextButtonText}>{customNextLabel || 'Next'}</Text>
+                  <Text style={styles.nextButtonText}>{customNextLabel || t('common.next')}</Text>
                   <Ionicons name="chevron-forward" size={16} color={COLORS.primary} />
                 </TouchableOpacity>
               )}

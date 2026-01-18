@@ -1,7 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Constants from 'expo-constants';
 import { View, Text, StyleSheet, Platform, ActivityIndicator, ScrollView, TouchableOpacity, Alert, TextInput, Modal, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import WalkthroughTarget from './components/shared/WalkthroughTarget';
+import WalkthroughOverlay from './components/shared/WalkthroughOverlay';
+import { useWalkthrough, WalkthroughStep } from './hooks/useWalkthrough';
 import { useLocalSearchParams, router } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { processWithClaude, processWithClaudeAndScope, validateLanguageWithClaude, LanguageMismatchInfo, ClaudeResponse } from './services/claudeApi';
@@ -59,6 +63,7 @@ import { fetchSubscriptionStatus, getSubscriptionPlan } from './services/receipt
 import { logger } from './utils/logger';
 export default function LanguageFlashcardsScreen() {
   const { t } = useTranslation();
+  const navigation = useNavigation();
   const { user } = useAuth();
 const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, setBothLanguages } = useSettings();
   const { incrementFlashcardCount, canCreateFlashcard, remainingFlashcards } = useFlashcardCounter();
@@ -73,6 +78,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
   const textParam = params.text;
   const imageUriParam = params.imageUri;
   const useScopeParam = params.useScope;
+  const walkthroughParam = params.walkthroughActive;
   
   const displayText = typeof textParam === 'string' 
     ? textParam 
@@ -82,6 +88,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
   
   const imageUri = typeof imageUriParam === 'string' ? imageUriParam : undefined;
   const useScope = useScopeParam === 'true' || (typeof useScopeParam === 'object' && useScopeParam?.[0] === 'true');
+  const shouldStartWalkthrough = walkthroughParam === 'true' || (typeof walkthroughParam === 'object' && walkthroughParam?.[0] === 'true');
 
   // Clean the detected text, preserving spaces for languages that need them
   const cleanedText = cleanText(displayText);
@@ -131,6 +138,268 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
   
   // State for review prompt modal
   const [showReviewPrompt, setShowReviewPrompt] = useState(false);
+
+  // State to hide walkthrough overlay (for choose-translation step)
+  const [hideWalkthroughOverlay, setHideWalkthroughOverlay] = useState(false);
+
+  // Walkthrough refs
+  const translateButtonRef = useRef<View>(null);
+  const wordscopeButtonRef = useRef<View>(null);
+  const editTextButtonRef = useRef<View>(null);
+  const saveButtonRef = useRef<View>(null);
+  const viewSavedButtonRef = useRef<View>(null);
+  const editTranslationButtonRef = useRef<View>(null);
+  const editInputRetranslateButtonRef = useRef<View>(null);
+  
+  // ScrollView ref for auto-scrolling during walkthrough
+  const scrollViewRef = useRef<ScrollView>(null);
+  
+  // Ref to track if we've already initiated the scroll-and-advance transition (prevents multiple executions)
+  const walkthroughTransitionInProgressRef = useRef(false);
+
+  // Define walkthrough steps for the flashcard input page
+  const flashcardWalkthroughSteps: WalkthroughStep[] = [
+    {
+      id: 'translate-button',
+      title: t('walkthrough.translateButton.title'),
+      description: t('walkthrough.translateButton.description'),
+    },
+    {
+      id: 'wordscope-button',
+      title: t('walkthrough.wordscopeButton.title'),
+      description: t('walkthrough.wordscopeButton.description'),
+    },
+    {
+      id: 'edit-text-button',
+      title: t('walkthrough.editTextButton.title'),
+      description: t('walkthrough.editTextButton.description'),
+    },
+    {
+      id: 'choose-translation',
+      title: t('walkthrough.chooseTranslation.title'),
+      description: t('walkthrough.chooseTranslation.description'),
+    },
+    {
+      id: 'save-button',
+      title: t('walkthrough.saveButton.title'),
+      description: t('walkthrough.saveButton.description'),
+    },
+    {
+      id: 'view-saved-button',
+      title: t('walkthrough.viewSavedButton.title'),
+      description: t('walkthrough.viewSavedButton.description'),
+    },
+    {
+      id: 'edit-translation-button',
+      title: t('walkthrough.editTranslationButton.title'),
+      description: t('walkthrough.editTranslationButton.description'),
+    },
+    {
+      id: 'edit-input-retranslate-button',
+      title: t('walkthrough.editInputRetranslateButton.title'),
+      description: t('walkthrough.editInputRetranslateButton.description'),
+    },
+    {
+      id: 'final-save-prompt',
+      title: t('walkthrough.finalSavePrompt.title'),
+      description: t('walkthrough.finalSavePrompt.description'),
+    },
+    {
+      id: 'congratulations',
+      title: t('walkthrough.congratulations.title'),
+      description: t('walkthrough.congratulations.description'),
+    },
+  ];
+
+  // Initialize walkthrough hook for flashcard page
+  const {
+    isActive: isWalkthroughActive,
+    currentStep,
+    currentStepIndex,
+    totalSteps,
+    startWalkthrough,
+    nextStep,
+    previousStep,
+    skipWalkthrough,
+    completeWalkthrough,
+    registerStep,
+    updateStepLayout,
+  } = useWalkthrough(flashcardWalkthroughSteps);
+
+  // Track if walkthrough has been started from params
+  const walkthroughStartedRef = useRef(false);
+
+  // Start walkthrough if param is set
+  useEffect(() => {
+    if (shouldStartWalkthrough && !walkthroughStartedRef.current && !isWalkthroughActive) {
+      walkthroughStartedRef.current = true;
+      // Small delay to ensure UI is rendered and refs are measured
+      setTimeout(() => {
+        startWalkthrough();
+      }, 500);
+    }
+  }, [shouldStartWalkthrough, isWalkthroughActive]);
+
+  // Register walkthrough steps with refs
+  useEffect(() => {
+    flashcardWalkthroughSteps.forEach(step => {
+      registerStep({
+        ...step,
+        targetRef:
+          step.id === 'translate-button' ? translateButtonRef :
+          step.id === 'wordscope-button' ? wordscopeButtonRef :
+          step.id === 'edit-text-button' ? editTextButtonRef :
+          step.id === 'choose-translation' ? translateButtonRef :
+          step.id === 'save-button' ? saveButtonRef :
+          step.id === 'view-saved-button' ? viewSavedButtonRef :
+          step.id === 'edit-translation-button' ? editTranslationButtonRef :
+          step.id === 'edit-input-retranslate-button' ? editInputRetranslateButtonRef :
+          step.id === 'final-save-prompt' ? saveButtonRef :
+          step.id === 'congratulations' ? saveButtonRef :
+          undefined,
+      });
+    });
+  }, [registerStep]);
+
+  // Measure button positions when walkthrough is active
+  useEffect(() => {
+    if (!isWalkthroughActive) return;
+
+    const measureButton = (ref: React.RefObject<View>, stepId: string) => {
+      if (ref.current) {
+        ref.current.measureInWindow((x, y, width, height) => {
+          if (width > 0 && height > 0) {
+            updateStepLayout(stepId, { x, y, width, height });
+          }
+        });
+      }
+    };
+
+    // Small delay to ensure layout is complete
+    setTimeout(() => {
+      measureButton(translateButtonRef, 'translate-button');
+      measureButton(wordscopeButtonRef, 'wordscope-button');
+      measureButton(editTextButtonRef, 'edit-text-button');
+      measureButton(translateButtonRef, 'choose-translation');
+      measureButton(saveButtonRef, 'save-button');
+      measureButton(viewSavedButtonRef, 'view-saved-button');
+      measureButton(editTranslationButtonRef, 'edit-translation-button');
+      measureButton(editInputRetranslateButtonRef, 'edit-input-retranslate-button');
+      measureButton(saveButtonRef, 'final-save-prompt');
+      measureButton(saveButtonRef, 'congratulations');
+    }, 100);
+  }, [isWalkthroughActive, updateStepLayout]);
+
+  // Disable swipe-down gesture during final-save-prompt walkthrough step
+  useEffect(() => {
+    const shouldDisableGesture = isWalkthroughActive && currentStep?.id === 'final-save-prompt';
+    navigation.setOptions({
+      gestureEnabled: !shouldDisableGesture,
+    });
+  }, [isWalkthroughActive, currentStep?.id, navigation]);
+
+  // Auto-scroll to save button when walkthrough reaches final-save-prompt step
+  // (The initial save-button step scroll is handled in the translation completion effect for proper sequencing)
+  useEffect(() => {
+    if (isWalkthroughActive && textProcessed && currentStep?.id === 'final-save-prompt') {
+      // For final-save-prompt, scroll to make the save button visible
+      setHideWalkthroughOverlay(true);
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+        setTimeout(() => {
+          setHideWalkthroughOverlay(false);
+        }, 400);
+      }, 100);
+    }
+  }, [isWalkthroughActive, currentStep?.id, textProcessed]);
+
+  // Show overlay and measure buttons when post-translation steps become active
+  const postTranslationSteps = ['save-button', 'view-saved-button', 'edit-translation-button', 'edit-input-retranslate-button', 'final-save-prompt', 'congratulations'];
+  
+  // Helper function to measure all post-translation buttons
+  const measureAllPostTranslationButtons = (retryCount = 0) => {
+    const measureButton = (ref: React.RefObject<View>, stepId: string, needsRetry = false) => {
+      if (ref.current) {
+        ref.current.measureInWindow((x, y, width, height) => {
+          if (width > 0 && height > 0) {
+            updateStepLayout(stepId, { x, y, width, height });
+          } else if (needsRetry && retryCount < 5 && textProcessed) {
+            // Retry measurement if button exists but not measured yet
+            setTimeout(() => measureAllPostTranslationButtons(retryCount + 1), 200);
+          }
+        });
+      } else if (needsRetry && retryCount < 5 && textProcessed) {
+        // Retry measurement if button doesn't exist yet
+        setTimeout(() => measureAllPostTranslationButtons(retryCount + 1), 200);
+      }
+    };
+
+    // Save button needs special retry handling since it only appears after translation
+    measureButton(saveButtonRef, 'save-button', true);
+    measureButton(saveButtonRef, 'final-save-prompt', true);
+    measureButton(saveButtonRef, 'congratulations', true);
+    measureButton(viewSavedButtonRef, 'view-saved-button', false);
+    measureButton(editTranslationButtonRef, 'edit-translation-button', false);
+    measureButton(editInputRetranslateButtonRef, 'edit-input-retranslate-button', false);
+  };
+
+  // Measure buttons when post-translation step becomes active
+  // Note: We DON'T show the overlay here for save-button step - that's handled by the translation completion effect
+  // to ensure proper scroll-then-show sequencing
+  useEffect(() => {
+    if (isWalkthroughActive && currentStep?.id && postTranslationSteps.includes(currentStep.id)) {
+      // Only show overlay for non-save-button steps here
+      // save-button overlay visibility is controlled by the translation completion effect for proper sequencing
+      if (currentStep.id !== 'save-button') {
+        setHideWalkthroughOverlay(false);
+      }
+
+      // Small delay to ensure buttons are rendered (especially after translation completes)
+      setTimeout(() => measureAllPostTranslationButtons(), textProcessed ? 100 : 300);
+    }
+  }, [isWalkthroughActive, currentStep?.id, updateStepLayout]);
+
+  // Advance to save-button step when translation completes AND results are ACTUALLY DISPLAYED (if we're on a translation step)
+  // IMPORTANT: We must wait for isLoading to be false, otherwise the results/buttons aren't rendered yet
+  useEffect(() => {
+    if (isWalkthroughActive && textProcessed && !isLoading && currentStep?.id) {
+      const translationSteps = ['translate-button', 'wordscope-button', 'choose-translation'];
+      if (translationSteps.includes(currentStep.id)) {
+        // Check if results are actually displayed (translatedText for translate, scopeAnalysis for wordscope)
+        const hasResults = translatedText || scopeAnalysis;
+        
+        if (hasResults && !walkthroughTransitionInProgressRef.current) {
+          // Mark transition as in progress to prevent multiple executions
+          walkthroughTransitionInProgressRef.current = true;
+          
+          // Results are now rendered (isLoading is false) - sequence the transition properly:
+          // 1. Keep overlay hidden
+          setHideWalkthroughOverlay(true);
+          
+          // 2. Wait a moment for layout to settle, then scroll to bottom
+          setTimeout(() => {
+            scrollViewRef.current?.scrollToEnd({ animated: true });
+            
+            // 3. After scroll animation completes, show overlay and advance step
+            setTimeout(() => {
+              setHideWalkthroughOverlay(false);
+              nextStep();
+              // Reset the flag after transition completes
+              walkthroughTransitionInProgressRef.current = false;
+            }, 600); // Wait for scroll animation to complete
+          }, 200); // Wait for layout to settle
+        }
+      }
+    }
+  }, [textProcessed, translatedText, scopeAnalysis, isWalkthroughActive, currentStep?.id, isLoading]);
+
+  // Re-measure buttons when textProcessed becomes true (translation completes) and we're on a post-translation step
+  useEffect(() => {
+    if (isWalkthroughActive && textProcessed && currentStep?.id && postTranslationSteps.includes(currentStep.id)) {
+      // Re-measure when translation completes and we're on a post-translation step
+      setTimeout(() => measureAllPostTranslationButtons(), 100);
+    }
+  }, [textProcessed, isWalkthroughActive, currentStep?.id]);
 
   // Debug: Log state changes
   useEffect(() => {
@@ -640,6 +909,11 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       return;
     }
     
+    // If walkthrough is active on save-button step, complete the walkthrough
+    if (isWalkthroughActive && currentStep?.id === 'save-button') {
+      completeWalkthrough();
+    }
+    
     setShowDeckSelector(true);
   };
 
@@ -715,13 +989,22 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       }
       
       setIsSaved(true);
-      
+
+      // If walkthrough is active and we just saved (from final-save-prompt or save-button step), show congratulations
+      if (isWalkthroughActive && (currentStep?.id === 'final-save-prompt' || currentStep?.id === 'save-button')) {
+        // Advance to congratulations step
+        setHideWalkthroughOverlay(false);
+        nextStep();
+        // Don't show the regular alert during walkthrough - let the congratulations overlay handle it
+        return;
+      }
+
       // Show success message with language-specific wording
-      const cardType = detectedLanguage 
-        ? t('flashcard.save.cardType', { language: detectedLanguage }) 
+      const cardType = detectedLanguage
+        ? t('flashcard.save.cardType', { language: detectedLanguage })
         : t('flashcard.save.languageFlashcard');
       const deckName = deckId === 'deck1' ? t('flashcard.save.deck1') : t('flashcard.save.newDeck');
-      
+
       Alert.alert(
         t('flashcard.save.title'),
         t('flashcard.save.message', { cardType, deckName }),
@@ -756,6 +1039,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
   const handleEditText = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowEditModal(true);
+    // Note: Edit text button doesn't advance the walkthrough - user should press Next or use translate/wordscope
   };
 
   // Function to show upgrade alert for API limits
@@ -806,8 +1090,11 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     
     processTextWithClaude(editedText);
     
-    // Walkthrough will automatically advance to save-button step after translation completes
-    // via the useEffect that monitors textProcessed state
+    // If walkthrough is active, hide overlay while processing (will advance to save-button when textProcessed becomes true)
+    if (isWalkthroughActive && (currentStep?.id === 'translate-button' || currentStep?.id === 'choose-translation')) {
+      setHideWalkthroughOverlay(true); // Hide overlay while processing
+      walkthroughTransitionInProgressRef.current = false; // Reset to allow fresh transition
+    }
   };
 
   // Function to handle scope and translate button
@@ -823,6 +1110,12 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     if (!canUseWordscope) {
       showAPILimitUpgradeAlert('wordscope');
       return;
+    }
+    
+    // If walkthrough is active, hide overlay while processing (will advance to save-button when textProcessed becomes true)
+    if (isWalkthroughActive && (currentStep?.id === 'wordscope-button' || currentStep?.id === 'choose-translation')) {
+      setHideWalkthroughOverlay(true); // Hide overlay while processing
+      walkthroughTransitionInProgressRef.current = false; // Reset to allow fresh transition
     }
     
     logger.log('🌟 [Flashcards] Starting Scope and Translate with Claude API');
@@ -1060,6 +1353,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
         </View>
         
         <ScrollView 
+          ref={scrollViewRef}
           style={styles.scrollView} 
           contentContainerStyle={styles.contentContainer}
           showsVerticalScrollIndicator={true}
@@ -1097,138 +1391,183 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
           {/* Edit, Scope and Translate, and Translate buttons */}
           {!isLoading && !textProcessed && (
             <View style={styles.actionButtonsContainer}>
-              <TouchableOpacity
-                style={styles.editButton}
-                onPress={handleEditText}
+              <WalkthroughTarget
+                targetRef={editTextButtonRef}
+                stepId="edit-text-button"
+                currentStepId={currentStep?.id}
+                activeIds={['choose-translation']}
+                isWalkthroughActive={isWalkthroughActive}
+                style={isWalkthroughActive && currentStep?.id === 'edit-text-button' ? styles.highlightedButtonWrapper : undefined}
               >
-                {/* Main gradient background */}
-                <LinearGradient
-                  colors={['rgba(140, 140, 140, 0.35)', 'rgba(100, 100, 100, 0.45)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 1 }}
-                  style={StyleSheet.absoluteFill}
-                />
-                
-                {/* Glass highlight overlay (top shine) */}
-                <LinearGradient
-                  colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 0.6 }}
-                  style={styles.glassOverlay}
-                />
-                
-                {/* Inner glow border */}
-                <View style={styles.innerBorder} />
-                
-                {/* Button content */}
-                <View style={styles.buttonContent}>
-                  <Ionicons 
-                    name="pencil" 
-                    size={20} 
-                    color="#ffffff" 
-                    style={styles.buttonIcon} 
+                <TouchableOpacity
+                  style={styles.editButton}
+                  onPress={handleEditText}
+                  disabled={isWalkthroughActive && currentStep?.id !== 'edit-text-button' && currentStep?.id !== 'choose-translation'}
+                >
+                  {/* Main gradient background */}
+                  <LinearGradient
+                    colors={isWalkthroughActive && currentStep?.id === 'edit-text-button'
+                      ? ['rgba(255, 255, 0, 0.4)', 'rgba(255, 200, 0, 0.5)']
+                      : ['rgba(140, 140, 140, 0.35)', 'rgba(100, 100, 100, 0.45)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={StyleSheet.absoluteFill}
                   />
-                  <Text style={styles.buttonText}>
-                    Edit Text
-                  </Text>
-                </View>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[
-                  styles.scopeAndTranslateButton,
-                  !canUseWordscope ? styles.disabledButton : null,
-                  areBothLimitsExhausted ? styles.darkDisabledButton : null
-                ]}
-                onPress={() => !canUseWordscope ? showAPILimitUpgradeAlert('wordscope') : handleScopeAndTranslate()}
-                disabled={isLoadingLimits}
-              >
-                {/* Main gradient background */}
-                <LinearGradient
-                  colors={['rgba(140, 140, 140, 0.35)', 'rgba(100, 100, 100, 0.45)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 1 }}
-                  style={StyleSheet.absoluteFill}
-                />
-                
-                {/* Glass highlight overlay (top shine) */}
-                <LinearGradient
-                  colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 0.6 }}
-                  style={styles.glassOverlay}
-                />
-                
-                {/* Inner glow border */}
-                <View style={styles.innerBorder} />
-                
-                {/* Button content */}
-                <View style={styles.buttonContent}>
-                  <View style={styles.dualIconContainer}>
-                    {!canUseWordscope ? (
-                      <Ionicons name="lock-closed" size={18} color={COLORS.darkGray} />
-                    ) : (
-                      <>
-                        <FontAwesome5 
-                          name="microscope" 
-                          size={16} 
-                          color="#ffffff" 
-                        />
-                        <Ionicons 
-                          name="language" 
-                          size={16} 
-                          color="#ffffff" 
-                        />
-                      </>
-                    )}
+                  
+                  {/* Glass highlight overlay (top shine) */}
+                  <LinearGradient
+                    colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 0.6 }}
+                    style={styles.glassOverlay}
+                  />
+                  
+                  {/* Inner glow border */}
+                  <View style={styles.innerBorder} />
+                  
+                  {/* Button content */}
+                  <View style={styles.buttonContent}>
+                    <Ionicons 
+                      name="pencil" 
+                      size={20} 
+                      color={isWalkthroughActive && currentStep?.id === 'edit-text-button' ? '#000' : '#ffffff'} 
+                      style={styles.buttonIcon} 
+                    />
+                    <Text style={[
+                      styles.buttonText,
+                      isWalkthroughActive && currentStep?.id === 'edit-text-button' ? { color: '#000' } : null
+                    ]}>
+                      Edit Text
+                    </Text>
                   </View>
-                  <Text style={[styles.buttonText, !canUseWordscope ? { color: COLORS.darkGray } : null]}>
-                    {!canUseWordscope ? 'Locked' : 'Wordscope'}
-                  </Text>
-                </View>
-              </TouchableOpacity>
+                </TouchableOpacity>
+              </WalkthroughTarget>
               
-              <TouchableOpacity
-                style={[
-                  styles.translateButton,
-                  !canUseTranslate ? styles.disabledButton : null,
-                  areBothLimitsExhausted ? styles.darkDisabledButton : null
-                ]}
-                onPress={() => !canUseTranslate ? showAPILimitUpgradeAlert('translate') : handleTranslate()}
-                disabled={isLoadingLimits}
+              <WalkthroughTarget
+                targetRef={wordscopeButtonRef}
+                stepId="wordscope-button"
+                currentStepId={currentStep?.id}
+                activeIds={['choose-translation']}
+                isWalkthroughActive={isWalkthroughActive}
+                style={isWalkthroughActive && (currentStep?.id === 'wordscope-button' || currentStep?.id === 'choose-translation') ? styles.highlightedButtonWrapper : undefined}
               >
-                {/* Main gradient background */}
-                <LinearGradient
-                  colors={['rgba(140, 140, 140, 0.35)', 'rgba(100, 100, 100, 0.45)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 1 }}
-                  style={StyleSheet.absoluteFill}
-                />
-                
-                {/* Glass highlight overlay (top shine) */}
-                <LinearGradient
-                  colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 0.6 }}
-                  style={styles.glassOverlay}
-                />
-                
-                {/* Inner glow border */}
-                <View style={styles.innerBorder} />
-                
-                {/* Button content */}
-                <View style={styles.buttonContent}>
-                  <Ionicons 
-                    name={!canUseTranslate ? "lock-closed" : "language"} 
-                    size={20} 
-                    color={!canUseTranslate ? COLORS.darkGray : "#ffffff"} 
-                    style={styles.buttonIcon} 
+                <TouchableOpacity
+                  style={[
+                    styles.scopeAndTranslateButton,
+                    !canUseWordscope ? styles.disabledButton : null,
+                    areBothLimitsExhausted ? styles.darkDisabledButton : null
+                  ]}
+                  onPress={() => !canUseWordscope ? showAPILimitUpgradeAlert('wordscope') : handleScopeAndTranslate()}
+                  disabled={isLoadingLimits || (isWalkthroughActive && currentStep?.id !== 'wordscope-button' && currentStep?.id !== 'choose-translation')}
+                >
+                  {/* Main gradient background */}
+                  <LinearGradient
+                    colors={isWalkthroughActive && (currentStep?.id === 'wordscope-button' || currentStep?.id === 'choose-translation')
+                      ? ['rgba(255, 255, 0, 0.4)', 'rgba(255, 200, 0, 0.5)']
+                      : ['rgba(140, 140, 140, 0.35)', 'rgba(100, 100, 100, 0.45)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={StyleSheet.absoluteFill}
                   />
-                  <Text style={[styles.buttonText, !canUseTranslate ? { color: COLORS.darkGray } : null]}>
-                    {!canUseTranslate ? 'Locked' : 'Translate'}
-                  </Text>
-                </View>
-              </TouchableOpacity>
+                  
+                  {/* Glass highlight overlay (top shine) */}
+                  <LinearGradient
+                    colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 0.6 }}
+                    style={styles.glassOverlay}
+                  />
+                  
+                  {/* Inner glow border */}
+                  <View style={styles.innerBorder} />
+                  
+                  {/* Button content */}
+                  <View style={styles.buttonContent}>
+                    <View style={styles.dualIconContainer}>
+                      {!canUseWordscope ? (
+                        <Ionicons name="lock-closed" size={18} color={COLORS.darkGray} />
+                      ) : (
+                        <>
+                          <FontAwesome5 
+                            name="microscope" 
+                            size={16} 
+                            color={isWalkthroughActive && (currentStep?.id === 'wordscope-button' || currentStep?.id === 'choose-translation') ? '#000' : '#ffffff'} 
+                          />
+                          <Ionicons 
+                            name="language" 
+                            size={16} 
+                            color={isWalkthroughActive && (currentStep?.id === 'wordscope-button' || currentStep?.id === 'choose-translation') ? '#000' : '#ffffff'} 
+                          />
+                        </>
+                      )}
+                    </View>
+                    <Text style={[
+                      styles.buttonText, 
+                      !canUseWordscope ? { color: COLORS.darkGray } : null,
+                      isWalkthroughActive && (currentStep?.id === 'wordscope-button' || currentStep?.id === 'choose-translation') ? { color: '#000' } : null
+                    ]}>
+                      {!canUseWordscope ? 'Locked' : 'Wordscope'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </WalkthroughTarget>
+              
+              <WalkthroughTarget
+                targetRef={translateButtonRef}
+                stepId="translate-button"
+                currentStepId={currentStep?.id}
+                activeIds={['choose-translation']}
+                isWalkthroughActive={isWalkthroughActive}
+                style={isWalkthroughActive && (currentStep?.id === 'translate-button' || currentStep?.id === 'choose-translation') ? styles.highlightedButtonWrapper : undefined}
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.translateButton,
+                    !canUseTranslate ? styles.disabledButton : null,
+                    areBothLimitsExhausted ? styles.darkDisabledButton : null
+                  ]}
+                  onPress={() => !canUseTranslate ? showAPILimitUpgradeAlert('translate') : handleTranslate()}
+                  disabled={isLoadingLimits || (isWalkthroughActive && currentStep?.id !== 'translate-button' && currentStep?.id !== 'choose-translation')}
+                >
+                  {/* Main gradient background */}
+                  <LinearGradient
+                    colors={isWalkthroughActive && (currentStep?.id === 'translate-button' || currentStep?.id === 'choose-translation')
+                      ? ['rgba(255, 255, 0, 0.4)', 'rgba(255, 200, 0, 0.5)']
+                      : ['rgba(140, 140, 140, 0.35)', 'rgba(100, 100, 100, 0.45)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  
+                  {/* Glass highlight overlay (top shine) */}
+                  <LinearGradient
+                    colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 0.6 }}
+                    style={styles.glassOverlay}
+                  />
+                  
+                  {/* Inner glow border */}
+                  <View style={styles.innerBorder} />
+                  
+                  {/* Button content */}
+                  <View style={styles.buttonContent}>
+                    <Ionicons 
+                      name={!canUseTranslate ? "lock-closed" : "language"} 
+                      size={20} 
+                      color={!canUseTranslate ? COLORS.darkGray : (isWalkthroughActive && (currentStep?.id === 'translate-button' || currentStep?.id === 'choose-translation') ? '#000' : '#ffffff')} 
+                      style={styles.buttonIcon} 
+                    />
+                    <Text style={[
+                      styles.buttonText, 
+                      !canUseTranslate ? { color: COLORS.darkGray } : null,
+                      isWalkthroughActive && (currentStep?.id === 'translate-button' || currentStep?.id === 'choose-translation') ? { color: '#000' } : null
+                    ]}>
+                      {!canUseTranslate ? 'Locked' : 'Translate'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </WalkthroughTarget>
             </View>
           )}
 
@@ -1334,175 +1673,261 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                     <View style={styles.buttonContainer}>
                       {/* Top Row */}
                       <View style={styles.gridRow}>
-                        <TouchableOpacity
-                          style={[styles.gridButton, { flex: 1 }]}
-                          onPress={handleViewSavedFlashcards}
+                        <WalkthroughTarget
+                          targetRef={viewSavedButtonRef}
+                          stepId="view-saved-button"
+                          currentStepId={currentStep?.id}
+                          isWalkthroughActive={isWalkthroughActive}
+                          style={StyleSheet.flatten([
+                            { flex: 1 },
+                            isWalkthroughActive && currentStep?.id === 'view-saved-button' && styles.highlightedButtonWrapper
+                          ])}
                         >
-                          {/* Main gradient background */}
-                          <LinearGradient
-                            colors={['rgba(100, 116, 139, 0.35)', 'rgba(71, 85, 105, 0.45)']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 0, y: 1 }}
-                            style={StyleSheet.absoluteFill}
-                          />
-                          
-                          {/* Glass highlight overlay (top shine) */}
-                          <LinearGradient
-                            colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 0, y: 0.6 }}
-                            style={styles.glassOverlay}
-                          />
-                          
-                          {/* Inner glow border */}
-                          <View style={styles.innerBorder} />
-                          
-                          {/* Button content */}
-                          <View style={styles.gridButtonContent}>
-                            <Ionicons name="albums-outline" size={20} color="#ffffff" style={styles.buttonIcon} />
-                            <Text style={styles.gridButtonText}>{t('flashcard.save.viewSaved')}</Text>
-                          </View>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          style={[
-                            styles.gridButton,
-                            styles.saveGridButton,
-                            isSaved ? styles.savedButton : null,
-                            (isSaving || !canCreateFlashcard) ? styles.disabledButton : null,
-                            !canCreateFlashcard ? styles.darkDisabledButton : null,
-                          ]}
-                          onPress={handleShowDeckSelector}
-                          disabled={isSaving || isSaved}
-                        >
-                          {/* Main gradient background */}
-                          {isSaved ? (
+                          <TouchableOpacity
+                            style={[styles.gridButton]}
+                            onPress={handleViewSavedFlashcards}
+                            disabled={isWalkthroughActive && currentStep?.id !== 'view-saved-button'}
+                          >
+                            {/* Main gradient background */}
                             <LinearGradient
-                              colors={['rgba(255, 149, 0, 0.4)', 'rgba(255, 149, 0, 0.5)']}
+                              colors={isWalkthroughActive && currentStep?.id === 'view-saved-button'
+                                ? ['rgba(255, 255, 0, 0.4)', 'rgba(255, 200, 0, 0.5)']
+                                : ['rgba(100, 116, 139, 0.35)', 'rgba(71, 85, 105, 0.45)']}
                               start={{ x: 0, y: 0 }}
                               end={{ x: 0, y: 1 }}
                               style={StyleSheet.absoluteFill}
                             />
-                          ) : (isSaving || !canCreateFlashcard) ? (
-                            <LinearGradient
-                              colors={['rgba(51, 65, 85, 0.5)', 'rgba(30, 41, 59, 0.6)']}
-                              start={{ x: 0, y: 0 }}
-                              end={{ x: 0, y: 1 }}
-                              style={StyleSheet.absoluteFill}
-                            />
-                          ) : (
-                            <LinearGradient
-                              colors={['rgba(100, 116, 139, 0.35)', 'rgba(71, 85, 105, 0.45)']}
-                              start={{ x: 0, y: 0 }}
-                              end={{ x: 0, y: 1 }}
-                              style={StyleSheet.absoluteFill}
-                            />
-                          )}
-                          
-                          {/* Glass highlight overlay (top shine) - only if not disabled */}
-                          {(!isSaving && canCreateFlashcard) && (
+                            
+                            {/* Glass highlight overlay (top shine) */}
                             <LinearGradient
                               colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
                               start={{ x: 0, y: 0 }}
                               end={{ x: 0, y: 0.6 }}
                               style={styles.glassOverlay}
                             />
-                          )}
-                          
-                          {/* Inner glow border */}
-                          <View style={styles.innerBorder} />
-                          
-                          {/* Button content */}
-                          <View style={styles.gridButtonContent}>
-                            {isSaving ? (
-                              <ActivityIndicator size="small" color="#ffffff" />
+                            
+                            {/* Inner glow border */}
+                            <View style={styles.innerBorder} />
+                            
+                            {/* Button content */}
+                            <View style={styles.gridButtonContent}>
+                              <Ionicons 
+                                name="albums-outline" 
+                                size={18} 
+                                color={isWalkthroughActive && currentStep?.id === 'view-saved-button' ? '#000' : '#ffffff'} 
+                                style={styles.buttonIcon} 
+                              />
+                              <Text style={[
+                                styles.gridButtonText,
+                                isWalkthroughActive && currentStep?.id === 'view-saved-button' ? { color: '#000' } : null
+                              ]}>{t('flashcard.save.viewSaved')}</Text>
+                            </View>
+                          </TouchableOpacity>
+                        </WalkthroughTarget>
+
+                        <WalkthroughTarget
+                          targetRef={saveButtonRef}
+                          stepId="save-button"
+                          currentStepId={currentStep?.id}
+                          activeIds={['final-save-prompt']}
+                          isWalkthroughActive={isWalkthroughActive}
+                          style={StyleSheet.flatten([
+                            { flex: 1 },
+                            isWalkthroughActive && (currentStep?.id === 'save-button' || currentStep?.id === 'final-save-prompt') && styles.highlightedButtonWrapper
+                          ])}
+                        >
+                          <TouchableOpacity
+                            style={[
+                              styles.gridButton,
+                              styles.saveGridButton,
+                              isSaved ? styles.savedButton : null,
+                              (isSaving || !canCreateFlashcard) ? styles.disabledButton : null,
+                              !canCreateFlashcard ? styles.darkDisabledButton : null,
+                            ]}
+                            onPress={handleShowDeckSelector}
+                            disabled={isSaving || isSaved || (isWalkthroughActive && currentStep?.id !== 'save-button' && currentStep?.id !== 'final-save-prompt')}
+                          >
+                            {/* Main gradient background */}
+                            {isSaved ? (
+                              <LinearGradient
+                                colors={['rgba(255, 149, 0, 0.4)', 'rgba(255, 149, 0, 0.5)']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 0, y: 1 }}
+                                style={StyleSheet.absoluteFill}
+                              />
+                            ) : isWalkthroughActive && (currentStep?.id === 'save-button' || currentStep?.id === 'final-save-prompt') ? (
+                              <LinearGradient
+                                colors={['rgba(255, 255, 0, 0.4)', 'rgba(255, 200, 0, 0.5)']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 0, y: 1 }}
+                                style={StyleSheet.absoluteFill}
+                              />
+                            ) : (isSaving || !canCreateFlashcard) ? (
+                              <LinearGradient
+                                colors={['rgba(51, 65, 85, 0.5)', 'rgba(30, 41, 59, 0.6)']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 0, y: 1 }}
+                                style={StyleSheet.absoluteFill}
+                              />
                             ) : (
-                              <>
-                                <Ionicons 
-                                  name={
-                                    isSaved ? "checkmark-circle" : 
-                                    !canCreateFlashcard ? "lock-closed" : 
-                                    "bookmark-outline"
-                                  } 
-                                  size={20} 
-                                  color={!canCreateFlashcard ? COLORS.darkGray : "#ffffff"}
-                                  style={styles.buttonIcon} 
-                                />
-                                <Text style={[
-                                  styles.gridButtonText,
-                                  !canCreateFlashcard ? { color: COLORS.darkGray } : null
-                                ]}>
-                                  {isSaved ? t('flashcard.save.savedAsFlashcard') : 
-                                   !canCreateFlashcard ? `Limit reached (${remainingFlashcards} left)` :
-                                   t('flashcard.save.saveAsFlashcard')}
-                                </Text>
-                              </>
+                              <LinearGradient
+                                colors={['rgba(100, 116, 139, 0.35)', 'rgba(71, 85, 105, 0.45)']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 0, y: 1 }}
+                                style={StyleSheet.absoluteFill}
+                              />
                             )}
-                          </View>
-                        </TouchableOpacity>
-                    </View>
+                            
+                            {/* Glass highlight overlay (top shine) - only if not disabled */}
+                            {(!isSaving && canCreateFlashcard) && (
+                              <LinearGradient
+                                colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 0, y: 0.6 }}
+                                style={styles.glassOverlay}
+                              />
+                            )}
+                            
+                            {/* Inner glow border */}
+                            <View style={styles.innerBorder} />
+                            
+                            {/* Button content */}
+                            <View style={styles.gridButtonContent}>
+                              {isSaving ? (
+                                <ActivityIndicator size="small" color="#ffffff" />
+                              ) : (
+                                <>
+                                  <Ionicons 
+                                    name={
+                                      isSaved ? "checkmark-circle" : 
+                                      !canCreateFlashcard ? "lock-closed" : 
+                                      "bookmark-outline"
+                                    } 
+                                    size={18} 
+                                    color={!canCreateFlashcard ? COLORS.darkGray : (isWalkthroughActive && (currentStep?.id === 'save-button' || currentStep?.id === 'final-save-prompt') ? '#000' : '#ffffff')}
+                                    style={styles.buttonIcon} 
+                                  />
+                                  <Text style={[
+                                    styles.gridButtonText,
+                                    !canCreateFlashcard ? { color: COLORS.darkGray } : null,
+                                    isWalkthroughActive && (currentStep?.id === 'save-button' || currentStep?.id === 'final-save-prompt') ? { color: '#000' } : null
+                                  ]}>
+                                    {isSaved ? t('flashcard.save.savedAsFlashcard') : 
+                                     !canCreateFlashcard ? `Limit reached (${remainingFlashcards} left)` :
+                                     t('flashcard.save.saveAsFlashcard')}
+                                  </Text>
+                                </>
+                              )}
+                            </View>
+                          </TouchableOpacity>
+                        </WalkthroughTarget>
+                      </View>
 
                       {/* Bottom Row */}
                       <View style={styles.gridRow}>
-                        <TouchableOpacity 
-                          style={[styles.gridButton, styles.editTranslationGridButton]} 
-                          onPress={handleEditTranslation}
+                        <WalkthroughTarget
+                          targetRef={editTranslationButtonRef}
+                          stepId="edit-translation-button"
+                          currentStepId={currentStep?.id}
+                          isWalkthroughActive={isWalkthroughActive}
+                          style={StyleSheet.flatten([
+                            { flex: 1 },
+                            isWalkthroughActive && currentStep?.id === 'edit-translation-button' && styles.highlightedButtonWrapper
+                          ])}
                         >
-                          {/* Main gradient background - green */}
-                          <LinearGradient
-                            colors={['rgba(44, 182, 125, 0.4)', 'rgba(34, 151, 103, 0.5)']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 0, y: 1 }}
-                            style={StyleSheet.absoluteFill}
-                          />
-                          
-                          {/* Glass highlight overlay (top shine) */}
-                          <LinearGradient
-                            colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 0, y: 0.6 }}
-                            style={styles.glassOverlay}
-                          />
-                          
-                          {/* Inner glow border */}
-                          <View style={styles.innerBorder} />
-                          
-                          {/* Button content */}
-                          <View style={styles.gridButtonContent}>
-                            <Ionicons name="pencil" size={18} color="#ffffff" style={styles.buttonIcon} />
-                            <Text style={styles.gridButtonText}>{t('flashcard.edit.editTranslation')}</Text>
-                          </View>
-                        </TouchableOpacity>
+                          <TouchableOpacity 
+                            style={[styles.gridButton, styles.editTranslationGridButton]} 
+                            onPress={handleEditTranslation}
+                            disabled={isWalkthroughActive && currentStep?.id !== 'edit-translation-button'}
+                          >
+                            {/* Main gradient background - green or yellow if highlighted */}
+                            <LinearGradient
+                              colors={isWalkthroughActive && currentStep?.id === 'edit-translation-button'
+                                ? ['rgba(255, 255, 0, 0.4)', 'rgba(255, 200, 0, 0.5)']
+                                : ['rgba(44, 182, 125, 0.4)', 'rgba(34, 151, 103, 0.5)']}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 0, y: 1 }}
+                              style={StyleSheet.absoluteFill}
+                            />
+                            
+                            {/* Glass highlight overlay (top shine) */}
+                            <LinearGradient
+                              colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 0, y: 0.6 }}
+                              style={styles.glassOverlay}
+                            />
+                            
+                            {/* Inner glow border */}
+                            <View style={styles.innerBorder} />
+                            
+                            {/* Button content */}
+                            <View style={styles.gridButtonContent}>
+                              <Ionicons 
+                                name="pencil" 
+                                size={18} 
+                                color={isWalkthroughActive && currentStep?.id === 'edit-translation-button' ? '#000' : '#ffffff'} 
+                                style={styles.buttonIcon} 
+                              />
+                              <Text style={[
+                                styles.gridButtonText,
+                                isWalkthroughActive && currentStep?.id === 'edit-translation-button' ? { color: '#000' } : null
+                              ]}>{t('flashcard.edit.editTranslation')}</Text>
+                            </View>
+                          </TouchableOpacity>
+                        </WalkthroughTarget>
                         
-                        <TouchableOpacity 
-                          style={[styles.gridButton, styles.editInputGridButton]} 
-                          onPress={handleEditInputAndRetranslate}
+                        <WalkthroughTarget
+                          targetRef={editInputRetranslateButtonRef}
+                          stepId="edit-input-retranslate-button"
+                          currentStepId={currentStep?.id}
+                          isWalkthroughActive={isWalkthroughActive}
+                          style={StyleSheet.flatten([
+                            { flex: 1 },
+                            isWalkthroughActive && currentStep?.id === 'edit-input-retranslate-button' && styles.highlightedButtonWrapper
+                          ])}
                         >
-                          {/* Main gradient background - red */}
-                          <LinearGradient
-                            colors={['rgba(255, 107, 107, 0.4)', 'rgba(220, 38, 38, 0.5)']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 0, y: 1 }}
-                            style={StyleSheet.absoluteFill}
-                          />
-                          
-                          {/* Glass highlight overlay (top shine) */}
-                          <LinearGradient
-                            colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 0, y: 0.6 }}
-                            style={styles.glassOverlay}
-                          />
-                          
-                          {/* Inner glow border */}
-                          <View style={styles.innerBorder} />
-                          
-                          {/* Button content */}
-                          <View style={styles.gridButtonContent}>
-                            <Ionicons name="refresh" size={18} color="#ffffff" style={styles.buttonIcon} />
-                            <Text style={styles.gridButtonText}>{t('flashcard.edit.editInputRetranslate')}</Text>
-                          </View>
-                        </TouchableOpacity>
+                          <TouchableOpacity 
+                            style={[styles.gridButton, styles.editInputGridButton]} 
+                            onPress={handleEditInputAndRetranslate}
+                            disabled={isWalkthroughActive && currentStep?.id !== 'edit-input-retranslate-button'}
+                          >
+                            {/* Main gradient background - red or yellow if highlighted */}
+                            <LinearGradient
+                              colors={isWalkthroughActive && currentStep?.id === 'edit-input-retranslate-button'
+                                ? ['rgba(255, 255, 0, 0.4)', 'rgba(255, 200, 0, 0.5)']
+                                : ['rgba(255, 107, 107, 0.4)', 'rgba(220, 38, 38, 0.5)']}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 0, y: 1 }}
+                              style={StyleSheet.absoluteFill}
+                            />
+                            
+                            {/* Glass highlight overlay (top shine) */}
+                            <LinearGradient
+                              colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 0, y: 0.6 }}
+                              style={styles.glassOverlay}
+                            />
+                            
+                            {/* Inner glow border */}
+                            <View style={styles.innerBorder} />
+                            
+                            {/* Button content */}
+                            <View style={styles.gridButtonContent}>
+                              <Ionicons 
+                                name="refresh" 
+                                size={18} 
+                                color={isWalkthroughActive && currentStep?.id === 'edit-input-retranslate-button' ? '#000' : '#ffffff'} 
+                                style={styles.buttonIcon} 
+                              />
+                              <Text style={[
+                                styles.gridButtonText,
+                                isWalkthroughActive && currentStep?.id === 'edit-input-retranslate-button' ? { color: '#000' } : null
+                              ]}>{t('flashcard.edit.editInputRetranslate')}</Text>
+                            </View>
+                          </TouchableOpacity>
+                        </WalkthroughTarget>
                       </View>
 
                       {/* Deck Selector Modal */}
@@ -1726,6 +2151,31 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
         <ReviewPromptModal
           visible={showReviewPrompt}
           onClose={() => setShowReviewPrompt(false)}
+        />
+
+        {/* Walkthrough Overlay */}
+        <WalkthroughOverlay
+          visible={isWalkthroughActive && !hideWalkthroughOverlay}
+          currentStep={currentStep}
+          currentStepIndex={currentStepIndex}
+          totalSteps={totalSteps}
+          onNext={() => {
+            // If on choose-translation step, just hide the overlay instead of advancing
+            if (currentStep?.id === 'choose-translation') {
+              setHideWalkthroughOverlay(true);
+            } else if (currentStep?.id === 'final-save-prompt') {
+              // Hide overlay so user can press the save button
+              setHideWalkthroughOverlay(true);
+            } else if (currentStep?.id === 'congratulations') {
+              // Complete the walkthrough when they press Done on congratulations
+              completeWalkthrough();
+            } else {
+              nextStep();
+            }
+          }}
+          onPrevious={previousStep}
+          onSkip={skipWalkthrough}
+          onDone={completeWalkthrough}
         />
 
       </SafeAreaView>

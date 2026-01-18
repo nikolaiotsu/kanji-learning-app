@@ -13,7 +13,11 @@
     "or": "或",
     "delete": "删除",
     "save": "保存",
-    "reset": "重置"
+    "reset": "重置",
+    "skip": "跳过",
+    "back": "返回",
+    "next": "下一步",
+    "done": "完成"
   },
   "auth": {
     "login": {
@@ -344,5 +348,97 @@
     "dailyStatsTitle": "每日统计调试",
     "dailyStatsMessage": "📅 当前日期: {{date}}\n📊 今日复习（每日）: {{reviewedCount}}\n📊 会话滑动: {{sessionSwiped}}/{{dueCount}}\n🃏 总卡片数（稳定）: {{totalCards}}\n🎓 SRS模式: {{srsMode}}\n\n再次长按可将今天的计数重置为0进行测试。",
     "resetCount": "重置计数"
+  },
+  "walkthrough": {
+    "camera": {
+      "title": "拍照",
+      "description": "点击此处拍摄您想学习的文本照片。相机将扫描并从您的照片创建闪卡。"
+    },
+    "gallery": {
+      "title": "相册",
+      "description": "从相册中选择现有照片来创建闪卡。适合您之前保存的图片。"
+    },
+    "flashcards": {
+      "title": "查看收藏",
+      "description": "访问您的闪卡收藏以整理、编辑和管理已保存的卡片。"
+    },
+    "customCard": {
+      "title": "添加自定义卡片",
+      "description": "通过直接输入文本来创建自定义闪卡。非常适合不拍照添加卡片。"
+    },
+    "reviewCards": {
+      "title": "复习卡片",
+      "description": "您捕获的闪卡将在此处显示以供复习。向右滑动可将卡片从复习会话中移除。向左滑动可再次复习卡片。翻转闪卡和查看图片按钮将在闪卡的右下方。"
+    },
+    "collections": {
+      "title": "收藏",
+      "description": "点击此处选择要复习的闪卡卡组。长按卡组可将其隔离。您可以选择多个收藏以一次复习所有卡片。"
+    },
+    "settings": {
+      "title": "设置",
+      "description": "在此处管理翻译语言、订阅计划、退出登录和其他帐户设置。"
+    },
+    "galleryConfirm": {
+      "title": "从相册上传",
+      "description": "让我们尝试从相册上传图片。选择一张后，我们将指导您完成旋转、裁剪和高亮显示。"
+    },
+    "rotate": {
+      "title": "旋转图片",
+      "description": "如果需要，在裁剪或高亮文本之前旋转您的照片。"
+    },
+    "crop": {
+      "title": "裁剪图片",
+      "description": "将照片裁剪到重要区域，以便只处理您需要的文本。"
+    },
+    "highlight": {
+      "title": "高亮文本",
+      "description": "让我们尝试在图片中高亮一些文本。使用彩虹荧光笔来高亮您想翻译的文本。"
+    },
+    "confirmHighlight": {
+      "title": "确认选择",
+      "description": "彩虹高亮是否整齐地围绕您想翻译的文本？如果是，请按下一步，然后按对勾，如果不是，请按返回按钮重试。"
+    },
+    "translateButton": {
+      "title": "翻译",
+      "description": "点击此处将检测到的文本翻译成您的目标语言。翻译将显示在下方，如果适用，还会显示发音指南。"
+    },
+    "wordscopeButton": {
+      "title": "Wordscope",
+      "description": "这个强大的工具提供翻译和详细分析 - 包括语法分解、使用示例、常见错误、上下文和可能的同义词。非常适合深入学习！"
+    },
+    "editTextButton": {
+      "title": "编辑文本",
+      "description": "如果需要删除不需要的单词或在翻译前修改文本，请点击此处编辑检测到的文本。如果一切看起来都很好，请继续点击翻译或Wordscope按钮！"
+    },
+    "chooseTranslation": {
+      "title": "准备翻译！",
+      "description": "现在点击翻译进行快速翻译，或点击Wordscope进行更深入的分析。两者都会处理您的文本并准备将其保存为闪卡！"
+    },
+    "saveButton": {
+      "title": "保存闪卡",
+      "description": "点击此处将新闪卡保存到您的收藏中。您可以将卡片整理到不同的卡组中！"
+    },
+    "viewSavedButton": {
+      "title": "查看已保存的闪卡",
+      "description": "点击此处浏览所有已保存的闪卡。您可以查看、编辑或删除收藏中的卡片。"
+    },
+    "editTranslationButton": {
+      "title": "编辑翻译",
+      "description": "对翻译不满意？点击此处手动编辑翻译文本或发音指南，然后再保存。"
+    },
+    "editInputRetranslateButton": {
+      "title": "编辑并重新翻译",
+      "description": "需要更改原始文本？点击此处编辑您的输入并获得新的翻译。"
+    },
+    "finalSavePrompt": {
+      "title": "保存您的第一张闪卡！",
+      "description": "现在只需点击此按钮即可将您的第一张闪卡保存到收藏中！"
+    },
+    "congratulations": {
+      "title": "恭喜！🎉",
+      "description": "您已保存了第一张闪卡！祝您收集更多！干杯！🥳"
+    },
+    "continueWalkthrough": "不，继续教程",
+    "endWalkthrough": "是，结束教程"
   }
 } 

@@ -14,7 +14,10 @@
     "delete": "Eliminar",
     "save": "Guardar",
     "done": "Listo",
-    "reset": "Restablecer"
+    "reset": "Restablecer",
+    "skip": "Omitir",
+    "back": "Atrás",
+    "next": "Siguiente"
   },
   "auth": {
     "login": {
@@ -352,6 +355,98 @@
     "dailyStatsTitle": "Depuración de estadísticas diarias",
     "dailyStatsMessage": "📅 Fecha actual: {{date}}\n📊 Revisiones de hoy (Diarias): {{reviewedCount}}\n📊 Deslizadas en sesión: {{sessionSwiped}}/{{dueCount}}\n🃏 Total de tarjetas (Estable): {{totalCards}}\n🎓 Modo SRS: {{srsMode}}\n\nPresiona largo de nuevo para restablecer el conteo de hoy a 0 para pruebas.",
     "resetCount": "Restablecer conteo"
+  },
+  "walkthrough": {
+    "camera": {
+      "title": "Tomar foto",
+      "description": "Toca aquí para tomar una foto del texto que quieres aprender. La cámara escaneará y creará tarjetas de tus fotos."
+    },
+    "gallery": {
+      "title": "Galería",
+      "description": "Elige una foto existente de tu galería para crear tarjetas. Ideal para imágenes que hayas guardado previamente."
+    },
+    "flashcards": {
+      "title": "Ver tu colección",
+      "description": "Accede a tu colección de tarjetas para organizar, editar y administrar tus tarjetas guardadas."
+    },
+    "customCard": {
+      "title": "Agregar tarjeta personalizada",
+      "description": "Crea una tarjeta personalizada ingresando texto directamente. Perfecto para agregar tarjetas sin tomar una foto."
+    },
+    "reviewCards": {
+      "title": "Revisar tarjetas",
+      "description": "Tus tarjetas capturadas aparecerán aquí para revisar. Desliza a la derecha para sacar tarjetas de la sesión de revisión. Desliza a la izquierda para revisar tarjetas nuevamente. Los botones para voltear la tarjeta y ver la imagen estarán en la parte inferior derecha de tus tarjetas."
+    },
+    "collections": {
+      "title": "Colecciones",
+      "description": "Toca aquí para seleccionar qué mazo de tarjetas quieres revisar. Mantén presionado un mazo para aislarlo. Puedes elegir múltiples colecciones para revisar tarjetas de todas a la vez."
+    },
+    "settings": {
+      "title": "Configuración",
+      "description": "Administra idiomas de traducción, plan de suscripción, cerrar sesión y otras configuraciones de cuenta aquí."
+    },
+    "galleryConfirm": {
+      "title": "Subir desde galería",
+      "description": "Intentemos subir una imagen desde la galería. Después de elegir una, te guiaremos a través de rotar, recortar y resaltar."
+    },
+    "rotate": {
+      "title": "Rotar imagen",
+      "description": "Rota tu foto si es necesario antes de recortar o resaltar texto."
+    },
+    "crop": {
+      "title": "Recortar imagen",
+      "description": "Recorta la foto al área importante para procesar solo el texto que necesitas."
+    },
+    "highlight": {
+      "title": "Resaltar texto",
+      "description": "Intentemos resaltar algo de texto en la imagen. Usa el resaltador arcoíris para resaltar el texto que quieres traducir."
+    },
+    "confirmHighlight": {
+      "title": "Confirmar selección",
+      "description": "¿El resaltado arcoíris rodea correctamente el texto que quieres traducir? Si es así, presiona siguiente y luego la marca de verificación, si no, presiona el botón de atrás e inténtalo de nuevo."
+    },
+    "translateButton": {
+      "title": "Traducir",
+      "description": "Toca aquí para traducir el texto detectado a tu idioma objetivo. La traducción aparecerá debajo junto con guías de pronunciación si son aplicables."
+    },
+    "wordscopeButton": {
+      "title": "Wordscope",
+      "description": "Esta poderosa herramienta proporciona tanto traducción como análisis detallado del texto, incluyendo desglose gramatical, ejemplos de uso, errores comunes, contexto y posibles sinónimos. ¡Es perfecta para un aprendizaje más profundo!"
+    },
+    "editTextButton": {
+      "title": "Editar texto",
+      "description": "Toca aquí para editar el texto detectado en caso de que haya palabras que no necesites o quieras modificar antes de traducir. Si todo se ve bien, ¡adelante y toca el botón de traducir o Wordscope!"
+    },
+    "chooseTranslation": {
+      "title": "¡Listo para traducir!",
+      "description": "Ahora toca Traducir para una traducción rápida, o Wordscope para un análisis más profundo. Ambos procesarán tu texto y lo prepararán para guardarlo como una tarjeta."
+    },
+    "saveButton": {
+      "title": "Guardar tarjeta",
+      "description": "Toca aquí para guardar tu nueva tarjeta en tu colección. ¡Puedes organizar las tarjetas en diferentes mazos!"
+    },
+    "viewSavedButton": {
+      "title": "Ver tarjetas guardadas",
+      "description": "Toca aquí para explorar todas tus tarjetas guardadas. Puedes revisar, editar o eliminar tarjetas de tu colección."
+    },
+    "editTranslationButton": {
+      "title": "Editar traducción",
+      "description": "¿No estás satisfecho con la traducción? Toca aquí para editar manualmente el texto traducido o la guía de pronunciación antes de guardar."
+    },
+    "editInputRetranslateButton": {
+      "title": "Editar y retraducir",
+      "description": "¿Necesitas cambiar el texto original? Toca aquí para editar tu entrada y obtener una nueva traducción."
+    },
+    "finalSavePrompt": {
+      "title": "¡Guarda tu primera tarjeta!",
+      "description": "¡Ahora solo toca este botón para guardar tu primera tarjeta en tu colección!"
+    },
+    "congratulations": {
+      "title": "¡Felicitaciones! 🎉",
+      "description": "¡Has guardado tu primera tarjeta! ¡Que haya muchas más! ¡Salud! 🥳"
+    },
+    "continueWalkthrough": "No, continuar el tutorial",
+    "endWalkthrough": "Sí, terminar el tutorial"
   }
 }
 

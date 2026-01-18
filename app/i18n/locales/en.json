@@ -14,7 +14,10 @@
     "delete": "Delete",
     "save": "Save",
     "done": "Done",
-    "reset": "Reset"
+    "reset": "Reset",
+    "skip": "Skip",
+    "back": "Back",
+    "next": "Next"
   },
   "auth": {
     "login": {
@@ -399,11 +402,51 @@
     },
     "highlight": {
       "title": "Highlight Text",
-      "description": "Let's try highlighting some text in the image. Draw a box around the text you want to translate."
+      "description": "Let's try highlighting some text in the image. Use the rainbow highlighter to highlight the text you want to translate."
     },
     "confirmHighlight": {
       "title": "Confirm Selection",
-      "description": "Does the yellow highlight box neatly surround text that you want to translate? If so, press next, and then the checkmark, if not, press the back button and try again."
+      "description": "Does the rainbow highlight neatly surround text that you want to translate? If so, press next, and then the checkmark, if not, press the back button and try again."
+    },
+    "translateButton": {
+      "title": "Translate",
+      "description": "Tap here to translate your detected text into your target language. The translation will appear below along with pronunciation guides if applicable."
+    },
+    "wordscopeButton": {
+      "title": "Wordscope",
+      "description": "This powerful tool provides both translation AND detailed analysis of the text - including a grammar breakdown, usage examples, common mistakes, context, and possible synonyms. It's perfect for deeper learning!"
+    },
+    "editTextButton": {
+      "title": "Edit Text",
+      "description": "Tap here to edit the detected text in case there are words you don't need or want to modify before translating.  If everything looks good, go ahead and tap either the translate or Wordscope button!"
+    },
+    "chooseTranslation": {
+      "title": "Ready to Translate!",
+      "description": "Now tap either Translate for a quick translation, or Wordscope for a deeper analysis. Both will process your text and prepare it for saving as a flashcard!"
+    },
+    "saveButton": {
+      "title": "Save Flashcard",
+      "description": "Tap here to save your new flashcard to your collection. You can organize cards into different decks!"
+    },
+    "viewSavedButton": {
+      "title": "View Saved Flashcards",
+      "description": "Tap here to browse all your saved flashcards. You can review, edit, or delete cards from your collection."
+    },
+    "editTranslationButton": {
+      "title": "Edit Translation",
+      "description": "Not happy with the translation? Tap here to manually edit the translated text or pronunciation guide before saving."
+    },
+    "editInputRetranslateButton": {
+      "title": "Edit & Retranslate",
+      "description": "Need to change the original text? Tap here to edit your input and get a fresh translation."
+    },
+    "finalSavePrompt": {
+      "title": "Save Your First Flashcard!",
+      "description": "Now just tap this button to save your first flashcard to your collection!"
+    },
+    "congratulations": {
+      "title": "Congratulations! 🎉",
+      "description": "You've saved your first flashcard! Here's to many more! Cheers! 🥳"
     },
     "continueWalkthrough": "No, Continue Walkthrough",
     "endWalkthrough": "Yes, End Walkthrough"
