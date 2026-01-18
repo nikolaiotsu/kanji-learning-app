@@ -1,0 +1,464 @@
+{
+  "common": {
+    "loading": "Caricamento...",
+    "error": "Errore",
+    "cancel": "Annulla",
+    "create": "Crea",
+    "continue": "Continua",
+    "ok": "OK",
+    "warning": "Avviso",
+    "success": "Successo!",
+    "failed": "Fallito",
+    "retry": "Riprova",
+    "or": "o",
+    "delete": "Elimina",
+    "save": "Salva",
+    "done": "Fatto",
+    "reset": "Reimposta",
+    "skip": "Salta",
+    "back": "Indietro",
+    "next": "Avanti"
+  },
+  "auth": {
+    "login": {
+      "title": "Ciao Collezionista.",
+      "newUser": "Nuovo nell'app?",
+      "createAccount": "Crea Account",
+      "emailPlaceholder": "Email",
+      "passwordPlaceholder": "Password",
+      "loginButton": "Accedi",
+      "forgotPassword": "Password dimenticata?",
+      "loginFailed": "Accesso fallito",
+      "missingCredentials": "Inserisci sia email che password"
+    },
+    "social": {
+      "googleSignInFailed": "Accesso con Google fallito",
+      "googleSignUpFailed": "Registrazione con Google fallita",
+      "appleSignInFailed": "Accesso con Apple fallito",
+      "appleSignInUnavailable": "Accesso con Apple non disponibile",
+      "appleSignInUnavailableMessage": "L'accesso con Apple non è disponibile su questo dispositivo. Prova con email/password o accesso con Google.",
+      "pleaseTryAgain": "Riprova"
+    },
+    "signup": {
+      "title": "Crea il tuo account",
+      "subtitle": "Crea un account per iniziare a collezionare parole.",
+      "signupWith": "Registrati con",
+      "orWithEmail": "o con email",
+      "confirmPasswordPlaceholder": "Conferma Password",
+      "passwordHint": "La password deve essere lunga almeno 6 caratteri.",
+      "createAccountButton": "Crea Account",
+      "loginExisting": "Accedi con account esistente",
+      "fillAllFields": "Compila tutti i campi",
+      "passwordsMismatch": "Le password non corrispondono",
+      "passwordTooShort": "La password deve essere lunga almeno 6 caratteri",
+      "accountCreated": "Account creato",
+      "accountCreatedMessage": "Abbiamo inviato un link di verifica al tuo indirizzo email. Controlla la tua casella di posta e clicca sul link per verificare il tuo account prima di accedere.",
+      "accountExists": "Account già esistente",
+      "accountExistsMessage": "Esiste già un account con questa email. Accedi invece.",
+      "goToLogin": "Vai all'accesso",
+      "registrationFailed": "Registrazione fallita"
+    }
+  },
+  "deck": {
+    "select": "Seleziona Collezione",
+    "loading": "Caricamento collezioni...",
+    "empty": "Nessuna collezione trovata. Crea la tua prima collezione!",
+    "create": {
+      "new": "Crea Nuova Collezione",
+      "enterName": "Inserisci nome collezione",
+      "error": "Inserisci un nome per la nuova collezione",
+      "failed": "Creazione nuova collezione fallita. Riprova."
+    },
+    "created": "Creata: {{date}}",
+    "reorder": {
+      "title": "Riordina Collezioni",
+      "instruction": "Tieni premuto e trascina per riordinare le tue collezioni",
+      "failed": "Aggiornamento ordine collezioni fallito",
+      "dataCorruption": "Corruzione dati rilevata. Riprova.",
+      "databaseUpdateRequired": "Il database deve essere aggiornato. Contatta il supporto o controlla le istruzioni di migrazione."
+    },
+    "limit": {
+      "title": "Limite Collezioni Raggiunto",
+      "messageFree": "Gli utenti gratuiti possono creare fino a {{maxDecks}} collezioni. Passa a Premium per collezioni illimitate!",
+      "messagePremium": "Hai raggiunto il numero massimo di collezioni ({{maxDecks}}).",
+      "reorderHint": "Tieni premuto e trascina per riordinare"
+    }
+  },
+  "flashcard": {
+    "translate": {
+      "languageMismatch": "Disallineamento Lingua",
+      "languageMismatchMessage": "Il testo non sembra ancora essere in {{language}}. Prova con un testo diverso o cambia le impostazioni della lingua forzata."
+    },
+    "forcedLanguage": {
+      "errorMessage": "Lingua forzata non rilevata: Il testo non sembra essere in {{language}}. Quando la modalità lingua forzata è attiva, inserisci solo testo nella lingua selezionata. Puoi cambiare le tue preferenze linguistiche nelle Impostazioni.",
+      "goBack": "Indietro",
+      "tryAgain": "Riprova",
+      "goToSettings": "Vai alle Impostazioni"
+    },
+    "sectionTitles": {
+      "withFurigana": "Con Furigana",
+      "withPinyin": "Con Pinyin",
+      "withRevisedRomanization": "Con Romanizzazione Revisionata",
+      "withPracticalRomanization": "Con Romanizzazione Pratica",
+      "withArabicChatAlphabet": "Con Alfabeto Chat Arabo",
+      "withItalianAlphabet": "Con Alfabeto Italiano",
+      "withTagalogAlphabet": "Con Alfabeto Tagalog",
+      "withHindiRomanization": "Con Romanizzazione Hindi",
+      "withEsperantoRomanization": "Con Testo Esperanto",
+      "withThaiRomanization": "Con Romanizzazione RTGS",
+      "originalText": "Testo Originale",
+      "withPronunciationGuide": "Con Guida alla Pronuncia",
+      "translation": "Traduzione {{language}}",
+      "collection": "Collezione:"
+    },
+    "save": {
+      "title": "Scheda Salvata",
+      "message": "La tua {{cardType}} è stata salvata in {{deckName}}!",
+      "cannotSaveTitle": "Impossibile Salvare",
+      "cannotSaveTranslation": "Traduzione mancante per la scheda. Assicurati che il testo sia stato elaborato correttamente.",
+      "cannotSaveContent": "Contenuto mancante per la scheda. Assicurati che il testo sia stato elaborato correttamente.",
+      "imageUploadFailedTitle": "Caricamento Immagine Fallito",
+      "imageUploadFailedMessage": "{{error}}\n\nLa scheda verrà salvata senza l'immagine.",
+      "saveError": "Errore di Salvataggio",
+      "saveFailed": "Salvataggio scheda fallito. Riprova.",
+      "viewSaved": "Visualizza Schede Salvate",
+      "saveAsFlashcard": "Salva come Scheda",
+      "savedAsFlashcard": "Salvata come Scheda",
+      "cardType": "scheda {{language}}",
+      "languageFlashcard": "scheda linguistica",
+      "deck1": "Mazzo 1",
+      "newDeck": "un nuovo mazzo"
+    },
+    "input": {
+      "title": "Inserimento Scheda"
+    },
+    "processing": {
+      "analyzing": "Esaminando campione di testo...",
+      "detecting": "Identificando specie di parole...",
+      "cultural": "Preparando le tue voci di parole...",
+      "translating": "Rifinendo la tua nuova collezione..."
+    },
+    "edit": {
+      "emptyOriginal": "Il testo originale non può essere vuoto.",
+      "emptyRomanization": "Il testo di romanizzazione/Furigana è vuoto. Vuoi continuare?",
+      "emptyTranslation": "La traduzione è vuota. Vuoi continuare?",
+      "enterText": "Inserisci il testo da tradurre.",
+      "retranslateFailed": "Elaborazione testo con API Claude fallita. Riprova più tardi.",
+      "romanizationFailed": "Impossibile ottenere la romanizzazione corretta per questo testo. La traduzione è ancora disponibile.",
+      "editText": "Modifica Testo",
+      "editTranslation": "Modifica Traduzione",
+      "editInputRetranslate": "Modifica Input e Ritraduci",
+      "editTextPlaceholder": "Modifica testo qui...",
+      "editTranslationPlaceholder": "Modifica traduzione qui...",
+      "editRomanizationPlaceholder": "Modifica romanizzazione qui...",
+      "editFurigana": "Modifica Furigana",
+      "editPinyin": "Modifica Pinyin",
+      "editRomanization": "Modifica Romanizzazione",
+      "editTransliteration": "Modifica Traslitterazione",
+      "save": "Salva"
+    }
+  },
+  "subscription": {
+    "test": {
+      "purchaseTitle": "Test Acquisto Premium",
+      "purchaseMessage": "Questo simulerà un acquisto premium in modalità sviluppo. Continuare?",
+      "purchase": "Acquista",
+      "premiumActivated": "Premium Attivato! Ora aggiungiamo a quella collezione!",
+      "restored": "Ripristinato!",
+      "restoredMessage": "Abbonamento Premium ripristinato!",
+      "noPurchaseFound": "Nessun Acquisto Trovato",
+      "noPurchaseMessage": "Nessun abbonamento premium da ripristinare."
+    },
+    "limit": {
+      "title": "Limite Giornaliero Raggiunto",
+      "message": "Collezionisti Casuali: limite giornaliero di 5 schede. Collezionisti Seri: Illimitato.",
+      "upgradeToPremium": "Passa a Premium"
+    }
+  },
+  "settings": {
+    "forceDetection": "Rilevamento Lingua Sorgente",
+    "account": "Account",
+    "preferences": "Preferenze",
+    "subscription": "Abbonamento",
+    "usageStatistics": "Statistiche Utilizzo",
+    "privacyPolicy": "Informativa sulla Privacy",
+    "viewPrivacyPolicy": "Visualizza Informativa sulla Privacy",
+    "signIn": "Accedi",
+    "signInDescription": "Accedi per sincronizzare le tue schede su tutti i dispositivi",
+    "signOut": "Esci",
+    "deleteAccount": "Elimina Account",
+    "deleteAccountHoldToConfirm": "Tieni premuto per confermare",
+    "deleteAccountTitle": "Eliminare il tuo account?",
+    "deleteAccountWarning": "Questa azione non può essere annullata. Tutti i tuoi dati verranno eliminati permanentemente, inclusi:",
+    "deleteAccountWarningItems": "• Tutte le schede e collezioni\n• Tutte le immagini e contenuti caricati\n• Il tuo account e profilo\n• Tutta la cronologia di utilizzo",
+    "deleteAccountConfirmTitle": "Sei Assolutamente Sicuro?",
+    "deleteAccountConfirmMessage": "Questo eliminerà permanentemente il tuo account e tutti i dati associati. Questa azione non può essere annullata.",
+    "deleteAccountTypeDelete": "Digita ELIMINA per confermare",
+    "deleteAccountTypePlaceholder": "Digita ELIMINA qui",
+    "deleteAccountConfirmButton": "Sì, Elimina il Mio Account",
+    "deleteAccountCancelButton": "Annulla",
+    "deleteAccountProcessing": "Eliminazione del tuo account...",
+    "deleteAccountSuccess": "Account Eliminato",
+    "deleteAccountSuccessMessage": "Il tuo account e tutti i dati associati sono stati eliminati permanentemente.",
+    "deleteAccountError": "Eliminazione Account Fallita",
+    "deleteAccountErrorMessage": "Si è verificato un errore durante il tentativo di eliminare il tuo account. Riprova o contatta il supporto.",
+    "deleteAccountNetworkError": "Errore di rete. Controlla la tua connessione e riprova.",
+    "translateTo": "Traduci in:",
+    "tapToChange": "(tocca per cambiare)",
+    "forceWordDexDetect": "Forza Word Dex a rilevare:",
+    "swapLanguages": "Scambia Lingue",
+    "premiumPlan": "Piano Premium",
+    "premiumPlanDescription": "Schede illimitate, mazzi illimitati e accesso prioritario alle funzionalità in arrivo",
+    "freePlan": "Piano Gratuito",
+    "unlimitedScans": "Scansioni OCR illimitate, senza pubblicità",
+    "limitedScans": "{{maxScans}} scansioni OCR al giorno, con pubblicità",
+    "ocrScansToday": "Scansioni OCR Oggi",
+    "scansUsed": "{{used}} di {{max}} scansioni utilizzate ({{remaining}} rimanenti)",
+    "selectTargetLanguage": "Seleziona Lingua di Destinazione",
+    "cancel": "Annulla",
+    "signOutError": "Uscita fallita. Riprova.",
+    "swapLanguagesError": "Scambio lingue fallito. Riprova.",
+    "cannotSwapLanguages": "Impossibile Scambiare Lingue",
+    "setLanguageError": "Impostazione lingua fallita. Riprova.",
+    "invalidLanguageSelection": "Selezione Lingua Non Valida",
+    "setDetectionLanguageError": "Impostazione lingua di rilevamento fallita. Riprova.",
+    "resetSwipeCounter": "Reimposta Contatori Scorrimento",
+    "resetSwipeCounterDescription": "Reimposta le statistiche di scorrimento giornaliere per tutti i mazzi. Questo cancella i conteggi di scorrimento destra/sinistra dalle sessioni di revisione ma non influisce sul progresso SRS.",
+    "resetSwipeCounterTitle": "Reimpostare Contatore?",
+    "resetSwipeCounterMessage": "Questo reimposterà i tuoi contatori di scorrimento giornalieri a zero. Sei sicuro?",
+    "resetSwipeCounterConfirm": "Reimposta",
+    "resetSwipeCounterSuccess": "I contatori di scorrimento sono stati reimpostati con successo!",
+    "showAppWalkthrough": "Mostra Tour App",
+    "showAppWalkthroughDescription": "Riproduci il tutorial di onboarding per conoscere le funzionalità dell'app"
+  },
+  "review": {
+    "remaining": "{{count}} rimanenti - scorri ← per rivedere di nuovo - scorri → per scartare",
+    "srsCounter": "{{reviewed}}/{{due}}({{total}})",
+    "reviewMode": "Revisione",
+    "noCardsDue": "Hai finito le tue revisioni per oggi! Vai avanti e colleziona più parole.",
+    "nextReviewDate": "Prossima revisione: {{date}}",
+    "browseCount": "{{count}} schede",
+    "nothingToReview": "Niente da rivedere",
+    "scanText": "Vai a scansionare del testo per aggiungerlo alla tua collezione!",
+    "finishedReview": "Hai finito la tua revisione!",
+    "reviewAgain": "Aggiorna mazzo",
+    "selectCollections": "Collezioni",
+    "collections": "Collezioni",
+    "selectCollectionsToReview": "Seleziona Collezioni da Rivedere",
+    "selectAll": "Seleziona Tutto",
+    "saveSelection": "Salva Selezione ({{count}} {{type}})",
+    "collection": "Collezione",
+    "collections_plural": "Collezioni",
+    "required": "Richiesto",
+    "atLeastOneCollection": "Deve essere selezionata almeno una collezione",
+    "noCollectionsFound": "Nessuna collezione trovata. Crea collezioni nella schermata delle schede.",
+    "loadingCollections": "Caricamento collezioni...",
+    "failedToLoad": "Caricamento collezioni fallito. Riprova.",
+    "noCardsInSelectionTitle": "Nessuna scheda da rivedere",
+    "noCardsInSelectionSubtitle": "La collezione/i selezionata/e non contiene schede. Scegli una collezione diversa o aggiungi schede.",
+    "gettingStarted": {
+      "title": "Inizia",
+      "subtitle": "Crea la tua prima collezione:",
+      "addCard": "Crea una scheda personalizzata",
+      "viewCards": "Visualizza schede salvate",
+      "uploadImage": "Carica immagine dalla galleria",
+      "takePhoto": "Scatta una foto per scansionare testo"
+    },
+    "srsReset": {
+      "title": "Reimposta Progresso SRS",
+      "message": "Questo reimposterà tutte le schede nei mazzi selezionati alla scatola 1 con la data di revisione di oggi. Continuare?",
+      "success": "Reimpostate {{count}} schede alla scatola 1",
+      "error": "Reimpostazione schede fallita. Riprova.",
+      "errorGeneric": "Si è verificato un errore durante la reimpostazione delle schede."
+    },
+    "noCardsToDisplay": "Nessuna scheda da visualizzare"
+  },
+  "savedFlashcards": {
+    "title": "Le Tue Collezioni",
+    "noCollections": "Nessuna collezione disponibile",
+    "collectionOptionsTitle": "Opzioni Collezione",
+    "collectionOptionsMessage": "Cosa vorresti fare con questa collezione?",
+    "renameCollection": "Rinomina Collezione",
+    "deleteCollection": "Elimina Collezione",
+    "deleteCollectionConfirm": "Sei sicuro di voler eliminare questa collezione?",
+    "deleteFlashcard": "Elimina Scheda",
+    "deleteFlashcardConfirm": "Sei sicuro di voler eliminare questa scheda?",
+    "createNewCollection": "Crea Nuova Collezione",
+    "sendToCollection": "Invia a Collezione",
+    "enterNewCollectionName": "Inserisci nome nuova collezione",
+    "noOtherCollections": "Nessun'altra collezione disponibile",
+    "back": "Indietro",
+    "createAndMove": "Crea e Sposta",
+    "newCollection": "Nuova Collezione",
+    "loadingFlashcards": "Caricamento schede...",
+    "noFlashcardsTitle": "Nessuna Scheda in Questa Collezione",
+    "noFlashcardsText": "Le schede che salvi in questa collezione appariranno qui. Vai a scansionare del testo e salvarlo come scheda!",
+    "moveSuccess": "Scheda spostata nella nuova collezione: {{name}}",
+    "flashcardMovedSuccess": "Scheda spostata con successo",
+    "flashcardUpdatedSuccess": "Scheda aggiornata con successo",
+    "enterDeckName": "Inserisci un nome per il mazzo",
+    "loadCollectionsError": "Caricamento collezioni fallito. Riprova.",
+    "loadFlashcardsError": "Caricamento schede fallito. Riprova.",
+    "loadFlashcardsForCollectionError": "Caricamento schede per questa collezione fallito. Riprova.",
+    "deleteFlashcardError": "Eliminazione scheda fallita. Riprova.",
+    "deleteCollectionError": "Eliminazione collezione fallita. Riprova.",
+    "renameCollectionError": "Rinomina collezione fallita. Riprova.",
+    "moveFlashcardError": "Spostamento scheda fallito",
+    "createDeckError": "Creazione mazzo e spostamento scheda falliti",
+    "updateFlashcardError": "Aggiornamento scheda fallito. Riprova.",
+    "unexpectedError": "Si è verificato un errore imprevisto. Riprova."
+  },
+  "imageHighlighter": {
+    "dragToRotate": "Trascina per ruotare l'immagine",
+    "dragToHighlight": "trascina per evidenziare",
+    "dragToCrop": "trascina per ritagliare"
+  },
+  "textInput": {
+    "placeholder": "Inserisci testo da tradurre",
+    "cancel": "Annulla",
+    "wordScope": "WordScope",
+    "translate": "Traduci"
+  },
+  "offline": {
+    "title": "Modalità Offline",
+    "banner": "Offline - Utilizzo schede in cache",
+    "createCardError": "La creazione di schede richiede una connessione internet",
+    "deckNotCached": "Questo mazzo non è in cache - vai online per visualizzare",
+    "syncInProgress": "Sincronizzazione schede...",
+    "noCacheTitle": "Nessun Dato in Cache Disponibile",
+    "noCacheMessage": "Sei offline e non hai ancora caricato le tue schede mentre eri online. Connettiti a internet per caricare le tue schede per la prima volta.",
+    "deckManagementDisabled": "La gestione dei mazzi (rinomina, elimina, riordina) richiede una connessione internet. Puoi ancora visualizzare le tue schede in cache offline.",
+    "editDisabled": "La modifica e l'eliminazione delle schede richiedono una connessione internet.",
+    "moveDisabled": "Lo spostamento delle schede richiede una connessione internet.",
+    "createDeckDisabled": "La creazione di mazzi richiede una connessione internet."
+  },
+  "camera": {
+    "logoutTitle": "Esci",
+    "logoutConfirm": "Sei sicuro di voler uscire?",
+    "logoutError": "Uscita fallita. Riprova.",
+    "imageMissingTitle": "Immagine Mancante",
+    "imageMissingMessage": "L'immagine corrente non è più disponibile. Seleziona una nuova immagine.",
+    "emptyInputTitle": "Input Vuoto",
+    "emptyInputMessage": "Inserisci del testo da tradurre.",
+    "processingError": "Impossibile elaborare la regione selezionata.",
+    "ocrLimitReachedTitle": "Limite OCR Raggiunto",
+    "ocrLimitReachedMessage": "Hai raggiunto il tuo limite giornaliero. Hai ancora {{remaining}} scansioni rimanenti. Passa a Premium per scansioni illimitate!",
+    "noTextFoundTitle": "Nessun Testo {{language}} Trovato",
+    "noTextFoundMessage": "Nessun testo {{language}} è stato rilevato nell'area selezionata. Prova a selezionare un'area diversa.",
+    "processingLimitReachedTitle": "Limite Elaborazione Raggiunto",
+    "processingLimitReachedMessage": "L'area di testo selezionata è troppo grande o complessa. Prova a selezionare una sezione di testo più piccola.",
+    "ocrErrorTitle": "Errore OCR",
+    "ocrErrorMessage": "C'è stato un problema nel riconoscere il testo nell'area selezionata. Riprova.",
+    "rotationError": "Impossibile applicare la rotazione.",
+    "permissionDenied": "Scusa, abbiamo bisogno dei permessi della fotocamera per far funzionare questo!",
+    "failedToTakePhoto": "Scatto foto fallito"
+  },
+  "reviewPrompt": {
+    "title": "Ti piace collezionare?",
+    "message": "Racconta al mondo di WordDex sull'App Store! Come sviluppatore solista, è un enorme aiuto!",
+    "rateButton": "Valuta WordDex",
+    "laterButton": "Forse Più Tardi",
+    "noThanksButton": "No, Grazie"
+  },
+  "walkthrough": {
+    "camera": {
+      "title": "Scatta Foto",
+      "description": "Tocca qui per scattare una foto del testo che vuoi imparare. La fotocamera scannerà e creerà schede dalle tue foto."
+    },
+    "gallery": {
+      "title": "Galleria",
+      "description": "Scegli una foto esistente dalla tua galleria per creare schede. Ottimo per immagini che hai salvato in precedenza."
+    },
+    "flashcards": {
+      "title": "Visualizza la Tua Collezione",
+      "description": "Accedi alla tua collezione di schede per organizzare, modificare e gestire le tue schede salvate."
+    },
+    "customCard": {
+      "title": "Aggiungi Scheda Personalizzata",
+      "description": "Crea una scheda personalizzata manualmente inserendo testo direttamente. Perfetto per aggiungere schede senza scattare una foto."
+    },
+    "reviewCards": {
+      "title": "Rivedi Schede",
+      "description": "Questa area è dove le tue schede catturate appariranno per la revisione. Scorri a destra per rimuovere le schede dalla sessione di revisione. Scorri a sinistra per rivedere le schede di nuovo. I pulsanti capovolgi scheda e vedi immagine saranno in basso a destra delle tue schede."
+    },
+    "collections": {
+      "title": "Collezioni",
+      "description": "Tocca qui per selezionare quale mazzo di schede vuoi rivedere. Tieni premuto un mazzo per isolarlo. Puoi scegliere più collezioni per rivedere schede da tutte contemporaneamente."
+    },
+    "reviewButton": {
+      "title": "Pulsante Revisione",
+      "description": "Tocca questo pulsante per avviare una sessione di revisione SRS (Sistema di Ripetizione Spaziata) con i tuoi mazzi selezionati. Un pulsante arcobaleno lampeggiante significa che ci sono schede disponibili per la revisione! Tieni premuto il pulsante per reimpostare il tracciamento SRS per tutte le schede nei mazzi selezionati."
+    },
+    "settings": {
+      "title": "Impostazioni",
+      "description": "Gestisci le lingue di traduzione, il piano di abbonamento, l'uscita e altre impostazioni dell'account qui."
+    },
+    "galleryConfirm": {
+      "title": "Carica dalla Galleria",
+      "description": "Proviamo a caricare un'immagine dalla galleria. Dopo averne scelta una, ti guideremo attraverso rotazione, ritaglio ed evidenziazione."
+    },
+    "rotate": {
+      "title": "Ruota Immagine",
+      "description": "Ruota la tua foto se necessario prima di ritagliare o evidenziare il testo."
+    },
+    "crop": {
+      "title": "Ritaglia Immagine",
+      "description": "Ritaglia la foto sull'area importante così elabori solo il testo di cui hai bisogno."
+    },
+    "highlight": {
+      "title": "Evidenzia Testo",
+      "description": "Proviamo a evidenziare del testo nell'immagine. Usa l'evidenziatore arcobaleno per evidenziare il testo che vuoi tradurre."
+    },
+    "confirmHighlight": {
+      "title": "Conferma Selezione",
+      "description": "L'evidenziazione arcobaleno circonda ordinatamente il testo che vuoi tradurre? Se sì, premi avanti, e poi il segno di spunta, se no, premi il pulsante indietro e riprova."
+    },
+    "translateButton": {
+      "title": "Traduci",
+      "description": "Tocca qui per tradurre il tuo testo rilevato nella tua lingua di destinazione. La traduzione apparirà sotto insieme alle guide di pronuncia se applicabile."
+    },
+    "wordscopeButton": {
+      "title": "Wordscope",
+      "description": "Questo potente strumento fornisce sia traduzione CHE analisi dettagliata del testo - inclusa una scomposizione grammaticale, esempi di utilizzo, errori comuni, contesto e possibili sinonimi. È perfetto per un apprendimento più approfondito!"
+    },
+    "editTextButton": {
+      "title": "Modifica Testo",
+      "description": "Tocca qui per modificare il testo rilevato nel caso ci siano parole che non ti servono o vuoi modificare prima di tradurre. Se tutto sembra a posto, vai avanti e tocca il pulsante traduci o Wordscope!"
+    },
+    "chooseTranslation": {
+      "title": "Pronto a Tradurre!",
+      "description": "Ora tocca Traduci per una traduzione rapida, o Wordscope per un'analisi più approfondita. Entrambi elaboreranno il tuo testo e lo prepareranno per il salvataggio come scheda!"
+    },
+    "saveButton": {
+      "title": "Salva Scheda",
+      "description": "Tocca qui per salvare la tua nuova scheda nella tua collezione. Puoi organizzare le schede in mazzi diversi!"
+    },
+    "viewSavedButton": {
+      "title": "Visualizza Schede Salvate",
+      "description": "Tocca qui per sfogliare tutte le tue schede salvate. Puoi rivedere, modificare o eliminare schede dalla tua collezione."
+    },
+    "editTranslationButton": {
+      "title": "Modifica Traduzione",
+      "description": "Non sei soddisfatto della traduzione? Tocca qui per modificare manualmente il testo tradotto o la guida alla pronuncia prima di salvare."
+    },
+    "editInputRetranslateButton": {
+      "title": "Modifica e Ritraduci",
+      "description": "Hai bisogno di cambiare il testo originale? Tocca qui per modificare il tuo input e ottenere una nuova traduzione."
+    },
+    "finalSavePrompt": {
+      "title": "Salva la Tua Prima Scheda!",
+      "description": "Ora tocca semplicemente questo pulsante per salvare la tua prima scheda nella tua collezione!"
+    },
+    "congratulations": {
+      "title": "Congratulazioni! 🎉",
+      "description": "Hai salvato la tua prima scheda! Ecco a molte altre! Salute! 🥳"
+    },
+    "continueWalkthrough": "No, Continua Tour",
+    "endWalkthrough": "Sì, Termina Tour"
+  },
+  "debug": {
+    "dailyStatsTitle": "Debug Statistiche Giornaliere",
+    "dailyStatsMessage": "📅 Data Corrente: {{date}}\n📊 Revisioni di Oggi (Giornaliere): {{reviewedCount}}\n📊 Scorri Sessione: {{sessionSwiped}}/{{dueCount}}\n🃏 Schede Totali (Stabile): {{totalCards}}\n🎓 Modalità SRS: {{srsMode}}\n\nTieni premuto di nuovo per reimpostare il conteggio di oggi a 0 per i test.",
+    "resetCount": "Reimposta Conteggio"
+  }
+}

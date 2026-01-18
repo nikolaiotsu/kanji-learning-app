@@ -1,0 +1,464 @@
+{
+  "common": {
+    "loading": "Đang tải...",
+    "error": "Lỗi",
+    "cancel": "Hủy",
+    "create": "Tạo",
+    "continue": "Tiếp tục",
+    "ok": "OK",
+    "warning": "Cảnh báo",
+    "success": "Thành công!",
+    "failed": "Thất bại",
+    "retry": "Thử lại",
+    "or": "hoặc",
+    "delete": "Xóa",
+    "save": "Lưu",
+    "done": "Hoàn tất",
+    "reset": "Đặt lại",
+    "skip": "Bỏ qua",
+    "back": "Quay lại",
+    "next": "Tiếp theo"
+  },
+  "auth": {
+    "login": {
+      "title": "Xin chào Người Sưu Tập.",
+      "newUser": "Mới dùng ứng dụng?",
+      "createAccount": "Tạo Tài khoản",
+      "emailPlaceholder": "Email",
+      "passwordPlaceholder": "Mật khẩu",
+      "loginButton": "Đăng nhập",
+      "forgotPassword": "Quên mật khẩu?",
+      "loginFailed": "Đăng nhập thất bại",
+      "missingCredentials": "Vui lòng nhập cả email và mật khẩu"
+    },
+    "social": {
+      "googleSignInFailed": "Đăng nhập Google thất bại",
+      "googleSignUpFailed": "Đăng ký Google thất bại",
+      "appleSignInFailed": "Đăng nhập Apple thất bại",
+      "appleSignInUnavailable": "Đăng nhập Apple không khả dụng",
+      "appleSignInUnavailableMessage": "Đăng nhập Apple không khả dụng trên thiết bị này. Vui lòng thử đăng nhập bằng email/mật khẩu hoặc Google.",
+      "pleaseTryAgain": "Vui lòng thử lại"
+    },
+    "signup": {
+      "title": "Tạo Tài khoản Của Bạn",
+      "subtitle": "Tạo tài khoản để bắt đầu sưu tập từ.",
+      "signupWith": "Đăng ký với",
+      "orWithEmail": "hoặc với email",
+      "confirmPasswordPlaceholder": "Xác nhận Mật khẩu",
+      "passwordHint": "Mật khẩu phải có ít nhất 6 ký tự.",
+      "createAccountButton": "Tạo Tài khoản",
+      "loginExisting": "Đăng nhập với Tài khoản Hiện có",
+      "fillAllFields": "Vui lòng điền tất cả các trường",
+      "passwordsMismatch": "Mật khẩu không khớp",
+      "passwordTooShort": "Mật khẩu phải có ít nhất 6 ký tự",
+      "accountCreated": "Tài khoản đã được tạo",
+      "accountCreatedMessage": "Chúng tôi đã gửi liên kết xác minh đến địa chỉ email của bạn. Vui lòng kiểm tra hộp thư đến và nhấp vào liên kết để xác minh tài khoản trước khi đăng nhập.",
+      "accountExists": "Tài khoản Đã Tồn tại",
+      "accountExistsMessage": "Đã có tài khoản với email này. Vui lòng đăng nhập thay vào đó.",
+      "goToLogin": "Đi đến Đăng nhập",
+      "registrationFailed": "Đăng ký thất bại"
+    }
+  },
+  "deck": {
+    "select": "Chọn Bộ Sưu Tập",
+    "loading": "Đang tải bộ sưu tập...",
+    "empty": "Không tìm thấy bộ sưu tập nào. Tạo bộ sưu tập đầu tiên của bạn!",
+    "create": {
+      "new": "Tạo Bộ Sưu Tập Mới",
+      "enterName": "Nhập tên bộ sưu tập",
+      "error": "Vui lòng nhập tên cho bộ sưu tập mới",
+      "failed": "Không thể tạo bộ sưu tập mới. Vui lòng thử lại."
+    },
+    "created": "Đã tạo: {{date}}",
+    "reorder": {
+      "title": "Sắp xếp lại Bộ Sưu Tập",
+      "instruction": "Nhấn giữ và kéo để sắp xếp lại các bộ sưu tập của bạn",
+      "failed": "Không thể cập nhật thứ tự bộ sưu tập",
+      "dataCorruption": "Phát hiện lỗi dữ liệu. Vui lòng thử lại.",
+      "databaseUpdateRequired": "Cơ sở dữ liệu cần được cập nhật. Vui lòng liên hệ hỗ trợ hoặc kiểm tra hướng dẫn di chuyển."
+    },
+    "limit": {
+      "title": "Đạt Giới hạn Bộ Sưu Tập",
+      "messageFree": "Người dùng miễn phí có thể tạo tối đa {{maxDecks}} bộ sưu tập. Nâng cấp lên Premium để có bộ sưu tập không giới hạn!",
+      "messagePremium": "Bạn đã đạt số lượng bộ sưu tập tối đa ({{maxDecks}}).",
+      "reorderHint": "Nhấn giữ và kéo để sắp xếp lại"
+    }
+  },
+  "flashcard": {
+    "translate": {
+      "languageMismatch": "Ngôn ngữ Không Khớp",
+      "languageMismatchMessage": "Văn bản vẫn không có vẻ là {{language}}. Vui lòng thử với văn bản khác hoặc thay đổi cài đặt ngôn ngữ bắt buộc của bạn."
+    },
+    "forcedLanguage": {
+      "errorMessage": "Ngôn ngữ bắt buộc không được phát hiện: Văn bản không có vẻ là {{language}}. Khi chế độ ngôn ngữ bắt buộc đang hoạt động, vui lòng chỉ nhập văn bản bằng ngôn ngữ đã chọn. Bạn có thể thay đổi tùy chọn ngôn ngữ trong Cài đặt.",
+      "goBack": "Quay lại",
+      "tryAgain": "Thử lại",
+      "goToSettings": "Đi đến Cài đặt"
+    },
+    "sectionTitles": {
+      "withFurigana": "Với Furigana",
+      "withPinyin": "Với Pinyin",
+      "withRevisedRomanization": "Với Chuyển tự Đã Sửa",
+      "withPracticalRomanization": "Với Chuyển tự Thực tế",
+      "withArabicChatAlphabet": "Với Bảng chữ cái Chat Ả Rập",
+      "withItalianAlphabet": "Với Bảng chữ cái Ý",
+      "withTagalogAlphabet": "Với Bảng chữ cái Tagalog",
+      "withHindiRomanization": "Với Chuyển tự Hindi",
+      "withEsperantoRomanization": "Với Văn bản Esperanto",
+      "withThaiRomanization": "Với Chuyển tự RTGS",
+      "originalText": "Văn bản Gốc",
+      "withPronunciationGuide": "Với Hướng dẫn Phát âm",
+      "translation": "Bản dịch {{language}}",
+      "collection": "Bộ sưu tập:"
+    },
+    "save": {
+      "title": "Thẻ đã được Lưu",
+      "message": "{{cardType}} của bạn đã được lưu vào {{deckName}}!",
+      "cannotSaveTitle": "Không thể Lưu",
+      "cannotSaveTranslation": "Thiếu bản dịch cho thẻ. Vui lòng đảm bảo văn bản đã được xử lý đúng cách.",
+      "cannotSaveContent": "Thiếu nội dung cho thẻ. Vui lòng đảm bảo văn bản đã được xử lý đúng cách.",
+      "imageUploadFailedTitle": "Tải lên Hình ảnh Thất bại",
+      "imageUploadFailedMessage": "{{error}}\n\nThẻ sẽ được lưu mà không có hình ảnh.",
+      "saveError": "Lỗi Lưu",
+      "saveFailed": "Không thể lưu thẻ. Vui lòng thử lại.",
+      "viewSaved": "Xem Thẻ đã Lưu",
+      "saveAsFlashcard": "Lưu dưới dạng Thẻ",
+      "savedAsFlashcard": "Đã lưu dưới dạng Thẻ",
+      "cardType": "thẻ {{language}}",
+      "languageFlashcard": "thẻ ngôn ngữ",
+      "deck1": "Bộ thẻ 1",
+      "newDeck": "bộ thẻ mới"
+    },
+    "input": {
+      "title": "Nhập Thẻ"
+    },
+    "processing": {
+      "analyzing": "Đang kiểm tra mẫu văn bản...",
+      "detecting": "Đang xác định loại từ...",
+      "cultural": "Đang chuẩn bị mục từ của bạn...",
+      "translating": "Đang hoàn thiện bộ sưu tập mới của bạn..."
+    },
+    "edit": {
+      "emptyOriginal": "Văn bản gốc không thể để trống.",
+      "emptyRomanization": "Văn bản chuyển tự/Furigana trống. Bạn có muốn tiếp tục không?",
+      "emptyTranslation": "Bản dịch trống. Bạn có muốn tiếp tục không?",
+      "enterText": "Vui lòng nhập văn bản để dịch.",
+      "retranslateFailed": "Không thể xử lý văn bản với Claude API. Vui lòng thử lại sau.",
+      "romanizationFailed": "Không thể lấy chuyển tự phù hợp cho văn bản này. Bản dịch vẫn có sẵn.",
+      "editText": "Chỉnh sửa Văn bản",
+      "editTranslation": "Chỉnh sửa Bản dịch",
+      "editInputRetranslate": "Chỉnh sửa Nhập liệu và Dịch lại",
+      "editTextPlaceholder": "Chỉnh sửa văn bản ở đây...",
+      "editTranslationPlaceholder": "Chỉnh sửa bản dịch ở đây...",
+      "editRomanizationPlaceholder": "Chỉnh sửa chuyển tự ở đây...",
+      "editFurigana": "Chỉnh sửa Furigana",
+      "editPinyin": "Chỉnh sửa Pinyin",
+      "editRomanization": "Chỉnh sửa Chuyển tự",
+      "editTransliteration": "Chỉnh sửa Chuyển tự",
+      "save": "Lưu"
+    }
+  },
+  "subscription": {
+    "test": {
+      "purchaseTitle": "Thử Mua Premium",
+      "purchaseMessage": "Điều này sẽ mô phỏng việc mua premium ở chế độ phát triển. Tiếp tục?",
+      "purchase": "Mua",
+      "premiumActivated": "Premium đã được Kích hoạt! Bây giờ hãy thêm vào bộ sưu tập đó!",
+      "restored": "Đã Khôi phục!",
+      "restoredMessage": "Đã khôi phục đăng ký Premium!",
+      "noPurchaseFound": "Không Tìm thấy Mua hàng",
+      "noPurchaseMessage": "Không có đăng ký premium để khôi phục."
+    },
+    "limit": {
+      "title": "Đạt Giới hạn Hàng ngày",
+      "message": "Người Sưu Tập Thông thường: giới hạn 5 thẻ mỗi ngày. Người Sưu Tập Nghiêm túc: Không giới hạn.",
+      "upgradeToPremium": "Nâng cấp lên Premium"
+    }
+  },
+  "settings": {
+    "forceDetection": "Phát hiện Ngôn ngữ Nguồn",
+    "account": "Tài khoản",
+    "preferences": "Tùy chọn",
+    "subscription": "Đăng ký",
+    "usageStatistics": "Thống kê Sử dụng",
+    "privacyPolicy": "Chính sách Quyền riêng tư",
+    "viewPrivacyPolicy": "Xem Chính sách Quyền riêng tư",
+    "signIn": "Đăng nhập",
+    "signInDescription": "Đăng nhập để đồng bộ thẻ của bạn trên tất cả các thiết bị",
+    "signOut": "Đăng xuất",
+    "deleteAccount": "Xóa Tài khoản",
+    "deleteAccountHoldToConfirm": "Nhấn giữ để xác nhận",
+    "deleteAccountTitle": "Xóa Tài khoản Của Bạn?",
+    "deleteAccountWarning": "Hành động này không thể hoàn tác. Tất cả dữ liệu của bạn sẽ bị xóa vĩnh viễn, bao gồm:",
+    "deleteAccountWarningItems": "• Tất cả thẻ và bộ sưu tập\n• Tất cả hình ảnh và nội dung đã tải lên\n• Tài khoản và hồ sơ của bạn\n• Tất cả lịch sử sử dụng",
+    "deleteAccountConfirmTitle": "Bạn Có Chắc chắn?",
+    "deleteAccountConfirmMessage": "Điều này sẽ xóa vĩnh viễn tài khoản và tất cả dữ liệu liên quan của bạn. Hành động này không thể hoàn tác.",
+    "deleteAccountTypeDelete": "Gõ XÓA để xác nhận",
+    "deleteAccountTypePlaceholder": "Gõ XÓA ở đây",
+    "deleteAccountConfirmButton": "Có, Xóa Tài khoản Của Tôi",
+    "deleteAccountCancelButton": "Hủy",
+    "deleteAccountProcessing": "Đang xóa tài khoản của bạn...",
+    "deleteAccountSuccess": "Đã Xóa Tài khoản",
+    "deleteAccountSuccessMessage": "Tài khoản và tất cả dữ liệu liên quan của bạn đã bị xóa vĩnh viễn.",
+    "deleteAccountError": "Không thể Xóa Tài khoản",
+    "deleteAccountErrorMessage": "Đã xảy ra lỗi khi cố gắng xóa tài khoản của bạn. Vui lòng thử lại hoặc liên hệ hỗ trợ.",
+    "deleteAccountNetworkError": "Lỗi mạng. Vui lòng kiểm tra kết nối và thử lại.",
+    "translateTo": "Dịch sang:",
+    "tapToChange": "(chạm để thay đổi)",
+    "forceWordDexDetect": "Bắt buộc Word Dex phát hiện:",
+    "swapLanguages": "Đổi Ngôn ngữ",
+    "premiumPlan": "Gói Premium",
+    "premiumPlanDescription": "Thẻ không giới hạn, bộ thẻ không giới hạn và quyền truy cập ưu tiên vào các tính năng sắp tới",
+    "freePlan": "Gói Miễn phí",
+    "unlimitedScans": "Quét OCR không giới hạn, không quảng cáo",
+    "limitedScans": "{{maxScans}} lần quét OCR mỗi ngày, có quảng cáo",
+    "ocrScansToday": "Quét OCR Hôm nay",
+    "scansUsed": "Đã dùng {{used}} trong {{max}} lần quét (còn lại {{remaining}})",
+    "selectTargetLanguage": "Chọn Ngôn ngữ Đích",
+    "cancel": "Hủy",
+    "signOutError": "Đăng xuất thất bại. Vui lòng thử lại.",
+    "swapLanguagesError": "Đổi ngôn ngữ thất bại. Vui lòng thử lại.",
+    "cannotSwapLanguages": "Không thể Đổi Ngôn ngữ",
+    "setLanguageError": "Không thể đặt ngôn ngữ. Vui lòng thử lại.",
+    "invalidLanguageSelection": "Lựa chọn Ngôn ngữ Không hợp lệ",
+    "setDetectionLanguageError": "Không thể đặt ngôn ngữ phát hiện. Vui lòng thử lại.",
+    "resetSwipeCounter": "Đặt lại Bộ đếm Vuốt",
+    "resetSwipeCounterDescription": "Đặt lại thống kê vuốt hàng ngày cho tất cả bộ thẻ. Điều này xóa số lần vuốt phải/trái từ các phiên ôn tập nhưng không ảnh hưởng đến tiến trình SRS.",
+    "resetSwipeCounterTitle": "Đặt lại Bộ đếm?",
+    "resetSwipeCounterMessage": "Điều này sẽ đặt lại bộ đếm vuốt hàng ngày của bạn về không. Bạn có chắc chắn?",
+    "resetSwipeCounterConfirm": "Đặt lại",
+    "resetSwipeCounterSuccess": "Đã đặt lại bộ đếm vuốt thành công!",
+    "showAppWalkthrough": "Hiển thị Hướng dẫn Ứng dụng",
+    "showAppWalkthroughDescription": "Phát lại hướng dẫn onboarding để tìm hiểu về các tính năng ứng dụng"
+  },
+  "review": {
+    "remaining": "{{count}} còn lại - vuốt ← để ôn lại - vuốt → để bỏ qua",
+    "srsCounter": "{{reviewed}}/{{due}}({{total}})",
+    "reviewMode": "Ôn tập",
+    "noCardsDue": "Bạn đã hoàn thành ôn tập cho hôm nay! Hãy tiếp tục sưu tập thêm từ.",
+    "nextReviewDate": "Ôn tập tiếp theo: {{date}}",
+    "browseCount": "{{count}} thẻ",
+    "nothingToReview": "Không có gì để ôn tập",
+    "scanText": "Hãy quét một số văn bản để thêm vào bộ sưu tập của bạn!",
+    "finishedReview": "Bạn đã hoàn thành ôn tập!",
+    "reviewAgain": "Làm mới bộ thẻ",
+    "selectCollections": "Bộ sưu tập",
+    "collections": "Bộ sưu tập",
+    "selectCollectionsToReview": "Chọn Bộ Sưu Tập để Ôn tập",
+    "selectAll": "Chọn Tất cả",
+    "saveSelection": "Lưu Lựa chọn ({{count}} {{type}})",
+    "collection": "Bộ sưu tập",
+    "collections_plural": "Bộ sưu tập",
+    "required": "Bắt buộc",
+    "atLeastOneCollection": "Phải chọn ít nhất một bộ sưu tập",
+    "noCollectionsFound": "Không tìm thấy bộ sưu tập nào. Tạo bộ sưu tập trong màn hình thẻ.",
+    "loadingCollections": "Đang tải bộ sưu tập...",
+    "failedToLoad": "Không thể tải bộ sưu tập. Vui lòng thử lại.",
+    "noCardsInSelectionTitle": "Không có thẻ để ôn tập",
+    "noCardsInSelectionSubtitle": "Bộ sưu tập đã chọn không chứa thẻ nào. Chọn bộ sưu tập khác hoặc thêm thẻ.",
+    "gettingStarted": {
+      "title": "Bắt đầu",
+      "subtitle": "Tạo bộ sưu tập đầu tiên của bạn:",
+      "addCard": "Tạo thẻ tùy chỉnh",
+      "viewCards": "Xem thẻ đã lưu",
+      "uploadImage": "Tải lên hình ảnh từ thư viện",
+      "takePhoto": "Chụp ảnh để quét văn bản"
+    },
+    "srsReset": {
+      "title": "Đặt lại Tiến trình SRS",
+      "message": "Điều này sẽ đặt lại tất cả thẻ trong các bộ thẻ đã chọn về hộp 1 với ngày ôn tập hôm nay. Tiếp tục?",
+      "success": "Đã đặt lại {{count}} thẻ về hộp 1",
+      "error": "Không thể đặt lại thẻ. Vui lòng thử lại.",
+      "errorGeneric": "Đã xảy ra lỗi khi đặt lại thẻ."
+    },
+    "noCardsToDisplay": "Không có thẻ để hiển thị"
+  },
+  "savedFlashcards": {
+    "title": "Bộ Sưu Tập Của Bạn",
+    "noCollections": "Không có bộ sưu tập nào",
+    "collectionOptionsTitle": "Tùy chọn Bộ Sưu Tập",
+    "collectionOptionsMessage": "Bạn muốn làm gì với bộ sưu tập này?",
+    "renameCollection": "Đổi tên Bộ Sưu Tập",
+    "deleteCollection": "Xóa Bộ Sưu Tập",
+    "deleteCollectionConfirm": "Bạn có chắc muốn xóa bộ sưu tập này không?",
+    "deleteFlashcard": "Xóa Thẻ",
+    "deleteFlashcardConfirm": "Bạn có chắc muốn xóa thẻ này không?",
+    "createNewCollection": "Tạo Bộ Sưu Tập Mới",
+    "sendToCollection": "Gửi đến Bộ Sưu Tập",
+    "enterNewCollectionName": "Nhập tên bộ sưu tập mới",
+    "noOtherCollections": "Không có bộ sưu tập khác",
+    "back": "Quay lại",
+    "createAndMove": "Tạo và Di chuyển",
+    "newCollection": "Bộ Sưu Tập Mới",
+    "loadingFlashcards": "Đang tải thẻ...",
+    "noFlashcardsTitle": "Không có Thẻ trong Bộ Sưu Tập này",
+    "noFlashcardsText": "Thẻ bạn lưu vào bộ sưu tập này sẽ xuất hiện ở đây. Hãy quét một số văn bản và lưu nó dưới dạng thẻ!",
+    "moveSuccess": "Thẻ đã được chuyển đến bộ sưu tập mới: {{name}}",
+    "flashcardMovedSuccess": "Thẻ đã được chuyển thành công",
+    "flashcardUpdatedSuccess": "Thẻ đã được cập nhật thành công",
+    "enterDeckName": "Vui lòng nhập tên bộ thẻ",
+    "loadCollectionsError": "Không thể tải bộ sưu tập. Vui lòng thử lại.",
+    "loadFlashcardsError": "Không thể tải thẻ. Vui lòng thử lại.",
+    "loadFlashcardsForCollectionError": "Không thể tải thẻ cho bộ sưu tập này. Vui lòng thử lại.",
+    "deleteFlashcardError": "Không thể xóa thẻ. Vui lòng thử lại.",
+    "deleteCollectionError": "Không thể xóa bộ sưu tập. Vui lòng thử lại.",
+    "renameCollectionError": "Không thể đổi tên bộ sưu tập. Vui lòng thử lại.",
+    "moveFlashcardError": "Không thể chuyển thẻ",
+    "createDeckError": "Không thể tạo bộ thẻ và chuyển thẻ",
+    "updateFlashcardError": "Không thể cập nhật thẻ. Vui lòng thử lại.",
+    "unexpectedError": "Đã xảy ra lỗi không mong đợi. Vui lòng thử lại."
+  },
+  "imageHighlighter": {
+    "dragToRotate": "Kéo để xoay hình ảnh",
+    "dragToHighlight": "kéo để làm nổi bật",
+    "dragToCrop": "kéo để cắt"
+  },
+  "textInput": {
+    "placeholder": "Nhập văn bản để dịch",
+    "cancel": "Hủy",
+    "wordScope": "WordScope",
+    "translate": "Dịch"
+  },
+  "offline": {
+    "title": "Chế độ Ngoại tuyến",
+    "banner": "Ngoại tuyến - Sử dụng thẻ đã lưu trong bộ nhớ",
+    "createCardError": "Tạo thẻ yêu cầu kết nối internet",
+    "deckNotCached": "Bộ thẻ này chưa được lưu trong bộ nhớ - kết nối trực tuyến để xem",
+    "syncInProgress": "Đang đồng bộ thẻ...",
+    "noCacheTitle": "Không có Dữ liệu Đã Lưu",
+    "noCacheMessage": "Bạn đang ngoại tuyến và chưa tải thẻ của bạn khi trực tuyến. Vui lòng kết nối internet để tải thẻ của bạn lần đầu tiên.",
+    "deckManagementDisabled": "Quản lý bộ thẻ (đổi tên, xóa, sắp xếp lại) yêu cầu kết nối internet. Bạn vẫn có thể xem thẻ đã lưu trong bộ nhớ khi ngoại tuyến.",
+    "editDisabled": "Chỉnh sửa và xóa thẻ yêu cầu kết nối internet.",
+    "moveDisabled": "Chuyển thẻ yêu cầu kết nối internet.",
+    "createDeckDisabled": "Tạo bộ thẻ yêu cầu kết nối internet."
+  },
+  "camera": {
+    "logoutTitle": "Đăng xuất",
+    "logoutConfirm": "Bạn có chắc muốn đăng xuất không?",
+    "logoutError": "Đăng xuất thất bại. Vui lòng thử lại.",
+    "imageMissingTitle": "Thiếu Hình ảnh",
+    "imageMissingMessage": "Hình ảnh hiện tại không còn khả dụng. Vui lòng chọn hình ảnh mới.",
+    "emptyInputTitle": "Nhập liệu Trống",
+    "emptyInputMessage": "Vui lòng nhập một số văn bản để dịch.",
+    "processingError": "Không thể xử lý vùng đã chọn.",
+    "ocrLimitReachedTitle": "Đạt Giới hạn OCR",
+    "ocrLimitReachedMessage": "Bạn đã đạt giới hạn hàng ngày. Bạn còn {{remaining}} lần quét. Nâng cấp lên Premium để có quét không giới hạn!",
+    "noTextFoundTitle": "Không Tìm thấy Văn bản {{language}}",
+    "noTextFoundMessage": "Không phát hiện văn bản {{language}} trong vùng đã chọn. Vui lòng thử chọn vùng khác.",
+    "processingLimitReachedTitle": "Đạt Giới hạn Xử lý",
+    "processingLimitReachedMessage": "Vùng văn bản đã chọn quá lớn hoặc phức tạp. Vui lòng thử chọn phần văn bản nhỏ hơn.",
+    "ocrErrorTitle": "Lỗi OCR",
+    "ocrErrorMessage": "Đã xảy ra vấn đề khi nhận dạng văn bản trong vùng đã chọn. Vui lòng thử lại.",
+    "rotationError": "Không thể áp dụng xoay.",
+    "permissionDenied": "Xin lỗi, chúng tôi cần quyền truy cập camera để tính năng này hoạt động!",
+    "failedToTakePhoto": "Không thể chụp ảnh"
+  },
+  "reviewPrompt": {
+    "title": "Thích sưu tập chứ?",
+    "message": "Hãy kể cho thế giới về WordDex trên App Store! Với tư cách là nhà phát triển độc lập, điều này thực sự hữu ích!",
+    "rateButton": "Đánh giá WordDex",
+    "laterButton": "Có thể để sau",
+    "noThanksButton": "Không, Cảm ơn"
+  },
+  "walkthrough": {
+    "camera": {
+      "title": "Chụp Ảnh",
+      "description": "Chạm vào đây để chụp ảnh văn bản bạn muốn học. Camera sẽ quét và tạo thẻ từ ảnh của bạn."
+    },
+    "gallery": {
+      "title": "Thư viện",
+      "description": "Chọn một ảnh hiện có từ thư viện của bạn để tạo thẻ. Tuyệt vời cho những hình ảnh bạn đã lưu trước đó."
+    },
+    "flashcards": {
+      "title": "Xem Bộ Sưu Tập Của Bạn",
+      "description": "Truy cập bộ sưu tập thẻ của bạn để tổ chức, chỉnh sửa và quản lý thẻ đã lưu của bạn."
+    },
+    "customCard": {
+      "title": "Thêm Thẻ Tùy chỉnh",
+      "description": "Tạo thẻ tùy chỉnh thủ công bằng cách nhập văn bản trực tiếp. Hoàn hảo cho việc thêm thẻ mà không cần chụp ảnh."
+    },
+    "reviewCards": {
+      "title": "Ôn tập Thẻ",
+      "description": "Khu vực này là nơi thẻ bạn đã chụp sẽ xuất hiện để ôn tập. Vuốt sang phải để bỏ thẻ khỏi phiên ôn tập. Vuốt sang trái để ôn tập thẻ lại. Các nút lật thẻ và xem hình ảnh sẽ ở góc dưới bên phải của thẻ của bạn."
+    },
+    "collections": {
+      "title": "Bộ Sưu Tập",
+      "description": "Chạm vào đây để chọn bộ thẻ bạn muốn ôn tập. Nhấn giữ bộ thẻ để tách nó ra. Bạn có thể chọn nhiều bộ sưu tập để ôn tập thẻ từ tất cả chúng cùng một lúc."
+    },
+    "reviewButton": {
+      "title": "Nút Ôn tập",
+      "description": "Chạm vào nút này để bắt đầu phiên ôn tập SRS (Hệ thống Lặp lại Ngắt quãng) với các bộ thẻ đã chọn của bạn. Nút cầu vồng nhấp nháy có nghĩa là có thẻ sẵn sàng để ôn tập! Nhấn giữ nút để đặt lại theo dõi SRS cho tất cả thẻ trong các bộ thẻ đã chọn."
+    },
+    "settings": {
+      "title": "Cài đặt",
+      "description": "Quản lý ngôn ngữ dịch, gói đăng ký, đăng xuất và các cài đặt tài khoản khác ở đây."
+    },
+    "galleryConfirm": {
+      "title": "Tải lên từ Thư viện",
+      "description": "Hãy thử tải lên một hình ảnh từ thư viện. Sau khi bạn chọn một hình ảnh, chúng tôi sẽ hướng dẫn bạn qua việc xoay, cắt và làm nổi bật."
+    },
+    "rotate": {
+      "title": "Xoay Hình ảnh",
+      "description": "Xoay ảnh của bạn nếu cần trước khi cắt hoặc làm nổi bật văn bản."
+    },
+    "crop": {
+      "title": "Cắt Hình ảnh",
+      "description": "Cắt ảnh đến vùng quan trọng để bạn chỉ xử lý văn bản bạn cần."
+    },
+    "highlight": {
+      "title": "Làm nổi bật Văn bản",
+      "description": "Hãy thử làm nổi bật một số văn bản trong hình ảnh. Sử dụng bút làm nổi bật cầu vồng để làm nổi bật văn bản bạn muốn dịch."
+    },
+    "confirmHighlight": {
+      "title": "Xác nhận Lựa chọn",
+      "description": "Phần làm nổi bật cầu vồng có bao quanh gọn gàng văn bản bạn muốn dịch không? Nếu có, nhấn tiếp theo, rồi dấu kiểm, nếu không, nhấn nút quay lại và thử lại."
+    },
+    "translateButton": {
+      "title": "Dịch",
+      "description": "Chạm vào đây để dịch văn bản đã phát hiện của bạn sang ngôn ngữ đích. Bản dịch sẽ xuất hiện bên dưới cùng với hướng dẫn phát âm nếu có."
+    },
+    "wordscopeButton": {
+      "title": "Wordscope",
+      "description": "Công cụ mạnh mẽ này cung cấp cả bản dịch VÀ phân tích chi tiết văn bản - bao gồm phân tích ngữ pháp, ví dụ sử dụng, lỗi thường gặp, ngữ cảnh và các từ đồng nghĩa có thể có. Hoàn hảo cho việc học sâu hơn!"
+    },
+    "editTextButton": {
+      "title": "Chỉnh sửa Văn bản",
+      "description": "Chạm vào đây để chỉnh sửa văn bản đã phát hiện trong trường hợp có từ bạn không cần hoặc muốn chỉnh sửa trước khi dịch. Nếu mọi thứ trông ổn, hãy tiếp tục và chạm vào nút dịch hoặc Wordscope!"
+    },
+    "chooseTranslation": {
+      "title": "Sẵn sàng Dịch!",
+      "description": "Bây giờ chạm vào Dịch để có bản dịch nhanh, hoặc Wordscope để phân tích sâu hơn. Cả hai sẽ xử lý văn bản của bạn và chuẩn bị để lưu dưới dạng thẻ!"
+    },
+    "saveButton": {
+      "title": "Lưu Thẻ",
+      "description": "Chạm vào đây để lưu thẻ mới của bạn vào bộ sưu tập. Bạn có thể tổ chức thẻ thành các bộ thẻ khác nhau!"
+    },
+    "viewSavedButton": {
+      "title": "Xem Thẻ đã Lưu",
+      "description": "Chạm vào đây để duyệt tất cả thẻ đã lưu của bạn. Bạn có thể ôn tập, chỉnh sửa hoặc xóa thẻ từ bộ sưu tập của bạn."
+    },
+    "editTranslationButton": {
+      "title": "Chỉnh sửa Bản dịch",
+      "description": "Không hài lòng với bản dịch? Chạm vào đây để chỉnh sửa thủ công văn bản đã dịch hoặc hướng dẫn phát âm trước khi lưu."
+    },
+    "editInputRetranslateButton": {
+      "title": "Chỉnh sửa và Dịch lại",
+      "description": "Cần thay đổi văn bản gốc? Chạm vào đây để chỉnh sửa nhập liệu của bạn và nhận bản dịch mới."
+    },
+    "finalSavePrompt": {
+      "title": "Lưu Thẻ Đầu Tiên Của Bạn!",
+      "description": "Bây giờ chỉ cần chạm vào nút này để lưu thẻ đầu tiên của bạn vào bộ sưu tập!"
+    },
+    "congratulations": {
+      "title": "Chúc mừng! 🎉",
+      "description": "Bạn đã lưu thẻ đầu tiên của mình! Chúc bạn có thêm nhiều thẻ nữa! Chúc mừng! 🥳"
+    },
+    "continueWalkthrough": "Không, Tiếp tục Hướng dẫn",
+    "endWalkthrough": "Có, Kết thúc Hướng dẫn"
+  },
+  "debug": {
+    "dailyStatsTitle": "Gỡ lỗi Thống kê Hàng ngày",
+    "dailyStatsMessage": "📅 Ngày Hiện tại: {{date}}\n📊 Ôn tập Hôm nay (Hàng ngày): {{reviewedCount}}\n📊 Đã Vuốt trong Phiên: {{sessionSwiped}}/{{dueCount}}\n🃏 Tổng Thẻ (Ổn định): {{totalCards}}\n🎓 Chế độ SRS: {{srsMode}}\n\nNhấn giữ lại để đặt lại số đếm hôm nay về 0 để kiểm tra.",
+    "resetCount": "Đặt lại Số đếm"
+  }
+}

@@ -850,7 +850,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: 'images',
         quality: 0.8, // Standard quality
         // exif: true, // We don't strictly need to request it, manipulateAsync handles it
       });
@@ -2228,7 +2228,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
               { opacity: globalOverlayOpacity }
             ]}
           >
-            <ActivityIndicator size="large" color="black" />
+            <ActivityIndicator size="large" color={COLORS.primary} />
           </Animated.View>
           {!capturedImage ? (
             <>

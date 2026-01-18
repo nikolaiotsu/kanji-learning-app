@@ -1,0 +1,464 @@
+{
+  "common": {
+    "loading": "Wird geladen...",
+    "error": "Fehler",
+    "cancel": "Abbrechen",
+    "create": "Erstellen",
+    "continue": "Weiter",
+    "ok": "OK",
+    "warning": "Warnung",
+    "success": "Erfolgreich!",
+    "failed": "Fehlgeschlagen",
+    "retry": "Wiederholen",
+    "or": "oder",
+    "delete": "Löschen",
+    "save": "Speichern",
+    "done": "Fertig",
+    "reset": "Zurücksetzen",
+    "skip": "Überspringen",
+    "back": "Zurück",
+    "next": "Weiter"
+  },
+  "auth": {
+    "login": {
+      "title": "Hallo Sammler.",
+      "newUser": "Neu in der App?",
+      "createAccount": "Konto erstellen",
+      "emailPlaceholder": "E-Mail",
+      "passwordPlaceholder": "Passwort",
+      "loginButton": "Anmelden",
+      "forgotPassword": "Passwort vergessen?",
+      "loginFailed": "Anmeldung fehlgeschlagen",
+      "missingCredentials": "Bitte geben Sie sowohl E-Mail als auch Passwort ein"
+    },
+    "social": {
+      "googleSignInFailed": "Google-Anmeldung fehlgeschlagen",
+      "googleSignUpFailed": "Google-Registrierung fehlgeschlagen",
+      "appleSignInFailed": "Apple-Anmeldung fehlgeschlagen",
+      "appleSignInUnavailable": "Apple-Anmeldung nicht verfügbar",
+      "appleSignInUnavailableMessage": "Die Apple-Anmeldung ist auf diesem Gerät nicht verfügbar. Bitte versuchen Sie es mit E-Mail/Passwort oder Google-Anmeldung.",
+      "pleaseTryAgain": "Bitte versuchen Sie es erneut"
+    },
+    "signup": {
+      "title": "Konto erstellen",
+      "subtitle": "Erstellen Sie ein Konto, um mit dem Sammeln von Wörtern zu beginnen.",
+      "signupWith": "Registrieren mit",
+      "orWithEmail": "oder mit E-Mail",
+      "confirmPasswordPlaceholder": "Passwort bestätigen",
+      "passwordHint": "Das Passwort muss mindestens 6 Zeichen lang sein.",
+      "createAccountButton": "Konto erstellen",
+      "loginExisting": "Mit bestehendem Konto anmelden",
+      "fillAllFields": "Bitte füllen Sie alle Felder aus",
+      "passwordsMismatch": "Die Passwörter stimmen nicht überein",
+      "passwordTooShort": "Das Passwort muss mindestens 6 Zeichen lang sein",
+      "accountCreated": "Konto erstellt",
+      "accountCreatedMessage": "Wir haben einen Bestätigungslink an Ihre E-Mail-Adresse gesendet. Bitte überprüfen Sie Ihr Postfach und klicken Sie auf den Link, um Ihr Konto zu bestätigen, bevor Sie sich anmelden.",
+      "accountExists": "Konto existiert bereits",
+      "accountExistsMessage": "Ein Konto mit dieser E-Mail existiert bereits. Bitte melden Sie sich stattdessen an.",
+      "goToLogin": "Zur Anmeldung",
+      "registrationFailed": "Registrierung fehlgeschlagen"
+    }
+  },
+  "deck": {
+    "select": "Sammlung auswählen",
+    "loading": "Sammlungen werden geladen...",
+    "empty": "Keine Sammlungen gefunden. Erstellen Sie Ihre erste Sammlung!",
+    "create": {
+      "new": "Neue Sammlung erstellen",
+      "enterName": "Sammlungsname eingeben",
+      "error": "Bitte geben Sie einen Namen für die neue Sammlung ein",
+      "failed": "Erstellen der neuen Sammlung fehlgeschlagen. Bitte versuchen Sie es erneut."
+    },
+    "created": "Erstellt: {{date}}",
+    "reorder": {
+      "title": "Sammlungen neu ordnen",
+      "instruction": "Lange drücken und ziehen, um Ihre Sammlungen neu zu ordnen",
+      "failed": "Aktualisierung der Sammlungsreihenfolge fehlgeschlagen",
+      "dataCorruption": "Datenbeschädigung erkannt. Bitte versuchen Sie es erneut.",
+      "databaseUpdateRequired": "Die Datenbank muss aktualisiert werden. Bitte kontaktieren Sie den Support oder überprüfen Sie die Migrationsanweisungen."
+    },
+    "limit": {
+      "title": "Sammlungslimit erreicht",
+      "messageFree": "Kostenlose Benutzer können bis zu {{maxDecks}} Sammlungen erstellen. Upgrade auf Premium für unbegrenzte Sammlungen!",
+      "messagePremium": "Sie haben die maximale Anzahl an Sammlungen erreicht ({{maxDecks}}).",
+      "reorderHint": "Lange drücken und ziehen, um neu zu ordnen"
+    }
+  },
+  "flashcard": {
+    "translate": {
+      "languageMismatch": "Sprachabweichung",
+      "languageMismatchMessage": "Der Text scheint immer noch nicht in {{language}} zu sein. Bitte versuchen Sie es mit einem anderen Text oder ändern Sie Ihre erzwungenen Spracheinstellungen."
+    },
+    "forcedLanguage": {
+      "errorMessage": "Erzwungene Sprache nicht erkannt: Der Text scheint nicht in {{language}} zu sein. Wenn der Modus für erzwungene Sprache aktiv ist, geben Sie bitte nur Text in der ausgewählten Sprache ein. Sie können Ihre Spracheinstellungen in den Einstellungen ändern.",
+      "goBack": "Zurück",
+      "tryAgain": "Erneut versuchen",
+      "goToSettings": "Zu den Einstellungen"
+    },
+    "sectionTitles": {
+      "withFurigana": "Mit Furigana",
+      "withPinyin": "Mit Pinyin",
+      "withRevisedRomanization": "Mit überarbeiteter Romanisierung",
+      "withPracticalRomanization": "Mit praktischer Romanisierung",
+      "withArabicChatAlphabet": "Mit arabischem Chat-Alphabet",
+      "withItalianAlphabet": "Mit italienischem Alphabet",
+      "withTagalogAlphabet": "Mit Tagalog-Alphabet",
+      "withHindiRomanization": "Mit Hindi-Romanisierung",
+      "withEsperantoRomanization": "Mit Esperanto-Text",
+      "withThaiRomanization": "Mit RTGS-Romanisierung",
+      "originalText": "Originaltext",
+      "withPronunciationGuide": "Mit Aussprachehilfe",
+      "translation": "{{language}} Übersetzung",
+      "collection": "Sammlung:"
+    },
+    "save": {
+      "title": "Karteikarte gespeichert",
+      "message": "Ihre {{cardType}} wurde in {{deckName}} gespeichert!",
+      "cannotSaveTitle": "Kann nicht speichern",
+      "cannotSaveTranslation": "Übersetzung für die Karteikarte fehlt. Bitte stellen Sie sicher, dass der Text korrekt verarbeitet wurde.",
+      "cannotSaveContent": "Inhalt für die Karteikarte fehlt. Bitte stellen Sie sicher, dass der Text korrekt verarbeitet wurde.",
+      "imageUploadFailedTitle": "Bildupload fehlgeschlagen",
+      "imageUploadFailedMessage": "{{error}}\n\nDie Karteikarte wird ohne das Bild gespeichert.",
+      "saveError": "Speicherfehler",
+      "saveFailed": "Speichern der Karteikarte fehlgeschlagen. Bitte versuchen Sie es erneut.",
+      "viewSaved": "Gespeicherte Karteikarten anzeigen",
+      "saveAsFlashcard": "Als Karteikarte speichern",
+      "savedAsFlashcard": "Als Karteikarte gespeichert",
+      "cardType": "{{language}} Karteikarte",
+      "languageFlashcard": "Sprachkarteikarte",
+      "deck1": "Stapel 1",
+      "newDeck": "einen neuen Stapel"
+    },
+    "input": {
+      "title": "Karteikarten-Eingabe"
+    },
+    "processing": {
+      "analyzing": "Untersuche Textprobe...",
+      "detecting": "Identifiziere Wortspezies...",
+      "cultural": "Bereite Ihre Worteinträge vor...",
+      "translating": "Polieren Sie Ihre neue Sammlung..."
+    },
+    "edit": {
+      "emptyOriginal": "Der Originaltext darf nicht leer sein.",
+      "emptyRomanization": "Der Romanisierungs-/Furigana-Text ist leer. Möchten Sie fortfahren?",
+      "emptyTranslation": "Die Übersetzung ist leer. Möchten Sie fortfahren?",
+      "enterText": "Bitte geben Sie Text zum Übersetzen ein.",
+      "retranslateFailed": "Verarbeitung des Textes mit Claude-API fehlgeschlagen. Bitte versuchen Sie es später erneut.",
+      "romanizationFailed": "Abrufen der ordnungsgemäßen Romanisierung für diesen Text fehlgeschlagen. Die Übersetzung ist weiterhin verfügbar.",
+      "editText": "Text bearbeiten",
+      "editTranslation": "Übersetzung bearbeiten",
+      "editInputRetranslate": "Eingabe bearbeiten und neu übersetzen",
+      "editTextPlaceholder": "Text hier bearbeiten...",
+      "editTranslationPlaceholder": "Übersetzung hier bearbeiten...",
+      "editRomanizationPlaceholder": "Romanisierung hier bearbeiten...",
+      "editFurigana": "Furigana bearbeiten",
+      "editPinyin": "Pinyin bearbeiten",
+      "editRomanization": "Romanisierung bearbeiten",
+      "editTransliteration": "Transliteration bearbeiten",
+      "save": "Speichern"
+    }
+  },
+  "subscription": {
+    "test": {
+      "purchaseTitle": "Premium-Kauf testen",
+      "purchaseMessage": "Dies simuliert einen Premium-Kauf im Entwicklungsmodus. Fortfahren?",
+      "purchase": "Kaufen",
+      "premiumActivated": "Premium aktiviert! Jetzt fügen wir dieser Sammlung hinzu!",
+      "restored": "Wiederhergestellt!",
+      "restoredMessage": "Premium-Abonnement wiederhergestellt!",
+      "noPurchaseFound": "Kein Kauf gefunden",
+      "noPurchaseMessage": "Kein Premium-Abonnement zum Wiederherstellen."
+    },
+    "limit": {
+      "title": "Tageslimit erreicht",
+      "message": "Gelegentliche Sammler: Tägliches Limit von 5 Karten. Ernsthafte Sammler: Unbegrenzt.",
+      "upgradeToPremium": "Auf Premium upgraden"
+    }
+  },
+  "settings": {
+    "forceDetection": "Quellsprachen-Erkennung",
+    "account": "Konto",
+    "preferences": "Einstellungen",
+    "subscription": "Abonnement",
+    "usageStatistics": "Nutzungsstatistiken",
+    "privacyPolicy": "Datenschutzrichtlinie",
+    "viewPrivacyPolicy": "Datenschutzrichtlinie anzeigen",
+    "signIn": "Anmelden",
+    "signInDescription": "Melden Sie sich an, um Ihre Karteikarten geräteübergreifend zu synchronisieren",
+    "signOut": "Abmelden",
+    "deleteAccount": "Konto löschen",
+    "deleteAccountHoldToConfirm": "Zum Bestätigen gedrückt halten",
+    "deleteAccountTitle": "Ihr Konto löschen?",
+    "deleteAccountWarning": "Diese Aktion kann nicht rückgängig gemacht werden. Alle Ihre Daten werden dauerhaft gelöscht, einschließlich:",
+    "deleteAccountWarningItems": "• Alle Karteikarten und Sammlungen\n• Alle Bilder und hochgeladenen Inhalte\n• Ihr Konto und Profil\n• Gesamter Nutzungsverlauf",
+    "deleteAccountConfirmTitle": "Sind Sie sich absolut sicher?",
+    "deleteAccountConfirmMessage": "Dies löscht Ihr Konto und alle zugehörigen Daten dauerhaft. Diese Aktion kann nicht rückgängig gemacht werden.",
+    "deleteAccountTypeDelete": "LÖSCHEN eingeben, um zu bestätigen",
+    "deleteAccountTypePlaceholder": "LÖSCHEN hier eingeben",
+    "deleteAccountConfirmButton": "Ja, mein Konto löschen",
+    "deleteAccountCancelButton": "Abbrechen",
+    "deleteAccountProcessing": "Ihr Konto wird gelöscht...",
+    "deleteAccountSuccess": "Konto gelöscht",
+    "deleteAccountSuccessMessage": "Ihr Konto und alle zugehörigen Daten wurden dauerhaft gelöscht.",
+    "deleteAccountError": "Konto konnte nicht gelöscht werden",
+    "deleteAccountErrorMessage": "Beim Versuch, Ihr Konto zu löschen, ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut oder kontaktieren Sie den Support.",
+    "deleteAccountNetworkError": "Netzwerkfehler. Bitte überprüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+    "translateTo": "Übersetzen nach:",
+    "tapToChange": "(tippen zum Ändern)",
+    "forceWordDexDetect": "Word Dex zwingen, zu erkennen:",
+    "swapLanguages": "Sprachen tauschen",
+    "premiumPlan": "Premium-Tarif",
+    "premiumPlanDescription": "Unbegrenzte Karteikarten, unbegrenzte Stapel und priorisierter Zugang zu zukünftigen Funktionen",
+    "freePlan": "Kostenloser Tarif",
+    "unlimitedScans": "Unbegrenzte OCR-Scans, keine Werbung",
+    "limitedScans": "{{maxScans}} OCR-Scans pro Tag, mit Werbung",
+    "ocrScansToday": "OCR-Scans heute",
+    "scansUsed": "{{used}} von {{max}} Scans verwendet ({{remaining}} verbleibend)",
+    "selectTargetLanguage": "Zielsprache auswählen",
+    "cancel": "Abbrechen",
+    "signOutError": "Abmeldung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "swapLanguagesError": "Sprachentausch fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "cannotSwapLanguages": "Sprachen können nicht getauscht werden",
+    "setLanguageError": "Festlegen der Sprache fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "invalidLanguageSelection": "Ungültige Sprachauswahl",
+    "setDetectionLanguageError": "Festlegen der Erkennungssprache fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "resetSwipeCounter": "Wischzähler zurücksetzen",
+    "resetSwipeCounterDescription": "Tägliche Wischstatistiken für alle Stapel zurücksetzen. Dies löscht die Rechts-/Links-Wischzählungen aus den Wiederholungssitzungen, wirkt sich aber nicht auf den SRS-Fortschritt aus.",
+    "resetSwipeCounterTitle": "Zähler zurücksetzen?",
+    "resetSwipeCounterMessage": "Dies setzt Ihre täglichen Wischzähler auf null zurück. Sind Sie sicher?",
+    "resetSwipeCounterConfirm": "Zurücksetzen",
+    "resetSwipeCounterSuccess": "Wischzähler wurden erfolgreich zurückgesetzt!",
+    "showAppWalkthrough": "App-Tour anzeigen",
+    "showAppWalkthroughDescription": "Onboarding-Tutorial erneut abspielen, um die App-Funktionen kennenzulernen"
+  },
+  "review": {
+    "remaining": "{{count}} verbleibend - nach links wischen, um erneut zu wiederholen - nach rechts wischen, um zu verwerfen",
+    "srsCounter": "{{reviewed}}/{{due}}({{total}})",
+    "reviewMode": "Wiederholung",
+    "noCardsDue": "Sie haben Ihre Wiederholungen für heute abgeschlossen! Fahren Sie fort und sammeln Sie weitere Wörter.",
+    "nextReviewDate": "Nächste Wiederholung: {{date}}",
+    "browseCount": "{{count}} Karten",
+    "nothingToReview": "Nichts zu wiederholen",
+    "scanText": "Gehen Sie und scannen Sie Text, um ihn Ihrer Sammlung hinzuzufügen!",
+    "finishedReview": "Sie haben Ihre Wiederholung abgeschlossen!",
+    "reviewAgain": "Stapel aktualisieren",
+    "selectCollections": "Sammlungen",
+    "collections": "Sammlungen",
+    "selectCollectionsToReview": "Sammlungen zum Wiederholen auswählen",
+    "selectAll": "Alle auswählen",
+    "saveSelection": "Auswahl speichern ({{count}} {{type}})",
+    "collection": "Sammlung",
+    "collections_plural": "Sammlungen",
+    "required": "Erforderlich",
+    "atLeastOneCollection": "Mindestens eine Sammlung muss ausgewählt werden",
+    "noCollectionsFound": "Keine Sammlungen gefunden. Erstellen Sie Sammlungen im Karteikarten-Bildschirm.",
+    "loadingCollections": "Sammlungen werden geladen...",
+    "failedToLoad": "Laden der Sammlungen fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "noCardsInSelectionTitle": "Keine Karten zum Wiederholen",
+    "noCardsInSelectionSubtitle": "Die ausgewählte(n) Sammlung(en) enthalten keine Karten. Wählen Sie eine andere Sammlung aus oder fügen Sie Karten hinzu.",
+    "gettingStarted": {
+      "title": "Erste Schritte",
+      "subtitle": "Erstellen Sie Ihre erste Sammlung:",
+      "addCard": "Eine benutzerdefinierte Karte erstellen",
+      "viewCards": "Gespeicherte Karten anzeigen",
+      "uploadImage": "Bild aus der Galerie hochladen",
+      "takePhoto": "Ein Foto aufnehmen, um Text zu scannen"
+    },
+    "srsReset": {
+      "title": "SRS-Fortschritt zurücksetzen",
+      "message": "Dies setzt alle Karten in den ausgewählten Stapeln auf Box 1 mit dem Wiederholungsdatum von heute zurück. Fortfahren?",
+      "success": "{{count}} Karten auf Box 1 zurückgesetzt",
+      "error": "Zurücksetzen der Karten fehlgeschlagen. Bitte versuchen Sie es erneut.",
+      "errorGeneric": "Beim Zurücksetzen der Karten ist ein Fehler aufgetreten."
+    },
+    "noCardsToDisplay": "Keine Karten zum Anzeigen"
+  },
+  "savedFlashcards": {
+    "title": "Ihre Sammlungen",
+    "noCollections": "Keine Sammlungen verfügbar",
+    "collectionOptionsTitle": "Sammlungsoptionen",
+    "collectionOptionsMessage": "Was möchten Sie mit dieser Sammlung tun?",
+    "renameCollection": "Sammlung umbenennen",
+    "deleteCollection": "Sammlung löschen",
+    "deleteCollectionConfirm": "Sind Sie sicher, dass Sie diese Sammlung löschen möchten?",
+    "deleteFlashcard": "Karteikarte löschen",
+    "deleteFlashcardConfirm": "Sind Sie sicher, dass Sie diese Karteikarte löschen möchten?",
+    "createNewCollection": "Neue Sammlung erstellen",
+    "sendToCollection": "An Sammlung senden",
+    "enterNewCollectionName": "Neuen Sammlungsnamen eingeben",
+    "noOtherCollections": "Keine anderen Sammlungen verfügbar",
+    "back": "Zurück",
+    "createAndMove": "Erstellen und verschieben",
+    "newCollection": "Neue Sammlung",
+    "loadingFlashcards": "Karteikarten werden geladen...",
+    "noFlashcardsTitle": "Keine Karteikarten in dieser Sammlung",
+    "noFlashcardsText": "Karteikarten, die Sie in dieser Sammlung speichern, werden hier angezeigt. Gehen Sie und scannen Sie Text und speichern Sie ihn als Karteikarte!",
+    "moveSuccess": "Karteikarte in neue Sammlung verschoben: {{name}}",
+    "flashcardMovedSuccess": "Karteikarte erfolgreich verschoben",
+    "flashcardUpdatedSuccess": "Karteikarte erfolgreich aktualisiert",
+    "enterDeckName": "Bitte geben Sie einen Stapelnamen ein",
+    "loadCollectionsError": "Laden der Sammlungen fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "loadFlashcardsError": "Laden der Karteikarten fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "loadFlashcardsForCollectionError": "Laden der Karteikarten für diese Sammlung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "deleteFlashcardError": "Löschen der Karteikarte fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "deleteCollectionError": "Löschen der Sammlung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "renameCollectionError": "Umbenennen der Sammlung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "moveFlashcardError": "Verschieben der Karteikarte fehlgeschlagen",
+    "createDeckError": "Erstellen des Stapels und Verschieben der Karteikarte fehlgeschlagen",
+    "updateFlashcardError": "Aktualisieren der Karteikarte fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "unexpectedError": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
+  },
+  "imageHighlighter": {
+    "dragToRotate": "Ziehen, um das Bild zu drehen",
+    "dragToHighlight": "ziehen, um hervorzuheben",
+    "dragToCrop": "ziehen, um zuzuschneiden"
+  },
+  "textInput": {
+    "placeholder": "Text zum Übersetzen eingeben",
+    "cancel": "Abbrechen",
+    "wordScope": "WordScope",
+    "translate": "Übersetzen"
+  },
+  "offline": {
+    "title": "Offline-Modus",
+    "banner": "Offline - Verwenden von zwischengespeicherten Karten",
+    "createCardError": "Erstellen von Karten erfordert Internetverbindung",
+    "deckNotCached": "Dieser Stapel ist nicht im Cache - gehen Sie online, um anzuzeigen",
+    "syncInProgress": "Karten werden synchronisiert...",
+    "noCacheTitle": "Keine zwischengespeicherten Daten verfügbar",
+    "noCacheMessage": "Sie sind offline und haben Ihre Karteikarten noch nicht online geladen. Bitte verbinden Sie sich mit dem Internet, um Ihre Karteikarten zum ersten Mal zu laden.",
+    "deckManagementDisabled": "Stapelverwaltung (umbenennen, löschen, neu ordnen) erfordert eine Internetverbindung. Sie können Ihre zwischengespeicherten Karteikarten weiterhin offline anzeigen.",
+    "editDisabled": "Bearbeiten und Löschen von Karteikarten erfordert eine Internetverbindung.",
+    "moveDisabled": "Verschieben von Karteikarten erfordert eine Internetverbindung.",
+    "createDeckDisabled": "Erstellen von Stapeln erfordert eine Internetverbindung."
+  },
+  "camera": {
+    "logoutTitle": "Abmelden",
+    "logoutConfirm": "Sind Sie sicher, dass Sie sich abmelden möchten?",
+    "logoutError": "Abmeldung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "imageMissingTitle": "Bild fehlt",
+    "imageMissingMessage": "Das aktuelle Bild ist nicht mehr verfügbar. Bitte wählen Sie ein neues Bild aus.",
+    "emptyInputTitle": "Leere Eingabe",
+    "emptyInputMessage": "Bitte geben Sie Text zum Übersetzen ein.",
+    "processingError": "Die ausgewählte Region konnte nicht verarbeitet werden.",
+    "ocrLimitReachedTitle": "OCR-Limit erreicht",
+    "ocrLimitReachedMessage": "Sie haben Ihr Tageslimit erreicht. Sie haben noch {{remaining}} Scans. Upgrade auf Premium für unbegrenzte Scans!",
+    "noTextFoundTitle": "Kein {{language}} Text gefunden",
+    "noTextFoundMessage": "In der ausgewählten Region wurde kein {{language}} Text erkannt. Bitte versuchen Sie, einen anderen Bereich auszuwählen.",
+    "processingLimitReachedTitle": "Verarbeitungslimit erreicht",
+    "processingLimitReachedMessage": "Der ausgewählte Textbereich ist zu groß oder zu komplex. Bitte versuchen Sie, einen kleineren Textabschnitt auszuwählen.",
+    "ocrErrorTitle": "OCR-Fehler",
+    "ocrErrorMessage": "Beim Erkennen von Text in der ausgewählten Region gab es ein Problem. Bitte versuchen Sie es erneut.",
+    "rotationError": "Drehung konnte nicht angewendet werden.",
+    "permissionDenied": "Entschuldigung, wir benötigen Kameraberechtigungen, damit dies funktioniert!",
+    "failedToTakePhoto": "Foto konnte nicht aufgenommen werden"
+  },
+  "reviewPrompt": {
+    "title": "Sammeln macht Spaß?",
+    "message": "Erzählen Sie der Welt von WordDex im App Store! Als Einzelentwickler ist das eine enorme Hilfe!",
+    "rateButton": "WordDex bewerten",
+    "laterButton": "Vielleicht später",
+    "noThanksButton": "Nein, danke"
+  },
+  "walkthrough": {
+    "camera": {
+      "title": "Foto aufnehmen",
+      "description": "Tippen Sie hier, um ein Foto des Textes aufzunehmen, den Sie lernen möchten. Die Kamera scannt und erstellt Karteikarten aus Ihren Fotos."
+    },
+    "gallery": {
+      "title": "Galerie",
+      "description": "Wählen Sie ein vorhandenes Foto aus Ihrer Galerie aus, um Karteikarten daraus zu erstellen. Ideal für Bilder, die Sie bereits gespeichert haben."
+    },
+    "flashcards": {
+      "title": "Ihre Sammlung anzeigen",
+      "description": "Greifen Sie auf Ihre Karteikartensammlung zu, um Ihre gespeicherten Karten zu organisieren, zu bearbeiten und zu verwalten."
+    },
+    "customCard": {
+      "title": "Benutzerdefinierte Karte hinzufügen",
+      "description": "Erstellen Sie manuell eine benutzerdefinierte Karteikarte, indem Sie Text direkt eingeben. Perfekt zum Hinzufügen von Karten ohne Foto."
+    },
+    "reviewCards": {
+      "title": "Karten wiederholen",
+      "description": "In diesem Bereich erscheinen Ihre erfassten Karteikarten zur Wiederholung. Wischen Sie nach rechts, um Karten aus der Wiederholungssitzung zu entfernen. Wischen Sie nach links, um Karten erneut zu wiederholen. Die Buttons Karteikarte umdrehen und Bild anzeigen befinden sich unten rechts bei Ihren Karteikarten."
+    },
+    "collections": {
+      "title": "Sammlungen",
+      "description": "Tippen Sie hier, um den Stapel von Karteikarten auszuwählen, den Sie wiederholen möchten. Drücken Sie lange auf einen Stapel, um ihn zu isolieren. Sie können mehrere Sammlungen auswählen, um gleichzeitig Karten aus allen zu wiederholen."
+    },
+    "reviewButton": {
+      "title": "Wiederholungs-Button",
+      "description": "Tippen Sie auf diesen Button, um eine SRS-Wiederholungssitzung (Spaced Repetition System) mit Ihren ausgewählten Stapeln zu starten. Ein blinkender Regenbogen-Button bedeutet, dass Karten zur Wiederholung verfügbar sind! Drücken Sie lange auf den Button, um das SRS-Tracking für alle Karten in den ausgewählten Stapeln zurückzusetzen."
+    },
+    "settings": {
+      "title": "Einstellungen",
+      "description": "Verwalten Sie hier Übersetzungssprachen, Abonnementplan, Abmeldung und andere Kontoeinstellungen."
+    },
+    "galleryConfirm": {
+      "title": "Aus Galerie hochladen",
+      "description": "Versuchen wir, ein Bild aus der Galerie hochzuladen. Nachdem Sie eines ausgewählt haben, führen wir Sie durch Drehen, Zuschneiden und Hervorheben."
+    },
+    "rotate": {
+      "title": "Bild drehen",
+      "description": "Drehen Sie Ihr Foto bei Bedarf, bevor Sie Text zuschneiden oder hervorheben."
+    },
+    "crop": {
+      "title": "Bild zuschneiden",
+      "description": "Schneiden Sie das Foto auf den wichtigen Bereich zu, damit Sie nur den benötigten Text verarbeiten."
+    },
+    "highlight": {
+      "title": "Text hervorheben",
+      "description": "Versuchen wir, etwas Text im Bild hervorzuheben. Verwenden Sie den Regenbogen-Marker, um den Text hervorzuheben, den Sie übersetzen möchten."
+    },
+    "confirmHighlight": {
+      "title": "Auswahl bestätigen",
+      "description": "Umschließt die Regenbogen-Hervorhebung ordentlich den Text, den Sie übersetzen möchten? Wenn ja, drücken Sie Weiter und dann das Häkchen. Wenn nicht, drücken Sie die Zurück-Taste und versuchen Sie es erneut."
+    },
+    "translateButton": {
+      "title": "Übersetzen",
+      "description": "Tippen Sie hier, um Ihren erkannten Text in Ihre Zielsprache zu übersetzen. Die Übersetzung erscheint unten zusammen mit Aussprachehilfen, falls zutreffend."
+    },
+    "wordscopeButton": {
+      "title": "Wordscope",
+      "description": "Dieses leistungsstarke Tool bietet sowohl Übersetzung ALS AUCH eine detaillierte Textanalyse - einschließlich Grammatikaufschlüsselung, Verwendungsbeispiele, häufige Fehler, Kontext und mögliche Synonyme. Es ist perfekt für tieferes Lernen!"
+    },
+    "editTextButton": {
+      "title": "Text bearbeiten",
+      "description": "Tippen Sie hier, um den erkannten Text zu bearbeiten, falls es Wörter gibt, die Sie nicht benötigen oder vor dem Übersetzen ändern möchten. Wenn alles gut aussieht, tippen Sie einfach auf den Übersetzen- oder Wordscope-Button!"
+    },
+    "chooseTranslation": {
+      "title": "Bereit zum Übersetzen!",
+      "description": "Tippen Sie jetzt entweder auf Übersetzen für eine schnelle Übersetzung oder auf Wordscope für eine tiefere Analyse. Beide verarbeiten Ihren Text und bereiten ihn zum Speichern als Karteikarte vor!"
+    },
+    "saveButton": {
+      "title": "Karteikarte speichern",
+      "description": "Tippen Sie hier, um Ihre neue Karteikarte in Ihrer Sammlung zu speichern. Sie können Karten in verschiedene Stapel organisieren!"
+    },
+    "viewSavedButton": {
+      "title": "Gespeicherte Karteikarten anzeigen",
+      "description": "Tippen Sie hier, um alle Ihre gespeicherten Karteikarten durchzusehen. Sie können Karten aus Ihrer Sammlung wiederholen, bearbeiten oder löschen."
+    },
+    "editTranslationButton": {
+      "title": "Übersetzung bearbeiten",
+      "description": "Mit der Übersetzung nicht zufrieden? Tippen Sie hier, um den übersetzten Text oder die Aussprachehilfe manuell zu bearbeiten, bevor Sie speichern."
+    },
+    "editInputRetranslateButton": {
+      "title": "Bearbeiten und neu übersetzen",
+      "description": "Müssen Sie den Originaltext ändern? Tippen Sie hier, um Ihre Eingabe zu bearbeiten und eine neue Übersetzung zu erhalten."
+    },
+    "finalSavePrompt": {
+      "title": "Speichern Sie Ihre erste Karteikarte!",
+      "description": "Tippen Sie einfach auf diesen Button, um Ihre erste Karteikarte in Ihrer Sammlung zu speichern!"
+    },
+    "congratulations": {
+      "title": "Glückwunsch! 🎉",
+      "description": "Sie haben Ihre erste Karteikarte gespeichert! Auf viele weitere! Prost! 🥳"
+    },
+    "continueWalkthrough": "Nein, Tour fortsetzen",
+    "endWalkthrough": "Ja, Tour beenden"
+  },
+  "debug": {
+    "dailyStatsTitle": "Tägliche Statistiken Debug",
+    "dailyStatsMessage": "📅 Aktuelles Datum: {{date}}\n📊 Heutige Wiederholungen (Täglich): {{reviewedCount}}\n📊 Session gewischt: {{sessionSwiped}}/{{dueCount}}\n🃏 Gesamtkarten (Stabil): {{totalCards}}\n🎓 SRS-Modus: {{srsMode}}\n\nLange drücken, um den heutigen Zähler für Tests auf 0 zurückzusetzen.",
+    "resetCount": "Zähler zurücksetzen"
+  }
+}

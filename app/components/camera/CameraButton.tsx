@@ -62,7 +62,7 @@ export default function CameraButton({ onPhotoCapture, style, onProcessingStateC
       
       const result = await ImagePicker.launchCameraAsync({
         quality: 0.8, // Reduced quality to save memory
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: 'images',
         allowsEditing: false, // Disable built-in editing to prevent memory conflicts
         exif: false, // Disable EXIF to reduce memory usage
         base64: false, // Disable base64 to save memory

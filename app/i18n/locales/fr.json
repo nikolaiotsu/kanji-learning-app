@@ -1,0 +1,464 @@
+{
+  "common": {
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "cancel": "Annuler",
+    "create": "Créer",
+    "continue": "Continuer",
+    "ok": "OK",
+    "warning": "Avertissement",
+    "success": "Succès !",
+    "failed": "Échec",
+    "retry": "Réessayer",
+    "or": "ou",
+    "delete": "Supprimer",
+    "save": "Enregistrer",
+    "done": "Terminé",
+    "reset": "Réinitialiser",
+    "skip": "Passer",
+    "back": "Retour",
+    "next": "Suivant"
+  },
+  "auth": {
+    "login": {
+      "title": "Bonjour Collectionneur.",
+      "newUser": "Nouveau sur l'app ?",
+      "createAccount": "Créer un compte",
+      "emailPlaceholder": "E-mail",
+      "passwordPlaceholder": "Mot de passe",
+      "loginButton": "Se connecter",
+      "forgotPassword": "Mot de passe oublié ?",
+      "loginFailed": "Échec de la connexion",
+      "missingCredentials": "Veuillez saisir l'e-mail et le mot de passe"
+    },
+    "social": {
+      "googleSignInFailed": "Échec de la connexion Google",
+      "googleSignUpFailed": "Échec de l'inscription Google",
+      "appleSignInFailed": "Échec de la connexion Apple",
+      "appleSignInUnavailable": "Connexion Apple indisponible",
+      "appleSignInUnavailableMessage": "La connexion Apple n'est pas disponible sur cet appareil. Veuillez essayer avec e-mail/mot de passe ou la connexion Google.",
+      "pleaseTryAgain": "Veuillez réessayer"
+    },
+    "signup": {
+      "title": "Créez votre compte",
+      "subtitle": "Créez un compte pour commencer à collectionner des mots.",
+      "signupWith": "S'inscrire avec",
+      "orWithEmail": "ou avec e-mail",
+      "confirmPasswordPlaceholder": "Confirmer le mot de passe",
+      "passwordHint": "Le mot de passe doit contenir au moins 6 caractères.",
+      "createAccountButton": "Créer un compte",
+      "loginExisting": "Se connecter avec un compte existant",
+      "fillAllFields": "Veuillez remplir tous les champs",
+      "passwordsMismatch": "Les mots de passe ne correspondent pas",
+      "passwordTooShort": "Le mot de passe doit contenir au moins 6 caractères",
+      "accountCreated": "Compte créé",
+      "accountCreatedMessage": "Nous avons envoyé un lien de vérification à votre adresse e-mail. Veuillez consulter votre boîte de réception et cliquer sur le lien pour vérifier votre compte avant de vous connecter.",
+      "accountExists": "Le compte existe déjà",
+      "accountExistsMessage": "Un compte avec cet e-mail existe déjà. Veuillez vous connecter à la place.",
+      "goToLogin": "Aller à la connexion",
+      "registrationFailed": "Échec de l'inscription"
+    }
+  },
+  "deck": {
+    "select": "Sélectionner une collection",
+    "loading": "Chargement des collections...",
+    "empty": "Aucune collection trouvée. Créez votre première collection !",
+    "create": {
+      "new": "Créer une nouvelle collection",
+      "enterName": "Entrez le nom de la collection",
+      "error": "Veuillez entrer un nom pour la nouvelle collection",
+      "failed": "Échec de la création de la nouvelle collection. Veuillez réessayer."
+    },
+    "created": "Créée le : {{date}}",
+    "reorder": {
+      "title": "Réorganiser les collections",
+      "instruction": "Appuyez longuement et glissez pour réorganiser vos collections",
+      "failed": "Échec de la mise à jour de l'ordre des collections",
+      "dataCorruption": "Corruption de données détectée. Veuillez réessayer.",
+      "databaseUpdateRequired": "La base de données doit être mise à jour. Veuillez contacter le support ou consulter les instructions de migration."
+    },
+    "limit": {
+      "title": "Limite de collections atteinte",
+      "messageFree": "Les utilisateurs gratuits peuvent créer jusqu'à {{maxDecks}} collections. Passez à Premium pour des collections illimitées !",
+      "messagePremium": "Vous avez atteint le nombre maximum de collections ({{maxDecks}}).",
+      "reorderHint": "Appuyez longuement et glissez pour réorganiser"
+    }
+  },
+  "flashcard": {
+    "translate": {
+      "languageMismatch": "Incompatibilité de langue",
+      "languageMismatchMessage": "Le texte ne semble toujours pas être en {{language}}. Veuillez essayer avec un texte différent ou modifier vos paramètres de langue forcée."
+    },
+    "forcedLanguage": {
+      "errorMessage": "Langue forcée non détectée : Le texte ne semble pas être en {{language}}. Lorsque le mode de langue forcée est actif, veuillez uniquement saisir du texte dans la langue sélectionnée. Vous pouvez modifier vos préférences de langue dans les Paramètres.",
+      "goBack": "Retour",
+      "tryAgain": "Réessayer",
+      "goToSettings": "Aller aux paramètres"
+    },
+    "sectionTitles": {
+      "withFurigana": "Avec Furigana",
+      "withPinyin": "Avec Pinyin",
+      "withRevisedRomanization": "Avec romanisation révisée",
+      "withPracticalRomanization": "Avec romanisation pratique",
+      "withArabicChatAlphabet": "Avec alphabet de chat arabe",
+      "withItalianAlphabet": "Avec alphabet italien",
+      "withTagalogAlphabet": "Avec alphabet tagalog",
+      "withHindiRomanization": "Avec romanisation hindi",
+      "withEsperantoRomanization": "Avec texte espéranto",
+      "withThaiRomanization": "Avec romanisation RTGS",
+      "originalText": "Texte original",
+      "withPronunciationGuide": "Avec guide de prononciation",
+      "translation": "Traduction {{language}}",
+      "collection": "Collection :"
+    },
+    "save": {
+      "title": "Flashcard enregistrée",
+      "message": "Votre {{cardType}} a été enregistrée dans {{deckName}} !",
+      "cannotSaveTitle": "Impossible d'enregistrer",
+      "cannotSaveTranslation": "Traduction manquante pour la flashcard. Veuillez vous assurer que le texte a été traité correctement.",
+      "cannotSaveContent": "Contenu manquant pour la flashcard. Veuillez vous assurer que le texte a été traité correctement.",
+      "imageUploadFailedTitle": "Échec du téléchargement d'image",
+      "imageUploadFailedMessage": "{{error}}\n\nLa flashcard sera enregistrée sans l'image.",
+      "saveError": "Erreur d'enregistrement",
+      "saveFailed": "Échec de l'enregistrement de la flashcard. Veuillez réessayer.",
+      "viewSaved": "Voir les flashcards enregistrées",
+      "saveAsFlashcard": "Enregistrer comme flashcard",
+      "savedAsFlashcard": "Enregistré comme flashcard",
+      "cardType": "flashcard {{language}}",
+      "languageFlashcard": "flashcard de langue",
+      "deck1": "Jeu 1",
+      "newDeck": "un nouveau jeu"
+    },
+    "input": {
+      "title": "Saisie de flashcard"
+    },
+    "processing": {
+      "analyzing": "Examen du spécimen de texte...",
+      "detecting": "Identification des espèces de mots...",
+      "cultural": "Préparation de vos entrées de mots...",
+      "translating": "Polissage de votre nouvelle collection..."
+    },
+    "edit": {
+      "emptyOriginal": "Le texte original ne peut pas être vide.",
+      "emptyRomanization": "Le texte de romanisation/Furigana est vide. Souhaitez-vous continuer ?",
+      "emptyTranslation": "La traduction est vide. Souhaitez-vous continuer ?",
+      "enterText": "Veuillez saisir du texte à traduire.",
+      "retranslateFailed": "Échec du traitement du texte avec l'API Claude. Veuillez réessayer plus tard.",
+      "romanizationFailed": "Échec de l'obtention de la romanisation appropriée pour ce texte. La traduction est toujours disponible.",
+      "editText": "Modifier le texte",
+      "editTranslation": "Modifier la traduction",
+      "editInputRetranslate": "Modifier la saisie et retraduire",
+      "editTextPlaceholder": "Modifier le texte ici...",
+      "editTranslationPlaceholder": "Modifier la traduction ici...",
+      "editRomanizationPlaceholder": "Modifier la romanisation ici...",
+      "editFurigana": "Modifier le Furigana",
+      "editPinyin": "Modifier le Pinyin",
+      "editRomanization": "Modifier la romanisation",
+      "editTransliteration": "Modifier la translittération",
+      "save": "Enregistrer"
+    }
+  },
+  "subscription": {
+    "test": {
+      "purchaseTitle": "Test d'achat Premium",
+      "purchaseMessage": "Cela simulera un achat premium en mode développement. Continuer ?",
+      "purchase": "Acheter",
+      "premiumActivated": "Premium activé ! Maintenant, ajoutons à cette collection !",
+      "restored": "Restauré !",
+      "restoredMessage": "Abonnement Premium restauré !",
+      "noPurchaseFound": "Aucun achat trouvé",
+      "noPurchaseMessage": "Aucun abonnement premium à restaurer."
+    },
+    "limit": {
+      "title": "Limite quotidienne atteinte",
+      "message": "Collectionneurs occasionnels : limite de 5 cartes par jour. Collectionneurs sérieux : illimité.",
+      "upgradeToPremium": "Passer à Premium"
+    }
+  },
+  "settings": {
+    "forceDetection": "Détection de la langue source",
+    "account": "Compte",
+    "preferences": "Préférences",
+    "subscription": "Abonnement",
+    "usageStatistics": "Statistiques d'utilisation",
+    "privacyPolicy": "Politique de confidentialité",
+    "viewPrivacyPolicy": "Voir la politique de confidentialité",
+    "signIn": "Se connecter",
+    "signInDescription": "Connectez-vous pour synchroniser vos flashcards sur tous vos appareils",
+    "signOut": "Se déconnecter",
+    "deleteAccount": "Supprimer le compte",
+    "deleteAccountHoldToConfirm": "Maintenez pour confirmer",
+    "deleteAccountTitle": "Supprimer votre compte ?",
+    "deleteAccountWarning": "Cette action est irréversible. Toutes vos données seront définitivement supprimées, notamment :",
+    "deleteAccountWarningItems": "• Toutes les flashcards et collections\n• Toutes les images et contenus téléchargés\n• Votre compte et profil\n• Tout l'historique d'utilisation",
+    "deleteAccountConfirmTitle": "Êtes-vous absolument sûr ?",
+    "deleteAccountConfirmMessage": "Cela supprimera définitivement votre compte et toutes les données associées. Cette action est irréversible.",
+    "deleteAccountTypeDelete": "Tapez SUPPRIMER pour confirmer",
+    "deleteAccountTypePlaceholder": "Tapez SUPPRIMER ici",
+    "deleteAccountConfirmButton": "Oui, supprimer mon compte",
+    "deleteAccountCancelButton": "Annuler",
+    "deleteAccountProcessing": "Suppression de votre compte...",
+    "deleteAccountSuccess": "Compte supprimé",
+    "deleteAccountSuccessMessage": "Votre compte et toutes les données associées ont été définitivement supprimés.",
+    "deleteAccountError": "Échec de la suppression du compte",
+    "deleteAccountErrorMessage": "Une erreur s'est produite lors de la tentative de suppression de votre compte. Veuillez réessayer ou contacter le support.",
+    "deleteAccountNetworkError": "Erreur réseau. Veuillez vérifier votre connexion et réessayer.",
+    "translateTo": "Traduire vers :",
+    "tapToChange": "(appuyez pour modifier)",
+    "forceWordDexDetect": "Forcer Word Dex à détecter :",
+    "swapLanguages": "Échanger les langues",
+    "premiumPlan": "Plan Premium",
+    "premiumPlanDescription": "Flashcards illimitées, jeux illimités et accès prioritaire aux nouvelles fonctionnalités",
+    "freePlan": "Plan gratuit",
+    "unlimitedScans": "Scans OCR illimités, sans publicité",
+    "limitedScans": "{{maxScans}} scans OCR par jour, avec publicité",
+    "ocrScansToday": "Scans OCR aujourd'hui",
+    "scansUsed": "{{used}} sur {{max}} scans utilisés ({{remaining}} restants)",
+    "selectTargetLanguage": "Sélectionner la langue cible",
+    "cancel": "Annuler",
+    "signOutError": "Échec de la déconnexion. Veuillez réessayer.",
+    "swapLanguagesError": "Échec de l'échange des langues. Veuillez réessayer.",
+    "cannotSwapLanguages": "Impossible d'échanger les langues",
+    "setLanguageError": "Échec de la définition de la langue. Veuillez réessayer.",
+    "invalidLanguageSelection": "Sélection de langue invalide",
+    "setDetectionLanguageError": "Échec de la définition de la langue de détection. Veuillez réessayer.",
+    "resetSwipeCounter": "Réinitialiser les compteurs de balayage",
+    "resetSwipeCounterDescription": "Réinitialiser les statistiques de balayage quotidiennes pour tous les jeux. Cela efface les comptes de balayage droite/gauche des sessions de révision mais n'affecte pas la progression SRS.",
+    "resetSwipeCounterTitle": "Réinitialiser le compteur ?",
+    "resetSwipeCounterMessage": "Cela réinitialisera vos compteurs de balayage quotidiens à zéro. Êtes-vous sûr ?",
+    "resetSwipeCounterConfirm": "Réinitialiser",
+    "resetSwipeCounterSuccess": "Les compteurs de balayage ont été réinitialisés avec succès !",
+    "showAppWalkthrough": "Afficher le guide de l'application",
+    "showAppWalkthroughDescription": "Revoir le didacticiel d'intégration pour découvrir les fonctionnalités de l'application"
+  },
+  "review": {
+    "remaining": "{{count}} restantes - balayez ← pour réviser à nouveau - balayez → pour ignorer",
+    "srsCounter": "{{reviewed}}/{{due}}({{total}})",
+    "reviewMode": "Révision",
+    "noCardsDue": "Vous avez terminé vos révisions pour aujourd'hui ! Allez-y et collectionnez plus de mots.",
+    "nextReviewDate": "Prochaine révision : {{date}}",
+    "browseCount": "{{count}} cartes",
+    "nothingToReview": "Rien à réviser",
+    "scanText": "Allez scanner du texte pour l'ajouter à votre collection !",
+    "finishedReview": "Vous avez terminé votre révision !",
+    "reviewAgain": "Actualiser le jeu",
+    "selectCollections": "Collections",
+    "collections": "Collections",
+    "selectCollectionsToReview": "Sélectionner les collections à réviser",
+    "selectAll": "Tout sélectionner",
+    "saveSelection": "Enregistrer la sélection ({{count}} {{type}})",
+    "collection": "Collection",
+    "collections_plural": "Collections",
+    "required": "Requis",
+    "atLeastOneCollection": "Au moins une collection doit être sélectionnée",
+    "noCollectionsFound": "Aucune collection trouvée. Créez des collections dans l'écran des flashcards.",
+    "loadingCollections": "Chargement des collections...",
+    "failedToLoad": "Échec du chargement des collections. Veuillez réessayer.",
+    "noCardsInSelectionTitle": "Aucune carte à réviser",
+    "noCardsInSelectionSubtitle": "La ou les collections sélectionnées ne contiennent aucune carte. Choisissez une autre collection ou ajoutez des cartes.",
+    "gettingStarted": {
+      "title": "Pour commencer",
+      "subtitle": "Créez votre première collection :",
+      "addCard": "Créer une carte personnalisée",
+      "viewCards": "Voir les cartes enregistrées",
+      "uploadImage": "Télécharger une image depuis la galerie",
+      "takePhoto": "Prendre une photo pour scanner du texte"
+    },
+    "srsReset": {
+      "title": "Réinitialiser la progression SRS",
+      "message": "Cela réinitialisera toutes les cartes des jeux sélectionnés à la boîte 1 avec la date de révision d'aujourd'hui. Continuer ?",
+      "success": "{{count}} cartes réinitialisées à la boîte 1",
+      "error": "Échec de la réinitialisation des cartes. Veuillez réessayer.",
+      "errorGeneric": "Une erreur s'est produite lors de la réinitialisation des cartes."
+    },
+    "noCardsToDisplay": "Aucune carte à afficher"
+  },
+  "savedFlashcards": {
+    "title": "Vos collections",
+    "noCollections": "Aucune collection disponible",
+    "collectionOptionsTitle": "Options de collection",
+    "collectionOptionsMessage": "Que souhaitez-vous faire avec cette collection ?",
+    "renameCollection": "Renommer la collection",
+    "deleteCollection": "Supprimer la collection",
+    "deleteCollectionConfirm": "Êtes-vous sûr de vouloir supprimer cette collection ?",
+    "deleteFlashcard": "Supprimer la flashcard",
+    "deleteFlashcardConfirm": "Êtes-vous sûr de vouloir supprimer cette flashcard ?",
+    "createNewCollection": "Créer une nouvelle collection",
+    "sendToCollection": "Envoyer vers la collection",
+    "enterNewCollectionName": "Entrez le nom de la nouvelle collection",
+    "noOtherCollections": "Aucune autre collection disponible",
+    "back": "Retour",
+    "createAndMove": "Créer et déplacer",
+    "newCollection": "Nouvelle collection",
+    "loadingFlashcards": "Chargement des flashcards...",
+    "noFlashcardsTitle": "Aucune flashcard dans cette collection",
+    "noFlashcardsText": "Les flashcards que vous enregistrez dans cette collection apparaîtront ici. Allez scanner du texte et enregistrez-le comme flashcard !",
+    "moveSuccess": "Flashcard déplacée vers la nouvelle collection : {{name}}",
+    "flashcardMovedSuccess": "Flashcard déplacée avec succès",
+    "flashcardUpdatedSuccess": "Flashcard mise à jour avec succès",
+    "enterDeckName": "Veuillez entrer un nom de jeu",
+    "loadCollectionsError": "Échec du chargement des collections. Veuillez réessayer.",
+    "loadFlashcardsError": "Échec du chargement des flashcards. Veuillez réessayer.",
+    "loadFlashcardsForCollectionError": "Échec du chargement des flashcards pour cette collection. Veuillez réessayer.",
+    "deleteFlashcardError": "Échec de la suppression de la flashcard. Veuillez réessayer.",
+    "deleteCollectionError": "Échec de la suppression de la collection. Veuillez réessayer.",
+    "renameCollectionError": "Échec du renommage de la collection. Veuillez réessayer.",
+    "moveFlashcardError": "Échec du déplacement de la flashcard",
+    "createDeckError": "Échec de la création du jeu et du déplacement de la flashcard",
+    "updateFlashcardError": "Échec de la mise à jour de la flashcard. Veuillez réessayer.",
+    "unexpectedError": "Une erreur inattendue s'est produite. Veuillez réessayer."
+  },
+  "imageHighlighter": {
+    "dragToRotate": "Glissez pour faire pivoter l'image",
+    "dragToHighlight": "glissez pour surligner",
+    "dragToCrop": "glissez pour recadrer"
+  },
+  "textInput": {
+    "placeholder": "Entrez le texte à traduire",
+    "cancel": "Annuler",
+    "wordScope": "WordScope",
+    "translate": "Traduire"
+  },
+  "offline": {
+    "title": "Mode hors ligne",
+    "banner": "Hors ligne - Utilisation des cartes en cache",
+    "createCardError": "La création de cartes nécessite une connexion Internet",
+    "deckNotCached": "Ce jeu n'est pas en cache - connectez-vous pour voir",
+    "syncInProgress": "Synchronisation des cartes...",
+    "noCacheTitle": "Aucune donnée en cache disponible",
+    "noCacheMessage": "Vous êtes hors ligne et n'avez pas encore chargé vos flashcards en ligne. Veuillez vous connecter à Internet pour charger vos flashcards pour la première fois.",
+    "deckManagementDisabled": "La gestion des jeux (renommer, supprimer, réorganiser) nécessite une connexion Internet. Vous pouvez toujours consulter vos flashcards en cache hors ligne.",
+    "editDisabled": "La modification et la suppression de flashcards nécessitent une connexion Internet.",
+    "moveDisabled": "Le déplacement de flashcards nécessite une connexion Internet.",
+    "createDeckDisabled": "La création de jeux nécessite une connexion Internet."
+  },
+  "camera": {
+    "logoutTitle": "Déconnexion",
+    "logoutConfirm": "Êtes-vous sûr de vouloir vous déconnecter ?",
+    "logoutError": "Échec de la déconnexion. Veuillez réessayer.",
+    "imageMissingTitle": "Image manquante",
+    "imageMissingMessage": "L'image actuelle n'est plus disponible. Veuillez sélectionner une nouvelle image.",
+    "emptyInputTitle": "Saisie vide",
+    "emptyInputMessage": "Veuillez saisir du texte à traduire.",
+    "processingError": "Impossible de traiter la région sélectionnée.",
+    "ocrLimitReachedTitle": "Limite OCR atteinte",
+    "ocrLimitReachedMessage": "Vous avez atteint votre limite quotidienne. Il vous reste {{remaining}} scans. Passez à Premium pour des scans illimités !",
+    "noTextFoundTitle": "Aucun texte {{language}} trouvé",
+    "noTextFoundMessage": "Aucun texte {{language}} n'a été détecté dans la zone sélectionnée. Veuillez essayer de sélectionner une zone différente.",
+    "processingLimitReachedTitle": "Limite de traitement atteinte",
+    "processingLimitReachedMessage": "La zone de texte sélectionnée est trop grande ou complexe. Veuillez essayer de sélectionner une section de texte plus petite.",
+    "ocrErrorTitle": "Erreur OCR",
+    "ocrErrorMessage": "Il y a eu un problème lors de la reconnaissance du texte dans la zone sélectionnée. Veuillez réessayer.",
+    "rotationError": "Impossible d'appliquer la rotation.",
+    "permissionDenied": "Désolé, nous avons besoin des autorisations de la caméra pour que cela fonctionne !",
+    "failedToTakePhoto": "Échec de la prise de photo"
+  },
+  "reviewPrompt": {
+    "title": "Vous appréciez la collection ?",
+    "message": "Parlez de WordDex à tout le monde sur l'App Store ! En tant que développeur solo, c'est une aide énorme !",
+    "rateButton": "Noter WordDex",
+    "laterButton": "Peut-être plus tard",
+    "noThanksButton": "Non, merci"
+  },
+  "walkthrough": {
+    "camera": {
+      "title": "Prendre une photo",
+      "description": "Appuyez ici pour prendre une photo du texte que vous souhaitez apprendre. La caméra scannera et créera des flashcards à partir de vos photos."
+    },
+    "gallery": {
+      "title": "Galerie",
+      "description": "Choisissez une photo existante de votre galerie pour créer des flashcards. Idéal pour les images que vous avez déjà enregistrées."
+    },
+    "flashcards": {
+      "title": "Voir votre collection",
+      "description": "Accédez à votre collection de flashcards pour organiser, modifier et gérer vos cartes enregistrées."
+    },
+    "customCard": {
+      "title": "Ajouter une carte personnalisée",
+      "description": "Créez une flashcard personnalisée manuellement en saisissant du texte directement. Parfait pour ajouter des cartes sans prendre de photo."
+    },
+    "reviewCards": {
+      "title": "Réviser les cartes",
+      "description": "C'est ici que vos flashcards capturées apparaîtront pour révision. Balayez vers la droite pour retirer les cartes de la session de révision. Balayez vers la gauche pour réviser les cartes à nouveau. Les boutons retourner la flashcard et voir l'image se trouvent en bas à droite de vos flashcards."
+    },
+    "collections": {
+      "title": "Collections",
+      "description": "Appuyez ici pour sélectionner le jeu de flashcards que vous souhaitez réviser. Appuyez longuement sur un jeu pour l'isoler. Vous pouvez choisir plusieurs collections pour réviser des cartes de toutes à la fois."
+    },
+    "reviewButton": {
+      "title": "Bouton de révision",
+      "description": "Appuyez sur ce bouton pour démarrer une session de révision SRS (Système de répétition espacée) avec vos jeux sélectionnés. Un bouton arc-en-ciel clignotant signifie qu'il y a des cartes disponibles pour révision ! Appuyez longuement sur le bouton pour réinitialiser le suivi SRS pour toutes les cartes des jeux sélectionnés."
+    },
+    "settings": {
+      "title": "Paramètres",
+      "description": "Gérez les langues de traduction, le plan d'abonnement, la déconnexion et d'autres paramètres de compte ici."
+    },
+    "galleryConfirm": {
+      "title": "Télécharger depuis la galerie",
+      "description": "Essayons de télécharger une image depuis la galerie. Après en avoir choisi une, nous vous guiderons pour faire pivoter, recadrer et surligner."
+    },
+    "rotate": {
+      "title": "Faire pivoter l'image",
+      "description": "Faites pivoter votre photo si nécessaire avant de recadrer ou de surligner le texte."
+    },
+    "crop": {
+      "title": "Recadrer l'image",
+      "description": "Recadrez la photo sur la zone importante pour ne traiter que le texte dont vous avez besoin."
+    },
+    "highlight": {
+      "title": "Surligner le texte",
+      "description": "Essayons de surligner du texte dans l'image. Utilisez le surligneur arc-en-ciel pour surligner le texte que vous souhaitez traduire."
+    },
+    "confirmHighlight": {
+      "title": "Confirmer la sélection",
+      "description": "Le surlignage arc-en-ciel entoure-t-il proprement le texte que vous souhaitez traduire ? Si oui, appuyez sur suivant, puis sur la coche, sinon, appuyez sur le bouton retour et réessayez."
+    },
+    "translateButton": {
+      "title": "Traduire",
+      "description": "Appuyez ici pour traduire votre texte détecté dans votre langue cible. La traduction apparaîtra ci-dessous ainsi que les guides de prononciation le cas échéant."
+    },
+    "wordscopeButton": {
+      "title": "Wordscope",
+      "description": "Cet outil puissant fournit à la fois la traduction ET une analyse détaillée du texte - incluant une analyse grammaticale, des exemples d'utilisation, des erreurs courantes, le contexte et des synonymes possibles. C'est parfait pour un apprentissage approfondi !"
+    },
+    "editTextButton": {
+      "title": "Modifier le texte",
+      "description": "Appuyez ici pour modifier le texte détecté au cas où il y aurait des mots dont vous n'avez pas besoin ou que vous souhaitez modifier avant de traduire. Si tout semble bon, allez-y et appuyez sur le bouton traduire ou Wordscope !"
+    },
+    "chooseTranslation": {
+      "title": "Prêt à traduire !",
+      "description": "Maintenant, appuyez sur Traduire pour une traduction rapide, ou Wordscope pour une analyse approfondie. Les deux traiteront votre texte et le prépareront pour l'enregistrement en tant que flashcard !"
+    },
+    "saveButton": {
+      "title": "Enregistrer la flashcard",
+      "description": "Appuyez ici pour enregistrer votre nouvelle flashcard dans votre collection. Vous pouvez organiser les cartes dans différents jeux !"
+    },
+    "viewSavedButton": {
+      "title": "Voir les flashcards enregistrées",
+      "description": "Appuyez ici pour parcourir toutes vos flashcards enregistrées. Vous pouvez réviser, modifier ou supprimer des cartes de votre collection."
+    },
+    "editTranslationButton": {
+      "title": "Modifier la traduction",
+      "description": "Pas satisfait de la traduction ? Appuyez ici pour modifier manuellement le texte traduit ou le guide de prononciation avant d'enregistrer."
+    },
+    "editInputRetranslateButton": {
+      "title": "Modifier et retraduire",
+      "description": "Besoin de modifier le texte original ? Appuyez ici pour modifier votre saisie et obtenir une nouvelle traduction."
+    },
+    "finalSavePrompt": {
+      "title": "Enregistrez votre première flashcard !",
+      "description": "Maintenant, appuyez simplement sur ce bouton pour enregistrer votre première flashcard dans votre collection !"
+    },
+    "congratulations": {
+      "title": "Félicitations ! 🎉",
+      "description": "Vous avez enregistré votre première flashcard ! À beaucoup d'autres ! Santé ! 🥳"
+    },
+    "continueWalkthrough": "Non, continuer le guide",
+    "endWalkthrough": "Oui, terminer le guide"
+  },
+  "debug": {
+    "dailyStatsTitle": "Debug des statistiques quotidiennes",
+    "dailyStatsMessage": "📅 Date actuelle : {{date}}\n📊 Révisions d'aujourd'hui (Quotidiennes) : {{reviewedCount}}\n📊 Balayages de session : {{sessionSwiped}}/{{dueCount}}\n🃏 Total des cartes (Stable) : {{totalCards}}\n🎓 Mode SRS : {{srsMode}}\n\nAppuyez longuement à nouveau pour réinitialiser le compte d'aujourd'hui à 0 pour les tests.",
+    "resetCount": "Réinitialiser le compte"
+  }
+}

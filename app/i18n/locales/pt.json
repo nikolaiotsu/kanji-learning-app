@@ -1,0 +1,464 @@
+{
+  "common": {
+    "loading": "Carregando...",
+    "error": "Erro",
+    "cancel": "Cancelar",
+    "create": "Criar",
+    "continue": "Continuar",
+    "ok": "OK",
+    "warning": "Aviso",
+    "success": "Sucesso!",
+    "failed": "Falhou",
+    "retry": "Tentar novamente",
+    "or": "ou",
+    "delete": "Excluir",
+    "save": "Salvar",
+    "done": "Concluído",
+    "reset": "Redefinir",
+    "skip": "Pular",
+    "back": "Voltar",
+    "next": "Próximo"
+  },
+  "auth": {
+    "login": {
+      "title": "Olá, Colecionador.",
+      "newUser": "Novo no app?",
+      "createAccount": "Criar Conta",
+      "emailPlaceholder": "Email",
+      "passwordPlaceholder": "Senha",
+      "loginButton": "Entrar",
+      "forgotPassword": "Esqueceu a senha?",
+      "loginFailed": "Falha no login",
+      "missingCredentials": "Por favor, insira email e senha"
+    },
+    "social": {
+      "googleSignInFailed": "Falha no login com Google",
+      "googleSignUpFailed": "Falha no cadastro com Google",
+      "appleSignInFailed": "Falha no login com Apple",
+      "appleSignInUnavailable": "Login com Apple indisponível",
+      "appleSignInUnavailableMessage": "O login com Apple não está disponível neste dispositivo. Por favor, tente com email/senha ou login com Google.",
+      "pleaseTryAgain": "Por favor, tente novamente"
+    },
+    "signup": {
+      "title": "Crie sua conta",
+      "subtitle": "Crie uma conta para começar a colecionar palavras.",
+      "signupWith": "Cadastre-se com",
+      "orWithEmail": "ou com email",
+      "confirmPasswordPlaceholder": "Confirmar Senha",
+      "passwordHint": "A senha deve ter pelo menos 6 caracteres.",
+      "createAccountButton": "Criar Conta",
+      "loginExisting": "Entrar com conta existente",
+      "fillAllFields": "Por favor, preencha todos os campos",
+      "passwordsMismatch": "As senhas não coincidem",
+      "passwordTooShort": "A senha deve ter pelo menos 6 caracteres",
+      "accountCreated": "Conta criada",
+      "accountCreatedMessage": "Enviamos um link de verificação para o seu endereço de email. Por favor, verifique sua caixa de entrada e clique no link para verificar sua conta antes de fazer login.",
+      "accountExists": "Conta já existe",
+      "accountExistsMessage": "Já existe uma conta com este email. Por favor, faça login em vez disso.",
+      "goToLogin": "Ir para o login",
+      "registrationFailed": "Falha no cadastro"
+    }
+  },
+  "deck": {
+    "select": "Selecionar Coleção",
+    "loading": "Carregando coleções...",
+    "empty": "Nenhuma coleção encontrada. Crie sua primeira coleção!",
+    "create": {
+      "new": "Criar Nova Coleção",
+      "enterName": "Digite o nome da coleção",
+      "error": "Por favor, digite um nome para a nova coleção",
+      "failed": "Falha ao criar nova coleção. Por favor, tente novamente."
+    },
+    "created": "Criada: {{date}}",
+    "reorder": {
+      "title": "Reordenar Coleções",
+      "instruction": "Pressione e arraste para reordenar suas coleções",
+      "failed": "Falha ao atualizar ordem das coleções",
+      "dataCorruption": "Corrupção de dados detectada. Por favor, tente novamente.",
+      "databaseUpdateRequired": "O banco de dados precisa ser atualizado. Por favor, entre em contato com o suporte ou verifique as instruções de migração."
+    },
+    "limit": {
+      "title": "Limite de Coleções Atingido",
+      "messageFree": "Usuários gratuitos podem criar até {{maxDecks}} coleções. Faça upgrade para Premium para coleções ilimitadas!",
+      "messagePremium": "Você atingiu o número máximo de coleções ({{maxDecks}}).",
+      "reorderHint": "Pressione e arraste para reordenar"
+    }
+  },
+  "flashcard": {
+    "translate": {
+      "languageMismatch": "Incompatibilidade de Idioma",
+      "languageMismatchMessage": "O texto ainda não parece estar em {{language}}. Por favor, tente com um texto diferente ou altere suas configurações de idioma forçado."
+    },
+    "forcedLanguage": {
+      "errorMessage": "Idioma forçado não detectado: O texto não parece estar em {{language}}. Quando o modo de idioma forçado está ativo, por favor, insira apenas texto no idioma selecionado. Você pode alterar suas preferências de idioma nas Configurações.",
+      "goBack": "Voltar",
+      "tryAgain": "Tentar Novamente",
+      "goToSettings": "Ir para Configurações"
+    },
+    "sectionTitles": {
+      "withFurigana": "Com Furigana",
+      "withPinyin": "Com Pinyin",
+      "withRevisedRomanization": "Com Romanização Revisada",
+      "withPracticalRomanization": "Com Romanização Prática",
+      "withArabicChatAlphabet": "Com Alfabeto de Chat Árabe",
+      "withItalianAlphabet": "Com Alfabeto Italiano",
+      "withTagalogAlphabet": "Com Alfabeto Tagalog",
+      "withHindiRomanization": "Com Romanização Hindi",
+      "withEsperantoRomanization": "Com Texto Esperanto",
+      "withThaiRomanization": "Com Romanização RTGS",
+      "originalText": "Texto Original",
+      "withPronunciationGuide": "Com Guia de Pronúncia",
+      "translation": "Tradução {{language}}",
+      "collection": "Coleção:"
+    },
+    "save": {
+      "title": "Cartão Salvo",
+      "message": "Seu {{cardType}} foi salvo em {{deckName}}!",
+      "cannotSaveTitle": "Não é possível salvar",
+      "cannotSaveTranslation": "Tradução ausente para o cartão. Por favor, certifique-se de que o texto foi processado corretamente.",
+      "cannotSaveContent": "Conteúdo ausente para o cartão. Por favor, certifique-se de que o texto foi processado corretamente.",
+      "imageUploadFailedTitle": "Falha no Upload da Imagem",
+      "imageUploadFailedMessage": "{{error}}\n\nO cartão será salvo sem a imagem.",
+      "saveError": "Erro ao Salvar",
+      "saveFailed": "Falha ao salvar cartão. Por favor, tente novamente.",
+      "viewSaved": "Ver Cartões Salvos",
+      "saveAsFlashcard": "Salvar como Cartão",
+      "savedAsFlashcard": "Salvo como Cartão",
+      "cardType": "cartão {{language}}",
+      "languageFlashcard": "cartão de idioma",
+      "deck1": "Baralho 1",
+      "newDeck": "um novo baralho"
+    },
+    "input": {
+      "title": "Entrada de Cartão"
+    },
+    "processing": {
+      "analyzing": "Examinando amostra de texto...",
+      "detecting": "Identificando espécies de palavras...",
+      "cultural": "Preparando suas entradas de palavras...",
+      "translating": "Refinando sua nova coleção..."
+    },
+    "edit": {
+      "emptyOriginal": "O texto original não pode estar vazio.",
+      "emptyRomanization": "O texto de romanização/Furigana está vazio. Deseja continuar?",
+      "emptyTranslation": "A tradução está vazia. Deseja continuar?",
+      "enterText": "Por favor, insira texto para traduzir.",
+      "retranslateFailed": "Falha ao processar texto com API Claude. Por favor, tente novamente mais tarde.",
+      "romanizationFailed": "Falha ao obter romanização adequada para este texto. A tradução ainda está disponível.",
+      "editText": "Editar Texto",
+      "editTranslation": "Editar Tradução",
+      "editInputRetranslate": "Editar Entrada e Retraduzir",
+      "editTextPlaceholder": "Editar texto aqui...",
+      "editTranslationPlaceholder": "Editar tradução aqui...",
+      "editRomanizationPlaceholder": "Editar romanização aqui...",
+      "editFurigana": "Editar Furigana",
+      "editPinyin": "Editar Pinyin",
+      "editRomanization": "Editar Romanização",
+      "editTransliteration": "Editar Transliteração",
+      "save": "Salvar"
+    }
+  },
+  "subscription": {
+    "test": {
+      "purchaseTitle": "Testar Compra Premium",
+      "purchaseMessage": "Isso simulará uma compra premium no modo de desenvolvimento. Continuar?",
+      "purchase": "Comprar",
+      "premiumActivated": "Premium Ativado! Agora vamos adicionar a essa coleção!",
+      "restored": "Restaurado!",
+      "restoredMessage": "Assinatura Premium restaurada!",
+      "noPurchaseFound": "Nenhuma Compra Encontrada",
+      "noPurchaseMessage": "Nenhuma assinatura premium para restaurar."
+    },
+    "limit": {
+      "title": "Limite Diário Atingido",
+      "message": "Colecionadores Casuais: limite de 5 cartões por dia. Colecionadores Sérios: Ilimitado.",
+      "upgradeToPremium": "Fazer Upgrade para Premium"
+    }
+  },
+  "settings": {
+    "forceDetection": "Detecção de Idioma de Origem",
+    "account": "Conta",
+    "preferences": "Preferências",
+    "subscription": "Assinatura",
+    "usageStatistics": "Estatísticas de Uso",
+    "privacyPolicy": "Política de Privacidade",
+    "viewPrivacyPolicy": "Ver Política de Privacidade",
+    "signIn": "Entrar",
+    "signInDescription": "Faça login para sincronizar seus cartões em todos os dispositivos",
+    "signOut": "Sair",
+    "deleteAccount": "Excluir Conta",
+    "deleteAccountHoldToConfirm": "Pressione para confirmar",
+    "deleteAccountTitle": "Excluir sua conta?",
+    "deleteAccountWarning": "Esta ação não pode ser desfeita. Todos os seus dados serão permanentemente excluídos, incluindo:",
+    "deleteAccountWarningItems": "• Todos os cartões e coleções\n• Todas as imagens e conteúdo enviado\n• Sua conta e perfil\n• Todo o histórico de uso",
+    "deleteAccountConfirmTitle": "Você tem certeza absoluta?",
+    "deleteAccountConfirmMessage": "Isso excluirá permanentemente sua conta e todos os dados associados. Esta ação não pode ser desfeita.",
+    "deleteAccountTypeDelete": "Digite EXCLUIR para confirmar",
+    "deleteAccountTypePlaceholder": "Digite EXCLUIR aqui",
+    "deleteAccountConfirmButton": "Sim, Excluir Minha Conta",
+    "deleteAccountCancelButton": "Cancelar",
+    "deleteAccountProcessing": "Excluindo sua conta...",
+    "deleteAccountSuccess": "Conta Excluída",
+    "deleteAccountSuccessMessage": "Sua conta e todos os dados associados foram permanentemente excluídos.",
+    "deleteAccountError": "Falha ao Excluir Conta",
+    "deleteAccountErrorMessage": "Ocorreu um erro ao tentar excluir sua conta. Por favor, tente novamente ou entre em contato com o suporte.",
+    "deleteAccountNetworkError": "Erro de rede. Por favor, verifique sua conexão e tente novamente.",
+    "translateTo": "Traduzir para:",
+    "tapToChange": "(toque para alterar)",
+    "forceWordDexDetect": "Forçar Word Dex a detectar:",
+    "swapLanguages": "Trocar Idiomas",
+    "premiumPlan": "Plano Premium",
+    "premiumPlanDescription": "Cartões ilimitados, baralhos ilimitados e acesso prioritário a recursos futuros",
+    "freePlan": "Plano Gratuito",
+    "unlimitedScans": "Varreduras OCR ilimitadas, sem anúncios",
+    "limitedScans": "{{maxScans}} varreduras OCR por dia, com anúncios",
+    "ocrScansToday": "Varreduras OCR Hoje",
+    "scansUsed": "{{used}} de {{max}} varreduras usadas ({{remaining}} restantes)",
+    "selectTargetLanguage": "Selecionar Idioma de Destino",
+    "cancel": "Cancelar",
+    "signOutError": "Falha ao sair. Por favor, tente novamente.",
+    "swapLanguagesError": "Falha ao trocar idiomas. Por favor, tente novamente.",
+    "cannotSwapLanguages": "Não é possível trocar idiomas",
+    "setLanguageError": "Falha ao definir idioma. Por favor, tente novamente.",
+    "invalidLanguageSelection": "Seleção de Idioma Inválida",
+    "setDetectionLanguageError": "Falha ao definir idioma de detecção. Por favor, tente novamente.",
+    "resetSwipeCounter": "Redefinir Contadores de Deslize",
+    "resetSwipeCounterDescription": "Redefinir estatísticas diárias de deslize para todos os baralhos. Isso limpa as contagens de deslize direita/esquerda das sessões de revisão, mas não afeta o progresso SRS.",
+    "resetSwipeCounterTitle": "Redefinir Contador?",
+    "resetSwipeCounterMessage": "Isso redefinirá seus contadores de deslize diários para zero. Tem certeza?",
+    "resetSwipeCounterConfirm": "Redefinir",
+    "resetSwipeCounterSuccess": "Os contadores de deslize foram redefinidos com sucesso!",
+    "showAppWalkthrough": "Mostrar Tour do App",
+    "showAppWalkthroughDescription": "Reproduzir o tutorial de onboarding para aprender sobre os recursos do app"
+  },
+  "review": {
+    "remaining": "{{count}} restantes - deslize ← para revisar novamente - deslize → para dispensar",
+    "srsCounter": "{{reviewed}}/{{due}}({{total}})",
+    "reviewMode": "Revisar",
+    "noCardsDue": "Você terminou suas revisões de hoje! Continue e colete mais palavras.",
+    "nextReviewDate": "Próxima revisão: {{date}}",
+    "browseCount": "{{count}} cartões",
+    "nothingToReview": "Nada para revisar",
+    "scanText": "Vá escanear algum texto para adicionar à sua coleção!",
+    "finishedReview": "Você terminou sua revisão!",
+    "reviewAgain": "Atualizar baralho",
+    "selectCollections": "Coleções",
+    "collections": "Coleções",
+    "selectCollectionsToReview": "Selecionar Coleções para Revisar",
+    "selectAll": "Selecionar Tudo",
+    "saveSelection": "Salvar Seleção ({{count}} {{type}})",
+    "collection": "Coleção",
+    "collections_plural": "Coleções",
+    "required": "Obrigatório",
+    "atLeastOneCollection": "Pelo menos uma coleção deve ser selecionada",
+    "noCollectionsFound": "Nenhuma coleção encontrada. Crie coleções na tela de cartões.",
+    "loadingCollections": "Carregando coleções...",
+    "failedToLoad": "Falha ao carregar coleções. Por favor, tente novamente.",
+    "noCardsInSelectionTitle": "Nenhum cartão para revisar",
+    "noCardsInSelectionSubtitle": "A(s) coleção(ões) selecionada(s) não contém cartões. Escolha uma coleção diferente ou adicione cartões.",
+    "gettingStarted": {
+      "title": "Começando",
+      "subtitle": "Crie sua primeira coleção:",
+      "addCard": "Fazer um cartão personalizado",
+      "viewCards": "Ver cartões salvos",
+      "uploadImage": "Enviar imagem da galeria",
+      "takePhoto": "Tirar uma foto para escanear texto"
+    },
+    "srsReset": {
+      "title": "Redefinir Progresso SRS",
+      "message": "Isso redefinirá todos os cartões nos baralhos selecionados para a caixa 1 com a data de revisão de hoje. Continuar?",
+      "success": "{{count}} cartões redefinidos para a caixa 1",
+      "error": "Falha ao redefinir cartões. Por favor, tente novamente.",
+      "errorGeneric": "Ocorreu um erro ao redefinir cartões."
+    },
+    "noCardsToDisplay": "Nenhum cartão para exibir"
+  },
+  "savedFlashcards": {
+    "title": "Suas Coleções",
+    "noCollections": "Nenhuma coleção disponível",
+    "collectionOptionsTitle": "Opções de Coleção",
+    "collectionOptionsMessage": "O que você gostaria de fazer com esta coleção?",
+    "renameCollection": "Renomear Coleção",
+    "deleteCollection": "Excluir Coleção",
+    "deleteCollectionConfirm": "Tem certeza de que deseja excluir esta coleção?",
+    "deleteFlashcard": "Excluir Cartão",
+    "deleteFlashcardConfirm": "Tem certeza de que deseja excluir este cartão?",
+    "createNewCollection": "Criar Nova Coleção",
+    "sendToCollection": "Enviar para Coleção",
+    "enterNewCollectionName": "Digite o nome da nova coleção",
+    "noOtherCollections": "Nenhuma outra coleção disponível",
+    "back": "Voltar",
+    "createAndMove": "Criar e Mover",
+    "newCollection": "Nova Coleção",
+    "loadingFlashcards": "Carregando cartões...",
+    "noFlashcardsTitle": "Nenhum Cartão nesta Coleção",
+    "noFlashcardsText": "Os cartões que você salvar nesta coleção aparecerão aqui. Vá escanear algum texto e salve-o como cartão!",
+    "moveSuccess": "Cartão movido para nova coleção: {{name}}",
+    "flashcardMovedSuccess": "Cartão movido com sucesso",
+    "flashcardUpdatedSuccess": "Cartão atualizado com sucesso",
+    "enterDeckName": "Por favor, digite um nome para o baralho",
+    "loadCollectionsError": "Falha ao carregar coleções. Por favor, tente novamente.",
+    "loadFlashcardsError": "Falha ao carregar cartões. Por favor, tente novamente.",
+    "loadFlashcardsForCollectionError": "Falha ao carregar cartões para esta coleção. Por favor, tente novamente.",
+    "deleteFlashcardError": "Falha ao excluir cartão. Por favor, tente novamente.",
+    "deleteCollectionError": "Falha ao excluir coleção. Por favor, tente novamente.",
+    "renameCollectionError": "Falha ao renomear coleção. Por favor, tente novamente.",
+    "moveFlashcardError": "Falha ao mover cartão",
+    "createDeckError": "Falha ao criar baralho e mover cartão",
+    "updateFlashcardError": "Falha ao atualizar cartão. Por favor, tente novamente.",
+    "unexpectedError": "Ocorreu um erro inesperado. Por favor, tente novamente."
+  },
+  "imageHighlighter": {
+    "dragToRotate": "Arraste para girar a imagem",
+    "dragToHighlight": "arraste para destacar",
+    "dragToCrop": "arraste para cortar"
+  },
+  "textInput": {
+    "placeholder": "Digite o texto para traduzir",
+    "cancel": "Cancelar",
+    "wordScope": "WordScope",
+    "translate": "Traduzir"
+  },
+  "offline": {
+    "title": "Modo Offline",
+    "banner": "Offline - Usando cartões em cache",
+    "createCardError": "Criar cartões requer conexão com a internet",
+    "deckNotCached": "Este baralho não está em cache - vá online para visualizar",
+    "syncInProgress": "Sincronizando cartões...",
+    "noCacheTitle": "Nenhum Dado em Cache Disponível",
+    "noCacheMessage": "Você está offline e ainda não carregou seus cartões enquanto estava online. Por favor, conecte-se à internet para carregar seus cartões pela primeira vez.",
+    "deckManagementDisabled": "O gerenciamento de baralhos (renomear, excluir, reordenar) requer uma conexão com a internet. Você ainda pode visualizar seus cartões em cache offline.",
+    "editDisabled": "Editar e excluir cartões requer uma conexão com a internet.",
+    "moveDisabled": "Mover cartões requer uma conexão com a internet.",
+    "createDeckDisabled": "Criar baralhos requer uma conexão com a internet."
+  },
+  "camera": {
+    "logoutTitle": "Sair",
+    "logoutConfirm": "Tem certeza de que deseja sair?",
+    "logoutError": "Falha ao sair. Por favor, tente novamente.",
+    "imageMissingTitle": "Imagem Ausente",
+    "imageMissingMessage": "A imagem atual não está mais disponível. Por favor, selecione uma nova imagem.",
+    "emptyInputTitle": "Entrada Vazia",
+    "emptyInputMessage": "Por favor, digite algum texto para traduzir.",
+    "processingError": "Não foi possível processar a região selecionada.",
+    "ocrLimitReachedTitle": "Limite OCR Atingido",
+    "ocrLimitReachedMessage": "Você atingiu seu limite diário. Você tem {{remaining}} varreduras restantes. Faça upgrade para Premium para varreduras ilimitadas!",
+    "noTextFoundTitle": "Nenhum Texto {{language}} Encontrado",
+    "noTextFoundMessage": "Nenhum texto {{language}} foi detectado na área selecionada. Por favor, tente selecionar uma área diferente.",
+    "processingLimitReachedTitle": "Limite de Processamento Atingido",
+    "processingLimitReachedMessage": "A área de texto selecionada é muito grande ou complexa. Por favor, tente selecionar uma seção menor de texto.",
+    "ocrErrorTitle": "Erro OCR",
+    "ocrErrorMessage": "Houve um problema ao reconhecer o texto na área selecionada. Por favor, tente novamente.",
+    "rotationError": "Não foi possível aplicar a rotação.",
+    "permissionDenied": "Desculpe, precisamos de permissões da câmera para que isso funcione!",
+    "failedToTakePhoto": "Falha ao tirar foto"
+  },
+  "reviewPrompt": {
+    "title": "Gostando de colecionar?",
+    "message": "Conte ao mundo sobre o WordDex na App Store! Como desenvolvedor solo, é uma ajuda enorme!",
+    "rateButton": "Avaliar WordDex",
+    "laterButton": "Talvez Depois",
+    "noThanksButton": "Não, Obrigado"
+  },
+  "walkthrough": {
+    "camera": {
+      "title": "Tirar Foto",
+      "description": "Toque aqui para tirar uma foto do texto que você quer aprender. A câmera escaneará e criará cartões a partir de suas fotos."
+    },
+    "gallery": {
+      "title": "Galeria",
+      "description": "Escolha uma foto existente da sua galeria para criar cartões. Ótimo para imagens que você salvou anteriormente."
+    },
+    "flashcards": {
+      "title": "Ver sua Coleção",
+      "description": "Acesse sua coleção de cartões para organizar, editar e gerenciar seus cartões salvos."
+    },
+    "customCard": {
+      "title": "Adicionar Cartão Personalizado",
+      "description": "Crie um cartão personalizado manualmente digitando texto diretamente. Perfeito para adicionar cartões sem tirar uma foto."
+    },
+    "reviewCards": {
+      "title": "Revisar Cartões",
+      "description": "Esta área é onde seus cartões capturados aparecerão para revisão. Deslize para a direita para remover cartões da sessão de revisão. Deslize para a esquerda para revisar cartões novamente. Os botões virar cartão e ver imagem estarão no canto inferior direito dos seus cartões."
+    },
+    "collections": {
+      "title": "Coleções",
+      "description": "Toque aqui para selecionar qual baralho de cartões você quer revisar. Pressione e segure um baralho para isolá-lo. Você pode escolher várias coleções para revisar cartões de todas elas de uma vez."
+    },
+    "reviewButton": {
+      "title": "Botão de Revisão",
+      "description": "Toque neste botão para iniciar uma sessão de revisão SRS (Sistema de Repetição Espaçada) com seus baralhos selecionados. Um botão arco-íris piscando significa que há cartões disponíveis para revisão! Pressione e segure o botão para redefinir o rastreamento SRS para todos os cartões nos baralhos selecionados."
+    },
+    "settings": {
+      "title": "Configurações",
+      "description": "Gerencie idiomas de tradução, plano de assinatura, sair e outras configurações de conta aqui."
+    },
+    "galleryConfirm": {
+      "title": "Enviar da Galeria",
+      "description": "Vamos tentar enviar uma imagem da galeria. Depois que você escolher uma, vamos guiá-lo através de girar, cortar e destacar."
+    },
+    "rotate": {
+      "title": "Girar Imagem",
+      "description": "Gire sua foto se necessário antes de cortar ou destacar texto."
+    },
+    "crop": {
+      "title": "Cortar Imagem",
+      "description": "Corte a foto para a área importante para processar apenas o texto que você precisa."
+    },
+    "highlight": {
+      "title": "Destacar Texto",
+      "description": "Vamos tentar destacar algum texto na imagem. Use o marcador arco-íris para destacar o texto que você quer traduzir."
+    },
+    "confirmHighlight": {
+      "title": "Confirmar Seleção",
+      "description": "O destaque arco-íris envolve ordenadamente o texto que você quer traduzir? Se sim, pressione próximo e depois a marca de verificação, se não, pressione o botão voltar e tente novamente."
+    },
+    "translateButton": {
+      "title": "Traduzir",
+      "description": "Toque aqui para traduzir seu texto detectado para seu idioma de destino. A tradução aparecerá abaixo junto com guias de pronúncia, se aplicável."
+    },
+    "wordscopeButton": {
+      "title": "Wordscope",
+      "description": "Esta ferramenta poderosa fornece tanto tradução QUANTO análise detalhada do texto - incluindo uma quebra gramatical, exemplos de uso, erros comuns, contexto e possíveis sinônimos. É perfeito para aprendizado mais profundo!"
+    },
+    "editTextButton": {
+      "title": "Editar Texto",
+      "description": "Toque aqui para editar o texto detectado caso haja palavras que você não precisa ou quer modificar antes de traduzir. Se tudo parecer bom, vá em frente e toque no botão traduzir ou Wordscope!"
+    },
+    "chooseTranslation": {
+      "title": "Pronto para Traduzir!",
+      "description": "Agora toque em Traduzir para uma tradução rápida, ou Wordscope para uma análise mais profunda. Ambos processarão seu texto e o prepararão para salvar como cartão!"
+    },
+    "saveButton": {
+      "title": "Salvar Cartão",
+      "description": "Toque aqui para salvar seu novo cartão em sua coleção. Você pode organizar cartões em diferentes baralhos!"
+    },
+    "viewSavedButton": {
+      "title": "Ver Cartões Salvos",
+      "description": "Toque aqui para navegar por todos os seus cartões salvos. Você pode revisar, editar ou excluir cartões da sua coleção."
+    },
+    "editTranslationButton": {
+      "title": "Editar Tradução",
+      "description": "Não está satisfeito com a tradução? Toque aqui para editar manualmente o texto traduzido ou o guia de pronúncia antes de salvar."
+    },
+    "editInputRetranslateButton": {
+      "title": "Editar e Retraduzir",
+      "description": "Precisa mudar o texto original? Toque aqui para editar sua entrada e obter uma nova tradução."
+    },
+    "finalSavePrompt": {
+      "title": "Salve seu Primeiro Cartão!",
+      "description": "Agora apenas toque neste botão para salvar seu primeiro cartão em sua coleção!"
+    },
+    "congratulations": {
+      "title": "Parabéns! 🎉",
+      "description": "Você salvou seu primeiro cartão! Que venham muitos mais! Saúde! 🥳"
+    },
+    "continueWalkthrough": "Não, Continuar Tour",
+    "endWalkthrough": "Sim, Terminar Tour"
+  },
+  "debug": {
+    "dailyStatsTitle": "Debug de Estatísticas Diárias",
+    "dailyStatsMessage": "📅 Data Atual: {{date}}\n📊 Revisões de Hoje (Diárias): {{reviewedCount}}\n📊 Deslizes na Sessão: {{sessionSwiped}}/{{dueCount}}\n🃏 Total de Cartões (Estável): {{totalCards}}\n🎓 Modo SRS: {{srsMode}}\n\nPressione e segure novamente para redefinir a contagem de hoje para 0 para testes.",
+    "resetCount": "Redefinir Contagem"
+  }
+}
