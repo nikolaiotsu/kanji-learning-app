@@ -998,36 +998,63 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           const allPoints = allStrokes.flat();
           
           if (allPoints.length > 0) {
-            // Find min/max coordinates across all points
-            const minX = Math.min(...allPoints.map(p => p.x));
-            const maxX = Math.max(...allPoints.map(p => p.x));
-            const minY = Math.min(...allPoints.map(p => p.y));
-            const maxY = Math.max(...allPoints.map(p => p.y));
+            // CRITICAL FIX: Filter points to only include those within the image boundaries
+            // This prevents selecting all text when highlighting outside the image borders
+            const imageMinX = displayImageOffsetX;
+            const imageMaxX = displayImageOffsetX + scaledContainerWidth;
+            const imageMinY = displayImageOffsetY;
+            const imageMaxY = displayImageOffsetY + scaledContainerHeight;
+            
+            const pointsWithinImage = allPoints.filter(p => 
+              p.x >= imageMinX && 
+              p.x <= imageMaxX && 
+              p.y >= imageMinY && 
+              p.y <= imageMaxY
+            );
+            
+            // If no points are within the image, don't create a region
+            if (pointsWithinImage.length === 0) {
+              return;
+            }
+            
+            // Find min/max coordinates across only the points within the image
+            const minX = Math.min(...pointsWithinImage.map(p => p.x));
+            const maxX = Math.max(...pointsWithinImage.map(p => p.x));
+            const minY = Math.min(...pointsWithinImage.map(p => p.y));
+            const maxY = Math.max(...pointsWithinImage.map(p => p.y));
             
             // Use minimal padding - just enough to account for the stroke rendering
             // This makes OCR more accurate by not picking up nearby text
             const padding = 2; // Minimal padding instead of STROKE_WIDTH / 2
-            const paddedMinX = Math.max(0, minX - padding);
-            const paddedMaxX = Math.min(measuredLayout?.width || 0, maxX + padding);
-            const paddedMinY = Math.max(0, minY - padding);
-            const paddedMaxY = Math.min(measuredLayout?.height || 0, maxY + padding);
+            
+            // Clamp padded coordinates to image boundaries (not container boundaries)
+            const paddedMinX = Math.max(imageMinX, minX - padding);
+            const paddedMaxX = Math.min(imageMaxX, maxX + padding);
+            const paddedMinY = Math.max(imageMinY, minY - padding);
+            const paddedMaxY = Math.min(imageMaxY, maxY + padding);
 
-            // Calculate the region relative to the *image*
-            const imageRelativeMinX = Math.max(0, paddedMinX - displayImageOffsetX);
-            const imageRelativeMinY = Math.max(0, paddedMinY - displayImageOffsetY);
+            // Calculate the region relative to the *image* (subtract image offset)
+            const imageRelativeMinX = paddedMinX - displayImageOffsetX;
+            const imageRelativeMinY = paddedMinY - displayImageOffsetY;
+            const imageRelativeMaxX = paddedMaxX - displayImageOffsetX;
+            const imageRelativeMaxY = paddedMaxY - displayImageOffsetY;
 
-            const imageRelativeMaxX = Math.max(0, paddedMaxX - displayImageOffsetX);
-            const imageRelativeMaxY = Math.max(0, paddedMaxY - displayImageOffsetY);
-
-            // Ensure the reported width/height does not exceed the image dimensions
-            const reportedWidth = Math.min(imageRelativeMaxX, scaledContainerWidth) - imageRelativeMinX;
-            const reportedHeight = Math.min(imageRelativeMaxY, scaledContainerHeight) - imageRelativeMinY;
+            // Calculate width and height, ensuring they don't exceed image dimensions
+            // Since we've already clamped to image boundaries, these should be valid
+            const reportedWidth = imageRelativeMaxX - imageRelativeMinX;
+            const reportedHeight = imageRelativeMaxY - imageRelativeMinY;
+            
+            // Final safety clamp to ensure valid region (shouldn't be needed but prevents edge cases)
+            const finalX = Math.max(0, Math.min(imageRelativeMinX, scaledContainerWidth - 1));
+            const finalY = Math.max(0, Math.min(imageRelativeMinY, scaledContainerHeight - 1));
+            const finalWidth = Math.max(1, Math.min(reportedWidth, scaledContainerWidth - finalX));
+            const finalHeight = Math.max(1, Math.min(reportedHeight, scaledContainerHeight - finalY));
             
             const regionForParent = {
-              x: imageRelativeMinX,
-              y: imageRelativeMinY,
-              width: Math.max(0, reportedWidth),
-              height: Math.max(0, reportedHeight),
+              x: finalX,
+              y: finalY,
+              width: finalWidth,
+              height: finalHeight,
               detectedText: [],
               rotation: rotation,
             };
