@@ -458,7 +458,9 @@
       "description": "첫 번째 플래시카드를 저장했습니다! 더 많은 카드를 수집하세요! 건배! 🥳"
     },
     "continueWalkthrough": "아니요, 가이드 계속하기",
-    "endWalkthrough": "예, 가이드 종료"
+    "endWalkthrough": "예, 가이드 종료",
+    "noTextFoundTitle": "앗!",
+    "noTextFoundMessage": "무지개 하이라이트가 번역하고 싶은 텍스트 전체를 덮는지 확인하세요. 다시 시도해봅시다!"
   }
 }
 

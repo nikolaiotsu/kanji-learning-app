@@ -454,7 +454,9 @@
       "description": "Sie haben Ihre erste Karteikarte gespeichert! Auf viele weitere! Prost! 🥳"
     },
     "continueWalkthrough": "Nein, Tour fortsetzen",
-    "endWalkthrough": "Ja, Tour beenden"
+    "endWalkthrough": "Ja, Tour beenden",
+    "noTextFoundTitle": "Ups!",
+    "noTextFoundMessage": "Stelle sicher, dass der Regenbogen-Markierung den gesamten Text abdeckt, den du übersetzen möchtest. Versuchen wir es noch einmal!"
   },
   "debug": {
     "dailyStatsTitle": "Tägliche Statistiken Debug",

@@ -455,7 +455,9 @@
       "description": "You've saved your first flashcard! Here's to many more! Cheers! 🥳"
     },
     "continueWalkthrough": "No, Continue Walkthrough",
-    "endWalkthrough": "Yes, End Walkthrough"
+    "endWalkthrough": "Yes, End Walkthrough",
+    "noTextFoundTitle": "Oops!",
+    "noTextFoundMessage": "Make sure the rainbow highlight covers the whole text that you want to translate. Let's try again!"
   },
   "debug": {
     "dailyStatsTitle": "Daily Stats Debug",

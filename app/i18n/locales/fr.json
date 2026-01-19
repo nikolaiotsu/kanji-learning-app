@@ -454,7 +454,9 @@
       "description": "Vous avez enregistré votre première flashcard ! À beaucoup d'autres ! Santé ! 🥳"
     },
     "continueWalkthrough": "Non, continuer le guide",
-    "endWalkthrough": "Oui, terminer le guide"
+    "endWalkthrough": "Oui, terminer le guide",
+    "noTextFoundTitle": "Oups !",
+    "noTextFoundMessage": "Assurez-vous que le surlignage arc-en-ciel couvre tout le texte que vous souhaitez traduire. Réessayons !"
   },
   "debug": {
     "dailyStatsTitle": "Debug des statistiques quotidiennes",

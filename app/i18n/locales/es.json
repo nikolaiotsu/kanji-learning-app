@@ -458,7 +458,9 @@
       "description": "¡Has guardado tu primera tarjeta! ¡Que haya muchas más! ¡Salud! 🥳"
     },
     "continueWalkthrough": "No, continuar el tutorial",
-    "endWalkthrough": "Sí, terminar el tutorial"
+    "endWalkthrough": "Sí, terminar el tutorial",
+    "noTextFoundTitle": "¡Ups!",
+    "noTextFoundMessage": "¡Asegúrate de que el resaltado arcoíris cubra todo el texto que quieres traducir. ¡Intentémoslo de nuevo!"
   }
 }
 

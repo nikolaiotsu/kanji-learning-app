@@ -458,6 +458,8 @@
       "description": "最初のフラッシュカードを保存しました！これからもたくさん集めていきましょう！乾杯！🥳"
     },
     "continueWalkthrough": "いいえ、ウォークスルーを続ける",
-    "endWalkthrough": "はい、ウォークスルーを終了"
+    "endWalkthrough": "はい、ウォークスルーを終了",
+    "noTextFoundTitle": "おっと！",
+    "noTextFoundMessage": "虹色のハイライトが翻訳したいテキスト全体をカバーしていることを確認してください。もう一度お試しください！"
   }
 } 

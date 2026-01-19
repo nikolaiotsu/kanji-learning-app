@@ -1126,6 +1126,12 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
         setHighlightRegion(region); 
         setHasHighlightSelection(true);
         
+        // If we're in walkthrough on highlight step, advance to confirm-highlight step
+        if (isWalkthroughActive && currentStep?.id === 'highlight') {
+          nextStep();
+          setHideWalkthroughOverlay(false); // Show overlay again for confirm step
+        }
+        
         // If we're in walkthrough on confirm-highlight step and overlay was hidden, show it again
         if (isWalkthroughActive && currentStep?.id === 'confirm-highlight' && hideWalkthroughOverlay) {
           setHideWalkthroughOverlay(false);
@@ -1303,20 +1309,51 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           params
         });
       } else {
-        // Get the current forced language name
-        const languageName = DETECTABLE_LANGUAGES[forcedDetectionLanguage as keyof typeof DETECTABLE_LANGUAGES] || 'text';
-          
-        Alert.alert(
-          t('camera.noTextFoundTitle', { language: languageName }),
-          t('camera.noTextFoundMessage', { language: languageName.toLowerCase() }),
-          [{ text: t('common.ok') }]
-        );
+        // Check if we're in walkthrough mode - show a friendlier message and don't disrupt the flow
+        if (isWalkthroughActive) {
+          Alert.alert(
+            t('walkthrough.noTextFoundTitle'),
+            t('walkthrough.noTextFoundMessage'),
+            [{ 
+              text: t('common.ok'),
+              onPress: () => {
+                // Go back to the highlight step so user can try again
+                // Reset overlay visibility so walkthrough shows again
+                setHideWalkthroughOverlay(false);
+                previousStep();
+              }
+            }]
+          );
+        } else {
+          // Get the current forced language name
+          const languageName = DETECTABLE_LANGUAGES[forcedDetectionLanguage as keyof typeof DETECTABLE_LANGUAGES] || 'text';
+            
+          Alert.alert(
+            t('camera.noTextFoundTitle', { language: languageName }),
+            t('camera.noTextFoundMessage', { language: languageName.toLowerCase() }),
+            [{ text: t('common.ok') }]
+          );
+        }
       }
     } catch (error: any) {
       logger.error('Error processing highlight region:', error);
       
-      // Check if it's a timeout error from our OCR service
-      if (error.message && error.message.includes('timed out')) {
+      // During walkthrough, show a friendly message and go back to highlight step
+      if (isWalkthroughActive) {
+        Alert.alert(
+          t('walkthrough.noTextFoundTitle'),
+          t('walkthrough.noTextFoundMessage'),
+          [{ 
+            text: t('common.ok'),
+            onPress: () => {
+              // Reset overlay visibility so walkthrough shows again
+              setHideWalkthroughOverlay(false);
+              previousStep();
+            }
+          }]
+        );
+      } else if (error.message && error.message.includes('timed out')) {
+        // Check if it's a timeout error from our OCR service
         Alert.alert(
           t('camera.processingLimitReachedTitle'),
           t('camera.processingLimitReachedMessage'),
@@ -1476,8 +1513,9 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     }
     if (currentStep?.id === 'highlight') {
       activateHighlightMode();
-      // Advance to confirm-highlight step immediately
-      nextStep();
+      // Hide overlay so user can draw a highlight
+      // Don't advance yet - wait for user to draw a highlight
+      setHideWalkthroughOverlay(true);
       return;
     }
     // For confirm-highlight step, hide the overlay so user can press the checkmark
@@ -1665,10 +1703,10 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
 
   // Restore the handleCancel function which was accidentally removed
   const handleCancel = async () => {
-    // If we're in walkthrough mode during highlight phase, show confirmation dialog
-    // Note: We check for both 'highlight' and 'confirm-highlight' steps, and don't require hideWalkthroughOverlay
+    // If we're in walkthrough mode during highlight, confirm-highlight, or crop phase, show confirmation dialog
+    // Note: We check for 'highlight', 'confirm-highlight', and 'crop' steps, and don't require hideWalkthroughOverlay
     // because the user might press cancel while the walkthrough overlay is still visible
-    if (isWalkthroughActive && (currentStep?.id === 'highlight' || currentStep?.id === 'confirm-highlight')) {
+    if (isWalkthroughActive && (currentStep?.id === 'highlight' || currentStep?.id === 'confirm-highlight' || currentStep?.id === 'crop')) {
       Alert.alert(
         t('walkthrough.endWalkthroughTitle', 'End Walkthrough?'),
         t('walkthrough.endWalkthroughMessage', 'Pressing x or the back button will take you out of the walkthrough. Are you sure?'),
@@ -1677,7 +1715,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
             text: t('walkthrough.continueWalkthrough', 'No, Continue Walkthrough'),
             onPress: () => {
               logger.log('[KanjiScanner] User chose to continue walkthrough');
-              // Do nothing - stay in highlight walkthrough mode
+              // Do nothing - stay in walkthrough mode
             }
           },
           {

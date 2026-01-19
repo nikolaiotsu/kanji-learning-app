@@ -454,7 +454,9 @@
       "description": "Bạn đã lưu thẻ đầu tiên của mình! Chúc bạn có thêm nhiều thẻ nữa! Chúc mừng! 🥳"
     },
     "continueWalkthrough": "Không, Tiếp tục Hướng dẫn",
-    "endWalkthrough": "Có, Kết thúc Hướng dẫn"
+    "endWalkthrough": "Có, Kết thúc Hướng dẫn",
+    "noTextFoundTitle": "Ối!",
+    "noTextFoundMessage": "Đảm bảo phần tô sáng cầu vồng bao phủ toàn bộ văn bản bạn muốn dịch. Hãy thử lại nhé!"
   },
   "debug": {
     "dailyStatsTitle": "Gỡ lỗi Thống kê Hàng ngày",

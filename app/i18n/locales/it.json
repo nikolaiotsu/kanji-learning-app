@@ -454,7 +454,9 @@
       "description": "Hai salvato la tua prima scheda! Ecco a molte altre! Salute! 🥳"
     },
     "continueWalkthrough": "No, Continua Tour",
-    "endWalkthrough": "Sì, Termina Tour"
+    "endWalkthrough": "Sì, Termina Tour",
+    "noTextFoundTitle": "Ops!",
+    "noTextFoundMessage": "Assicurati che l'evidenziazione arcobaleno copra tutto il testo che vuoi tradurre. Riproviamo!"
   },
   "debug": {
     "dailyStatsTitle": "Debug Statistiche Giornaliere",

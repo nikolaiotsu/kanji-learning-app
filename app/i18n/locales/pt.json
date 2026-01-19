@@ -454,7 +454,9 @@
       "description": "Você salvou seu primeiro cartão! Que venham muitos mais! Saúde! 🥳"
     },
     "continueWalkthrough": "Não, Continuar Tour",
-    "endWalkthrough": "Sim, Terminar Tour"
+    "endWalkthrough": "Sim, Terminar Tour",
+    "noTextFoundTitle": "Ops!",
+    "noTextFoundMessage": "Certifique-se de que o destaque arco-íris cubra todo o texto que deseja traduzir. Vamos tentar novamente!"
   },
   "debug": {
     "dailyStatsTitle": "Debug de Estatísticas Diárias",
