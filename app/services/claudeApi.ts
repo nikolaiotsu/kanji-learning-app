@@ -5672,6 +5672,27 @@ function parseWordScopeResponse(rawResponse: string): {
 }
 
 /**
+ * Ensures a sentence ends with a period, question mark, or exclamation point
+ * Adds a period if the text doesn't end with sentence-ending punctuation
+ */
+function ensureSentenceEnding(text: string): string {
+  if (!text || text.trim().length === 0) {
+    return text;
+  }
+  
+  const trimmed = text.trim();
+  const lastChar = trimmed[trimmed.length - 1];
+  
+  // If it already ends with sentence-ending punctuation, return as is
+  if (lastChar === '.' || lastChar === '!' || lastChar === '?' || lastChar === '。' || lastChar === '！' || lastChar === '？') {
+    return text;
+  }
+  
+  // Add a period at the end
+  return text.trim() + '.';
+}
+
+/**
  * Formats the JSON scope analysis response into plain text format
  */
 function formatScopeAnalysis(analysisJson: {
@@ -5690,6 +5711,7 @@ function formatScopeAnalysis(analysisJson: {
     reason: string;
   };
   commonContext?: string;
+  synonyms?: Array<{ phrase: string; translation: string; nuance: string }>;
 }): string {
   let formatted = '';
   
@@ -5702,7 +5724,7 @@ function formatScopeAnalysis(analysisJson: {
   
   formatted += '\nGrammar\n';
   if (analysisJson.grammar?.explanation) {
-    formatted += `${analysisJson.grammar.explanation}\n`;
+    formatted += `${ensureSentenceEnding(analysisJson.grammar.explanation)}\n`;
   } else {
     formatted += 'Grammar information unavailable.\n';
   }
@@ -5711,16 +5733,23 @@ function formatScopeAnalysis(analysisJson: {
   if (analysisJson.grammar?.particles && analysisJson.grammar.particles.length > 0) {
     formatted += '\nCommon particles:\n';
     analysisJson.grammar.particles.forEach((p) => {
-      formatted += `- ${p.particle} (${p.use}): ${p.example}\n`;
+      // For particles, ensure use and example end properly
+      const use = ensureSentenceEnding(p.use);
+      const example = ensureSentenceEnding(p.example);
+      formatted += `- ${p.particle} (${use}): ${example}\n`;
     });
   }
   
   // Examples section
   formatted += '\nExamples\n';
   analysisJson.examples.forEach((ex, index) => {
-    formatted += `${index + 1}. ${ex.sentence}\n`;
-    formatted += `   ${ex.translation}\n`;
-    formatted += `   → ${ex.note}\n`;
+    // Ensure sentences and translations end with periods
+    const sentence = ensureSentenceEnding(ex.sentence);
+    const translation = ensureSentenceEnding(ex.translation);
+    const note = ensureSentenceEnding(ex.note);
+    formatted += `${index + 1}. ${sentence}\n`;
+    formatted += `   ${translation}\n`;
+    formatted += `   → ${note}\n`;
     if (index < analysisJson.examples.length - 1) {
       formatted += '\n';
     }
@@ -5728,14 +5757,30 @@ function formatScopeAnalysis(analysisJson: {
   
   // Common mistake section
   formatted += '\n⚠️ Common Mistake\n';
-  formatted += `✗ ${analysisJson.commonMistake.wrong}\n`;
-  formatted += `✓ ${analysisJson.commonMistake.correct}\n`;
-  formatted += `${analysisJson.commonMistake.reason}`;
+  formatted += `✗ ${ensureSentenceEnding(analysisJson.commonMistake.wrong)}\n`;
+  formatted += `✓ ${ensureSentenceEnding(analysisJson.commonMistake.correct)}\n`;
+  formatted += `${ensureSentenceEnding(analysisJson.commonMistake.reason)}`;
   
   // Common context section (if provided)
   if (analysisJson.commonContext) {
     formatted += '\n\n📍 Common Context\n';
-    formatted += `${analysisJson.commonContext}`;
+    formatted += `${ensureSentenceEnding(analysisJson.commonContext)}`;
+  }
+  
+  // Synonyms/Alternative expressions section (for advanced learners)
+  if (analysisJson.synonyms && analysisJson.synonyms.length > 0) {
+    formatted += '\n\n🔄 Alternative Expressions\n';
+    analysisJson.synonyms.forEach((syn, index) => {
+      const phrase = syn.phrase;
+      const translation = ensureSentenceEnding(syn.translation);
+      const nuance = ensureSentenceEnding(syn.nuance);
+      formatted += `${index + 1}. ${phrase}\n`;
+      formatted += `   ${translation}\n`;
+      formatted += `   → ${nuance}\n`;
+      if (index < analysisJson.synonyms!.length - 1) {
+        formatted += '\n';
+      }
+    });
   }
   
   return formatted;
@@ -5921,35 +5966,66 @@ Respond in valid JSON:
   },
   "examples": [
     {
-      "sentence": "simple example",
+      "sentence": "simple example sentence that uses the EXACT same words/phrase from '${normalizedText}' in a different context",
       "translation": "translation",
       "note": "brief grammar point (under 10 words)"
     },
     {
-      "sentence": "intermediate example",
+      "sentence": "intermediate example sentence that uses the EXACT same words/phrase from '${normalizedText}' in a more complex context",
       "translation": "translation",
       "note": "different usage point"
     },
     {
-      "sentence": "natural/casual example",
+      "sentence": "intermediate example sentence that uses the EXACT same words/phrase from '${normalizedText}' in another context",
       "translation": "translation",
-      "note": "casual speech pattern or nuance"
+      "note": "additional usage point"
     }
   ],
   "commonMistake": {
     "wrong": "incorrect usage",
     "correct": "correct usage",
     "reason": "brief explanation (under 15 words)"
-  }
+  },
+  "synonyms": [
+    {
+      "phrase": "alternative way to express the same meaning in ${sourceLangName}",
+      "translation": "translation in ${targetLangName}",
+      "nuance": "brief note on when to use this vs the original (under 15 words)"
+    },
+    {
+      "phrase": "second alternative expression",
+      "translation": "translation",
+      "nuance": "nuance difference"
+    },
+    {
+      "phrase": "third alternative expression",
+      "translation": "translation",
+      "nuance": "nuance difference"
+    }
+  ]
 }
+
+CRITICAL: ALL sentence fields MUST end with a period (.) unless ending with ! or ?:
+- "explanation" must end with a period
+- "translation" fields must end with periods for complete sentences
+- "note" fields must end with periods
+- "wrong" and "correct" must end with periods (unless questions/exclamations)
+- "reason" must end with a period
+- "use" in particles array must end with a period
+- "example" in particles array must end with a period
+- "nuance" in synonyms array must end with a period
 
 RULES:
 - Keep all explanations SHORT and practical
 - Example notes must be under 10 words
-- Examples should progress: simple → intermediate → natural/casual
+- Examples should progress: simple → intermediate → intermediate
+- CRITICAL: The "examples" section MUST use the EXACT same words/phrase from "${normalizedText}" - create new sentences that contain the same phrase/words, NOT synonyms or alternatives
+- The examples are to show how "${normalizedText}" works in different contexts, but must include the actual words/phrase from the scanned text
+- The "synonyms" section is for alternative expressions - these should be DIFFERENT from what's used in examples
 - Particles array only needed for languages that use them (Japanese, Korean)
 - Focus only on what helps the learner USE the word correctly
 - If baseForm is the same as word, omit the baseForm field
+- Synonyms should provide 3 alternative ways to express the same meaning for advanced learners
 - CRITICAL for "partOfSpeech": 
   * YOU MUST ANALYZE THE SOURCE SENTENCE: "${normalizedText}"
   * DO NOT analyze the translation - analyze the ORIGINAL SOURCE TEXT above
@@ -6180,19 +6256,19 @@ You MUST respond with valid JSON in this exact format:
     },
     "examples": [
       {
-        "sentence": "simple example",
+        "sentence": "simple example sentence that uses the EXACT same words/phrase from '${normalizedText}' in a different context",
         "translation": "translation",
         "note": "brief grammar point (under 10 words)"
       },
       {
-        "sentence": "intermediate example",
+        "sentence": "intermediate example sentence that uses the EXACT same words/phrase from '${normalizedText}' in a more complex context",
         "translation": "translation",
         "note": "different usage point"
       },
       {
-        "sentence": "natural/casual example",
+        "sentence": "intermediate example sentence that uses the EXACT same words/phrase from '${normalizedText}' in another context",
         "translation": "translation",
-        "note": "casual speech pattern or nuance"
+        "note": "additional usage point"
       }
     ],
     "commonMistake": {
@@ -6200,11 +6276,41 @@ You MUST respond with valid JSON in this exact format:
       "correct": "correct usage",
       "reason": "brief explanation (under 15 words)"
     },
-    "commonContext": "brief note about when/where this phrase is commonly used (e.g., 'customer-to-patron contexts', 'formal business settings', 'casual conversations'). Omit if not applicable."
+    "commonContext": "brief note about when/where this phrase is commonly used (e.g., 'customer-to-patron contexts', 'formal business settings', 'casual conversations'). Omit if not applicable.",
+    "synonyms": [
+      {
+        "phrase": "alternative way to express the same meaning",
+        "translation": "translation",
+        "nuance": "brief note on when to use this vs the original (under 15 words)"
+      },
+      {
+        "phrase": "second alternative expression",
+        "translation": "translation",
+        "nuance": "nuance difference"
+      },
+      {
+        "phrase": "third alternative expression",
+        "translation": "translation",
+        "nuance": "nuance difference"
+      }
+    ]
   }
 }
 
 CRITICAL REQUIREMENTS:
+- ALL sentence fields MUST end with a period (.) unless they end with ! or ?:
+  * "explanation" must end with a period
+  * "translation" fields must end with periods for complete sentences
+  * "note" fields must end with periods
+  * "wrong" and "correct" must end with periods (unless questions/exclamations)
+  * "reason" must end with a period
+  * "use" in particles array must end with a period
+  * "example" in particles array must end with a period
+  * "commonContext" must end with a period if it's a complete sentence
+  * "nuance" in synonyms array must end with a period
+- CRITICAL: The "examples" section MUST use the EXACT same words/phrase from "${normalizedText}" - create new sentences that contain the same phrase/words in different contexts, NOT synonyms or alternatives
+- The examples are to show how "${normalizedText}" works in different contexts, but must include the actual words/phrase from the scanned text
+- The "synonyms" section provides 3 alternative expressions for advanced learners - these MUST be DIFFERENT from what's used in examples
 - ALL fields are required and must be complete${needsReadings ? `
 - furiganaText MUST contain the COMPLETE original text WITH ${readingInfo?.readingType} for EVERY applicable character/word
 - Do NOT skip any readings - every ${forcedLanguage === 'ja' ? 'kanji' : 'word'} must have its reading` : ''}
@@ -6272,19 +6378,19 @@ You MUST respond with valid JSON in this exact format:
     },
     "examples": [
       {
-        "sentence": "simple example",
+        "sentence": "simple example sentence that uses the EXACT same words/phrase from '${normalizedText}' in a different context",
         "translation": "translation",
         "note": "brief grammar point (under 10 words)"
       },
       {
-        "sentence": "intermediate example",
+        "sentence": "intermediate example sentence that uses the EXACT same words/phrase from '${normalizedText}' in a more complex context",
         "translation": "translation",
         "note": "different usage point"
       },
       {
-        "sentence": "natural/casual example",
+        "sentence": "intermediate example sentence that uses the EXACT same words/phrase from '${normalizedText}' in another context",
         "translation": "translation",
-        "note": "casual speech pattern or nuance"
+        "note": "additional usage point"
       }
     ],
     "commonMistake": {
@@ -6403,19 +6509,19 @@ You MUST respond with valid JSON in this exact format:
     },
     "examples": [
       {
-        "sentence": "simple example in ${sourceLangName}",
+        "sentence": "simple example sentence in ${sourceLangName} that uses the EXACT same words/phrase from '${normalizedText}' in a different context",
         "translation": "translation in ${targetLangName}",
         "note": "brief grammar point (under 10 words)"
       },
       {
-        "sentence": "intermediate example in ${sourceLangName}",
+        "sentence": "intermediate example sentence in ${sourceLangName} that uses the EXACT same words/phrase from '${normalizedText}' in a more complex context",
         "translation": "translation in ${targetLangName}",
         "note": "different usage point"
       },
       {
-        "sentence": "natural/casual example in ${sourceLangName}",
+        "sentence": "intermediate example sentence in ${sourceLangName} that uses the EXACT same words/phrase from '${normalizedText}' in another context",
         "translation": "translation in ${targetLangName}",
-        "note": "casual speech pattern or nuance"
+        "note": "additional usage point"
       }
     ],
     "commonMistake": {
@@ -6423,7 +6529,24 @@ You MUST respond with valid JSON in this exact format:
       "correct": "correct usage in ${sourceLangName}",
       "reason": "brief explanation in ${targetLangName} (under 15 words)"
     },
-    "commonContext": "brief note about when/where this phrase is commonly used. Omit if not applicable."
+    "commonContext": "brief note about when/where this phrase is commonly used. Omit if not applicable.",
+    "synonyms": [
+      {
+        "phrase": "alternative way to express the same meaning in ${sourceLangName}",
+        "translation": "translation in ${targetLangName}",
+        "nuance": "brief note on when to use this vs the original (under 15 words)"
+      },
+      {
+        "phrase": "second alternative expression in ${sourceLangName}",
+        "translation": "translation in ${targetLangName}",
+        "nuance": "nuance difference"
+      },
+      {
+        "phrase": "third alternative expression in ${sourceLangName}",
+        "translation": "translation in ${targetLangName}",
+        "nuance": "nuance difference"
+      }
+    ]
   }
 }
 
@@ -6445,10 +6568,23 @@ CRITICAL REQUIREMENTS:
 - furiganaText should be empty for non-CJK languages (no reading annotations needed)
 - Write translation and analysis in ${targetLangName}
 - Example sentences MUST be in ${sourceLangName}
+- CRITICAL: The "examples" section MUST use the EXACT same words/phrase from "${normalizedText}" - create new sentences that contain the same phrase/words in different contexts, NOT synonyms or alternatives
+- The examples are to show how "${normalizedText}" works in different contexts, but must include the actual words/phrase from the scanned text
+- The "synonyms" section provides 3 alternative expressions for advanced learners - these MUST be DIFFERENT from what's used in examples
 - Do not include any text outside the JSON object
 - Ensure proper JSON escaping: use \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes
 - Do NOT truncate or abbreviate any field
-- commonContext should briefly mention typical situations, relationships, or settings where the phrase appears`;
+- commonContext should briefly mention typical situations, relationships, or settings where the phrase appears
+- ALL sentence fields MUST end with a period (.) unless they end with ! or ?:
+  * "explanation" must end with a period
+  * "translation" fields must end with periods for complete sentences
+  * "note" fields must end with periods
+  * "wrong" and "correct" must end with periods (unless questions/exclamations)
+  * "reason" must end with a period
+  * "use" in particles array must end with a period
+  * "example" in particles array must end with a period
+  * "commonContext" must end with a period if it's a complete sentence
+  * "nuance" in synonyms array must end with a period`;
 
       logger.log(`🔄 [WordScope Prompt Caching] Sending ${languageDisplayName} request with caching enabled - system prompt: ${systemPrompt.length} chars, user message: ${dynamicUserMessage.length} chars`);
       
@@ -6645,19 +6781,19 @@ Respond in valid JSON:
   },
   "examples": [
     {
-      "sentence": "simple example",
+      "sentence": "simple example sentence that uses the EXACT same words/phrase from '${text}' in a different context",
       "translation": "translation",
       "note": "brief grammar point (under 10 words)"
     },
     {
-      "sentence": "intermediate example",
+      "sentence": "intermediate example sentence that uses the EXACT same words/phrase from '${text}' in a more complex context",
       "translation": "translation",
       "note": "different usage point"
     },
     {
-      "sentence": "natural/casual example",
+      "sentence": "intermediate example sentence that uses the EXACT same words/phrase from '${text}' in another context",
       "translation": "translation",
-      "note": "casual speech pattern or nuance"
+      "note": "additional usage point"
     }
   ],
   "commonMistake": {
@@ -6665,17 +6801,47 @@ Respond in valid JSON:
     "correct": "correct usage",
     "reason": "brief explanation (under 15 words)"
   },
-  "commonContext": "brief note about when/where this phrase is commonly used (e.g., 'customer-to-patron contexts', 'formal business settings', 'casual conversations'). Omit if not applicable."
+  "commonContext": "brief note about when/where this phrase is commonly used (e.g., 'customer-to-patron contexts', 'formal business settings', 'casual conversations'). Omit if not applicable.",
+  "synonyms": [
+    {
+      "phrase": "alternative way to express the same meaning in ${sourceLangName}",
+      "translation": "translation in ${targetLangName}",
+      "nuance": "brief note on when to use this vs the original (under 15 words)"
+    },
+    {
+      "phrase": "second alternative expression",
+      "translation": "translation",
+      "nuance": "nuance difference"
+    },
+    {
+      "phrase": "third alternative expression",
+      "translation": "translation",
+      "nuance": "nuance difference"
+    }
+  ]
 }
 
 RULES:
 - Keep all explanations SHORT and practical
 - Example notes must be under 10 words
-- Examples should progress: simple → intermediate → natural/casual
+- Examples should progress: simple → intermediate → intermediate
+- CRITICAL: The "examples" section MUST use the EXACT same words/phrase from "${text}" - create new sentences that contain the same phrase/words in different contexts, NOT synonyms or alternatives
+- The examples are to show how "${text}" works in different contexts, but must include the actual words/phrase from the scanned text
+- The "synonyms" section provides 3 alternative expressions for advanced learners - these MUST be DIFFERENT from what's used in examples
 - Particles array only needed for languages that use them (Japanese, Korean)
 - Focus only on what helps the learner USE the word correctly
 - If baseForm is the same as word, omit the baseForm field
 - commonContext should briefly mention typical situations, relationships, or settings where the phrase appears
+- ALL sentence fields MUST end with a period (.) unless they end with ! or ?:
+  * "explanation" must end with a period
+  * "translation" fields must end with periods for complete sentences
+  * "note" fields must end with periods
+  * "wrong" and "correct" must end with periods (unless questions/exclamations)
+  * "reason" must end with a period
+  * "use" in particles array must end with a period
+  * "example" in particles array must end with a period
+  * "commonContext" must end with a period if it's a complete sentence
+  * "nuance" in synonyms array must end with a period
 - CRITICAL for "partOfSpeech": 
   * YOU MUST ANALYZE THE SOURCE SENTENCE: "${text}"
   * DO NOT analyze the translation - analyze the ORIGINAL SOURCE TEXT above
