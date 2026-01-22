@@ -38,8 +38,12 @@ export interface SubscriptionPlanConfig {
   features: string[];
   price?: string;
   productId?: string;
-  translateApiCallsPerDay?: number; // Limit for translate API calls
-  wordscopeApiCallsPerDay?: number; // Limit for wordscope API calls
+  // Legacy separate limits (deprecated - use unified limits below)
+  translateApiCallsPerDay?: number;
+  wordscopeApiCallsPerDay?: number;
+  // Unified API limits - applies to all API call types (translate, wordscope, etc.)
+  apiCallsPerDay: number; // Daily limit for all API calls combined
+  apiCallsPerMonth?: number; // Monthly limit for all API calls combined (optional, for premium)
 }
 
 export interface SubscriptionState {

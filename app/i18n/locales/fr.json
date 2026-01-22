@@ -111,6 +111,13 @@
       "translation": "Traduction {{language}}",
       "collection": "Collection :"
     },
+    "wordscope": {
+      "grammar": "Grammaire",
+      "examples": "Exemples",
+      "commonMistake": "Erreur courante",
+      "commonContext": "Contexte courant",
+      "alternativeExpressions": "Expressions alternatives"
+    },
     "save": {
       "title": "Flashcard enregistrée",
       "message": "Votre {{cardType}} a été enregistrée dans {{deckName}} !",

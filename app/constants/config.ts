@@ -9,18 +9,24 @@ export const APP_CONFIG = {
 };
 
 // Subscription plan configurations
+// API limits:
+// - Unified limit (apiCallsPerDay/apiCallsPerMonth): Only applies to translate and wordscope API calls
+// - OCR/Vision limit (ocrScansPerDay): Separate limit for OCR scans and vision API calls
 export const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanConfig> = {
   FREE: {
-    ocrScansPerDay: 30, // 30 API calls per day for free users
-    flashcardsPerDay: 5, // 5 flashcards per day for free users
+    ocrScansPerDay: 200, // Separate limit for OCR scans and vision API calls
+    flashcardsPerDay: 200, // 200 flashcards per day for free users
     maxDecks: 2, // Free users can create up to 2 decks
     showAds: true,
     features: ['basic_scanning', 'flashcards', 'basic_ocr'],
-    translateApiCallsPerDay: 5, // 5 translate API calls per day for free users
-    wordscopeApiCallsPerDay: 2 // 2 wordscope API calls per day for free users
+    // Legacy separate limits (deprecated - kept for backward compatibility)
+    translateApiCallsPerDay: 5,
+    wordscopeApiCallsPerDay: 5,
+    // Unified API limit: 5 API calls per 24 hours (translate + wordscope only, NOT OCR/vision)
+    apiCallsPerDay: 5
   },
   PREMIUM: {
-    ocrScansPerDay: 5000, // 5000 API calls per day for premium users (to prevent spam)
+    ocrScansPerDay: 5000, // Separate limit for OCR scans and vision API calls (essentially unlimited)
     flashcardsPerDay: -1, // -1 represents unlimited flashcards for premium users
     maxDecks: 150, // Essentially unlimited decks for premium users
     showAds: false,
@@ -34,8 +40,12 @@ export const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanConfig> = {
       'ad_free_experience',
       'priority_support'
     ],
-    translateApiCallsPerDay: -1, // -1 represents unlimited for premium users
-    wordscopeApiCallsPerDay: -1 // -1 represents unlimited for premium users
+    // Legacy separate limits (deprecated - kept for backward compatibility)
+    translateApiCallsPerDay: 120,
+    wordscopeApiCallsPerDay: 120,
+    // Unified API limits: 120 API calls per day, 1200 per month (translate + wordscope only, NOT OCR/vision)
+    apiCallsPerDay: 120,
+    apiCallsPerMonth: 1200
   }
 };
 

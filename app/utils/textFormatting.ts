@@ -283,6 +283,51 @@ export function containsEsperantoText(text: string): boolean {
 // For backward compatibility
 export const cleanJapaneseText = cleanText;
 
+/**
+ * Localizes wordscope section headings in scopeAnalysis text
+ * Replaces English headings with localized versions based on target language
+ * 
+ * @param scopeAnalysis The scopeAnalysis text with English headings
+ * @param headingsMap Object mapping English headings to localized headings
+ * @returns ScopeAnalysis text with localized headings
+ */
+export function localizeScopeAnalysisHeadings(
+  scopeAnalysis: string,
+  headingsMap: {
+    grammar: string;
+    examples: string;
+    commonMistake: string;
+    commonContext: string;
+    alternativeExpressions: string;
+  }
+): string {
+  if (!scopeAnalysis) return scopeAnalysis;
+
+  let localized = scopeAnalysis;
+
+  // Replace Grammar heading (with optional newline before it)
+  localized = localized.replace(/\nGrammar\n/g, `\n${headingsMap.grammar}\n`);
+  localized = localized.replace(/^Grammar\n/g, `${headingsMap.grammar}\n`);
+
+  // Replace Examples heading (with optional newline before it)
+  localized = localized.replace(/\nExamples\n/g, `\n${headingsMap.examples}\n`);
+  localized = localized.replace(/^Examples\n/g, `${headingsMap.examples}\n`);
+
+  // Replace Common Mistake heading (with emoji and optional newline before it)
+  localized = localized.replace(/\n⚠️ Common Mistake\n/g, `\n⚠️ ${headingsMap.commonMistake}\n`);
+  localized = localized.replace(/^⚠️ Common Mistake\n/g, `⚠️ ${headingsMap.commonMistake}\n`);
+
+  // Replace Common Context heading (with emoji and optional newline before it)
+  localized = localized.replace(/\n\n📍 Common Context\n/g, `\n\n📍 ${headingsMap.commonContext}\n`);
+  localized = localized.replace(/\n📍 Common Context\n/g, `\n📍 ${headingsMap.commonContext}\n`);
+
+  // Replace Alternative Expressions heading (with emoji and optional newline before it)
+  localized = localized.replace(/\n\n🔄 Alternative Expressions\n/g, `\n\n🔄 ${headingsMap.alternativeExpressions}\n`);
+  localized = localized.replace(/\n🔄 Alternative Expressions\n/g, `\n🔄 ${headingsMap.alternativeExpressions}\n`);
+
+  return localized;
+}
+
 // Add this default export to satisfy Expo Router
 const TextFormatting = { 
   cleanText, 
@@ -307,6 +352,7 @@ const TextFormatting = {
   containsVietnameseText,
   containsEsperantoText,
   containsKanji,
-  countKanji
+  countKanji,
+  localizeScopeAnalysisHeadings
 };
 export default TextFormatting; 

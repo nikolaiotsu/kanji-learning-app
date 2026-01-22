@@ -1,7 +1,9 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, Dimensions, Animated, ScrollView, LayoutChangeEvent, Image, ActivityIndicator, Easing } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import i18next from '../../i18n';
 import { Flashcard } from '../../types/Flashcard';
+import { localizeScopeAnalysisHeadings } from '../../utils/textFormatting';
 import { Ionicons, MaterialIcons, FontAwesome5, FontAwesome6 } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { useSettings, AVAILABLE_LANGUAGES } from '../../context/SettingsContext';
@@ -665,14 +667,27 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
               </Text>
               
               {/* Scope Analysis Section */}
-              {flashcard.scopeAnalysis && (
-                <>
-                  <Text style={styles.sectionTitle}>Wordscope</Text>
-                  <Text style={styles.scopeAnalysisText}>
-                    {flashcard.scopeAnalysis}
-                  </Text>
-                </>
-              )}
+              {flashcard.scopeAnalysis && (() => {
+                // Get translations for target language (use flashcard's targetLanguage if available)
+                const targetLang = flashcard.targetLanguage || 'en';
+                const targetT = i18next.getFixedT(targetLang, 'translation');
+                const scopeAnalysisText = flashcard.scopeAnalysis || '';
+                const localizedScopeAnalysis = localizeScopeAnalysisHeadings(scopeAnalysisText, {
+                  grammar: targetT('flashcard.wordscope.grammar'),
+                  examples: targetT('flashcard.wordscope.examples'),
+                  commonMistake: targetT('flashcard.wordscope.commonMistake'),
+                  commonContext: targetT('flashcard.wordscope.commonContext'),
+                  alternativeExpressions: targetT('flashcard.wordscope.alternativeExpressions'),
+                });
+                return (
+                  <>
+                    <Text style={styles.sectionTitle}>Wordscope</Text>
+                    <Text style={styles.scopeAnalysisText}>
+                      {localizedScopeAnalysis}
+                    </Text>
+                  </>
+                );
+              })()}
               
               {/* Always render the image on back side too but conditionally show it */}
               {flashcard.imageUrl && (

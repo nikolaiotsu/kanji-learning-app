@@ -111,6 +111,13 @@
       "translation": "Перевод {{language}}",
       "collection": "Коллекция:"
     },
+    "wordscope": {
+      "grammar": "Грамматика",
+      "examples": "Примеры",
+      "commonMistake": "Частая ошибка",
+      "commonContext": "Частый контекст",
+      "alternativeExpressions": "Альтернативные выражения"
+    },
     "save": {
       "title": "Карточка сохранена",
       "message": "Ваша {{cardType}} была сохранена в {{deckName}}!",

@@ -2049,20 +2049,23 @@ export async function processWithClaude(
     textLength: text.length
   });
 
-  // Check rate limits for translate API
+  // Check unified rate limits for all API calls
   try {
     const subscription = await fetchSubscriptionStatus();
     const subscriptionPlan = getSubscriptionPlan(subscription);
     const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
     
-    if (rateLimitStatus.translateCallsRemaining <= 0) {
-      const errorMessage = 'Daily translate API limit reached. Please upgrade to Premium for unlimited translations.';
-      logger.warn('[Claude API] Translate rate limit exceeded');
+    if (rateLimitStatus.apiCallsRemaining <= 0) {
+      const isPremium = subscriptionPlan === 'PREMIUM';
+      const errorMessage = isPremium 
+        ? 'API limit reached. You have used all your API calls for this period.'
+        : 'Daily API limit reached. Upgrade to Premium for more API calls.';
+      logger.warn(`[Claude API] Rate limit exceeded - daily: ${rateLimitStatus.apiCallsUsedToday}/${rateLimitStatus.dailyLimit}, monthly: ${rateLimitStatus.apiCallsUsedThisMonth}/${rateLimitStatus.monthlyLimit || 'N/A'}`);
       throw new Error(errorMessage);
     }
   } catch (error) {
     // If rate limit check fails, log but don't block (fail open for better UX)
-    if (error instanceof Error && error.message.includes('Daily translate API limit')) {
+    if (error instanceof Error && (error.message.includes('API limit reached') || error.message.includes('Daily API limit'))) {
       throw error; // Re-throw rate limit errors
     }
     logger.warn('[Claude API] Rate limit check failed, proceeding:', error);
@@ -5817,20 +5820,23 @@ export async function processWithClaudeAndScope(
     operationType: 'wordscope_combined'
   });
 
-  // Check rate limits for wordscope API
+  // Check unified rate limits for all API calls
   try {
     const subscription = await fetchSubscriptionStatus();
     const subscriptionPlan = getSubscriptionPlan(subscription);
     const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
     
-    if (rateLimitStatus.wordscopeCallsRemaining <= 0) {
-      const errorMessage = 'Daily WordScope API limit reached. Please upgrade to Premium for unlimited WordScope analysis.';
-      logger.warn('[WordScope Combined] WordScope rate limit exceeded');
+    if (rateLimitStatus.apiCallsRemaining <= 0) {
+      const isPremium = subscriptionPlan === 'PREMIUM';
+      const errorMessage = isPremium 
+        ? 'API limit reached. You have used all your API calls for this period.'
+        : 'Daily API limit reached. Upgrade to Premium for more API calls.';
+      logger.warn(`[WordScope Combined] Rate limit exceeded - daily: ${rateLimitStatus.apiCallsUsedToday}/${rateLimitStatus.dailyLimit}, monthly: ${rateLimitStatus.apiCallsUsedThisMonth}/${rateLimitStatus.monthlyLimit || 'N/A'}`);
       throw new Error(errorMessage);
     }
   } catch (error) {
     // If rate limit check fails, log but don't block (fail open for better UX)
-    if (error instanceof Error && error.message.includes('Daily WordScope API limit')) {
+    if (error instanceof Error && (error.message.includes('API limit reached') || error.message.includes('Daily API limit'))) {
       throw error; // Re-throw rate limit errors
     }
     logger.warn('[WordScope Combined] Rate limit check failed, proceeding:', error);

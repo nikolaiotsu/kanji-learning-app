@@ -111,6 +111,13 @@
       "translation": "{{language}} अनुवाद",
       "collection": "संग्रह:"
     },
+    "wordscope": {
+      "grammar": "व्याकरण",
+      "examples": "उदाहरण",
+      "commonMistake": "सामान्य गलती",
+      "commonContext": "सामान्य संदर्भ",
+      "alternativeExpressions": "वैकल्पिक अभिव्यक्तियाँ"
+    },
     "save": {
       "title": "फ्लैशकार्ड सहेजा गया",
       "message": "आपका {{cardType}} {{deckName}} में सहेजा गया है!",

@@ -111,6 +111,13 @@
       "translation": "{{language}}翻訳",
       "collection": "コレクション："
     },
+    "wordscope": {
+      "grammar": "文法",
+      "examples": "例文",
+      "commonMistake": "よくある間違い",
+      "commonContext": "よく使われる場面",
+      "alternativeExpressions": "別の表現"
+    },
     "save": {
       "title": "フラッシュカードが保存されました",
       "message": "{{cardType}}が{{deckName}}に保存されました！",

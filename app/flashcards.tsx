@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Constants from 'expo-constants';
 import { View, Text, StyleSheet, Platform, ActivityIndicator, ScrollView, TouchableOpacity, Alert, TextInput, Modal, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import WalkthroughTarget from './components/shared/WalkthroughTarget';
@@ -8,7 +8,9 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import i18next from './i18n';
 import { processWithClaude, processWithClaudeAndScope, validateLanguageWithClaude, LanguageMismatchInfo, ClaudeResponse } from './services/claudeApi';
+import { localizeScopeAnalysisHeadings } from './utils/textFormatting';
 import { 
   cleanText, 
   containsJapanese, 
@@ -1661,12 +1663,23 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                     </View>
                   )}
                   
-                  {scopeAnalysis && (
-                    <View style={styles.resultContainer}>
-                      <Text style={styles.sectionTitle}>Wordscope</Text>
-                      <Text style={styles.scopeAnalysisText} numberOfLines={0}>{scopeAnalysis}</Text>
-                    </View>
-                  )}
+                  {scopeAnalysis && (() => {
+                    // Get translations for target language
+                    const targetT = i18next.getFixedT(actualTargetLanguage || targetLanguage, 'translation');
+                    const localizedScopeAnalysis = localizeScopeAnalysisHeadings(scopeAnalysis, {
+                      grammar: targetT('flashcard.wordscope.grammar'),
+                      examples: targetT('flashcard.wordscope.examples'),
+                      commonMistake: targetT('flashcard.wordscope.commonMistake'),
+                      commonContext: targetT('flashcard.wordscope.commonContext'),
+                      alternativeExpressions: targetT('flashcard.wordscope.alternativeExpressions'),
+                    });
+                    return (
+                      <View style={styles.resultContainer} key="wordscope">
+                        <Text style={styles.sectionTitle}>Wordscope</Text>
+                        <Text style={styles.scopeAnalysisText} numberOfLines={0}>{localizedScopeAnalysis}</Text>
+                      </View>
+                    );
+                  })()}
 
                   {/* 2x2 Button Grid */}
                   {textProcessed && translatedText && (

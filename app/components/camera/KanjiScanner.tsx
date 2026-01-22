@@ -134,9 +134,8 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
   const { forcedDetectionLanguage } = useSettings();
   const { isConnected } = useNetworkState();
   
-  // State for API limits
-  const [translateCallsRemaining, setTranslateCallsRemaining] = useState<number>(Number.MAX_SAFE_INTEGER);
-  const [wordscopeCallsRemaining, setWordscopeCallsRemaining] = useState<number>(Number.MAX_SAFE_INTEGER);
+  // State for unified API limit (applies to all API call types)
+  const [apiCallsRemaining, setApiCallsRemaining] = useState<number>(Number.MAX_SAFE_INTEGER);
   const [isLoadingAPILimits, setIsLoadingAPILimits] = useState(false);
   
   // Add ref to access the ImageHighlighter component
@@ -312,8 +311,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           const subscriptionStatus = await fetchSubscriptionStatus();
           const subscriptionPlan = getSubscriptionPlan(subscriptionStatus);
           const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
-          setTranslateCallsRemaining(rateLimitStatus.translateCallsRemaining);
-          setWordscopeCallsRemaining(rateLimitStatus.wordscopeCallsRemaining);
+          setApiCallsRemaining(rateLimitStatus.apiCallsRemaining);
         } catch (error) {
           logger.error('Error refreshing API limits on focus:', error);
         }
@@ -331,13 +329,11 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
         const subscriptionStatus = await fetchSubscriptionStatus();
         const subscriptionPlan = getSubscriptionPlan(subscriptionStatus);
         const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
-        setTranslateCallsRemaining(rateLimitStatus.translateCallsRemaining);
-        setWordscopeCallsRemaining(rateLimitStatus.wordscopeCallsRemaining);
+        setApiCallsRemaining(rateLimitStatus.apiCallsRemaining);
       } catch (error) {
         logger.error('Error loading API limits in KanjiScanner:', error);
         // Default to allowing if check fails
-        setTranslateCallsRemaining(Number.MAX_SAFE_INTEGER);
-        setWordscopeCallsRemaining(Number.MAX_SAFE_INTEGER);
+        setApiCallsRemaining(Number.MAX_SAFE_INTEGER);
       } finally {
         setIsLoadingAPILimits(false);
       }
@@ -346,8 +342,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     loadAPILimits();
   }, [subscription]);
 
-  // Helper to check if buttons should be locked (only when BOTH limits are exhausted)
-  const areBothAPILimitsExhausted = translateCallsRemaining <= 0 && wordscopeCallsRemaining <= 0;
+  // Helper to check if API limits are exhausted (unified limit for all API call types)
+  const isAPILimitExhausted = apiCallsRemaining <= 0;
 
   // Auto-advance from gallery step to rotate once an image is loaded, but ensure editor buttons are measured first to avoid overlay flicker
   useEffect(() => {
@@ -651,8 +647,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 const subscriptionStatus = await fetchSubscriptionStatus();
                 const subscriptionPlan = getSubscriptionPlan(subscriptionStatus);
                 const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
-                setTranslateCallsRemaining(rateLimitStatus.translateCallsRemaining);
-                setWordscopeCallsRemaining(rateLimitStatus.wordscopeCallsRemaining);
+                setApiCallsRemaining(rateLimitStatus.apiCallsRemaining);
               } catch (error) {
                 logger.error('Error refreshing API limits after upgrade:', error);
               }
@@ -741,6 +736,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       showUpgradeAlert();
       return;
     }
+    // Reset input text when opening the modal to ensure it's fresh
+    setInputText('');
     setShowTextInputModal(true);
   };
 
@@ -767,8 +764,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       return;
     }
 
-    // Check translate limit before navigation
-    if (translateCallsRemaining <= 0) {
+    // Check API limit before navigation
+    if (apiCallsRemaining <= 0) {
       showAPILimitUpgradeAlert('translate');
       return;
     }
@@ -778,8 +775,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       const subscriptionStatus = await fetchSubscriptionStatus();
       const subscriptionPlan = getSubscriptionPlan(subscriptionStatus);
       const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
-      setTranslateCallsRemaining(rateLimitStatus.translateCallsRemaining);
-      setWordscopeCallsRemaining(rateLimitStatus.wordscopeCallsRemaining);
+      setApiCallsRemaining(rateLimitStatus.apiCallsRemaining);
     } catch (error) {
       logger.error('Error refreshing API limits before navigation:', error);
     }
@@ -801,8 +797,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       return;
     }
 
-    // Check wordscope limit before navigation
-    if (wordscopeCallsRemaining <= 0) {
+    // Check API limit before navigation
+    if (apiCallsRemaining <= 0) {
       showAPILimitUpgradeAlert('wordscope');
       return;
     }
@@ -812,8 +808,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       const subscriptionStatus = await fetchSubscriptionStatus();
       const subscriptionPlan = getSubscriptionPlan(subscriptionStatus);
       const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
-      setTranslateCallsRemaining(rateLimitStatus.translateCallsRemaining);
-      setWordscopeCallsRemaining(rateLimitStatus.wordscopeCallsRemaining);
+      setApiCallsRemaining(rateLimitStatus.apiCallsRemaining);
     } catch (error) {
       logger.error('Error refreshing API limits before navigation:', error);
     }
@@ -824,8 +819,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       params: { text: inputText.trim(), useScope: 'true' }
     });
 
-    // Reset the input and close the modal
-    setInputText('');
+    // Close the modal (input will be reset when modal opens next time)
     setShowTextInputModal(false);
   };
 
@@ -2358,8 +2352,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
               style={isWalkthroughActive && currentStep?.id === 'custom-card' ? styles.highlightedButtonWrapper : null}
             >
               <PokedexButton
-                onPress={(canCreateFlashcard && !areBothAPILimitsExhausted && isConnected) ? handleTextInput : showUpgradeAlert}
-                icon={isWalkthroughActive ? "add" : ((canCreateFlashcard && !areBothAPILimitsExhausted && isConnected) ? "add" : "lock-closed")}
+                onPress={(canCreateFlashcard && !isAPILimitExhausted && isConnected) ? handleTextInput : showUpgradeAlert}
+                icon={isWalkthroughActive ? "add" : ((canCreateFlashcard && !isAPILimitExhausted && isConnected) ? "add" : "lock-closed")}
                 iconColor={
                   isWalkthroughActive && currentStep?.id === 'custom-card'
                     ? '#FBBF24' // Warm amber for highlighted
@@ -2372,7 +2366,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 shape="square"
                 style={styles.rowButton}
                 disabled={!isConnected || localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'custom-card')}
-                darkDisabled={areBothAPILimitsExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
+                darkDisabled={isAPILimitExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
               />
             </View>
             {/* Check Flashcards Button */}
@@ -2411,8 +2405,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
               pointerEventsWhenInactive="none"
             >
               <PokedexButton
-                onPress={(canCreateFlashcard && !areBothAPILimitsExhausted && isConnected) ? pickImage : showUpgradeAlert}
-                icon={isWalkthroughActive ? "images" : ((areBothAPILimitsExhausted || !canCreateFlashcard || !isConnected || isImageProcessing || localProcessing) ? "lock-closed" : "images")}
+                onPress={(canCreateFlashcard && !isAPILimitExhausted && isConnected) ? pickImage : showUpgradeAlert}
+                icon={isWalkthroughActive ? "images" : ((isAPILimitExhausted || !canCreateFlashcard || !isConnected || isImageProcessing || localProcessing) ? "lock-closed" : "images")}
                 iconColor={
                   isWalkthroughActive && (currentStep?.id === 'gallery' || currentStep?.id === 'gallery-confirm')
                     ? '#FBBF24' // Warm amber for highlighted
@@ -2428,7 +2422,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                   !isConnected || localProcessing || isImageProcessing ||
                   (isWalkthroughActive && currentStep?.id !== 'gallery' && currentStep?.id !== 'gallery-confirm')
                 }
-                darkDisabled={areBothAPILimitsExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
+                darkDisabled={isAPILimitExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
               />
             </WalkthroughTarget>
             {/* Camera Button (rightmost) */}
@@ -2471,9 +2465,9 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                   onPhotoCapture={handlePhotoCapture} 
                   style={styles.rowButton}
                   onProcessingStateChange={setIsImageProcessing}
-                  disabled={areBothAPILimitsExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
+                  disabled={isAPILimitExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
                   onDisabledPress={showUpgradeAlert}
-                  darkDisabled={areBothAPILimitsExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
+                  darkDisabled={isAPILimitExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
                 />
               )}
             </View>
@@ -2814,12 +2808,12 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 <TouchableOpacity 
                   style={[
                     styles.modalButton,
-                    wordscopeCallsRemaining <= 0 ? styles.disabledButton : null,
-                    areBothAPILimitsExhausted ? styles.darkDisabledButton : null
+                    isAPILimitExhausted ? styles.disabledButton : null,
+                    isAPILimitExhausted ? styles.darkDisabledButton : null
                   ]} 
                   onPress={() => {
                     if (localProcessing || isImageProcessing) return;
-                    if (wordscopeCallsRemaining <= 0) {
+                    if (isAPILimitExhausted) {
                       showAPILimitUpgradeAlert('wordscope');
                     } else {
                       handleWordScopeTextInput();
@@ -2828,14 +2822,14 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                   disabled={localProcessing || isImageProcessing || isLoadingAPILimits}
                 >
                   <LinearGradient
-                    colors={(localProcessing || isImageProcessing || wordscopeCallsRemaining <= 0) 
+                    colors={(localProcessing || isImageProcessing || isAPILimitExhausted) 
                       ? ['rgba(100, 116, 139, 0.5)', 'rgba(71, 85, 105, 0.6)']
                       : ['rgba(140, 140, 140, 0.35)', 'rgba(100, 100, 100, 0.45)']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 0, y: 1 }}
                     style={StyleSheet.absoluteFill}
                   />
-                  {!(localProcessing || isImageProcessing || wordscopeCallsRemaining <= 0) && (
+                  {!(localProcessing || isImageProcessing || isAPILimitExhausted) && (
                     <LinearGradient
                       colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
                       start={{ x: 0, y: 0 }}
@@ -2845,7 +2839,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                   )}
                   <View style={styles.modalButtonContent}>
                     <View style={styles.modalDualIconContainer}>
-                      {wordscopeCallsRemaining <= 0 ? (
+                      {isAPILimitExhausted ? (
                         <Ionicons name="lock-closed" size={16} color={COLORS.darkGray} />
                       ) : (
                         <>
@@ -2864,21 +2858,21 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                     </View>
                     <Text style={[
                       styles.modalWordScopeButtonText,
-                      wordscopeCallsRemaining <= 0 ? { color: COLORS.darkGray } : null
+                      isAPILimitExhausted ? { color: COLORS.darkGray } : null
                     ]}>
-                      {wordscopeCallsRemaining <= 0 ? 'Locked' : t('textInput.wordScope')}
+                      {isAPILimitExhausted ? 'Locked' : t('textInput.wordScope')}
                     </Text>
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={[
                     styles.modalButton,
-                    translateCallsRemaining <= 0 ? styles.disabledButton : null,
-                    areBothAPILimitsExhausted ? styles.darkDisabledButton : null
+                    isAPILimitExhausted ? styles.disabledButton : null,
+                    isAPILimitExhausted ? styles.darkDisabledButton : null
                   ]} 
                   onPress={() => {
                     if (localProcessing || isImageProcessing) return;
-                    if (translateCallsRemaining <= 0) {
+                    if (isAPILimitExhausted) {
                       showAPILimitUpgradeAlert('translate');
                     } else {
                       handleSubmitTextInput();
@@ -2887,14 +2881,14 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                   disabled={localProcessing || isImageProcessing || isLoadingAPILimits}
                 >
                   <LinearGradient
-                    colors={(localProcessing || isImageProcessing || translateCallsRemaining <= 0) 
+                    colors={(localProcessing || isImageProcessing || isAPILimitExhausted) 
                       ? ['rgba(100, 116, 139, 0.5)', 'rgba(71, 85, 105, 0.6)']
                       : ['rgba(140, 140, 140, 0.35)', 'rgba(100, 100, 100, 0.45)']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 0, y: 1 }}
                     style={StyleSheet.absoluteFill}
                   />
-                  {!(localProcessing || isImageProcessing || translateCallsRemaining <= 0) && (
+                  {!(localProcessing || isImageProcessing || isAPILimitExhausted) && (
                     <LinearGradient
                       colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
                       start={{ x: 0, y: 0 }}
@@ -2904,16 +2898,16 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                   )}
                   <View style={styles.modalButtonContent}>
                     <Ionicons 
-                      name={translateCallsRemaining <= 0 ? "lock-closed" : "language"} 
+                      name={isAPILimitExhausted ? "lock-closed" : "language"} 
                       size={14} 
-                      color={translateCallsRemaining <= 0 ? COLORS.darkGray : "#ffffff"} 
+                      color={isAPILimitExhausted ? COLORS.darkGray : "#ffffff"} 
                       style={styles.modalButtonIcon}
                     />
                     <Text style={[
                       styles.modalButtonText,
-                      translateCallsRemaining <= 0 ? { color: COLORS.darkGray } : null
+                      isAPILimitExhausted ? { color: COLORS.darkGray } : null
                     ]}>
-                      {translateCallsRemaining <= 0 ? 'Locked' : t('textInput.translate')}
+                      {isAPILimitExhausted ? 'Locked' : t('textInput.translate')}
                     </Text>
                   </View>
                 </TouchableOpacity>

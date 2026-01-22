@@ -111,6 +111,13 @@
       "translation": "Traduzione {{language}}",
       "collection": "Collezione:"
     },
+    "wordscope": {
+      "grammar": "Grammatica",
+      "examples": "Esempi",
+      "commonMistake": "Errore comune",
+      "commonContext": "Contesto comune",
+      "alternativeExpressions": "Espressioni alternative"
+    },
     "save": {
       "title": "Scheda Salvata",
       "message": "La tua {{cardType}} è stata salvata in {{deckName}}!",

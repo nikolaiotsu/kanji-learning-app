@@ -111,6 +111,13 @@
       "translation": "คำแปล {{language}}",
       "collection": "คอลเลกชัน:"
     },
+    "wordscope": {
+      "grammar": "ไวยากรณ์",
+      "examples": "ตัวอย่าง",
+      "commonMistake": "ข้อผิดพลาดที่พบบ่อย",
+      "commonContext": "บริบทที่พบบ่อย",
+      "alternativeExpressions": "สำนวนทางเลือก"
+    },
     "save": {
       "title": "บันทึกการ์ดแล้ว",
       "message": "{{cardType}} ของคุณถูกบันทึกใน {{deckName}} แล้ว!",

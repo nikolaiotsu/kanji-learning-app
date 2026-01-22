@@ -111,6 +111,13 @@
       "translation": "الترجمة إلى {{language}}",
       "collection": "المجموعة:"
     },
+    "wordscope": {
+      "grammar": "قواعد",
+      "examples": "أمثلة",
+      "commonMistake": "خطأ شائع",
+      "commonContext": "سياق شائع",
+      "alternativeExpressions": "تعابير بديلة"
+    },
     "save": {
       "title": "تم حفظ البطاقة",
       "message": "تم حفظ {{cardType}} في {{deckName}}!",

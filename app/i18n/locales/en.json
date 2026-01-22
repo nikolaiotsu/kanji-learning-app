@@ -112,6 +112,13 @@
       "translation": "{{language}} Translation",
       "collection": "Collection:"
     },
+    "wordscope": {
+      "grammar": "Grammar",
+      "examples": "Examples",
+      "commonMistake": "Common Mistake",
+      "commonContext": "Common Context",
+      "alternativeExpressions": "Alternative Expressions"
+    },
     "save": {
       "title": "Flashcard Saved",
       "message": "Your {{cardType}} has been saved to {{deckName}}!",

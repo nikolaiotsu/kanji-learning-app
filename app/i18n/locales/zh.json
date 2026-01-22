@@ -111,6 +111,13 @@
       "translation": "{{language}}翻译",
       "collection": "收藏集："
     },
+    "wordscope": {
+      "grammar": "语法",
+      "examples": "例句",
+      "commonMistake": "常见错误",
+      "commonContext": "常用场景",
+      "alternativeExpressions": "替代表达"
+    },
     "save": {
       "title": "单词卡已保存",
       "message": "您的{{cardType}}已保存到{{deckName}}！",

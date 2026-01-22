@@ -111,6 +111,13 @@
       "translation": "Bản dịch {{language}}",
       "collection": "Bộ sưu tập:"
     },
+    "wordscope": {
+      "grammar": "Ngữ pháp",
+      "examples": "Ví dụ",
+      "commonMistake": "Lỗi thường gặp",
+      "commonContext": "Ngữ cảnh thường gặp",
+      "alternativeExpressions": "Cách diễn đạt thay thế"
+    },
     "save": {
       "title": "Thẻ đã được Lưu",
       "message": "{{cardType}} của bạn đã được lưu vào {{deckName}}!",

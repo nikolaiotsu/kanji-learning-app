@@ -111,6 +111,13 @@
       "translation": "{{language}} Übersetzung",
       "collection": "Sammlung:"
     },
+    "wordscope": {
+      "grammar": "Grammatik",
+      "examples": "Beispiele",
+      "commonMistake": "Häufiger Fehler",
+      "commonContext": "Häufiger Kontext",
+      "alternativeExpressions": "Alternative Ausdrücke"
+    },
     "save": {
       "title": "Karteikarte gespeichert",
       "message": "Ihre {{cardType}} wurde in {{deckName}} gespeichert!",
