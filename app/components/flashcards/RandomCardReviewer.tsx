@@ -279,6 +279,19 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     outputRange: ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#FF0000'],
   });
 
+  // Helper: Determine if rainbow border should be shown on review button
+  // Shows rainbow border when cards are due, not in SRS mode, and session is not finished
+  const shouldShowRainbowBorder = useMemo(() => {
+    return hasCardsDueForReview && !isSrsModeActive && !isSessionFinished;
+  }, [hasCardsDueForReview, isSrsModeActive, isSessionFinished]);
+
+  // Reusable rainbow border style object - prevents duplication across 4 button instances
+  const rainbowBorderStyle = useMemo(() => {
+    return shouldShowRainbowBorder 
+      ? { borderColor: reviewButtonRainbowColor, borderWidth: 2 }
+      : undefined;
+  }, [shouldShowRainbowBorder, reviewButtonRainbowColor]);
+
   // Separate effect to update total cards in selected decks - STABLE COUNTER
   // This counter updates when deck selection changes OR when cards are added to selected decks
   // CRITICAL: Don't update during fade-out or active review sessions to prevent flicker
@@ -426,10 +439,10 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const SWIPE_THRESHOLD = 120;
 
   // Rainbow border animation effect for review button
-  // Stops when review mode (SRS mode) is active
+  // Stops when review mode (SRS mode) is active OR when session is finished
   // Uses Animated.interpolate instead of setState to prevent re-render cascades
   useEffect(() => {
-    logger.log('🌈 [Rainbow Animation] Effect triggered:', { hasCardsDueForReview, isSrsModeActive });
+    logger.log('🌈 [Rainbow Animation] Effect triggered:', { shouldShowRainbowBorder, hasCardsDueForReview, isSrsModeActive, isSessionFinished });
     
     // Stop any existing animation first
     if (rainbowAnimationLoopRef.current) {
@@ -439,9 +452,9 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     reviewButtonRainbowAnim.stopAnimation();
     reviewButtonRainbowAnim.setValue(0);
     
-    if (hasCardsDueForReview && !isSrsModeActive) {
+    if (shouldShowRainbowBorder) {
       logger.log('🌈 [Rainbow Animation] Starting animation loop');
-      // Start rainbow animation only when cards are due AND not in review mode
+      // Start rainbow animation only when cards are due AND not in review mode AND session is not finished
       const loop = Animated.loop(
         Animated.timing(reviewButtonRainbowAnim, {
           toValue: 1,
@@ -463,9 +476,9 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         reviewButtonRainbowAnim.setValue(0);
       };
     } else {
-      logger.log('🌈 [Rainbow Animation] Not starting - hasCardsDueForReview:', hasCardsDueForReview, 'isSrsModeActive:', isSrsModeActive);
+      logger.log('🌈 [Rainbow Animation] Not starting - shouldShowRainbowBorder:', shouldShowRainbowBorder);
     }
-  }, [hasCardsDueForReview, isSrsModeActive, reviewButtonRainbowAnim]);
+  }, [shouldShowRainbowBorder, reviewButtonRainbowAnim]);
 
   // SRS Update Handler - Updates box and nextReviewDate for cards in SRS Mode
   const handleSRSUpdate = async (card: Flashcard, isCorrect: boolean) => {
@@ -1647,7 +1660,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               styles.reviewModeButton,
               buttonDisplayActive && styles.reviewModeButtonActive,
               styles.deckButtonDisabled,
-              hasCardsDueForReview && !isSrsModeActive && { borderColor: reviewButtonRainbowColor, borderWidth: 2 }
+              rainbowBorderStyle
             ]}
             disabled={true}
           >
@@ -1766,7 +1779,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 styles.reviewModeButton,
                 buttonDisplayActive && styles.reviewModeButtonActive,
                 (reviewSessionCards.length === 0 && filteredCards.length === 0) && styles.reviewModeButtonDisabled,
-                hasCardsDueForReview && !isSrsModeActive && { borderColor: reviewButtonRainbowColor, borderWidth: 2 }
+                rainbowBorderStyle
               ]}
               disabled={reviewSessionCards.length === 0 && filteredCards.length === 0}
               onPress={() => {
@@ -1990,7 +2003,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 styles.reviewModeButton,
                 buttonDisplayActive && styles.reviewModeButtonActive,
                 isSessionFinished && styles.reviewModeButtonDisabled,
-                hasCardsDueForReview && !isSrsModeActive && { borderColor: reviewButtonRainbowColor, borderWidth: 2 }
+                rainbowBorderStyle
               ]}
               disabled={isSessionFinished}
               onPress={() => {
@@ -2259,7 +2272,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
             isWalkthroughActive && currentWalkthroughStepId === 'review-button' && { backgroundColor: 'transparent' },
             (!isWalkthroughActive && (isCardTransitioning || isInitializing)) && styles.deckButtonDisabled,
             isResettingSRS && { opacity: 0.6 },
-            hasCardsDueForReview && !isSrsModeActive && { borderColor: reviewButtonRainbowColor, borderWidth: 2 }
+            rainbowBorderStyle
           ]}
           onPress={() => {
             // Prevent rapid button presses from causing overlapping transitions
