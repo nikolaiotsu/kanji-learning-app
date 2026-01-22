@@ -826,65 +826,85 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     const memoryManager = MemoryManager.getInstance();
     
     try {
-      // Gentle cleanup before new image selection
-      logger.log('[KanjiScanner pickImage] Starting image selection with gentle cleanup');
-      // Only cleanup if needed, avoiding aggressive cleanup that can cause memory pressure
-      await memoryManager.gentleCleanup();
-      
       // Turn on global overlay BEFORE opening picker to avoid any flash of underlying UI
       showGlobalOverlay('beforePickerOpen');
       setIsImageProcessing(true);
-      // Yield a frame to render the overlay first
-      await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
+      
+      // Do cleanup in background, don't wait for it
+      memoryManager.gentleCleanup().catch(err => 
+        logger.warn('[KanjiScanner pickImage] Background cleanup failed:', err)
+      );
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: 'images',
-        quality: 0.8, // Standard quality
-        // exif: true, // We don't strictly need to request it, manipulateAsync handles it
+        quality: 1, // Get original quality - we'll compress only if needed later
+        exif: false, // PERFORMANCE: Skip EXIF metadata processing - faster for live photos
       });
 
       if (!result.canceled) {
         const asset = result.assets[0];
+        const assetWidth = asset.width || 0;
+        const assetHeight = asset.height || 0;
         
         logger.log('[KanjiScanner pickImage] Selected image:', asset.uri, 
-          `${asset.width}x${asset.height}`);
+          `${assetWidth}x${assetHeight}`);
 
-        // isImageProcessing already true from before picker opened
+        // PERFORMANCE: Check if this is a very large image that needs processing for memory safety
+        // Only process images larger than 4000px (very high res photos from modern phones)
+        // Most photos (including live photos) and all screenshots are under this threshold
+        const isVeryLargeImage = assetWidth > 4000 || assetHeight > 4000;
+        
+        if (!isVeryLargeImage) {
+          // FAST PATH: Show the original image immediately without any processing!
+          // React Native's Image component can display HEIC/HEIF natively on iOS
+          logger.log('[KanjiScanner pickImage] Using original image directly (fast path)');
+          
+          memoryManager.trackProcessedImage(asset.uri);
+          memoryManager.markAsOriginalImage(asset.uri);
 
-        // Get standard processing configuration
-        const standardConfig = memoryManager.getStandardImageConfig();
-        
-        // Check if image needs resizing
-        const maxDimension = standardConfig.maxDimension;
-        const needsResize = (asset.width || 0) > maxDimension || (asset.height || 0) > maxDimension;
-        
-        // For very large images, use a more conservative max dimension to avoid memory issues
-        const isVeryLargeImage = (asset.width || 0) > 3000 || (asset.height || 0) > 3000;
-        const safeMaxDimension = isVeryLargeImage ? 1200 : maxDimension;
-        
-        const transformations = [];
-        
-        // Add resize transformation if needed
-        if (needsResize) {
-          const scale = safeMaxDimension / Math.max(asset.width || 1, asset.height || 1);
-          transformations.push({
-            resize: {
-              width: Math.round((asset.width || 1) * scale),
-              height: Math.round((asset.height || 1) * scale)
+          handlePhotoCapture({
+            uri: asset.uri,
+            width: assetWidth,
+            height: assetHeight,
+          });
+          
+          setIsImageProcessing(false);
+          hideGlobalOverlay('processed');
+          
+          // Background cleanup (non-blocking)
+          memoryManager.shouldCleanup().then(shouldClean => {
+            if (shouldClean) {
+              memoryManager.cleanupPreviousImages(asset.uri).catch(err => 
+                logger.warn('[KanjiScanner] Background cleanup failed:', err)
+              );
             }
           });
+          
+          return;
         }
+        
+        // SLOW PATH: Only for very large images (>4000px) that could cause memory issues
+        logger.log('[KanjiScanner pickImage] Very large image detected, processing for memory safety');
+        
+        const standardConfig = memoryManager.getStandardImageConfig();
+        const safeMaxDimension = 2000; // Resize to 2000px max for very large images
+        const scale = safeMaxDimension / Math.max(assetWidth, assetHeight);
+        
+        const transformations = [{
+          resize: {
+            width: Math.round(assetWidth * scale),
+            height: Math.round(assetHeight * scale)
+          }
+        }];
 
         let processedImage;
         let retryCount = 0;
         const maxRetries = 2;
         
-        // Retry logic with increasingly conservative settings
         while (retryCount <= maxRetries) {
           try {
             logger.log(`[KanjiScanner pickImage] Processing attempt ${retryCount + 1}/${maxRetries + 1}`);
             
-            // Use more aggressive compression for retries
             const compressionLevel = retryCount === 0 ? standardConfig.compress : 0.6;
             
             processedImage = await ImageManipulator.manipulateAsync(
@@ -896,21 +916,10 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
               }
             );
 
-            // Validate the processed image by actually loading it
             if (processedImage && processedImage.width > 0 && processedImage.height > 0) {
-              // Additional validation: verify the image file can be loaded properly
-              try {
-                const imageInfo = await ProcessImage.getImageInfo(processedImage.uri);
-                if (imageInfo.width === processedImage.width && imageInfo.height === processedImage.height) {
-                  logger.log('[KanjiScanner pickImage] Processed image validated:', 
-                    `${processedImage.width}x${processedImage.height}`, 'URI:', processedImage.uri);
-                  break; // Success
-                } else {
-                  throw new Error(`Image file dimensions mismatch: expected ${processedImage.width}x${processedImage.height}, got ${imageInfo.width}x${imageInfo.height}`);
-                }
-                              } catch (validationError) {
-                  throw new Error(`Image validation failed: ${validationError instanceof Error ? validationError.message : 'Unknown error'}`);
-                }
+              logger.log('[KanjiScanner pickImage] Processed image:', 
+                `${processedImage.width}x${processedImage.height}`);
+              break;
             } else {
               throw new Error('Invalid processed image dimensions');
             }
@@ -919,56 +928,36 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
             logger.error(`[KanjiScanner pickImage] Processing attempt ${retryCount + 1} failed:`, processingError);
             
             if (retryCount < maxRetries) {
-              // For retries, use even smaller dimensions
               const retryMaxDimension = safeMaxDimension / (retryCount + 1.5);
-              const retryScale = retryMaxDimension / Math.max(asset.width || 1, asset.height || 1);
+              const retryScale = retryMaxDimension / Math.max(assetWidth, assetHeight);
               
-              transformations.length = 0; // Clear previous transformations
-              if (needsResize) {
-                transformations.push({
-                  resize: {
-                    width: Math.round((asset.width || 1) * retryScale),
-                    height: Math.round((asset.height || 1) * retryScale)
-                  }
-                });
-              }
+              transformations.length = 0;
+              transformations.push({
+                resize: {
+                  width: Math.round(assetWidth * retryScale),
+                  height: Math.round(assetHeight * retryScale)
+                }
+              });
               
-              // Additional cleanup between retries
               await memoryManager.forceCleanup();
-              
-              logger.log(`[KanjiScanner pickImage] Retrying with smaller dimensions: ${Math.round((asset.width || 1) * retryScale)}x${Math.round((asset.height || 1) * retryScale)}`);
               retryCount++;
             } else {
-              throw processingError; // Re-throw if all retries failed
+              throw processingError;
             }
           }
         }
 
         if (!processedImage) {
-          // Final fallback: use original image with a warning if all processing attempts fail
-          logger.warn('[KanjiScanner pickImage] All processing attempts failed, using original image');
-          
-          // Check if original image is too large for safe use
-          const isOriginalTooLarge = (asset.width || 0) > 2500 || (asset.height || 0) > 2500;
-          if (isOriginalTooLarge) {
-            throw new Error('Image is too large and could not be processed');
-          }
-          
-          // Use original image as fallback
+          // Fallback to original if processing fails
+          logger.warn('[KanjiScanner pickImage] Processing failed, using original');
           processedImage = {
             uri: asset.uri,
-            width: asset.width || 0,
-            height: asset.height || 0
+            width: assetWidth,
+            height: assetHeight
           };
-          
-          logger.log('[KanjiScanner pickImage] Using original image as fallback:', 
-            `${processedImage.width}x${processedImage.height}`, 'URI:', processedImage.uri);
         }
 
-        // Track the processed image
         memoryManager.trackProcessedImage(processedImage.uri);
-        
-        // Mark this as the original image
         memoryManager.markAsOriginalImage(processedImage.uri);
 
         handlePhotoCapture({
@@ -977,25 +966,19 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           height: processedImage.height,
         });
         
-        // Original image is already set in handlePhotoCapture
-        
         setIsImageProcessing(false);
         hideGlobalOverlay('processed');
         
-        // Clean up memory after image processing is complete
-        // This ensures fresh memory for the next image selection regardless of whether
-        // the user saves a flashcard or not
-        try {
-          // IMPORTANT: Exclude the current processed image from cleanup to avoid deleting it
-          if (await memoryManager.shouldCleanup()) {
-            await memoryManager.cleanupPreviousImages(processedImage.uri);
+        // Background cleanup
+        memoryManager.shouldCleanup().then(shouldClean => {
+          if (shouldClean) {
+            memoryManager.cleanupPreviousImages(processedImage!.uri).catch(err => 
+              logger.warn('[KanjiScanner] Memory cleanup failed:', err)
+            );
           }
-          logger.log('[KanjiScanner] Memory cleanup completed after image processing (excluding current image)');
-        } catch (cleanupError) {
-          logger.warn('[KanjiScanner] Memory cleanup failed after image processing:', cleanupError);
-        }
+        });
       } else {
-        // Picker cancelled - hide overlay immediately
+        // Picker cancelled
         setIsImageProcessing(false);
         hideGlobalOverlay('pickerCancelled');
       }
@@ -1004,12 +987,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       setIsImageProcessing(false);
       hideGlobalOverlay('pickerError');
       
-      // Attempt recovery by forcing cleanup
       await memoryManager.forceCleanup();
-      
-      let errorMessage = 'Failed to process image. Please try selecting a different image.';
-      
-      Alert.alert(t('common.error'), errorMessage);
+      Alert.alert(t('common.error'), 'Failed to process image. Please try selecting a different image.');
     }
   };
 

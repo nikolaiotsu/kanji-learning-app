@@ -111,6 +111,10 @@ FURIGANA REQUIREMENTS:
 5. CRITICAL: Pure hiragana/katakana words, foreign loanwords, and numerals remain COMPLETELY UNTOUCHED - NEVER add furigana to words that contain NO kanji
    - WRONG: うそ(うそ), それは(それは), ない(ない) ❌
    - CORRECT: うそ, それは, ない ✓ (no furigana needed - already in hiragana)
+6. NEVER CONVERT HIRAGANA TO KANJI: If the user wrote a word in hiragana, keep it in hiragana. Do NOT "correct" or convert it to kanji.
+   - Input: こくのある甘み → Output: こくのある甘(あま)み ✓ (keep こく as hiragana)
+   - WRONG: こく → 国(くに) ❌ (do NOT convert hiragana to kanji)
+   - This applies to words like コク (richness/body), うま味, etc. that are intentionally written in kana
 
 READING PRIORITY (PROCESS IN THIS ORDER):
 - 1. COMPOUND WORDS: Multi-kanji words with established dictionary pronunciations
@@ -165,11 +169,13 @@ QUALITY CHECKLIST:
 - No spaces before opening parentheses
 - Only hiragana used in readings
 - Non-Japanese text unchanged
+- Hiragana/katakana words preserved exactly as written (NOT converted to kanji)
 
 EXTRA QUALITY NOTES:
 - Keep spacing around punctuation consistent with the source text.
 - Confirm dictionary readings for multi-kanji compounds and proper nouns.
-- Avoid adding new kanji that were not in the original and never invent new phrases.
+- CRITICAL: Never add new kanji that were not in the original - if the user wrote こく, keep it as こく, not 国.
+- Culinary/technical terms often use kana intentionally: コク (richness), うま味 (umami), etc.
 - Double check that your output meets all requirements.
 
 RESPOND WITH JSON:
@@ -3481,7 +3487,11 @@ CRITICAL REQUIREMENTS FOR JAPANESE TEXT - THESE ARE MANDATORY:
 6. CRITICAL: Non-kanji words (pure hiragana/katakana), English words, and numbers should remain COMPLETELY UNCHANGED - NEVER add furigana to words with NO kanji
    - WRONG: うそ(うそ), それは(それは), ない(ない), でしょ(でしょ) ❌
    - CORRECT: うそ, それは, ない, でしょ ✓ (no furigana - already readable as hiragana)
-7. Translate into ${targetLangName}
+7. NEVER CONVERT HIRAGANA TO KANJI: If the user wrote a word in hiragana, keep it in hiragana. Do NOT "correct" or convert it to kanji.
+   - Input: こくのある甘み → Output: こくのある甘(あま)み ✓ (keep こく as hiragana)
+   - WRONG: こく → 国(くに) ❌ (do NOT convert hiragana to kanji)
+   - Words like コク (richness), うま味 (umami) are intentionally written in kana
+8. Translate into ${targetLangName}
 
 CRITICAL WORD-LEVEL READING PRIORITY:
 - FIRST analyze the text for compound words, counter words, and context-dependent readings
@@ -6069,7 +6079,10 @@ CRITICAL REQUIREMENTS:
 6. CRITICAL: Non-kanji words (pure hiragana/katakana), English words, and numbers should remain COMPLETELY UNCHANGED - NEVER add furigana to words with NO kanji
    - WRONG: うそ(うそ), それは(それは), ない(ない) ❌
    - CORRECT: うそ, それは, ない ✓ (no furigana needed - already in hiragana)
-7. Double check that your output meets all requirements.
+7. NEVER CONVERT HIRAGANA TO KANJI: If the user wrote a word in hiragana, keep it in hiragana. Do NOT "correct" or convert it to kanji.
+   - Input: こくのある甘み → Output: こくのある甘(あま)み ✓ (keep こく as hiragana)
+   - WRONG: こく → 国(くに) ❌ (do NOT convert hiragana to kanji)
+8. Double check that your output meets all requirements.
 
 
 WORD-LEVEL READING PRIORITY:
