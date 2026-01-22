@@ -164,6 +164,13 @@
       "editRomanization": "Edit Romanization",
       "editTransliteration": "Edit Transliteration",
       "save": "Save"
+    },
+    "reviewDate": {
+      "dueToday": "Due today",
+      "dueTomorrow": "Due tomorrow",
+      "dueYesterday": "Due yesterday",
+      "dueDaysAgo": "Due {{days}} days ago",
+      "dueDate": "Due {{date}}"
     }
   },
   "subscription": {

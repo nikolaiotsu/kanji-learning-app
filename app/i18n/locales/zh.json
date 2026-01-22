@@ -160,6 +160,13 @@
       "editRomanization": "编辑罗马字",
       "editTransliteration": "编辑音译",
       "save": "保存"
+    },
+    "reviewDate": {
+      "dueToday": "今日复习",
+      "dueTomorrow": "明日复习",
+      "dueYesterday": "昨日复习",
+      "dueDaysAgo": "{{days}}天前复习",
+      "dueDate": "{{date}}复习"
     }
   },
   "subscription": {

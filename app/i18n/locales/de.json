@@ -163,6 +163,13 @@
       "editRomanization": "Romanisierung bearbeiten",
       "editTransliteration": "Transliteration bearbeiten",
       "save": "Speichern"
+    },
+    "reviewDate": {
+      "dueToday": "Heute fällig",
+      "dueTomorrow": "Morgen fällig",
+      "dueYesterday": "Gestern fällig",
+      "dueDaysAgo": "Vor {{days}} Tagen fällig",
+      "dueDate": "Fällig am {{date}}"
     }
   },
   "subscription": {

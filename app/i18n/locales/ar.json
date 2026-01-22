@@ -163,6 +163,13 @@
       "editRomanization": "تعديل الكتابة الرومانية",
       "editTransliteration": "تعديل النقل الحرفي",
       "save": "حفظ"
+    },
+    "reviewDate": {
+      "dueToday": "مراجعة اليوم",
+      "dueTomorrow": "مراجعة غداً",
+      "dueYesterday": "مراجعة أمس",
+      "dueDaysAgo": "مراجعة منذ {{days}} أيام",
+      "dueDate": "مراجعة في {{date}}"
     }
   },
   "subscription": {

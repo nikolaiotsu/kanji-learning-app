@@ -163,6 +163,13 @@
       "editRomanization": "Chỉnh sửa Chuyển tự",
       "editTransliteration": "Chỉnh sửa Chuyển tự",
       "save": "Lưu"
+    },
+    "reviewDate": {
+      "dueToday": "Ôn tập hôm nay",
+      "dueTomorrow": "Ôn tập ngày mai",
+      "dueYesterday": "Ôn tập hôm qua",
+      "dueDaysAgo": "Ôn tập {{days}} ngày trước",
+      "dueDate": "Ôn tập vào {{date}}"
     }
   },
   "subscription": {

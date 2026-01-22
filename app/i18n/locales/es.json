@@ -163,6 +163,13 @@
       "editRomanization": "Editar romanización",
       "editTransliteration": "Editar transliteración",
       "save": "Guardar"
+    },
+    "reviewDate": {
+      "dueToday": "Vence hoy",
+      "dueTomorrow": "Vence mañana",
+      "dueYesterday": "Venció ayer",
+      "dueDaysAgo": "Venció hace {{days}} días",
+      "dueDate": "Vence el {{date}}"
     }
   },
   "subscription": {

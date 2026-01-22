@@ -160,6 +160,13 @@
       "editRomanization": "रोमनीकरण संपादित करें",
       "editTransliteration": "लिप्यंतरण संपादित करें",
       "save": "सहेजें"
+    },
+    "reviewDate": {
+      "dueToday": "आज समीक्षा",
+      "dueTomorrow": "कल समीक्षा",
+      "dueYesterday": "बीता कल समीक्षा",
+      "dueDaysAgo": "{{days}} दिन पहले समीक्षा",
+      "dueDate": "{{date}} को समीक्षा"
     }
   },
   "subscription": {

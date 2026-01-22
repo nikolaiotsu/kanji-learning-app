@@ -163,6 +163,13 @@
       "editRomanization": "Редактировать транслитерацию",
       "editTransliteration": "Редактировать транслитерацию",
       "save": "Сохранить"
+    },
+    "reviewDate": {
+      "dueToday": "Повторить сегодня",
+      "dueTomorrow": "Повторить завтра",
+      "dueYesterday": "Повторить вчера",
+      "dueDaysAgo": "Повторить {{days}} дней назад",
+      "dueDate": "Повторить {{date}}"
     }
   },
   "subscription": {

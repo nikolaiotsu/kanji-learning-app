@@ -163,6 +163,13 @@
       "editRomanization": "Modifica Romanizzazione",
       "editTransliteration": "Modifica Traslitterazione",
       "save": "Salva"
+    },
+    "reviewDate": {
+      "dueToday": "Da ripassare oggi",
+      "dueTomorrow": "Da ripassare domani",
+      "dueYesterday": "Da ripassare ieri",
+      "dueDaysAgo": "Da ripassare {{days}} giorni fa",
+      "dueDate": "Da ripassare il {{date}}"
     }
   },
   "subscription": {

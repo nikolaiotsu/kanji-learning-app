@@ -163,6 +163,13 @@
       "editRomanization": "แก้ไขการถอดเสียง",
       "editTransliteration": "แก้ไขการถอดอักษร",
       "save": "บันทึก"
+    },
+    "reviewDate": {
+      "dueToday": "ทบทวนวันนี้",
+      "dueTomorrow": "ทบทวนพรุ่งนี้",
+      "dueYesterday": "ทบทวนเมื่อวาน",
+      "dueDaysAgo": "ทบทวน {{days}} วันที่แล้ว",
+      "dueDate": "ทบทวน {{date}}"
     }
   },
   "subscription": {

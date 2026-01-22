@@ -163,6 +163,13 @@
       "editRomanization": "ローマ字を編集",
       "editTransliteration": "音写を編集",
       "save": "保存"
+    },
+    "reviewDate": {
+      "dueToday": "今日復習",
+      "dueTomorrow": "明日復習",
+      "dueYesterday": "昨日復習",
+      "dueDaysAgo": "{{days}}日前に復習",
+      "dueDate": "{{date}}に復習"
     }
   },
   "subscription": {

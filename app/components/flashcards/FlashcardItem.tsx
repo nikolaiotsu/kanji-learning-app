@@ -158,6 +158,43 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   // Get translated language name for display (use the language stored with the flashcard)
   const translatedLanguageName = AVAILABLE_LANGUAGES[flashcard.targetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'English';
 
+  // Format next review date for display
+  const formatReviewDate = (date?: Date): string => {
+    if (!date) return '';
+    try {
+      const reviewDate = new Date(date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const reviewDateOnly = new Date(reviewDate);
+      reviewDateOnly.setHours(0, 0, 0, 0);
+      
+      const diffTime = reviewDateOnly.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 0) {
+        return t('flashcard.reviewDate.dueToday');
+      } else if (diffDays === 1) {
+        return t('flashcard.reviewDate.dueTomorrow');
+      } else if (diffDays === -1) {
+        return t('flashcard.reviewDate.dueYesterday');
+      } else if (diffDays < 0) {
+        return t('flashcard.reviewDate.dueDaysAgo', { days: Math.abs(diffDays) });
+      } else {
+        // Format as MM/DD/YYYY or use locale-specific format
+        const month = reviewDate.getMonth() + 1;
+        const day = reviewDate.getDate();
+        const year = reviewDate.getFullYear();
+        const dateStr = `${month}/${day}/${year}`;
+        return t('flashcard.reviewDate.dueDate', { date: dateStr });
+      }
+    } catch (error) {
+      logger.error('Error formatting review date:', error);
+      return '';
+    }
+  };
+
+  const reviewDateText = formatReviewDate(flashcard.nextReviewDate);
+
   // Determine pronunciation guide type based on content (no language detection needed)
   useEffect(() => {
     const furiganaText = flashcard.furiganaText;
@@ -745,6 +782,12 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
                 </View>
               )}
             </ScrollView>
+            {/* Review date at bottom left */}
+            {reviewDateText && (
+              <View style={styles.reviewDateContainer}>
+                <Text style={styles.reviewDateText}>{reviewDateText}</Text>
+              </View>
+            )}
             </View>
           </View>
         </Animated.View>
@@ -1080,6 +1123,17 @@ const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 8,
+  },
+  reviewDateContainer: {
+    position: 'absolute',
+    bottom: 12,
+    left: 12,
+    zIndex: 10,
+  },
+  reviewDateText: {
+    fontSize: 11,
+    color: COLORS.darkGray,
+    opacity: 0.7,
   },
 });
 

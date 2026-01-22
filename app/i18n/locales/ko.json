@@ -163,6 +163,13 @@
       "editRomanization": "로마자 표기 편집",
       "editTransliteration": "음역 편집",
       "save": "저장"
+    },
+    "reviewDate": {
+      "dueToday": "오늘 복습",
+      "dueTomorrow": "내일 복습",
+      "dueYesterday": "어제 복습",
+      "dueDaysAgo": "{{days}}일 전 복습",
+      "dueDate": "{{date}} 복습"
     }
   },
   "subscription": {
