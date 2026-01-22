@@ -16,7 +16,7 @@ import { useSwipeCounter } from '../../context/SwipeCounterContext';
 import { useSettings, DETECTABLE_LANGUAGES } from '../../context/SettingsContext';
 import { useNetworkState } from '../../services/networkManager';
 import { apiLogger } from '../../services/apiUsageLogger';
-import { fetchSubscriptionStatus, getSubscriptionPlan } from '../../services/receiptValidationService';
+import { getCurrentSubscriptionPlan } from '../../services/receiptValidationService';
 import { COLORS } from '../../constants/colors';
 import { PRODUCT_IDS } from '../../constants/config';
 import { CapturedImage, TextAnnotation } from '../../../types';
@@ -308,17 +308,19 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       // Refresh API limits when returning to screen (in case user used API calls)
       const refreshAPILimits = async () => {
         try {
-          const subscriptionStatus = await fetchSubscriptionStatus();
-          const subscriptionPlan = getSubscriptionPlan(subscriptionStatus);
+          // Get subscription plan with proper source of truth handling
+          const subscriptionPlan = await getCurrentSubscriptionPlan(subscription?.plan);
+          logger.log(`[KanjiScanner] Refreshing API limits with plan: ${subscriptionPlan}`);
           const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
           setApiCallsRemaining(rateLimitStatus.apiCallsRemaining);
+          logger.log(`[KanjiScanner] API calls remaining: ${rateLimitStatus.apiCallsRemaining}`);
         } catch (error) {
           logger.error('Error refreshing API limits on focus:', error);
         }
       };
       
       refreshAPILimits();
-    }, [])
+    }, [subscription])
   );
 
   // Load API limits on mount and when subscription changes
@@ -326,10 +328,12 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     const loadAPILimits = async () => {
       setIsLoadingAPILimits(true);
       try {
-        const subscriptionStatus = await fetchSubscriptionStatus();
-        const subscriptionPlan = getSubscriptionPlan(subscriptionStatus);
+        // Get subscription plan with proper source of truth handling
+        const subscriptionPlan = await getCurrentSubscriptionPlan(subscription?.plan);
+        logger.log(`[KanjiScanner] Loading API limits with plan: ${subscriptionPlan}`);
         const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
         setApiCallsRemaining(rateLimitStatus.apiCallsRemaining);
+        logger.log(`[KanjiScanner] API calls remaining: ${rateLimitStatus.apiCallsRemaining}, daily limit: ${rateLimitStatus.dailyLimit}`);
       } catch (error) {
         logger.error('Error loading API limits in KanjiScanner:', error);
         // Default to allowing if check fails
@@ -642,15 +646,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
             const success = await purchaseSubscription(PRODUCT_IDS.PREMIUM_MONTHLY);
             if (success) {
               Alert.alert(t('common.success'), t('subscription.test.premiumActivated'));
-              // Refresh limits after upgrade
-              try {
-                const subscriptionStatus = await fetchSubscriptionStatus();
-                const subscriptionPlan = getSubscriptionPlan(subscriptionStatus);
-                const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
-                setApiCallsRemaining(rateLimitStatus.apiCallsRemaining);
-              } catch (error) {
-                logger.error('Error refreshing API limits after upgrade:', error);
-              }
+              // Limits will refresh automatically via subscription useEffect
+              // since purchaseSubscription updates the subscription context
             }
           }
         }
@@ -736,8 +733,6 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       showUpgradeAlert();
       return;
     }
-    // Reset input text when opening the modal to ensure it's fresh
-    setInputText('');
     setShowTextInputModal(true);
   };
 
@@ -772,8 +767,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
 
     // Refresh API limits before navigation
     try {
-      const subscriptionStatus = await fetchSubscriptionStatus();
-      const subscriptionPlan = getSubscriptionPlan(subscriptionStatus);
+      const subscriptionPlan = await getCurrentSubscriptionPlan(subscription?.plan);
       const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
       setApiCallsRemaining(rateLimitStatus.apiCallsRemaining);
     } catch (error) {
@@ -805,8 +799,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
 
     // Refresh API limits before navigation
     try {
-      const subscriptionStatus = await fetchSubscriptionStatus();
-      const subscriptionPlan = getSubscriptionPlan(subscriptionStatus);
+      const subscriptionPlan = await getCurrentSubscriptionPlan(subscription?.plan);
       const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
       setApiCallsRemaining(rateLimitStatus.apiCallsRemaining);
     } catch (error) {
@@ -819,7 +812,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       params: { text: inputText.trim(), useScope: 'true' }
     });
 
-    // Close the modal (input will be reset when modal opens next time)
+    // Reset the input and close the modal
+    setInputText('');
     setShowTextInputModal(false);
   };
 

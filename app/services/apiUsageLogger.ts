@@ -205,7 +205,7 @@ class APIUsageLogger {
 
   /**
    * Get user's monthly usage statistics (sum of all days in current month)
-   * Only counts translate and wordscope API calls (not OCR/vision)
+   * Only counts translate and wordscope API calls for the unified limit
    */
   public async getMonthlyUsage(): Promise<{
     totalApiCalls: number;
@@ -228,11 +228,12 @@ class APIUsageLogger {
         return { totalApiCalls: 0, flashcardsCreated: 0 };
       }
 
-      // Sum up translate and wordscope API calls across the month (NOT OCR/vision)
+      // Sum up only translate and wordscope API calls across the month
       let totalApiCalls = 0;
       let flashcardsCreated = 0;
       
       for (const day of (data || [])) {
+        // Only count translate and wordscope calls for the unified API limit
         totalApiCalls += (day.translate_api_calls || 0) + 
                          (day.wordscope_api_calls || 0);
         flashcardsCreated += (day.flashcards_created || 0);
@@ -247,8 +248,8 @@ class APIUsageLogger {
 
   /**
    * Check if user is approaching rate limits
-   * Uses UNIFIED API limits - only translate and wordscope API calls count against this limit
-   * OCR and vision API calls use separate limits (ocrScansPerDay)
+   * Uses UNIFIED API limits - only translate and wordscope calls count against the limit
+   * OCR and vision calls are NOT counted against the unified limit
    * @param subscriptionPlan - The user's subscription plan ('FREE' or 'PREMIUM')
    */
   public async checkRateLimitStatus(subscriptionPlan: SubscriptionPlan = 'FREE'): Promise<{
@@ -258,7 +259,7 @@ class APIUsageLogger {
     ocrScansRemaining: number;
     translateCallsRemaining: number;
     wordscopeCallsRemaining: number;
-    // New unified limit fields (only for translate/wordscope)
+    // New unified limit fields
     apiCallsRemaining: number;
     apiCallsUsedToday: number;
     apiCallsUsedThisMonth: number;
@@ -269,11 +270,15 @@ class APIUsageLogger {
       const usage = await this.getDailyUsage();
       const planConfig = SUBSCRIPTION_PLANS[subscriptionPlan];
       
-      // Calculate unified API calls used today (ONLY translate and wordscope, NOT OCR/vision)
+      // Calculate API calls used today - ONLY translate and wordscope count against unified limit
       const apiCallsUsedToday = (usage?.translate_api_calls || 0) + 
                                  (usage?.wordscope_api_calls || 0);
       
-      // Get unified daily limit (for translate/wordscope only)
+      // Log subscription plan and limits for debugging
+      logger.log(`[APILogger] checkRateLimitStatus - plan: ${subscriptionPlan}, dailyLimit: ${planConfig.apiCallsPerDay}, monthlyLimit: ${planConfig.apiCallsPerMonth ?? 'N/A'}`);
+      logger.log(`[APILogger] Today's usage - translate: ${usage?.translate_api_calls || 0}, wordscope: ${usage?.wordscope_api_calls || 0}, total: ${apiCallsUsedToday}`);
+      
+      // Get unified daily limit
       const dailyLimit = planConfig.apiCallsPerDay;
       const monthlyLimit = planConfig.apiCallsPerMonth ?? null;
       
@@ -289,12 +294,11 @@ class APIUsageLogger {
         // Take the minimum of daily and monthly remaining
         const monthlyRemaining = Math.max(0, monthlyLimit - apiCallsUsedThisMonth);
         apiCallsRemaining = Math.min(apiCallsRemaining, monthlyRemaining);
+        
+        logger.log(`[APILogger] Premium monthly usage: ${apiCallsUsedThisMonth}/${monthlyLimit}, remaining: ${monthlyRemaining}`);
       }
       
-      // OCR/Vision API calls use separate limit (ocrScansPerDay)
-      const ocrVisionLimit = planConfig.ocrScansPerDay;
-      const ocrVisionUsed = (usage?.claude_api_calls || 0) + (usage?.vision_api_calls || 0);
-      const ocrVisionRemaining = Math.max(0, ocrVisionLimit - ocrVisionUsed);
+      logger.log(`[APILogger] Final apiCallsRemaining: ${apiCallsRemaining}`);
       
       // Flashcard limit (unlimited for premium is represented as -1)
       const flashcardLimit = planConfig.flashcardsPerDay;
@@ -303,14 +307,16 @@ class APIUsageLogger {
         ? Number.MAX_SAFE_INTEGER 
         : Math.max(0, flashcardLimit - (usage?.flashcards_created || 0));
 
+      // For backward compatibility, translate/wordscope use unified limit
+      // OCR/vision are not limited by the unified API limit (they have separate limits if needed)
       return {
-        claudeCallsRemaining: ocrVisionRemaining, // OCR/vision use separate limit
-        visionCallsRemaining: ocrVisionRemaining, // OCR/vision use separate limit
+        claudeCallsRemaining: Number.MAX_SAFE_INTEGER, // OCR/claude not limited by unified limit
+        visionCallsRemaining: Number.MAX_SAFE_INTEGER, // Vision not limited by unified limit
         flashcardsRemaining: flashcardsRemaining,
-        ocrScansRemaining: ocrVisionRemaining, // OCR/vision use separate limit
+        ocrScansRemaining: Number.MAX_SAFE_INTEGER, // OCR not limited by unified limit
         translateCallsRemaining: apiCallsRemaining, // Uses unified limit
         wordscopeCallsRemaining: apiCallsRemaining, // Uses unified limit
-        // New unified limit fields (translate/wordscope only)
+        // New unified limit fields
         apiCallsRemaining,
         apiCallsUsedToday,
         apiCallsUsedThisMonth,

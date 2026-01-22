@@ -60,7 +60,7 @@ import { useNetworkState } from './services/networkManager';
 import { incrementLifetimeCount, shouldShowReviewPrompt } from './services/reviewPromptService';
 import ReviewPromptModal from './components/shared/ReviewPromptModal';
 import { apiLogger } from './services/apiUsageLogger';
-import { fetchSubscriptionStatus, getSubscriptionPlan } from './services/receiptValidationService';
+import { getCurrentSubscriptionPlan } from './services/receiptValidationService';
 
 import { logger } from './utils/logger';
 export default function LanguageFlashcardsScreen() {
@@ -72,9 +72,8 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
   const { purchaseSubscription, subscription } = useSubscription();
   const { isConnected } = useNetworkState();
   
-  // State for API limits
-  const [translateCallsRemaining, setTranslateCallsRemaining] = useState<number>(Number.MAX_SAFE_INTEGER);
-  const [wordscopeCallsRemaining, setWordscopeCallsRemaining] = useState<number>(Number.MAX_SAFE_INTEGER);
+  // State for unified API limit (applies to both translate and wordscope)
+  const [apiCallsRemaining, setApiCallsRemaining] = useState<number>(Number.MAX_SAFE_INTEGER);
   const [isLoadingLimits, setIsLoadingLimits] = useState(false);
   const params = useLocalSearchParams();
   const textParam = params.text;
@@ -424,16 +423,16 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     const loadAPILimits = async () => {
       setIsLoadingLimits(true);
       try {
-        const subscriptionStatus = await fetchSubscriptionStatus();
-        const subscriptionPlan = getSubscriptionPlan(subscriptionStatus);
+        // Get subscription plan with proper source of truth handling
+        const subscriptionPlan = await getCurrentSubscriptionPlan(subscription?.plan);
+        logger.log(`[Flashcards] Loading API limits with plan: ${subscriptionPlan}`);
         const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
-        setTranslateCallsRemaining(rateLimitStatus.translateCallsRemaining);
-        setWordscopeCallsRemaining(rateLimitStatus.wordscopeCallsRemaining);
+        setApiCallsRemaining(rateLimitStatus.apiCallsRemaining);
+        logger.log(`[Flashcards] API calls remaining: ${rateLimitStatus.apiCallsRemaining}, daily limit: ${rateLimitStatus.dailyLimit}`);
       } catch (error) {
         logger.error('Error loading API limits:', error);
         // Default to allowing if check fails
-        setTranslateCallsRemaining(Number.MAX_SAFE_INTEGER);
-        setWordscopeCallsRemaining(Number.MAX_SAFE_INTEGER);
+        setApiCallsRemaining(Number.MAX_SAFE_INTEGER);
       } finally {
         setIsLoadingLimits(false);
       }
@@ -442,10 +441,10 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     loadAPILimits();
   }, [subscription]);
 
-  // Helper to check if buttons should show locked state (both limits exhausted)
-  const areBothLimitsExhausted = translateCallsRemaining <= 0 && wordscopeCallsRemaining <= 0;
-  const canUseTranslate = translateCallsRemaining > 0;
-  const canUseWordscope = wordscopeCallsRemaining > 0;
+  // Helper to check if API limit is exhausted (unified limit for translate & wordscope)
+  const isAPILimitExhausted = apiCallsRemaining <= 0;
+  const canUseTranslate = apiCallsRemaining > 0;
+  const canUseWordscope = apiCallsRemaining > 0;
 
   // Main useEffect to process the initial text when component loads
   // Only auto-process if text didn't come from OCR (no imageUri)
@@ -781,15 +780,14 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       
       const result = await runTranslationWithAutoSwitch(false, text);
       
-      // Update translate API limit after successful call
+      // Update API limit after successful call
       if (result.translatedText) {
         try {
-          const subscriptionStatus = await fetchSubscriptionStatus();
-          const subscriptionPlan = getSubscriptionPlan(subscriptionStatus);
+          const subscriptionPlan = await getCurrentSubscriptionPlan(subscription?.plan);
           const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
-          setTranslateCallsRemaining(rateLimitStatus.translateCallsRemaining);
+          setApiCallsRemaining(rateLimitStatus.apiCallsRemaining);
         } catch (error) {
-          logger.error('Error updating translate limit:', error);
+          logger.error('Error updating API limit:', error);
         }
       }
       
@@ -1059,16 +1057,8 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
             const success = await purchaseSubscription(PRODUCT_IDS.PREMIUM_MONTHLY);
             if (success) {
               Alert.alert(t('common.success'), t('subscription.test.premiumActivated'));
-              // Refresh limits after upgrade
-              try {
-                const subscriptionStatus = await fetchSubscriptionStatus();
-                const subscriptionPlan = getSubscriptionPlan(subscriptionStatus);
-                const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
-                setTranslateCallsRemaining(rateLimitStatus.translateCallsRemaining);
-                setWordscopeCallsRemaining(rateLimitStatus.wordscopeCallsRemaining);
-              } catch (error) {
-                logger.error('Error refreshing API limits after upgrade:', error);
-              }
+              // Limits will refresh automatically via subscription useEffect
+              // since purchaseSubscription updates the subscription context
             }
           }
         }
@@ -1181,15 +1171,14 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       // Progress callback
       const result = await runTranslationWithAutoSwitch(true, text);
       
-      // Update wordscope API limit after successful call
+      // Update API limit after successful call
       if (result.translatedText) {
         try {
-          const subscriptionStatus = await fetchSubscriptionStatus();
-          const subscriptionPlan = getSubscriptionPlan(subscriptionStatus);
+          const subscriptionPlan = await getCurrentSubscriptionPlan(subscription?.plan);
           const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
-          setWordscopeCallsRemaining(rateLimitStatus.wordscopeCallsRemaining);
+          setApiCallsRemaining(rateLimitStatus.apiCallsRemaining);
         } catch (error) {
-          logger.error('Error updating wordscope limit:', error);
+          logger.error('Error updating API limit:', error);
         }
       }
       
@@ -1457,7 +1446,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                   style={[
                     styles.scopeAndTranslateButton,
                     !canUseWordscope ? styles.disabledButton : null,
-                    areBothLimitsExhausted ? styles.darkDisabledButton : null
+                    isAPILimitExhausted ? styles.darkDisabledButton : null
                   ]}
                   onPress={() => !canUseWordscope ? showAPILimitUpgradeAlert('wordscope') : handleScopeAndTranslate()}
                   disabled={isLoadingLimits || (isWalkthroughActive && currentStep?.id !== 'wordscope-button' && currentStep?.id !== 'choose-translation')}
@@ -1526,7 +1515,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                   style={[
                     styles.translateButton,
                     !canUseTranslate ? styles.disabledButton : null,
-                    areBothLimitsExhausted ? styles.darkDisabledButton : null
+                    isAPILimitExhausted ? styles.darkDisabledButton : null
                   ]}
                   onPress={() => !canUseTranslate ? showAPILimitUpgradeAlert('translate') : handleTranslate()}
                   disabled={isLoadingLimits || (isWalkthroughActive && currentStep?.id !== 'translate-button' && currentStep?.id !== 'choose-translation')}

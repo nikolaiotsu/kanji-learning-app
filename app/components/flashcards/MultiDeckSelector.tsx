@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
+  Easing,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -21,6 +22,7 @@ import { getDecks, deleteDeck, getFlashcardsByDecks } from '../../services/supab
 import { supabase } from '../../services/supabaseClient';
 import { isOnline } from '../../services/networkManager';
 import { COLORS } from '../../constants/colors';
+import { filterDueCards } from '../../constants/leitner';
 
 import { logger } from '../../utils/logger';
 interface MultiDeckSelectorProps {
@@ -43,6 +45,19 @@ export default function MultiDeckSelector({
   const [longPressedDeckId, setLongPressedDeckId] = useState<string | null>(null);
   const [deletingDeckId, setDeletingDeckId] = useState<string | null>(null);
   const swipeableRefs = useRef<{ [key: string]: Swipeable | null }>({});
+  
+  // Track which decks have cards due for review
+  const [decksWithDueCards, setDecksWithDueCards] = useState<Set<string>>(new Set());
+  
+  // Rainbow animation for deck names
+  const rainbowAnim = useRef(new Animated.Value(0)).current;
+  const rainbowAnimationLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+  
+  // Create interpolated color value for rainbow animation
+  const rainbowColor = rainbowAnim.interpolate({
+    inputRange: [0, 0.166, 0.333, 0.5, 0.666, 0.833, 1],
+    outputRange: ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#FF0000'],
+  });
 
   // Helper to transform DB row to Deck type
   const transformDeckRow = (deck: any): Deck => ({
@@ -104,6 +119,88 @@ export default function MultiDeckSelector({
       return next.length === prev.length ? prev : next;
     });
   }, [decks]);
+
+  // Check which decks have cards due for review (optimized with parallel checking)
+  useEffect(() => {
+    if (!visible || decks.length === 0) {
+      setDecksWithDueCards(new Set());
+      return;
+    }
+
+    const checkDecksForDueCards = async () => {
+      try {
+        // Check all decks in parallel for better performance
+        const deckChecks = decks.map(async (deck) => {
+          try {
+            const cards = await getFlashcardsByDecks([deck.id]);
+            const dueCards = filterDueCards(cards);
+            return { deckId: deck.id, hasDueCards: dueCards.length > 0 };
+          } catch (error) {
+            logger.error(`Error checking due cards for deck ${deck.id}:`, error);
+            return { deckId: deck.id, hasDueCards: false };
+          }
+        });
+        
+        const results = await Promise.all(deckChecks);
+        const dueDecks = new Set<string>();
+        
+        results.forEach(({ deckId, hasDueCards }) => {
+          if (hasDueCards) {
+            dueDecks.add(deckId);
+          }
+        });
+        
+        setDecksWithDueCards(dueDecks);
+      } catch (error) {
+        logger.error('Error checking decks for due cards:', error);
+      }
+    };
+
+    checkDecksForDueCards();
+  }, [visible, decks]);
+
+  // Start/stop rainbow animation immediately when modal is visible (optimistic approach)
+  // This ensures the animation is ready instantly, even before we check which decks have due cards
+  useEffect(() => {
+    if (!visible) {
+      // Stop animation when modal is closed
+      if (rainbowAnimationLoopRef.current) {
+        rainbowAnimationLoopRef.current.stop();
+        rainbowAnimationLoopRef.current = null;
+      }
+      rainbowAnim.stopAnimation();
+      rainbowAnim.setValue(0);
+      return;
+    }
+
+    // Start animation immediately when modal opens (optimistic approach)
+    // The animation will be running, but only applied to deck names that have due cards
+    // This ensures instant visual feedback as soon as we know which decks need review
+    if (rainbowAnimationLoopRef.current) {
+      // Animation already running, no need to restart
+      return;
+    }
+
+    const loop = Animated.loop(
+      Animated.timing(rainbowAnim, {
+        toValue: 1,
+        duration: 2000,
+        easing: Easing.linear,
+        useNativeDriver: false, // Required for color interpolation
+      })
+    );
+    rainbowAnimationLoopRef.current = loop;
+    loop.start();
+    
+    return () => {
+      if (rainbowAnimationLoopRef.current) {
+        rainbowAnimationLoopRef.current.stop();
+        rainbowAnimationLoopRef.current = null;
+      }
+      rainbowAnim.stopAnimation();
+      rainbowAnim.setValue(0);
+    };
+  }, [visible, rainbowAnim]);
 
   // Function to load decks from storage
   const loadDecks = async () => {
@@ -333,6 +430,7 @@ export default function MultiDeckSelector({
     const isSelected = selectedDeckIds.includes(item.id);
     const isLongPressed = longPressedDeckId === item.id;
     const isDeleting = deletingDeckId === item.id;
+    const hasDueCards = decksWithDueCards.has(item.id);
     
     return (
       <Swipeable
@@ -366,9 +464,20 @@ export default function MultiDeckSelector({
           </View>
           
           <View style={styles.deckInfo}>
-            <Text style={[styles.deckName, isDeleting && styles.deckNameDeleting]}>
-              {item.name}
-            </Text>
+            {hasDueCards && !isDeleting ? (
+              <Animated.Text 
+                style={[
+                  styles.deckName, 
+                  { color: rainbowColor }
+                ]}
+              >
+                {item.name}
+              </Animated.Text>
+            ) : (
+              <Text style={[styles.deckName, isDeleting && styles.deckNameDeleting]}>
+                {item.name}
+              </Text>
+            )}
             <Text style={[styles.deckDate, isDeleting && styles.deckDateDeleting]}>
               {t('deck.created', { date: new Date(item.createdAt).toLocaleDateString() })}
             </Text>

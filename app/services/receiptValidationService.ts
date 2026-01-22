@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import { ValidateReceiptResponse, DBSubscription } from '../../types';
 import { logger } from '../utils/logger';
+import Constants from 'expo-constants';
 
 const EDGE_FUNCTION_URL = 'validate-receipt';
 
@@ -140,5 +141,38 @@ export function isSubscriptionValid(subscription: DBSubscription | null): boolea
  */
 export function getSubscriptionPlan(subscription: DBSubscription | null): 'PREMIUM' | 'FREE' {
   return isSubscriptionValid(subscription) ? 'PREMIUM' : 'FREE';
+}
+
+/**
+ * Gets the current subscription plan with proper source of truth handling
+ * - In production: Always fetches from database (source of truth)
+ * - In development: Uses context override if provided, otherwise falls back to database
+ * - Allows explicit override for testing
+ * 
+ * @param contextSubscriptionPlan - Optional subscription plan from React context (for dev/testing)
+ * @param forceContext - If true, use context even in production (testing only)
+ * @returns The current subscription plan
+ */
+export async function getCurrentSubscriptionPlan(
+  contextSubscriptionPlan?: 'FREE' | 'PREMIUM' | null,
+  forceContext: boolean = false
+): Promise<'PREMIUM' | 'FREE'> {
+  const isDevelopment = __DEV__ || Constants.expoConfig?.extra?.EXPO_PUBLIC_ENV === 'development';
+  
+  // In production, always use database as source of truth (unless forced for testing)
+  if (!isDevelopment && !forceContext) {
+    const dbSubscription = await fetchSubscriptionStatus();
+    return getSubscriptionPlan(dbSubscription);
+  }
+  
+  // In development or when forced, allow context override
+  if (contextSubscriptionPlan) {
+    logger.log(`[Subscription] Using context subscription plan: ${contextSubscriptionPlan}`);
+    return contextSubscriptionPlan;
+  }
+  
+  // Fallback to database even in development
+  const dbSubscription = await fetchSubscriptionStatus();
+  return getSubscriptionPlan(dbSubscription);
 }
 
