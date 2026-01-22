@@ -2916,7 +2916,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       {(() => { console.log('[DEBUG KanjiScanner Walkthrough] visible check:', { isWalkthroughActive, hideWalkthroughOverlay, isNavigatingToFlashcards, isNavigatingRef: isNavigatingToFlashcardsRef.current, shouldRender: !isNavigatingToFlashcards && !isNavigatingToFlashcardsRef.current, currentStepId: currentStep?.id }); return null; })()}
       {!isNavigatingToFlashcards && !isNavigatingToFlashcardsRef.current && (
         <WalkthroughOverlay
-          visible={isWalkthroughActive && !hideWalkthroughOverlay}
+          visible={isWalkthroughActive && !hideWalkthroughOverlay && !isImageProcessing && !isGlobalOverlayVisible}
           currentStep={currentStep}
           currentStepIndex={currentStepIndex}
           totalSteps={totalSteps}
