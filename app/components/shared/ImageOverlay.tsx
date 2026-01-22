@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Image,
@@ -8,6 +8,8 @@ import {
   Dimensions,
   ActivityIndicator,
   Text,
+  Animated,
+  Easing,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
@@ -26,6 +28,7 @@ const ImageOverlay: React.FC<ImageOverlayProps> = ({
 }) => {
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const imageOpacity = useRef(new Animated.Value(0)).current;
 
   // Debug: Log props
   logger.log('🔍 [DEBUG] ImageOverlay render - visible:', visible, 'imageUri exists:', !!imageUri);
@@ -36,6 +39,8 @@ const ImageOverlay: React.FC<ImageOverlayProps> = ({
     if (visible) {
       setIsImageLoaded(false);
       setImageError(false);
+      // Reset opacity for fade-in animation
+      imageOpacity.setValue(0);
       // Prefetch the image
       if (imageUri) {
         logger.log('🔍 [DEBUG] ImageOverlay prefetching image...');
@@ -45,10 +50,17 @@ const ImageOverlay: React.FC<ImageOverlayProps> = ({
         });
       }
     }
-  }, [visible, imageUri]);
+  }, [visible, imageUri, imageOpacity]);
 
   const handleImageLoad = () => {
     setIsImageLoaded(true);
+    // Trigger fade-in animation when image loads
+    Animated.timing(imageOpacity, {
+      toValue: 1,
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
   };
 
   const handleImageError = () => {
@@ -121,11 +133,11 @@ const ImageOverlay: React.FC<ImageOverlayProps> = ({
           )}
 
           {/* Image */}
-          <Image
+          <Animated.Image
             source={{ uri: imageUri }}
             style={[
               styles.image,
-              !isImageLoaded && styles.hiddenImage
+              { opacity: imageOpacity }
             ]}
             resizeMode="contain"
             onLoad={handleImageLoad}

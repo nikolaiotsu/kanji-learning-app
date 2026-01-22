@@ -107,9 +107,11 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
 
   const hideGlobalOverlay = React.useCallback((reason: string) => {
     logger.log(`[KanjiScanner] Global overlay hide (${reason})`);
+    // Use a short fade-out duration to blend smoothly with image fade-in
+    // For immediate hide (cancelled/error), we still get a brief fade for polish
     Animated.timing(globalOverlayOpacity, {
       toValue: 0,
-      duration: 0,
+      duration: 200,
       useNativeDriver: true,
     }).start(() => setIsGlobalOverlayVisible(false));
   }, [globalOverlayOpacity]);
@@ -868,8 +870,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
             height: assetHeight,
           });
           
-          setIsImageProcessing(false);
-          hideGlobalOverlay('processed');
+          // Note: setIsImageProcessing(false) and hideGlobalOverlay are now called
+          // by ImageHighlighter's onImageLoaded callback to prevent flicker
           
           // Background cleanup (non-blocking)
           memoryManager.shouldCleanup().then(shouldClean => {
@@ -966,8 +968,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           height: processedImage.height,
         });
         
-        setIsImageProcessing(false);
-        hideGlobalOverlay('processed');
+        // Note: setIsImageProcessing(false) and hideGlobalOverlay are now called
+        // by ImageHighlighter's onImageLoaded callback to prevent flicker
         
         // Background cleanup
         memoryManager.shouldCleanup().then(shouldClean => {
@@ -2457,6 +2459,11 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
             onActivateHighlightMode={activateHighlightMode}
             onRegionSelected={handleRegionSelected}
             onRotationStateChange={handleRotationStateChange}
+            onImageLoaded={() => {
+              // Hide overlay only after image has loaded to prevent flicker
+              setIsImageProcessing(false);
+              hideGlobalOverlay('imageLoaded');
+            }}
           />
           
       <View style={styles.toolbar}>

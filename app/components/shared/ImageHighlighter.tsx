@@ -79,6 +79,7 @@ interface ImageHighlighterProps {
     rotation?: number;
   }) => void;
   onRotationStateChange?: (state: ImageHighlighterRotationState) => void;
+  onImageLoaded?: () => void; // Called when the image has finished loading and is visible
 }
 
 // Let's define a type for our crop box to ensure type consistency
@@ -114,6 +115,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   onActivateHighlightMode,
   onRegionSelected,
   onRotationStateChange,
+  onImageLoaded,
 }, ref) => {
   const { t } = useTranslation();
   const panResponderViewRef = React.useRef<View>(null); // ADDED HERE
@@ -173,6 +175,9 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   // Rainbow animation for highlight and crop box borders
   const rainbowAnim = useRef(new Animated.Value(0)).current;
   const animationLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+  
+  // Fade-in animation for images
+  const imageOpacity = useRef(new Animated.Value(0)).current;
   
   useEffect(() => {
     // #region agent log
@@ -265,10 +270,12 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       // Clear processing state when image changes
       setIsProcessing(false);
       prevImageUriRef.current = imageUri;
+      // Reset opacity to 0 for fade-in animation when image changes
+      imageOpacity.setValue(0);
       // Don't reset containerScreenOffset when image changes - layout dimensions remain the same
       // Only reset it if we actually need to remeasure (which onLayout will handle)
     }
-  }, [imageUri]);
+  }, [imageUri, imageOpacity]);
   
   // Calculate scaled dimensions for the image container (pan responder view)
   // This will now depend on measuredLayout, so calculations move into the return or useEffect after layout is measured
@@ -1358,13 +1365,27 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           }
         ]}
       >
-        <Image
+        <Animated.Image
           source={{ uri: imageUri }}
           style={[
             styles.image, // Now contains width/height 100%
-            { transform: [{ rotate: `${rotation}deg` }] }
+            { 
+              transform: [{ rotate: `${rotation}deg` }],
+              opacity: imageOpacity
+            }
           ]}
           resizeMode="contain"
+          onLoad={() => {
+            // Notify parent that image is loaded (for hiding loading overlays)
+            onImageLoaded?.();
+            // Trigger fade-in animation when image loads
+            Animated.timing(imageOpacity, {
+              toValue: 1,
+              duration: 300,
+              easing: Easing.out(Easing.ease),
+              useNativeDriver: true,
+            }).start();
+          }}
         />
         {/* Detected regions are relative to the image, so they go inside imageContainer */}
         {detectedRegions.map((region, index) => (

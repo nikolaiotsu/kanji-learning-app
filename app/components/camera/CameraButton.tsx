@@ -162,7 +162,9 @@ export default function CameraButton({ onPhotoCapture, style, onProcessingStateC
           height: normalised.height,
         });
         
-        onProcessingStateChange?.(false);
+        // Note: onProcessingStateChange?.(false) is now called by 
+        // ImageHighlighter's onImageLoaded callback to prevent flicker
+        // The loading overlay stays visible until the image actually loads
       }
     } catch (error) {
       onProcessingStateChange?.(false);
