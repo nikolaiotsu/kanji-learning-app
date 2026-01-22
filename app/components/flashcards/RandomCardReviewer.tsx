@@ -273,10 +273,37 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const reviewButtonRainbowAnim = useRef(new Animated.Value(0)).current;
   const rainbowAnimationLoopRef = useRef<Animated.CompositeAnimation | null>(null);
   
+  // Completion pulse animation - single rainbow cycle when review finishes
+  // Value goes from 0 to 2: 0-1 = rainbow cycle, 1-2 = fade out
+  const completionPulseAnim = useRef(new Animated.Value(0)).current;
+  const wasSessionFinishedRef = useRef(false);
+  const [showCompletionPulse, setShowCompletionPulse] = useState(false);
+  
   // Create interpolated color value directly - no setState means no re-renders during animation
   const reviewButtonRainbowColor = reviewButtonRainbowAnim.interpolate({
     inputRange: [0, 0.166, 0.333, 0.5, 0.666, 0.833, 1],
     outputRange: ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#FF0000'],
+  });
+  
+  // Completion pulse rainbow color - cycles through colors once, then fades out slowly
+  // Phase 1 (0-1): Full rainbow cycle with full opacity
+  // Phase 2 (1-2): Fade out by interpolating to transparent/default color
+  const completionPulseColor = completionPulseAnim.interpolate({
+    inputRange: [0, 0.166, 0.333, 0.5, 0.666, 0.833, 1, 1.2, 1.4, 1.6, 1.8, 2],
+    outputRange: [
+      'rgba(255, 0, 0, 1)',           // Red - full opacity
+      'rgba(255, 127, 0, 1)',         // Orange - full opacity
+      'rgba(255, 255, 0, 1)',         // Yellow - full opacity
+      'rgba(0, 255, 0, 1)',          // Green - full opacity
+      'rgba(0, 0, 255, 1)',           // Blue - full opacity
+      'rgba(148, 0, 211, 1)',         // Violet - full opacity
+      'rgba(255, 0, 0, 1)',           // Back to red - full opacity (end of cycle)
+      'rgba(255, 0, 0, 0.7)',        // Start fade: red at 70% opacity
+      'rgba(255, 0, 0, 0.4)',        // Continue fade: red at 40% opacity
+      'rgba(59, 130, 246, 0.2)',     // Transition to default blue at 20% opacity
+      'rgba(59, 130, 246, 0.05)',   // Almost transparent
+      'rgba(59, 130, 246, 0)',      // Fully transparent (default border color)
+    ],
   });
 
   // Helper: Determine if rainbow border should be shown on review button
@@ -291,6 +318,16 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       ? { borderColor: reviewButtonRainbowColor, borderWidth: 2 }
       : undefined;
   }, [shouldShowRainbowBorder, reviewButtonRainbowColor]);
+  
+  // Completion pulse style - applied when session finishes for dopamine boost
+  // Uses animated opacity to smoothly fade in/out the rainbow border
+  // Border width stays constant - no size change, just color animation
+  const completionPulseStyle = useMemo(() => {
+    return {
+      borderColor: completionPulseColor,
+      borderWidth: 1, // Match the default border width to prevent layout shifts
+    };
+  }, [completionPulseColor]);
 
   // Separate effect to update total cards in selected decks - STABLE COUNTER
   // This counter updates when deck selection changes OR when cards are added to selected decks
@@ -479,6 +516,58 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       logger.log('🌈 [Rainbow Animation] Not starting - shouldShowRainbowBorder:', shouldShowRainbowBorder);
     }
   }, [shouldShowRainbowBorder, reviewButtonRainbowAnim]);
+
+  // Completion pulse animation - triggers a single rainbow pulse when review session finishes
+  // This provides positive feedback/dopamine boost when user completes their review
+  // ONLY triggers in SRS mode (review mode), not in browse mode
+  useEffect(() => {
+    // Detect transition from not-finished to finished
+    const justFinished = isSessionFinished && !wasSessionFinishedRef.current;
+    wasSessionFinishedRef.current = isSessionFinished;
+    
+    // Only trigger pulse if we're in SRS mode (review mode), not browse mode
+    // Check isSrsModeActive to ensure we only celebrate actual review completions
+    if (justFinished && isSrsModeActive) {
+      logger.log('🎉 [Completion Pulse] Review session just finished in SRS mode, triggering celebration pulse!');
+      
+      // Show the pulse style
+      setShowCompletionPulse(true);
+      
+      // Reset animation value
+      completionPulseAnim.setValue(0);
+      
+      // Trigger haptic feedback for extra satisfaction
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      // Animate: cycle through rainbow colors once, then fade out slowly
+      Animated.sequence([
+        // Phase 1: Rainbow cycle (0 to 1)
+        Animated.timing(completionPulseAnim, {
+          toValue: 1,
+          duration: 1000, // One full rainbow cycle
+          easing: Easing.linear,
+          useNativeDriver: false,
+        }),
+        // Phase 2: Slow fade-out (1 to 2)
+        Animated.timing(completionPulseAnim, {
+          toValue: 2,
+          duration: 1200, // Slow, smooth fade-out
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: false,
+        }),
+      ]).start(() => {
+        // Reset visibility only; keep `completionPulseAnim` at mount value until next run
+        setShowCompletionPulse(false);
+        logger.log('🎉 [Completion Pulse] Animation complete');
+      });
+    } else if (justFinished && !isSrsModeActive) {
+      logger.log('🎉 [Completion Pulse] Session finished in browse mode, skipping pulse animation');
+      setShowCompletionPulse(false);
+    } else if (!isSessionFinished) {
+      // Reset when session is not finished
+      setShowCompletionPulse(false);
+    }
+  }, [isSessionFinished, isSrsModeActive, completionPulseAnim]);
 
   // SRS Update Handler - Updates box and nextReviewDate for cards in SRS Mode
   const handleSRSUpdate = async (card: Flashcard, isCorrect: boolean) => {
@@ -1660,7 +1749,8 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               styles.reviewModeButton,
               buttonDisplayActive && styles.reviewModeButtonActive,
               styles.deckButtonDisabled,
-              rainbowBorderStyle
+              rainbowBorderStyle,
+              showCompletionPulse && completionPulseStyle
             ]}
             disabled={true}
           >
@@ -1779,7 +1869,8 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 styles.reviewModeButton,
                 buttonDisplayActive && styles.reviewModeButtonActive,
                 (reviewSessionCards.length === 0 && filteredCards.length === 0) && styles.reviewModeButtonDisabled,
-                rainbowBorderStyle
+                rainbowBorderStyle,
+                showCompletionPulse && completionPulseStyle
               ]}
               disabled={reviewSessionCards.length === 0 && filteredCards.length === 0}
               onPress={() => {
@@ -2003,7 +2094,8 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 styles.reviewModeButton,
                 buttonDisplayActive && styles.reviewModeButtonActive,
                 isSessionFinished && styles.reviewModeButtonDisabled,
-                rainbowBorderStyle
+                rainbowBorderStyle,
+                showCompletionPulse && completionPulseStyle
               ]}
               disabled={isSessionFinished}
               onPress={() => {
@@ -2272,7 +2364,8 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
             isWalkthroughActive && currentWalkthroughStepId === 'review-button' && { backgroundColor: 'transparent' },
             (!isWalkthroughActive && (isCardTransitioning || isInitializing)) && styles.deckButtonDisabled,
             isResettingSRS && { opacity: 0.6 },
-            rainbowBorderStyle
+            rainbowBorderStyle,
+            showCompletionPulse && completionPulseStyle
           ]}
           onPress={() => {
             // Prevent rapid button presses from causing overlapping transitions
