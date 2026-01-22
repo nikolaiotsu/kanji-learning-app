@@ -2005,6 +2005,7 @@ Be precise and return ONLY the JSON with no additional explanation.`;
  * @param forcedLanguage Optional code to force a specific source language detection
  * @param onProgress Optional callback for progress updates
  * @param includeScope Whether to include scope analysis (etymology/grammar)
+ * @param subscriptionPlan Optional subscription plan to use for rate limiting (avoids re-fetching)
  * @returns Object containing text with furigana/romanization, translation, and optional scope analysis
  */
 export async function processWithClaude(
@@ -2012,7 +2013,8 @@ export async function processWithClaude(
   targetLanguage: string = 'en',
   forcedLanguage: string = 'ja',
   onProgress?: (checkpoint: number) => void,
-  includeScope: boolean = false
+  includeScope: boolean = false,
+  subscriptionPlan?: 'PREMIUM' | 'FREE'
 ): Promise<ClaudeResponse> {
   // CRITICAL: Normalize quotation marks and special characters BEFORE processing
   // This prevents JSON parsing issues when Claude includes quotes in translations
@@ -2047,6 +2049,18 @@ export async function processWithClaude(
     return output.replace(new RegExp(SLASH_PLACEHOLDER, 'g'), '/');
   };
   
+  // RETRY COUNTER LOGGING: Track internal API calls (verification, furigana retries, etc.)
+  let internalApiCallCount = 0;
+  const internalRetryReasons: string[] = [];
+  
+  const trackInternalApiCall = (reason: string) => {
+    internalApiCallCount++;
+    if (internalApiCallCount > 1) {
+      internalRetryReasons.push(reason);
+      logger.warn(`🔄 [API Retry Tracker] Internal API call #${internalApiCallCount} - Reason: ${reason}`);
+    }
+  };
+
   // Start logging metrics
   const metrics: APIUsageMetrics = apiLogger.startAPICall('https://api.anthropic.com/v1/messages', {
     text: text.substring(0, 100), // Log first 100 chars for debugging
@@ -2054,15 +2068,23 @@ export async function processWithClaude(
     forcedLanguage,
     textLength: text.length
   });
+  
+  internalApiCallCount++; // Count the initial call
+  logger.log(`📊 [API Retry Tracker] processWithClaude - Initial translation call (Total internal calls: ${internalApiCallCount})`);
 
   // Check unified rate limits for all API calls
   try {
-    const subscription = await fetchSubscriptionStatus();
-    const subscriptionPlan = getSubscriptionPlan(subscription);
-    const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
+    // Use passed subscription plan if provided, otherwise fetch from database
+    let effectiveSubscriptionPlan = subscriptionPlan;
+    if (!effectiveSubscriptionPlan) {
+      const subscription = await fetchSubscriptionStatus();
+      effectiveSubscriptionPlan = getSubscriptionPlan(subscription);
+    }
+    logger.log(`[Claude API] Using subscription plan for rate limit: ${effectiveSubscriptionPlan}`);
+    const rateLimitStatus = await apiLogger.checkRateLimitStatus(effectiveSubscriptionPlan);
     
     if (rateLimitStatus.apiCallsRemaining <= 0) {
-      const isPremium = subscriptionPlan === 'PREMIUM';
+      const isPremium = effectiveSubscriptionPlan === 'PREMIUM';
       const errorMessage = isPremium 
         ? 'API limit reached. You have used all your API calls for this period.'
         : 'Daily API limit reached. Upgrade to Premium for more API calls.';
@@ -2765,6 +2787,7 @@ Format your response as valid JSON:
 
               if (qualityAssessment.needsVerification && retryCount < MAX_RETRIES - 1) {
                 logger.log("🔍 [Smart Verification] Running verification to ensure completeness...");
+                trackInternalApiCall('Translation verification (quality check)');
 
                 retryCount++;
 
@@ -4186,6 +4209,7 @@ Format your response as valid JSON with these exact keys:
                 // If this is the first attempt and we have significant missing furigana, retry with more aggressive prompt
                 if (retryCount === 0 && (validation.missingKanjiCount > 0 || validation.details.includes("incorrect readings"))) {
                   logger.log("Retrying with more aggressive furigana prompt...");
+                  trackInternalApiCall(`Furigana retry (${validation.missingKanjiCount} missing kanji, ${validation.details})`);
                   retryCount++;
                   
                   // Create a more aggressive prompt for retry
@@ -5057,6 +5081,7 @@ CRITICAL: Every Hindi word must have its ORIGINAL DEVANAGARI text preserved with
             const targetIsReadingLanguage = ['ja', 'zh', 'ko', 'ru', 'ar', 'hi'].includes(targetLanguage);
             if (furiganaText && retryCount < MAX_RETRIES - 1 && !targetIsReadingLanguage) {
               logger.log("Verifying reading completeness...");
+              trackInternalApiCall(`Reading verification (${primaryLanguage || forcedLanguage})`);
               
               // Increment retry counter
               retryCount++;
@@ -5272,6 +5297,12 @@ Format your response as valid JSON with these exact keys:
               translatedText: sanitizeTranslatedText(translatedText, targetLanguage)
             };
 
+            // RETRY COUNTER LOGGING: Summary before returning
+            if (internalApiCallCount > 1) {
+              logger.warn(`⚠️ [API Retry Tracker] processWithClaude SUCCESS - Total internal API calls: ${internalApiCallCount}`);
+              logger.warn(`⚠️ [API Retry Tracker] Internal retry reasons: ${internalRetryReasons.join(', ')}`);
+            }
+
             // Log successful API call
             try {
               logger.log('[Claude API] About to log translate API call...');
@@ -5282,7 +5313,9 @@ Format your response as valid JSON with these exact keys:
                 textLength: text.length,
                 hasJapanese: result.furiganaText ? true : false,
                 parseMethod: 'direct',
-                operationType: 'translate'
+                operationType: 'translate',
+                internalApiCallCount,
+                internalRetryReasons: internalRetryReasons.join(', ')
               }, inputTokens, outputTokens);
               logger.log('[Claude API] Successfully logged translate API call');
             } catch (logError) {
@@ -5408,6 +5441,7 @@ Format your response as valid JSON with these exact keys:
         const backoffDelay = INITIAL_BACKOFF_DELAY * Math.pow(2, retryCount);
         
         logger.log(`Claude API overloaded. Retrying in ${backoffDelay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+        trackInternalApiCall(`API overload retry (529 error, attempt ${retryCount + 1})`);
         
         // Wait before retrying
         await sleep(backoffDelay);
@@ -5443,6 +5477,15 @@ Format your response as valid JSON with these exact keys:
     logger.error(`Claude API still unavailable after ${MAX_RETRIES} retry attempts`);
   }
   
+  // RETRY COUNTER LOGGING: Final summary for processWithClaude
+  if (internalApiCallCount > 1) {
+    logger.warn(`⚠️ [API Retry Tracker] processWithClaude FINAL SUMMARY - Total internal API calls: ${internalApiCallCount}`);
+    logger.warn(`⚠️ [API Retry Tracker] Internal retry reasons: ${internalRetryReasons.join(', ')}`);
+    logger.warn(`⚠️ [API Retry Tracker] This translation consumed ${internalApiCallCount}x the base API usage!`);
+  } else {
+    logger.log(`✅ [API Retry Tracker] processWithClaude completed with 1 API call (no internal retries)`);
+  }
+  
   // Log failed API call
   const finalError = lastError instanceof Error ? lastError : new Error(String(lastError));
   await logClaudeAPI(metrics, false, undefined, finalError, {
@@ -5452,7 +5495,9 @@ Format your response as valid JSON with these exact keys:
     textLength: text.length,
     retryCount,
     maxRetries: MAX_RETRIES,
-    operationType: 'translate'
+    operationType: 'translate',
+    internalApiCallCount,
+    internalRetryReasons: internalRetryReasons.join(', ')
   });
   
   return {
@@ -5468,7 +5513,7 @@ Format your response as valid JSON with these exact keys:
 function parseWordScopeResponse(rawResponse: string): {
   furiganaText?: string;
   translatedText: string;
-  scopeAnalysis: {
+  scopeAnalysis: string | {
     word: string;
     reading: string;
     partOfSpeech: string;
@@ -5807,13 +5852,15 @@ function formatScopeAnalysis(analysisJson: {
  * @param targetLanguage Target language code (e.g., 'en', 'ja', 'fr')
  * @param forcedLanguage Forced source language detection code
  * @param onProgress Optional callback for progress updates
+ * @param subscriptionPlan Optional subscription plan to use for rate limiting (avoids re-fetching)
  * @returns Promise with furiganaText, translatedText, and scopeAnalysis
  */
 export async function processWithClaudeAndScope(
   text: string,
   targetLanguage: string = 'en',
   forcedLanguage: string = 'ja',
-  onProgress?: (checkpoint: number) => void
+  onProgress?: (checkpoint: number) => void,
+  subscriptionPlan?: 'PREMIUM' | 'FREE'
 ): Promise<ClaudeResponse> {
   // OPTIMIZED: Combined single API call for translation + scope analysis
   // This saves ~40-50% of API costs compared to making two separate calls
@@ -5832,12 +5879,17 @@ export async function processWithClaudeAndScope(
 
   // Check unified rate limits for all API calls
   try {
-    const subscription = await fetchSubscriptionStatus();
-    const subscriptionPlan = getSubscriptionPlan(subscription);
-    const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
+    // Use passed subscription plan if provided, otherwise fetch from database
+    let effectiveSubscriptionPlan = subscriptionPlan;
+    if (!effectiveSubscriptionPlan) {
+      const subscription = await fetchSubscriptionStatus();
+      effectiveSubscriptionPlan = getSubscriptionPlan(subscription);
+    }
+    logger.log(`[WordScope Combined] Using subscription plan for rate limit: ${effectiveSubscriptionPlan}`);
+    const rateLimitStatus = await apiLogger.checkRateLimitStatus(effectiveSubscriptionPlan);
     
     if (rateLimitStatus.apiCallsRemaining <= 0) {
-      const isPremium = subscriptionPlan === 'PREMIUM';
+      const isPremium = effectiveSubscriptionPlan === 'PREMIUM';
       const errorMessage = isPremium 
         ? 'API limit reached. You have used all your API calls for this period.'
         : 'Daily API limit reached. Upgrade to Premium for more API calls.';
@@ -6684,7 +6736,7 @@ CRITICAL REQUIREMENTS:
       logger.log(`[WordScope Combined] Raw response preview (first 500 chars): ${rawResponse.substring(0, 500)}`);
       
       // Fall back to the separate calls approach
-      return await processWithClaudeAndScopeFallback(text, targetLanguage, forcedLanguage, onProgress);
+      return await processWithClaudeAndScopeFallback(text, targetLanguage, forcedLanguage, onProgress, subscriptionPlan);
     }
     
     // Log successful parsing
@@ -6702,16 +6754,31 @@ CRITICAL REQUIREMENTS:
       try {
         formattedScopeAnalysis = formatScopeAnalysis(parsedResult.scopeAnalysis);
         logger.log(`[WordScope Combined] Formatted scopeAnalysis: ${formattedScopeAnalysis.length} chars`);
+        
+        // Validate formatted output doesn't look like code/JSON
+        const looksLikeCode = formattedScopeAnalysis.includes('{') && formattedScopeAnalysis.includes('"') && 
+                             (formattedScopeAnalysis.match(/\{[^}]*\}/g)?.length || 0) > 3;
+        if (looksLikeCode || formattedScopeAnalysis.trim().length === 0) {
+          logger.error('[WordScope Combined] Formatted scopeAnalysis appears malformed, falling back');
+          return await processWithClaudeAndScopeFallback(text, targetLanguage, forcedLanguage, onProgress, subscriptionPlan);
+        }
       } catch (formatError) {
         logger.error('[WordScope Combined] Failed to format scopeAnalysis:', formatError);
-        return await processWithClaudeAndScopeFallback(text, targetLanguage, forcedLanguage, onProgress);
+        return await processWithClaudeAndScopeFallback(text, targetLanguage, forcedLanguage, onProgress, subscriptionPlan);
       }
     } else if (typeof parsedResult.scopeAnalysis === 'string') {
-      // Legacy format - keep as is for backward compatibility
-      formattedScopeAnalysis = parsedResult.scopeAnalysis;
+      // Legacy format - validate it doesn't look like raw code/JSON
+      const scopeStr = parsedResult.scopeAnalysis;
+      const looksLikeCode = scopeStr.includes('{') && scopeStr.includes('"') && 
+                           (scopeStr.match(/\{[^}]*\}/g)?.length || 0) > 3;
+      if (looksLikeCode) {
+        logger.error('[WordScope Combined] String scopeAnalysis appears to be raw code/JSON, falling back');
+        return await processWithClaudeAndScopeFallback(text, targetLanguage, forcedLanguage, onProgress, subscriptionPlan);
+      }
+      formattedScopeAnalysis = scopeStr;
     } else {
       logger.error('[WordScope Combined] scopeAnalysis is missing or invalid');
-      return await processWithClaudeAndScopeFallback(text, targetLanguage, forcedLanguage, onProgress);
+      return await processWithClaudeAndScopeFallback(text, targetLanguage, forcedLanguage, onProgress, subscriptionPlan);
     }
     
     onProgress?.(3);
@@ -6743,7 +6810,7 @@ CRITICAL REQUIREMENTS:
   } catch (error) {
     logger.error('[WordScope Combined] Combined call failed, falling back to separate calls:', error);
     // Fall back to the original two-call approach if combined fails
-    return await processWithClaudeAndScopeFallback(text, targetLanguage, forcedLanguage, onProgress);
+    return await processWithClaudeAndScopeFallback(text, targetLanguage, forcedLanguage, onProgress, subscriptionPlan);
   }
 }
 
@@ -6755,12 +6822,13 @@ async function processWithClaudeAndScopeFallback(
   text: string,
   targetLanguage: string = 'en',
   forcedLanguage: string = 'ja',
-  onProgress?: (checkpoint: number) => void
+  onProgress?: (checkpoint: number) => void,
+  subscriptionPlan?: 'PREMIUM' | 'FREE'
 ): Promise<ClaudeResponse> {
   logger.log('[WordScope Fallback] Using separate calls approach...');
   
-  // First, get the normal translation
-  const translationResult = await processWithClaude(text, targetLanguage, forcedLanguage, onProgress);
+  // First, get the normal translation (pass subscription plan to avoid re-fetching)
+  const translationResult = await processWithClaude(text, targetLanguage, forcedLanguage, onProgress, false, subscriptionPlan);
   
   if (translationResult.languageMismatch) {
     logger.log('[WordScope Fallback] Language mismatch detected, skipping scope analysis');
@@ -6981,7 +7049,52 @@ RULES:
     } catch (parseError) {
       logger.error('[WordScope Fallback] Failed to parse scope analysis JSON:', parseError);
       logger.log(`[WordScope Fallback] Raw response preview: ${rawScopeResponse.substring(0, 200)}`);
-      formattedScopeAnalysis = rawScopeResponse;
+      
+      // Log the failed attempt
+      await logClaudeAPI(scopeMetrics, false, undefined, parseError instanceof Error ? parseError : new Error(String(parseError)), {
+        model: wordScopeModel,
+        targetLanguage,
+        forcedLanguage,
+        textLength: text.length,
+        analysisType: 'grammar',
+        operationType: 'scope_analysis_fallback',
+        parseError: true
+      }, scopeInputTokens, scopeOutputTokens);
+      
+      // Throw error instead of returning broken output
+      throw new Error('Failed to parse scope analysis. The API response was malformed. Please try again or check your language settings.');
+    }
+    
+    // Validate that formattedScopeAnalysis is a proper string (not raw JSON or code)
+    if (!formattedScopeAnalysis || formattedScopeAnalysis.trim().length === 0) {
+      logger.error('[WordScope Fallback] Formatted scope analysis is empty or invalid');
+      await logClaudeAPI(scopeMetrics, false, undefined, new Error('Formatted scope analysis is empty'), {
+        model: wordScopeModel,
+        targetLanguage,
+        forcedLanguage,
+        textLength: text.length,
+        analysisType: 'grammar',
+        operationType: 'scope_analysis_fallback',
+        validationError: true
+      }, scopeInputTokens, scopeOutputTokens);
+      throw new Error('Scope analysis formatting failed. Please try again or check your language settings.');
+    }
+    
+    // Check if the formatted output looks like raw code/JSON (common failure pattern)
+    const looksLikeCode = formattedScopeAnalysis.includes('{') && formattedScopeAnalysis.includes('"') && 
+                          (formattedScopeAnalysis.match(/\{[^}]*\}/g)?.length || 0) > 3;
+    if (looksLikeCode) {
+      logger.error('[WordScope Fallback] Formatted scope analysis looks like raw code/JSON, not formatted text');
+      await logClaudeAPI(scopeMetrics, false, undefined, new Error('Scope analysis output is malformed (looks like code)'), {
+        model: wordScopeModel,
+        targetLanguage,
+        forcedLanguage,
+        textLength: text.length,
+        analysisType: 'grammar',
+        operationType: 'scope_analysis_fallback',
+        malformedOutput: true
+      }, scopeInputTokens, scopeOutputTokens);
+      throw new Error('Scope analysis output is malformed. Please try again or check your language settings.');
     }
     
     await logClaudeAPI(scopeMetrics, true, formattedScopeAnalysis, undefined, {
@@ -6998,8 +7111,19 @@ RULES:
       scopeAnalysis: formattedScopeAnalysis
     };
   } catch (error) {
-    logger.error('[WordScope Fallback] Scope analysis failed, returning translation only:', error);
-    return translationResult;
+    logger.error('[WordScope Fallback] Scope analysis failed:', error);
+    
+    // If it's already our custom error, re-throw it
+    if (error instanceof Error && (
+      error.message.includes('Failed to parse scope analysis') ||
+      error.message.includes('Scope analysis formatting failed') ||
+      error.message.includes('Scope analysis output is malformed')
+    )) {
+      throw error;
+    }
+    
+    // For other errors (network, API, etc.), throw a user-friendly error
+    throw new Error('Scope analysis failed. Please try again or check your language settings.');
   }
 }
 

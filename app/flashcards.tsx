@@ -621,14 +621,33 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     let usedSourceLang = originalSourceLanguage;
     let usedTargetLang = originalTargetLanguage;
     
-    const attempt = async (sourceLang: string, targetLang: string) => {
-      if (includeScope) {
-        return processWithClaudeAndScope(textToTranslate, targetLang, sourceLang, progressCallback);
+    // Get the subscription plan from context to pass to API functions
+    // This avoids the issue where fetchSubscriptionStatus() returns null inside API functions
+    const currentSubscriptionPlan = await getCurrentSubscriptionPlan(subscription?.plan);
+    logger.log(`📊 [API Retry Tracker] Using subscription plan: ${currentSubscriptionPlan}`);
+    
+    // RETRY COUNTER LOGGING: Track API calls per user action
+    let apiCallCount = 0;
+    let retryCount = 0;
+    const retryReasons: string[] = [];
+    
+    const attempt = async (sourceLang: string, targetLang: string, attemptNumber: number, reason?: string) => {
+      apiCallCount++;
+      if (attemptNumber > 1) {
+        retryCount++;
+        retryReasons.push(reason || `Attempt ${attemptNumber}`);
+        logger.log(`🔄 [API Retry Tracker] Retry #${retryCount} (Total API calls: ${apiCallCount}) - Reason: ${reason || 'Unknown'}`);
+      } else {
+        logger.log(`📊 [API Retry Tracker] Initial translation attempt (Total API calls: ${apiCallCount})`);
       }
-      return processWithClaude(textToTranslate, targetLang, sourceLang, progressCallback);
+      
+      if (includeScope) {
+        return processWithClaudeAndScope(textToTranslate, targetLang, sourceLang, progressCallback, currentSubscriptionPlan);
+      }
+      return processWithClaude(textToTranslate, targetLang, sourceLang, progressCallback, false, currentSubscriptionPlan);
     };
 
-    let result = await attempt(originalSourceLanguage, originalTargetLanguage);
+    let result = await attempt(originalSourceLanguage, originalTargetLanguage, 1);
 
     // SMART RETRY: Use detected language code from mismatch
     if (result.languageMismatch) {
@@ -641,7 +660,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       if (detectedCode && detectedCode !== originalSourceLanguage && detectedCode !== originalTargetLanguage) {
         logger.log(`🔄 [Flashcards] Detected third language, trying: ${detectedCode} → ${originalTargetLanguage}`);
         setDetectedLanguage(AVAILABLE_LANGUAGES[detectedCode as keyof typeof AVAILABLE_LANGUAGES] || result.languageMismatch.detectedLanguageName || 'unknown');
-        result = await attempt(detectedCode, originalTargetLanguage);
+        result = await attempt(detectedCode, originalTargetLanguage, 2, `Third language detected: ${detectedCode} → ${originalTargetLanguage}`);
         usedSourceLang = detectedCode;
         usedTargetLang = originalTargetLanguage;
         
@@ -655,7 +674,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
           if (secondDetectedCode === originalTargetLanguage) {
             logger.log(`🔄 [Flashcards] Text is actually in target language (${originalTargetLanguage}), swapping: ${originalTargetLanguage} → ${originalSourceLanguage}`);
             setDetectedLanguage(AVAILABLE_LANGUAGES[originalTargetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'unknown');
-            result = await attempt(originalTargetLanguage, originalSourceLanguage);
+            result = await attempt(originalTargetLanguage, originalSourceLanguage, 3, `Second detection: target language swap ${originalTargetLanguage} → ${originalSourceLanguage}`);
             usedSourceLang = originalTargetLanguage;
             usedTargetLang = originalSourceLanguage;
           }
@@ -663,7 +682,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
           else if (secondDetectedCode === originalSourceLanguage) {
             logger.log(`🔄 [Flashcards] Text is actually in source language (${originalSourceLanguage}), retrying with original settings: ${originalSourceLanguage} → ${originalTargetLanguage}`);
             setDetectedLanguage(AVAILABLE_LANGUAGES[originalSourceLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'unknown');
-            result = await attempt(originalSourceLanguage, originalTargetLanguage);
+            result = await attempt(originalSourceLanguage, originalTargetLanguage, 3, `Second detection: source language confirmed ${originalSourceLanguage} → ${originalTargetLanguage}`);
             usedSourceLang = originalSourceLanguage;
             usedTargetLang = originalTargetLanguage;
           }
@@ -675,7 +694,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       else if (detectedCode === originalTargetLanguage) {
         logger.log(`🔄 [Flashcards] Text is in target language, swapping: ${originalTargetLanguage} → ${originalSourceLanguage}`);
         setDetectedLanguage(AVAILABLE_LANGUAGES[originalTargetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'unknown');
-        result = await attempt(originalTargetLanguage, originalSourceLanguage);
+        result = await attempt(originalTargetLanguage, originalSourceLanguage, 2, `Target language swap: ${originalTargetLanguage} → ${originalSourceLanguage}`);
         usedSourceLang = originalTargetLanguage;
         usedTargetLang = originalSourceLanguage;
       }
@@ -683,7 +702,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       else {
         logger.log(`🔄 [Flashcards] No detected code, trying simple swap: ${originalTargetLanguage} → ${originalSourceLanguage}`);
         setDetectedLanguage(AVAILABLE_LANGUAGES[originalTargetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'unknown');
-        result = await attempt(originalTargetLanguage, originalSourceLanguage);
+        result = await attempt(originalTargetLanguage, originalSourceLanguage, 2, `Fallback swap: ${originalTargetLanguage} → ${originalSourceLanguage}`);
         usedSourceLang = originalTargetLanguage;
         usedTargetLang = originalSourceLanguage;
       }
@@ -708,6 +727,15 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       }
       // Post-translation validation removed - Claude's successful translation IS the validation
       // The languageMismatch detection already handles auto-switch before we get here
+    }
+
+    // RETRY COUNTER LOGGING: Final summary
+    if (apiCallCount > 1) {
+      logger.warn(`⚠️ [API Retry Tracker] FINAL SUMMARY - Total API calls for this translation: ${apiCallCount} (${retryCount} retries)`);
+      logger.warn(`⚠️ [API Retry Tracker] Retry reasons: ${retryReasons.join(', ')}`);
+      logger.warn(`⚠️ [API Retry Tracker] This single user action consumed ${apiCallCount}x the expected API usage!`);
+    } else {
+      logger.log(`✅ [API Retry Tracker] Translation completed with 1 API call (no retries needed)`);
     }
 
     return result;
@@ -1184,8 +1212,26 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       
       // Check if we got valid results back
       if (result.translatedText) {
+        // Validate scopeAnalysis if it exists (for WordScope calls)
+        if (result.scopeAnalysis) {
+          // Check if scopeAnalysis looks like raw code/JSON (malformed output)
+          const scopeAnalysis = result.scopeAnalysis;
+          const looksLikeCode = scopeAnalysis.includes('{') && scopeAnalysis.includes('"') && 
+                               (scopeAnalysis.match(/\{[^}]*\}/g)?.length || 0) > 3;
+          const isTruncated = scopeAnalysis.length > 0 && scopeAnalysis.length < 50 && 
+                             !scopeAnalysis.includes(' ') && scopeAnalysis.includes('{');
+          
+          if (looksLikeCode || isTruncated) {
+            logger.error('[Flashcards] Scope analysis appears to be malformed/code, throwing error');
+            throw new Error('Scope analysis output is malformed. Please try again or check your language settings.');
+          }
+          
+          setScopeAnalysis(scopeAnalysis);
+        } else {
+          setScopeAnalysis('');
+        }
+        
         setTranslatedText(result.translatedText);
-        setScopeAnalysis(result.scopeAnalysis || '');
         
         // WordScope Combined now returns furigana for reading languages in a single call
         if (needsRomanization && result.furiganaText) {
@@ -1210,10 +1256,21 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     } catch (err) {
       logger.error('Error processing with Claude Scope:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to process text with Claude API. Please try again later.';
-      setError(errorMessage);
+      
+      // Show user-friendly error message
+      const userFriendlyMessage = errorMessage.includes('Scope analysis') || errorMessage.includes('malformed')
+        ? 'The analysis could not be completed properly. Please check your language settings and try again.'
+        : errorMessage;
+      
+      setError(userFriendlyMessage);
       setProcessingFailed(true);
       setIsLoading(false);
       setIsManualOperation(false);
+      
+      // Clear any partial results to prevent showing broken output
+      setTranslatedText('');
+      setScopeAnalysis('');
+      setFuriganaText('');
     }
   };
 

@@ -22,6 +22,8 @@ import { updateFlashcard } from '../../services/supabaseStorage';
 import { processWithClaude } from '../../services/claudeApi';
 // Removed text formatting imports - no longer needed for direct content analysis
 import { useSettings, AVAILABLE_LANGUAGES } from '../../context/SettingsContext';
+import { useSubscription } from '../../context/SubscriptionContext';
+import { getCurrentSubscriptionPlan } from '../../services/receiptValidationService';
 import { COLORS } from '../../constants/colors';
 
 import { logger } from '../../utils/logger';
@@ -42,6 +44,7 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const { targetLanguage, forcedDetectionLanguage } = useSettings();
+  const { subscription } = useSubscription();
   const [originalText, setOriginalText] = useState('');
   const [furiganaText, setFuriganaText] = useState('');
   const [translatedText, setTranslatedText] = useState('');
@@ -177,7 +180,9 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
     setError('');
     
     try {
-      const result = await processWithClaude(originalText, targetLanguage, forcedDetectionLanguage);
+      // Get subscription plan from context to pass to API function
+      const subscriptionPlan = await getCurrentSubscriptionPlan(subscription?.plan);
+      const result = await processWithClaude(originalText, targetLanguage, forcedDetectionLanguage, undefined, false, subscriptionPlan);
       
       if (result.translatedText) {
         setTranslatedText(result.translatedText);
