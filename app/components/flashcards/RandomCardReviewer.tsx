@@ -1706,9 +1706,9 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
 
   // Industry standard: Only show hook loading for initial data fetch
   if (loadingState === LoadingState.SKELETON_LOADING && isInitializing) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.header}>
+      return (
+        <View style={styles.container}>
+          <View style={styles.header}>
           <View 
             ref={collectionsButtonRef} 
             collapsable={false}

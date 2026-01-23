@@ -35,6 +35,7 @@ import * as FileSystem from 'expo-file-system';
 import WalkthroughOverlay from '../shared/WalkthroughOverlay';
 import { useWalkthrough, WalkthroughStep } from '../../hooks/useWalkthrough';
 import { ensureMeasuredThenAdvance, measureButton } from '../../utils/walkthroughUtils';
+import APIUsageEnergyBar from '../shared/APIUsageEnergyBar';
 
 import { logger } from '../../utils/logger';
 import * as Haptics from 'expo-haptics';
@@ -2270,6 +2271,9 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 </TouchableOpacity>
               </WalkthroughTarget>
               
+              {/* API Usage Energy Bar - positioned to the right of settings button */}
+              <APIUsageEnergyBar style={styles.energyBar} />
+              
               {settingsMenuVisible && (
                 <>
                   <TouchableOpacity 
@@ -2956,6 +2960,12 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     fontSize: 14,
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  energyBar: {
+    position: 'absolute',
+    top: 16, // Centered vertically in the row (moved down from 5)
+    left: 15, // Moved right a few pixels from edge
+    zIndex: 800, // Same z-index as settings button - same layer
   },
   settingsButton: {
     position: 'absolute',

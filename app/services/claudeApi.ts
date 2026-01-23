@@ -4036,11 +4036,30 @@ Format your response as valid JSON:
               logger.log("⚠️ [Smart Verification] Low quality detected, running verification...");
             } else if (!qualityAssessment.needsVerification) {
               logger.log("✅ [Smart Verification] High quality confirmed, skipping verification");
-              // Return early - no verification needed
-              return {
+              
+              const result = {
                 furiganaText: earlyFuriganaText2,
                 translatedText: sanitizeTranslatedText(parsedContent.translatedText || "", targetLanguage)
               };
+
+              // Log successful API call (early return path 2)
+              try {
+                logger.log('[Claude API] About to log translate API call (early return path 2)...');
+                await logClaudeAPI(metrics, true, JSON.stringify(result), undefined, {
+                  model: 'claude-3-haiku-20240307',
+                  targetLanguage,
+                  forcedLanguage,
+                  textLength: text.length,
+                  hasJapanese: result.furiganaText ? true : false,
+                  parseMethod: 'direct',
+                  operationType: 'translate'
+                }, inputTokens, outputTokens);
+                logger.log('[Claude API] Successfully logged translate API call (early return path 2)');
+              } catch (logError) {
+                logger.error('[Claude API] Error logging translate API call (early return path 2):', logError);
+              }
+
+              return result;
             }
 
             // Only run verification if quality assessment indicates it's needed

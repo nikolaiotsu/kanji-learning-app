@@ -4,6 +4,17 @@ import { SUBSCRIPTION_PLANS } from '../constants/config';
 import { SubscriptionPlan } from '../../types';
 
 import { logger } from '../utils/logger';
+
+// Event listener type for API usage updates
+// Now includes the updated remaining API calls count for immediate UI updates
+export interface APIUsageUpdateEvent {
+  operationType: string;
+  remainingApiCalls: number;
+  apiCallsUsedToday: number;
+  dailyLimit: number;
+}
+type APIUsageListener = (event: APIUsageUpdateEvent) => void;
+
 // Types for logging
 export interface APIUsageLogEntry {
   operationType: 'claude_api' | 'vision_api' | 'flashcard_create' | 'ocr_scan' | 'translate_api' | 'wordscope_api';
@@ -26,6 +37,10 @@ class APIUsageLogger {
   private static instance: APIUsageLogger;
   private isEnabled: boolean = true;
   private appVersion: string;
+  private usageListeners: Set<APIUsageListener> = new Set();
+  // Cache for current remaining API calls to provide immediate updates
+  private cachedRemainingApiCalls: number | null = null;
+  private cachedSubscriptionPlan: SubscriptionPlan | null = null;
 
   private constructor() {
     // Get app version from expo config
@@ -247,6 +262,20 @@ class APIUsageLogger {
   }
 
   /**
+   * Set the cached subscription plan for faster rate limit calculations
+   */
+  public setCachedSubscriptionPlan(plan: SubscriptionPlan): void {
+    this.cachedSubscriptionPlan = plan;
+  }
+
+  /**
+   * Get cached remaining API calls (for immediate UI updates before fetch)
+   */
+  public getCachedRemainingApiCalls(): number | null {
+    return this.cachedRemainingApiCalls;
+  }
+
+  /**
    * Check if user is approaching rate limits
    * Uses UNIFIED API limits - only translate and wordscope calls count against the limit
    * OCR and vision calls are NOT counted against the unified limit
@@ -299,6 +328,10 @@ class APIUsageLogger {
       }
       
       logger.log(`[APILogger] Final apiCallsRemaining: ${apiCallsRemaining}`);
+      
+      // Update cache with fresh data
+      this.cachedRemainingApiCalls = apiCallsRemaining;
+      this.cachedSubscriptionPlan = subscriptionPlan;
       
       // Flashcard limit (unlimited for premium is represented as -1)
       const flashcardLimit = planConfig.flashcardsPerDay;
@@ -374,6 +407,22 @@ class APIUsageLogger {
         logger.error('[APILogger] If you see this error, the migration may not have been applied to Supabase');
       } else {
         logger.log(`[APILogger] Successfully updated daily usage for ${operationType}`);
+        
+        // Get updated rate limit status to provide immediate data to listeners
+        // Use cached subscription plan if available, otherwise default to FREE
+        const subscriptionPlan = this.cachedSubscriptionPlan || 'FREE';
+        const rateLimitStatus = await this.checkRateLimitStatus(subscriptionPlan);
+        
+        // Update cache with fresh data
+        this.cachedRemainingApiCalls = rateLimitStatus.apiCallsRemaining;
+        
+        // Emit event with updated data for immediate UI updates
+        this.emitUsageUpdate({
+          operationType,
+          remainingApiCalls: rateLimitStatus.apiCallsRemaining,
+          apiCallsUsedToday: rateLimitStatus.apiCallsUsedToday,
+          dailyLimit: rateLimitStatus.dailyLimit
+        });
       }
     } catch (error) {
       logger.error('[APILogger] Failed to update daily usage:', error);
@@ -405,6 +454,31 @@ class APIUsageLogger {
     this.isEnabled = enabled;
     logger.log(`[APILogger] Logging ${enabled ? 'enabled' : 'disabled'}`);
   }
+
+  /**
+   * Subscribe to API usage updates
+   * @param listener - Callback to be called when API usage is updated
+   * @returns Unsubscribe function
+   */
+  public subscribeToUsageUpdates(listener: APIUsageListener): () => void {
+    this.usageListeners.add(listener);
+    return () => {
+      this.usageListeners.delete(listener);
+    };
+  }
+
+  /**
+   * Emit usage update event to all listeners with updated data
+   */
+  private emitUsageUpdate(event: APIUsageUpdateEvent): void {
+    this.usageListeners.forEach(listener => {
+      try {
+        listener(event);
+      } catch (error) {
+        logger.error('[APILogger] Error in usage listener:', error);
+      }
+    });
+  }
 }
 
 // Export singleton instance
@@ -420,6 +494,8 @@ export const logClaudeAPI = async (
   inputTokens?: number,
   outputTokens?: number
 ) => {
+  logger.log(`📊 [APILogger] logClaudeAPI called - success: ${success}, operationType: ${metadata?.operationType}`);
+  
   // Determine operation type from metadata
   // If metadata has operationType 'wordscope_combined', use 'wordscope_api'
   // If metadata has operationType 'translation' or 'translate', use 'translate_api'
