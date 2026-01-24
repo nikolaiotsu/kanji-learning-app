@@ -1,4 +1,4 @@
-import React, { useState, useRef, forwardRef, useImperativeHandle, useEffect } from 'react';
+import React, { useState, useRef, forwardRef, useImperativeHandle, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Image,
@@ -156,6 +156,26 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   const [rotation, setRotation] = useState(0);
   const [initialRotation, setInitialRotation] = useState(0);
   
+  // Animated value for visual rotation - synced with rotation state for smooth native updates
+  const rotationAnimatedValue = useRef(new Animated.Value(0)).current;
+  
+  // Sync animated value with rotation state - this ensures the visual rotation updates
+  useEffect(() => {
+    rotationAnimatedValue.setValue(rotation);
+  }, [rotation, rotationAnimatedValue]);
+  
+  // Refs to store state values for PanResponder callbacks (prevents stale closure issues)
+  const rotateModeRef = useRef(false);
+  const highlightModeActiveRef = useRef(highlightModeActive);
+  const cropModeRef = useRef(false);
+  const rotationRef = useRef(0);
+  const containerScreenOffsetRef = useRef<{x: number, y: number} | null>(null);
+  const measuredLayoutRef = useRef<{width: number, height: number} | null>(null);
+  const cropBoxRef = useRef<CropBox>({ x: 0, y: 0, width: 0, height: 0 });
+  const activeCropHandleRef = useRef<string | null>(null);
+  const isCropDrawingRef = useRef(false);
+  const isDrawingRef = useRef(false);
+  
   // Refs for gesture calculation
   // imageRotationAtGestureStartRef: Stores the image's rotation at the very beginning of a PanResponder Grant event.
   // This is the baseline rotation *before* the current gesture starts.
@@ -165,6 +185,24 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   const accumulatedAngleDeltaForGestureRef = useRef<number>(0); 
   // lastVisuallyAppliedRotationRef: Stores the actual rotation value that was last commanded via setRotation (smoothed value).
   const lastVisuallyAppliedRotationRef = useRef<number>(0);
+  
+  // Refs for calculated layout values (computed from measuredLayout and image dimensions)
+  const scaledContainerWidthRef = useRef(0);
+  const scaledContainerHeightRef = useRef(0);
+  const displayImageOffsetXRef = useRef(0);
+  const displayImageOffsetYRef = useRef(0);
+  
+  // Keep refs in sync with state values - this ensures PanResponder callbacks have current values
+  useEffect(() => { rotateModeRef.current = rotateMode; }, [rotateMode]);
+  useEffect(() => { highlightModeActiveRef.current = highlightModeActive; }, [highlightModeActive]);
+  useEffect(() => { cropModeRef.current = cropMode; }, [cropMode]);
+  useEffect(() => { rotationRef.current = rotation; }, [rotation]);
+  useEffect(() => { containerScreenOffsetRef.current = containerScreenOffset; }, [containerScreenOffset]);
+  useEffect(() => { measuredLayoutRef.current = measuredLayout; }, [measuredLayout]);
+  useEffect(() => { cropBoxRef.current = cropBox; }, [cropBox]);
+  useEffect(() => { activeCropHandleRef.current = activeCropHandle; }, [activeCropHandle]);
+  useEffect(() => { isCropDrawingRef.current = isCropDrawing; }, [isCropDrawing]);
+  useEffect(() => { isDrawingRef.current = isDrawing; }, [isDrawing]);
 
   // Reference to the image view for capturing screenshots
   const imageViewRef = useRef<View>(null);
@@ -180,9 +218,6 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   const imageOpacity = useRef(new Animated.Value(0)).current;
   
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageHighlighter.tsx:165',message:'Animation loop setup - starting',data:{rainbowAnimValue:rainbowAnim},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     const loop = Animated.loop(
       Animated.timing(rainbowAnim, {
         toValue: 1,
@@ -192,21 +227,12 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       })
     );
     animationLoopRef.current = loop;
-    const listenerId = rainbowAnim.addListener(({ value }) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageHighlighter.tsx:179',message:'Animation value update',data:{value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
+    const listenerId = rainbowAnim.addListener(() => {
+      // Animation value listener (needed to keep animation running)
     });
-    loop.start((finished) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageHighlighter.tsx:183',message:'Animation loop finished callback',data:{finished},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-    });
+    loop.start();
     
     return () => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageHighlighter.tsx:187',message:'Animation effect cleanup',data:{hasLoop:!!animationLoopRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       rainbowAnim.removeListener(listenerId);
       if (animationLoopRef.current) {
         animationLoopRef.current.stop();
@@ -223,9 +249,6 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   // Helper function to restart animation loop
   const restartAnimationLoop = () => {
     if (animationLoopRef.current) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageHighlighter.tsx:207',message:'Restarting animation loop',data:{hasAnimationLoop:!!animationLoopRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
-      // #endregion
       // Stop existing loop and restart to ensure it's running
       animationLoopRef.current.stop();
       const newLoop = Animated.loop(
@@ -243,9 +266,6 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
 
   // Effect to track highlightModeActive changes and ensure animation is running
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageHighlighter.tsx:225',message:'highlightModeActive changed',data:{highlightModeActive,hasAnimationLoop:!!animationLoopRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
-    // #endregion
     // Restart animation when highlight mode becomes active to ensure rainbow effect works
     if (highlightModeActive) {
       restartAnimationLoop();
@@ -254,9 +274,6 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
 
   // Effect to track cropMode changes and ensure animation is running
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageHighlighter.tsx:234',message:'cropMode changed',data:{cropMode,hasAnimationLoop:!!animationLoopRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-    // #endregion
     // Restart animation when crop mode becomes active to ensure rainbow effect works
     if (cropMode) {
       restartAnimationLoop();
@@ -320,9 +337,13 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
     // The image container is centered within the wrapper
     displayImageOffsetX = (measuredLayout.width - scaledContainerWidth) / 2;
     displayImageOffsetY = (measuredLayout.height - scaledContainerHeight) / 2;
-    
-
   }
+  
+  // Update layout refs for use in PanResponder callbacks (prevents stale closure issues)
+  scaledContainerWidthRef.current = scaledContainerWidth;
+  scaledContainerHeightRef.current = scaledContainerHeight;
+  displayImageOffsetXRef.current = displayImageOffsetX;
+  displayImageOffsetYRef.current = displayImageOffsetY;
 
   // useEffect for logging rotation state changes
   useEffect(() => {
@@ -532,9 +553,6 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
              Math.abs(cropBox.width) > 10 && Math.abs(cropBox.height) > 10;
     },
     clearHighlightBox: () => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageHighlighter.tsx:447',message:'clearHighlightBox called',data:{isDrawing,strokes,hasAnimationLoop:!!animationLoopRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
       setIsDrawing(false);
       setStrokes([]);
       setCurrentStroke([]);
@@ -653,121 +671,71 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   };
 
   // Helper function to calculate angle between two points relative to the center
-  const calculateAngle = (x: number, y: number) => {
-    const centerX = scaledContainerWidth / 2;
-    const centerY = scaledContainerHeight / 2;
+  // Uses refs to always access current layout values
+  const calculateAngleFromRefs = useCallback((x: number, y: number) => {
+    const centerX = scaledContainerWidthRef.current / 2;
+    const centerY = scaledContainerHeightRef.current / 2;
     return Math.atan2(y - centerY, x - centerX) * (180 / Math.PI);
-  };
+  }, []);
 
-  const panResponder = PanResponder.create({
+  // Memoized PanResponder - uses refs to always access current state values
+  // This prevents stale closure issues that can occur when PanResponder is recreated on every render
+  const panResponder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: (evt) => {
-      if (!containerScreenOffset || !measuredLayout) return false; // Not ready yet
-      // Interaction is starting
-      // logger.log('[ImageHighlighter] onStartShouldSetPanResponder evaluating'); // Removed
-      // Check if the touch is within the defined active area for highlighting
+      const offset = containerScreenOffsetRef.current;
+      const layout = measuredLayoutRef.current;
+      if (!offset || !layout) return false; // Not ready yet
+      
       const { pageX, pageY } = evt.nativeEvent;
-      const x = pageX - containerScreenOffset.x;
-      const y = pageY - containerScreenOffset.y;
+      const x = pageX - offset.x;
+      const y = pageY - offset.y;
 
       const touchTolerance = 1.5; // pixels of tolerance
 
-      // Define the touchable area (can be the whole component or a sub-region)
-      const isWithinHorizontalBounds = x >= -touchTolerance && x <= measuredLayout.width + touchTolerance;
-      const isWithinVerticalBounds = y >= -touchTolerance && y <= measuredLayout.height + touchTolerance;
+      const isWithinHorizontalBounds = x >= -touchTolerance && x <= layout.width + touchTolerance;
+      const isWithinVerticalBounds = y >= -touchTolerance && y <= layout.height + touchTolerance;
       
-      const shouldSet = isWithinHorizontalBounds && isWithinVerticalBounds;
-
-      /* // Removed
-      logger.log('[ImageHighlighter] onStartShouldSetPanResponder:', {
-        pageX, pageY,
-        containerScreenOffsetX: containerScreenOffset.x,
-        containerScreenOffsetY: containerScreenOffset.y,
-        x, y,
-        measuredLayoutWidth: measuredLayout.width,
-        measuredLayoutHeight: measuredLayout.height,
-        isWithinHorizontalBounds,
-        isWithinVerticalBounds,
-        shouldSet,
-        highlightModeActive,
-        cropMode,
-      });
-      */
-
-      // Allow gesture to start if within bounds and any mode (highlight, crop, rotate) is active or could be activated.
-      // The specific mode logic within onPanResponderGrant will handle what to do.
-      return shouldSet;
+      return isWithinHorizontalBounds && isWithinVerticalBounds;
     },
     onMoveShouldSetPanResponder: (evt, gestureState) => {
-      if (!containerScreenOffset) return false;
+      const offset = containerScreenOffsetRef.current;
+      if (!offset) return false;
       
       const { pageX } = evt.nativeEvent;
-      const currentX = pageX - containerScreenOffset.x;
+      const currentX = pageX - offset.x;
       
       // Don't capture gestures that start very close to the left edge to avoid interfering with back swipe
-      if (currentX < 30 && !cropMode && !rotateMode) {
+      if (currentX < 30 && !cropModeRef.current && !rotateModeRef.current) {
         return false;
       }
       
-      return (highlightModeActive || cropMode || rotateMode ||
+      return (highlightModeActiveRef.current || cropModeRef.current || rotateModeRef.current ||
              Math.abs(gestureState.dx) > 10 || Math.abs(gestureState.dy) > 10);
     },
     onPanResponderGrant: (evt) => {
-      if (!containerScreenOffset || !measuredLayout) return; // Should not happen if onStartShouldSetPanResponder works
+      const offset = containerScreenOffsetRef.current;
+      const layout = measuredLayoutRef.current;
+      if (!offset || !layout) return;
 
-      const { pageX, pageY, timestamp } = evt.nativeEvent;
+      const { pageX, pageY } = evt.nativeEvent;
       
-      const currentX = pageX - containerScreenOffset.x;
-      const currentY = pageY - containerScreenOffset.y;
+      const currentX = pageX - offset.x;
+      const currentY = pageY - offset.y;
       
-      /* // Removed
-      logger.log('[ImageHighlighter] GRANT - Calculated Coords (pageX - containerOffset.x):', {
-        pageX, pageY,
-        containerScreenOffsetX: containerScreenOffset.x,
-        containerScreenOffsetY: containerScreenOffset.y,
-        currentX, currentY,
-        displayImageOffsetX,
-        displayImageOffsetY,
-        scaledContainerWidth,
-        scaledContainerHeight,
-        wrapperWidth: measuredLayout?.width,
-        wrapperHeight: measuredLayout?.height,
-        timestamp
-      });
-      */
-      
-      // Add debugging for touch position relative to image bounds
-      const touchRelativeToImageX = currentX - displayImageOffsetX;
-      const touchRelativeToImageY = currentY - displayImageOffsetY;
-      const isWithinImageBounds = touchRelativeToImageX >= 0 && 
-                                  touchRelativeToImageX <= scaledContainerWidth &&
-                                  touchRelativeToImageY >= 0 && 
-                                  touchRelativeToImageY <= scaledContainerHeight;
-      /* // Removed
-      logger.log('[ImageHighlighter] GRANT - Touch Analysis:', {
-        touchRelativeToImageX,
-        touchRelativeToImageY,
-        isWithinImageBounds,
-        imageLeft: displayImageOffsetX,
-        imageTop: displayImageOffsetY,
-        imageRight: displayImageOffsetX + scaledContainerWidth,
-        imageBottom: displayImageOffsetY + scaledContainerHeight
-      });
-      */
-      
-      if (rotateMode) {
-        const adjustedXForRotation = currentX - displayImageOffsetX;
-        const adjustedYForRotation = currentY - displayImageOffsetY;
-        const currentFingerAngle = calculateAngle(adjustedXForRotation, adjustedYForRotation);
-        imageRotationAtGestureStartRef.current = rotation; 
-        lastVisuallyAppliedRotationRef.current = rotation; 
+      if (rotateModeRef.current) {
+        const adjustedXForRotation = currentX - displayImageOffsetXRef.current;
+        const adjustedYForRotation = currentY - displayImageOffsetYRef.current;
+        const currentFingerAngle = calculateAngleFromRefs(adjustedXForRotation, adjustedYForRotation);
+        imageRotationAtGestureStartRef.current = rotationRef.current; 
+        lastVisuallyAppliedRotationRef.current = rotationRef.current; 
         previousFingerAngleRef.current = currentFingerAngle;
         accumulatedAngleDeltaForGestureRef.current = 0; 
       }
-      else if (cropMode) {
-        if (activeCropHandle === null && !isCropDrawing && (cropBox.width === 0 && cropBox.height === 0)) {
-          // logger.log('[ImageHighlighter] Starting to draw new crop box with locationX/Y'); // Removed
-          const clampedX = Math.max(-EDGE_TOLERANCE, Math.min((measuredLayout?.width || 0) + EDGE_TOLERANCE, currentX));
-          const clampedY = Math.max(-EDGE_TOLERANCE, Math.min((measuredLayout?.height || 0) + EDGE_TOLERANCE, currentY));
+      else if (cropModeRef.current) {
+        const currentCropBox = cropBoxRef.current;
+        if (activeCropHandleRef.current === null && !isCropDrawingRef.current && (currentCropBox.width === 0 && currentCropBox.height === 0)) {
+          const clampedX = Math.max(-EDGE_TOLERANCE, Math.min((layout?.width || 0) + EDGE_TOLERANCE, currentX));
+          const clampedY = Math.max(-EDGE_TOLERANCE, Math.min((layout?.height || 0) + EDGE_TOLERANCE, currentY));
           
           setIsCropDrawing(true);
           setCropBox({
@@ -776,8 +744,8 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
             width: 0,
             height: 0
           });
-        } else if (cropBox.width > 0 && cropBox.height > 0) {
-          const { x, y, width, height } = cropBox;
+        } else if (currentCropBox.width > 0 && currentCropBox.height > 0) {
+          const { x, y, width, height } = currentCropBox;
           if (isPointInHandleArea(currentX, currentY, x, y)) {
             setActiveCropHandle('topLeft');
           } else if (isPointInHandleArea(currentX, currentY, x + width, y)) {
@@ -791,52 +759,47 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           }
         }
       } 
-      else if (highlightModeActive) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageHighlighter.tsx:703',message:'Highlight mode onPanResponderGrant',data:{currentX,currentY,hasAnimationLoop:!!animationLoopRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
-        // #endregion
+      else if (highlightModeActiveRef.current) {
+        const preciseX = pageX - offset.x;
+        const preciseY = pageY - offset.y;
         
-        // Use the exact touch coordinates relative to the container for precise positioning
-        const preciseX = pageX - containerScreenOffset.x;
-        const preciseY = pageY - containerScreenOffset.y;
-        
-        // Clamp coordinates to the CONTAINER bounds
         const containerMinX = 0;
-        const containerMaxX = (measuredLayout?.width || 0) - 1; 
+        const containerMaxX = (layout?.width || 0) - 1; 
         const containerMinY = 0;
-        const containerMaxY = (measuredLayout?.height || 0) - 1; 
+        const containerMaxY = (layout?.height || 0) - 1; 
                 
         const clampedX = Math.max(containerMinX, Math.min(containerMaxX, preciseX));
         const clampedY = Math.max(containerMinY, Math.min(containerMaxY, preciseY));
         
-        // Start a new stroke
         setIsDrawing(true);
         setCurrentStroke([{ x: clampedX, y: clampedY }]);
         lastPointTimeRef.current = Date.now();
       }
     },
     onPanResponderMove: (evt, gestureState: PanResponderGestureState) => {
-      if (!containerScreenOffset) return; // Guard against missing offset
+      const offset = containerScreenOffsetRef.current;
+      const layout = measuredLayoutRef.current;
+      if (!offset) return;
 
       const { pageX, pageY } = evt.nativeEvent;
       
-      const currentX = pageX - containerScreenOffset.x;
-      const currentY = pageY - containerScreenOffset.y;
+      const currentX = pageX - offset.x;
+      const currentY = pageY - offset.y;
       
-      if (rotateMode) {
-        const adjustedXForRotation = currentX - displayImageOffsetX;
-        const adjustedYForRotation = currentY - displayImageOffsetY;
+      if (rotateModeRef.current) {
+        const adjustedXForRotation = currentX - displayImageOffsetXRef.current;
+        const adjustedYForRotation = currentY - displayImageOffsetYRef.current;
         
         if (previousFingerAngleRef.current === null) { 
-          const initAngle = calculateAngle(adjustedXForRotation, adjustedYForRotation);
+          const initAngle = calculateAngleFromRefs(adjustedXForRotation, adjustedYForRotation);
           previousFingerAngleRef.current = initAngle;
           accumulatedAngleDeltaForGestureRef.current = 0; 
-          imageRotationAtGestureStartRef.current = rotation;
-          lastVisuallyAppliedRotationRef.current = rotation;
+          imageRotationAtGestureStartRef.current = rotationRef.current;
+          lastVisuallyAppliedRotationRef.current = rotationRef.current;
           return;
         }
 
-        const currentFingerAngle = calculateAngle(adjustedXForRotation, adjustedYForRotation);
+        const currentFingerAngle = calculateAngleFromRefs(adjustedXForRotation, adjustedYForRotation);
         let incrementalAngleDiff = currentFingerAngle - previousFingerAngleRef.current;
         
         if (incrementalAngleDiff > 180) incrementalAngleDiff -= 360;
@@ -853,9 +816,9 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         setRotation(newSmoothedRotation);
         lastVisuallyAppliedRotationRef.current = newSmoothedRotation; 
       }
-      else if (cropMode && isCropDrawing) {
-        const clampedX = Math.max(-EDGE_TOLERANCE, Math.min((measuredLayout?.width || 0) + EDGE_TOLERANCE, currentX));
-        const clampedY = Math.max(-EDGE_TOLERANCE, Math.min((measuredLayout?.height || 0) + EDGE_TOLERANCE, currentY));
+      else if (cropModeRef.current && isCropDrawingRef.current) {
+        const clampedX = Math.max(-EDGE_TOLERANCE, Math.min((layout?.width || 0) + EDGE_TOLERANCE, currentX));
+        const clampedY = Math.max(-EDGE_TOLERANCE, Math.min((layout?.height || 0) + EDGE_TOLERANCE, currentY));
 
         setCropBox(prev => ({
           ...prev,
@@ -863,11 +826,12 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           height: clampedY - prev.y,
         }));
       }
-      else if (cropMode && activeCropHandle) {
+      else if (cropModeRef.current && activeCropHandleRef.current) {
         const { dx, dy } = gestureState;
-        const { x, y, width, height } = cropBox; 
+        const { x, y, width, height } = cropBoxRef.current; 
+        const currentHandle = activeCropHandleRef.current;
         
-        switch (activeCropHandle) {
+        switch (currentHandle) {
           case 'topLeft':
             setCropBox({
               x: Math.min(x + dx, x + width - CROP_HANDLE_SIZE),
@@ -901,8 +865,8 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
             });
             break;
           case 'move':
-            const wrapperWidth = measuredLayout?.width || 0;
-            const wrapperHeight = measuredLayout?.height || 0;
+            const wrapperWidth = layout?.width || 0;
+            const wrapperHeight = layout?.height || 0;
             setCropBox({
               x: Math.max(0, Math.min(x + dx, wrapperWidth - width)),
               y: Math.max(0, Math.min(y + dy, wrapperHeight - height)),
@@ -914,45 +878,43 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         gestureState.dx = 0;
         gestureState.dy = 0;
       }
-      else if (isDrawing && highlightModeActive) {
-        // Throttle point collection for performance
+      else if (isDrawingRef.current && highlightModeActiveRef.current) {
         const now = Date.now();
         if (now - lastPointTimeRef.current < POINT_THROTTLE_MS) {
           return;
         }
         lastPointTimeRef.current = now;
         
-        // Use precise coordinates for consistent positioning
-        const preciseX = pageX - containerScreenOffset.x;
-        const preciseY = pageY - containerScreenOffset.y;
+        const preciseX = pageX - offset.x;
+        const preciseY = pageY - offset.y;
         
-        // Clamp coordinates to the CONTAINER bounds
         const containerMinX = 0;
-        const containerMaxX = (measuredLayout?.width || 0) - 1;
+        const containerMaxX = (layout?.width || 0) - 1;
         const containerMinY = 0;
-        const containerMaxY = (measuredLayout?.height || 0) - 1;
+        const containerMaxY = (layout?.height || 0) - 1;
         
         const clampedX = Math.max(containerMinX, Math.min(containerMaxX, preciseX));
         const clampedY = Math.max(containerMinY, Math.min(containerMaxY, preciseY));
         
-        // Add point to current stroke
         setCurrentStroke(prev => [...prev, { x: clampedX, y: clampedY }]);
       }
     },
     onPanResponderRelease: async (evt, gestureState: PanResponderGestureState) => {
-      if (!containerScreenOffset) return; // Guard against missing offset
+      const offset = containerScreenOffsetRef.current;
+      const layout = measuredLayoutRef.current;
+      if (!offset) return;
 
       const { pageX, pageY } = evt.nativeEvent; 
       
-      const finalCurrentX = pageX - containerScreenOffset.x;
-      const finalCurrentY = pageY - containerScreenOffset.y;
+      const finalCurrentX = pageX - offset.x;
+      const finalCurrentY = pageY - offset.y;
       
-      if (rotateMode) {
-        const finalAdjustedXForRotation = finalCurrentX - displayImageOffsetX;
-        const finalAdjustedYForRotation = finalCurrentY - displayImageOffsetY;
+      if (rotateModeRef.current) {
+        const finalAdjustedXForRotation = finalCurrentX - displayImageOffsetXRef.current;
+        const finalAdjustedYForRotation = finalCurrentY - displayImageOffsetYRef.current;
 
         if (previousFingerAngleRef.current !== null) {
-            const currentFingerAngle = calculateAngle(finalAdjustedXForRotation, finalAdjustedYForRotation);
+            const currentFingerAngle = calculateAngleFromRefs(finalAdjustedXForRotation, finalAdjustedYForRotation);
             let incrementalAngleDiff = currentFingerAngle - previousFingerAngleRef.current;
             if (incrementalAngleDiff > 180) incrementalAngleDiff -= 360;
             if (incrementalAngleDiff < -180) incrementalAngleDiff += 360;
@@ -964,114 +926,110 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         lastVisuallyAppliedRotationRef.current = finalTargetRawRotation; 
         previousFingerAngleRef.current = null; 
       }
-      else if (cropMode) {
+      else if (cropModeRef.current) {
         setActiveCropHandle(null);
-        if (isCropDrawing) {
+        if (isCropDrawingRef.current) {
           setIsCropDrawing(false);
-          // Normalize crop box if width/height are negative
-          const { x, y, width, height } = cropBox;
+          const { x, y, width, height } = cropBoxRef.current;
           const normalizedX = width < 0 ? x + width : x;
           const normalizedY = height < 0 ? y + height : y;
           const normalizedWidth = Math.abs(width);
           const normalizedHeight = Math.abs(height);
           setCropBox({ x: normalizedX, y: normalizedY, width: normalizedWidth, height: normalizedHeight });
-          // logger.log('[ImageHighlighter] Finalized new crop box:', {x: normalizedX, y: normalizedY, width: normalizedWidth, height: normalizedHeight }); // Removed
         }
       }
       
-      if (isDrawing && highlightModeActive) {
+      if (isDrawingRef.current && highlightModeActiveRef.current) {
         setIsDrawing(false);
         
-        // Add final point to current stroke
-        const finalPreciseX = pageX - containerScreenOffset.x;
-        const finalPreciseY = pageY - containerScreenOffset.y;
+        const finalPreciseX = pageX - offset.x;
+        const finalPreciseY = pageY - offset.y;
         
         const containerMinX = 0;
-        const containerMaxX = (measuredLayout?.width || 0) - 1;
+        const containerMaxX = (layout?.width || 0) - 1;
         const containerMinY = 0;
-        const containerMaxY = (measuredLayout?.height || 0) - 1;
+        const containerMaxY = (layout?.height || 0) - 1;
         
         const finalClampedX = Math.max(containerMinX, Math.min(containerMaxX, finalPreciseX));
         const finalClampedY = Math.max(containerMinY, Math.min(containerMaxY, finalPreciseY));
         
-        // Finalize the stroke
-        const finalStroke = [...currentStroke, { x: finalClampedX, y: finalClampedY }];
-        setStrokes(prev => [...prev, finalStroke]);
-        setCurrentStroke([]);
-
-        if (onRegionSelected && finalStroke.length > 1) {
-          // Calculate bounding box from all strokes (including the one we just added)
-          const allStrokes = [...strokes, finalStroke];
-          const allPoints = allStrokes.flat();
+        // Note: We need to access currentStroke and strokes via a callback pattern
+        // since they're not in refs. Using functional updates handles this.
+        setCurrentStroke(prevCurrentStroke => {
+          const finalStroke = [...prevCurrentStroke, { x: finalClampedX, y: finalClampedY }];
           
-          if (allPoints.length > 0) {
-            // CRITICAL FIX: Filter points to only include those within the image boundaries
-            // This prevents selecting all text when highlighting outside the image borders
-            const imageMinX = displayImageOffsetX;
-            const imageMaxX = displayImageOffsetX + scaledContainerWidth;
-            const imageMinY = displayImageOffsetY;
-            const imageMaxY = displayImageOffsetY + scaledContainerHeight;
+          setStrokes(prevStrokes => {
+            const allStrokes = [...prevStrokes, finalStroke];
             
-            const pointsWithinImage = allPoints.filter(p => 
-              p.x >= imageMinX && 
-              p.x <= imageMaxX && 
-              p.y >= imageMinY && 
-              p.y <= imageMaxY
-            );
-            
-            // If no points are within the image, don't create a region
-            if (pointsWithinImage.length === 0) {
-              return;
+            // Trigger region selection callback if applicable
+            if (onRegionSelected && finalStroke.length > 1) {
+              const allPoints = allStrokes.flat();
+              
+              if (allPoints.length > 0) {
+                const imageMinX = displayImageOffsetXRef.current;
+                const imageMaxX = displayImageOffsetXRef.current + scaledContainerWidthRef.current;
+                const imageMinY = displayImageOffsetYRef.current;
+                const imageMaxY = displayImageOffsetYRef.current + scaledContainerHeightRef.current;
+                
+                const pointsWithinImage = allPoints.filter(p => 
+                  p.x >= imageMinX && 
+                  p.x <= imageMaxX && 
+                  p.y >= imageMinY && 
+                  p.y <= imageMaxY
+                );
+                
+                if (pointsWithinImage.length > 0) {
+                  const minX = Math.min(...pointsWithinImage.map(p => p.x));
+                  const maxX = Math.max(...pointsWithinImage.map(p => p.x));
+                  const minY = Math.min(...pointsWithinImage.map(p => p.y));
+                  const maxY = Math.max(...pointsWithinImage.map(p => p.y));
+                  
+                  const padding = 2;
+                  
+                  const paddedMinX = Math.max(imageMinX, minX - padding);
+                  const paddedMaxX = Math.min(imageMaxX, maxX + padding);
+                  const paddedMinY = Math.max(imageMinY, minY - padding);
+                  const paddedMaxY = Math.min(imageMaxY, maxY + padding);
+
+                  const imageRelativeMinX = paddedMinX - displayImageOffsetXRef.current;
+                  const imageRelativeMinY = paddedMinY - displayImageOffsetYRef.current;
+                  const imageRelativeMaxX = paddedMaxX - displayImageOffsetXRef.current;
+                  const imageRelativeMaxY = paddedMaxY - displayImageOffsetYRef.current;
+
+                  const reportedWidth = imageRelativeMaxX - imageRelativeMinX;
+                  const reportedHeight = imageRelativeMaxY - imageRelativeMinY;
+                  
+                  const scaledW = scaledContainerWidthRef.current;
+                  const scaledH = scaledContainerHeightRef.current;
+                  
+                  const finalX = Math.max(0, Math.min(imageRelativeMinX, scaledW - 1));
+                  const finalY = Math.max(0, Math.min(imageRelativeMinY, scaledH - 1));
+                  const finalWidth = Math.max(1, Math.min(reportedWidth, scaledW - finalX));
+                  const finalHeight = Math.max(1, Math.min(reportedHeight, scaledH - finalY));
+                  
+                  const regionForParent = {
+                    x: finalX,
+                    y: finalY,
+                    width: finalWidth,
+                    height: finalHeight,
+                    detectedText: [],
+                    rotation: rotationRef.current,
+                  };
+
+                  // Defer callback to avoid state update conflicts
+                  setTimeout(() => onRegionSelected(regionForParent), 0);
+                }
+              }
             }
             
-            // Find min/max coordinates across only the points within the image
-            const minX = Math.min(...pointsWithinImage.map(p => p.x));
-            const maxX = Math.max(...pointsWithinImage.map(p => p.x));
-            const minY = Math.min(...pointsWithinImage.map(p => p.y));
-            const maxY = Math.max(...pointsWithinImage.map(p => p.y));
-            
-            // Use minimal padding - just enough to account for the stroke rendering
-            // This makes OCR more accurate by not picking up nearby text
-            const padding = 2; // Minimal padding instead of STROKE_WIDTH / 2
-            
-            // Clamp padded coordinates to image boundaries (not container boundaries)
-            const paddedMinX = Math.max(imageMinX, minX - padding);
-            const paddedMaxX = Math.min(imageMaxX, maxX + padding);
-            const paddedMinY = Math.max(imageMinY, minY - padding);
-            const paddedMaxY = Math.min(imageMaxY, maxY + padding);
-
-            // Calculate the region relative to the *image* (subtract image offset)
-            const imageRelativeMinX = paddedMinX - displayImageOffsetX;
-            const imageRelativeMinY = paddedMinY - displayImageOffsetY;
-            const imageRelativeMaxX = paddedMaxX - displayImageOffsetX;
-            const imageRelativeMaxY = paddedMaxY - displayImageOffsetY;
-
-            // Calculate width and height, ensuring they don't exceed image dimensions
-            // Since we've already clamped to image boundaries, these should be valid
-            const reportedWidth = imageRelativeMaxX - imageRelativeMinX;
-            const reportedHeight = imageRelativeMaxY - imageRelativeMinY;
-            
-            // Final safety clamp to ensure valid region (shouldn't be needed but prevents edge cases)
-            const finalX = Math.max(0, Math.min(imageRelativeMinX, scaledContainerWidth - 1));
-            const finalY = Math.max(0, Math.min(imageRelativeMinY, scaledContainerHeight - 1));
-            const finalWidth = Math.max(1, Math.min(reportedWidth, scaledContainerWidth - finalX));
-            const finalHeight = Math.max(1, Math.min(reportedHeight, scaledContainerHeight - finalY));
-            
-            const regionForParent = {
-              x: finalX,
-              y: finalY,
-              width: finalWidth,
-              height: finalHeight,
-              detectedText: [],
-              rotation: rotation,
-            };
-
-            onRegionSelected(regionForParent);
-          }
-        }
+            return allStrokes;
+          });
+          
+          return []; // Clear current stroke
+        });
       }
     },
-  });
+  }), [calculateAngleFromRefs, onRegionSelected]); // Minimal dependencies - refs handle the rest
 
   // Helper function to convert points array to smooth SVG path using quadratic bezier curves
   const pointsToSVGPath = (points: Point[]): string => {
@@ -1162,9 +1120,6 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
 
   // Function to render crop box and handles
   const renderCropBox = () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageHighlighter.tsx:1057',message:'renderCropBox called',data:{cropMode,cropBox,isCropDrawing,hasAnimationLoop:!!animationLoopRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-    // #endregion
     if (!cropMode) return null;
     
     const { x, y, width, height } = cropBox;
@@ -1180,9 +1135,6 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
     const normalizedWidth = Math.abs(width);
     const normalizedHeight = Math.abs(height);
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageHighlighter.tsx:1073',message:'renderCropBox rendering Animated.View',data:{normalizedX,normalizedY,normalizedWidth,normalizedHeight,hasAnimationLoop:!!animationLoopRef.current,rainbowColorType:typeof rainbowColor},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-    // #endregion
     return (
       <>
         {/* Crop box outline */}
@@ -1370,7 +1322,12 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           style={[
             styles.image, // Now contains width/height 100%
             { 
-              transform: [{ rotate: `${rotation}deg` }],
+              transform: [{ 
+                rotate: rotationAnimatedValue.interpolate({
+                  inputRange: [-360, 360],
+                  outputRange: ['-360deg', '360deg'],
+                })
+              }],
               opacity: imageOpacity
             }
           ]}

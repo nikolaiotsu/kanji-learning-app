@@ -9,7 +9,9 @@ import {
   validateReceipt, 
   fetchSubscriptionStatus, 
   isSubscriptionValid,
-  getSubscriptionPlan 
+  getSubscriptionPlan,
+  setTestingSubscriptionOverride,
+  clearTestingSubscriptionOverride
 } from '../services/receiptValidationService';
 
 import { logger } from '../utils/logger';
@@ -384,17 +386,31 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
   };
 
   // Testing function to manually switch subscription plans
+  // This works in both development AND preview/TestFlight builds
   const setTestingSubscriptionPlan = async (plan: SubscriptionPlan) => {
+    const expiryDate = plan === 'PREMIUM' ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : undefined; // 30 days from now
+    
     const testingSubscription: SubscriptionState = {
       plan: plan,
       isActive: plan === 'PREMIUM',
       purchaseDate: plan === 'PREMIUM' ? new Date() : undefined,
-      expiryDate: plan === 'PREMIUM' ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : undefined, // 30 days from now
+      expiryDate: expiryDate,
       receipt: plan === 'PREMIUM' ? 'testing_receipt_' + Date.now() : undefined,
     };
     
+    // Update local context state
     setSubscription(testingSubscription);
     await saveSubscriptionData(testingSubscription);
+    
+    // IMPORTANT: Also set the testing override for preview/production builds
+    // This ensures getCurrentSubscriptionPlan() returns the correct plan even in builds where __DEV__ is false
+    if (plan === 'PREMIUM') {
+      await setTestingSubscriptionOverride(plan, expiryDate);
+    } else {
+      // When switching to FREE, clear the testing override
+      await clearTestingSubscriptionOverride();
+    }
+    
     logger.log('Testing subscription plan set to:', plan);
   };
 

@@ -2,8 +2,12 @@ import { supabase } from './supabaseClient';
 import { ValidateReceiptResponse, DBSubscription } from '../../types';
 import { logger } from '../utils/logger';
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const EDGE_FUNCTION_URL = 'validate-receipt';
+
+// Storage key for testing subscription override (works in preview builds)
+export const TESTING_SUBSCRIPTION_OVERRIDE_KEY = 'testing_subscription_override';
 
 /**
  * Validates a purchase receipt with Apple's servers via Supabase Edge Function
@@ -145,7 +149,8 @@ export function getSubscriptionPlan(subscription: DBSubscription | null): 'PREMI
 
 /**
  * Gets the current subscription plan with proper source of truth handling
- * - In production: Always fetches from database (source of truth)
+ * - First checks for testing override (for beta testing in preview builds)
+ * - In production: Fetches from database (source of truth)
  * - In development: Uses context override if provided, otherwise falls back to database
  * - Allows explicit override for testing
  * 
@@ -159,7 +164,23 @@ export async function getCurrentSubscriptionPlan(
 ): Promise<'PREMIUM' | 'FREE'> {
   const isDevelopment = __DEV__ || Constants.expoConfig?.extra?.EXPO_PUBLIC_ENV === 'development';
   
-  // In production, always use database as source of truth (unless forced for testing)
+  // FIRST: Check for testing override from Beta Testing section (works in preview builds)
+  // This allows testers to manually switch subscription plans in preview/TestFlight builds
+  try {
+    const testingOverride = await AsyncStorage.getItem(TESTING_SUBSCRIPTION_OVERRIDE_KEY);
+    if (testingOverride) {
+      const override = JSON.parse(testingOverride);
+      // Check if override is still valid (not expired)
+      if (override.plan && (!override.expiryDate || new Date(override.expiryDate) > new Date())) {
+        logger.log(`[Subscription] Using testing override plan: ${override.plan}`);
+        return override.plan as 'PREMIUM' | 'FREE';
+      }
+    }
+  } catch (error) {
+    logger.error('[Subscription] Error reading testing override:', error);
+  }
+  
+  // In production (without testing override), use database as source of truth
   if (!isDevelopment && !forceContext) {
     const dbSubscription = await fetchSubscriptionStatus();
     return getSubscriptionPlan(dbSubscription);
@@ -174,5 +195,42 @@ export async function getCurrentSubscriptionPlan(
   // Fallback to database even in development
   const dbSubscription = await fetchSubscriptionStatus();
   return getSubscriptionPlan(dbSubscription);
+}
+
+/**
+ * Sets a testing subscription override (for use in Beta Testing section)
+ * This allows manual subscription plan switching in preview/TestFlight builds
+ * 
+ * @param plan - The plan to set ('FREE' or 'PREMIUM')
+ * @param expiryDate - Optional expiry date for the override
+ */
+export async function setTestingSubscriptionOverride(
+  plan: 'FREE' | 'PREMIUM',
+  expiryDate?: Date
+): Promise<void> {
+  try {
+    const override = {
+      plan,
+      expiryDate: expiryDate?.toISOString(),
+      setAt: new Date().toISOString(),
+    };
+    await AsyncStorage.setItem(TESTING_SUBSCRIPTION_OVERRIDE_KEY, JSON.stringify(override));
+    logger.log(`[Subscription] Testing override set to: ${plan}`);
+  } catch (error) {
+    logger.error('[Subscription] Error setting testing override:', error);
+    throw error;
+  }
+}
+
+/**
+ * Clears the testing subscription override
+ */
+export async function clearTestingSubscriptionOverride(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(TESTING_SUBSCRIPTION_OVERRIDE_KEY);
+    logger.log('[Subscription] Testing override cleared');
+  } catch (error) {
+    logger.error('[Subscription] Error clearing testing override:', error);
+  }
 }
 

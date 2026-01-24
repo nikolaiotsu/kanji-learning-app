@@ -529,7 +529,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       setIsNavigating(false);
       
       // Only reset processing states if they've been stuck for a while
-      // Use a delay to avoid interrupting legitimate loading animations
+      // Use a longer delay to avoid interrupting legitimate operations like gallery picker
+      // iOS can fire multiple focus events while the picker is still open
       const resetTimer = setTimeout(() => {
         if (isImageProcessing) {
           logger.log('[KanjiScanner] Resetting stuck image processing state after delay');
@@ -539,7 +540,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           logger.log('[KanjiScanner] Resetting stuck local processing state after delay');
           setLocalProcessing(false);
         }
-      }, 1000); // Only reset if states are still active after 1 second
+      }, 10000); // Increased to 10 seconds to allow time for gallery browsing
       
       // Don't allow navigation away if we're processing an image
       return () => {
@@ -860,6 +861,11 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       memoryManager.gentleCleanup().catch(err => 
         logger.warn('[KanjiScanner pickImage] Background cleanup failed:', err)
       );
+
+      // Small delay to ensure React has processed state updates before launching native picker
+      // This prevents a race condition where the overlay/walkthrough animations
+      // can interfere with the native picker presentation on iOS
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: 'images',
