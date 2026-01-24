@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
 import { apiLogger, APIUsageUpdateEvent } from '../../services/apiUsageLogger';
 import { getCurrentSubscriptionPlan } from '../../services/receiptValidationService';
+import { useSubscription } from '../../context/SubscriptionContext';
 import { logger } from '../../utils/logger';
 import { COLORS } from '../../constants/colors';
 
@@ -11,27 +12,26 @@ interface APIUsageEnergyBarProps {
   style?: any;
 }
 
-const MAX_BARS = 5; // Free users get 5 API calls per day
+const FREE_MAX_BARS = 5; // Free users get 5 API calls per day
+const PREMIUM_MAX_BARS = 10; // Premium users get 10 bars, 12 API calls each
+const PREMIUM_CALLS_PER_BAR = 12; // 120 / 10 = 12
+const PREMIUM_DAILY_LIMIT = 120; // Premium users get 120 API calls per day
 
 export default function APIUsageEnergyBar({ style }: APIUsageEnergyBarProps) {
+  const { subscription } = useSubscription(); // Get subscription from context for real-time updates
   const [remainingBars, setRemainingBars] = useState<number | null>(null); // null = not yet loaded (first mount only)
-  const [isFreeUser, setIsFreeUser] = useState<boolean>(true); // Default to true to show immediately
   const [hasLoadedOnce, setHasLoadedOnce] = useState<boolean>(false); // Track if we've ever loaded data
+
+  // Derive premium status from subscription context
+  const isPremiumUser = subscription.plan === 'PREMIUM';
 
   const fetchUsage = useCallback(async (isInitialLoad: boolean = false) => {
     try {
-      // Check if user is free
-      const subscriptionPlan = await getCurrentSubscriptionPlan();
-      const free = subscriptionPlan === 'FREE';
-      setIsFreeUser(free);
+      // Use subscription from context (real-time updates) but also get from service for consistency
+      const subscriptionPlan = subscription.plan;
       
       // Cache subscription plan for faster rate limit calculations
       apiLogger.setCachedSubscriptionPlan(subscriptionPlan);
-      
-      if (!free) {
-        // Premium users don't see the energy bar
-        return;
-      }
 
       // Get daily usage
       const usage = await apiLogger.getDailyUsage();
@@ -39,13 +39,29 @@ export default function APIUsageEnergyBar({ style }: APIUsageEnergyBarProps) {
       // Calculate API calls used (translate + wordscope)
       const apiCallsUsed = (usage?.translate_api_calls || 0) + (usage?.wordscope_api_calls || 0);
       
-      // Calculate remaining bars
-      const remaining = Math.max(0, MAX_BARS - apiCallsUsed);
+      // Calculate remaining bars based on plan
+      let remaining: number;
+      let maxBars: number;
+      let dailyLimit: number;
+      
+      if (isPremiumUser) {
+        // Premium: 10 bars, each represents 12 API calls (120 total)
+        dailyLimit = PREMIUM_DAILY_LIMIT;
+        maxBars = PREMIUM_MAX_BARS;
+        // Calculate remaining bars: ceil((120 - used) / 12)
+        const remainingCalls = Math.max(0, dailyLimit - apiCallsUsed);
+        remaining = Math.ceil(remainingCalls / PREMIUM_CALLS_PER_BAR);
+      } else {
+        // Free: 5 bars, each represents 1 API call (5 total)
+        dailyLimit = FREE_MAX_BARS;
+        maxBars = FREE_MAX_BARS;
+        remaining = Math.max(0, maxBars - apiCallsUsed);
+      }
       
       // Update state and only log on initial load or when value actually changes
       setRemainingBars(prevRemaining => {
         if (isInitialLoad || prevRemaining !== remaining) {
-          logger.log(`[APIUsageEnergyBar] Usage: ${apiCallsUsed}/${MAX_BARS}, Remaining bars: ${remaining}`);
+          logger.log(`[APIUsageEnergyBar] Plan: ${subscriptionPlan}, Usage: ${apiCallsUsed}/${dailyLimit}, Remaining bars: ${remaining}/${maxBars}`);
         }
         return remaining;
       });
@@ -54,34 +70,57 @@ export default function APIUsageEnergyBar({ style }: APIUsageEnergyBarProps) {
       setHasLoadedOnce(true);
     } catch (error) {
       logger.error('[APIUsageEnergyBar] Error fetching usage:', error);
-      // Default to showing all bars on error
-      setRemainingBars(MAX_BARS);
+      // Default to showing all bars on error (use free as default)
+      setRemainingBars(FREE_MAX_BARS);
     }
-  }, []);
+  }, [subscription.plan, isPremiumUser]); // Re-fetch when subscription plan changes
 
   // Initialize on mount - check cache first for immediate display
   useEffect(() => {
-    // Check if we have a cached value for immediate display
-    const cachedRemaining = apiLogger.getCachedRemainingApiCalls();
-    if (cachedRemaining !== null) {
-      logger.log(`[APIUsageEnergyBar] Using cached remaining API calls: ${cachedRemaining}`);
-      setRemainingBars(cachedRemaining);
-      setHasLoadedOnce(true);
-    }
+    const initializeFromCache = async () => {
+      // Check if we have a cached value for immediate display
+      const cachedRemaining = apiLogger.getCachedRemainingApiCalls();
+      if (cachedRemaining !== null) {
+        // Use subscription from context
+        let remaining: number;
+        if (isPremiumUser) {
+          remaining = Math.ceil(cachedRemaining / PREMIUM_CALLS_PER_BAR);
+        } else {
+          remaining = cachedRemaining;
+        }
+        
+        logger.log(`[APIUsageEnergyBar] Using cached remaining API calls: ${cachedRemaining}, bars: ${remaining}`);
+        setRemainingBars(remaining);
+        setHasLoadedOnce(true);
+      }
+    };
+    
+    initializeFromCache();
     
     // Still fetch to ensure we have the latest data
     fetchUsage(true);
-  }, [fetchUsage]);
+  }, [fetchUsage, isPremiumUser]); // Re-initialize when subscription changes
 
   // Subscribe to API usage events for immediate updates
   useEffect(() => {
     const unsubscribe = apiLogger.subscribeToUsageUpdates((event: APIUsageUpdateEvent) => {
-      // Only update for translate and wordscope operations (the ones that count against free limit)
+      // Only update for translate and wordscope operations (the ones that count against limit)
       if (event.operationType === 'translate_api' || event.operationType === 'wordscope_api') {
-        logger.log(`[APIUsageEnergyBar] API usage event received: ${event.operationType}, remaining: ${event.remainingApiCalls}`);
+        logger.log(`[APIUsageEnergyBar] API usage event received: ${event.operationType}, remaining calls: ${event.remainingApiCalls}`);
         
-        // Update immediately with the data from the event (no fetch needed!)
-        setRemainingBars(event.remainingApiCalls);
+        // Use subscription from context (no async call needed)
+        // Calculate remaining bars based on plan
+        let remaining: number;
+        if (isPremiumUser) {
+          // Premium: convert remaining API calls to bars (ceil(remaining / 12))
+          remaining = Math.ceil(event.remainingApiCalls / PREMIUM_CALLS_PER_BAR);
+        } else {
+          // Free: remaining API calls = remaining bars
+          remaining = event.remainingApiCalls;
+        }
+        
+        // Update immediately with the calculated bars
+        setRemainingBars(remaining);
         setHasLoadedOnce(true);
         
         // Optionally verify in background (non-blocking)
@@ -90,23 +129,35 @@ export default function APIUsageEnergyBar({ style }: APIUsageEnergyBarProps) {
     });
 
     return unsubscribe;
-  }, []);
+  }, [isPremiumUser]); // Re-subscribe when subscription changes
 
   // Refresh when screen comes into focus (user navigates back to screen)
   // Use cached value if available for immediate display, then verify in background
   useFocusEffect(
     useCallback(() => {
-      // Check cache first for immediate display
-      const cachedRemaining = apiLogger.getCachedRemainingApiCalls();
-      if (cachedRemaining !== null && remainingBars === null) {
-        logger.log(`[APIUsageEnergyBar] Using cached value on focus: ${cachedRemaining}`);
-        setRemainingBars(cachedRemaining);
-        setHasLoadedOnce(true);
-      }
+      const updateFromCache = () => {
+        // Check cache first for immediate display
+        const cachedRemaining = apiLogger.getCachedRemainingApiCalls();
+        if (cachedRemaining !== null && remainingBars === null) {
+          // Use subscription from context
+          let remaining: number;
+          if (isPremiumUser) {
+            remaining = Math.ceil(cachedRemaining / PREMIUM_CALLS_PER_BAR);
+          } else {
+            remaining = cachedRemaining;
+          }
+          
+          logger.log(`[APIUsageEnergyBar] Using cached value on focus: ${cachedRemaining}, bars: ${remaining}`);
+          setRemainingBars(remaining);
+          setHasLoadedOnce(true);
+        }
+      };
+      
+      updateFromCache();
       
       // Verify in background (non-blocking)
       fetchUsage(false);
-    }, [fetchUsage, remainingBars])
+    }, [fetchUsage, remainingBars, isPremiumUser]) // Include isPremiumUser in dependencies
   );
 
   // Refresh when app comes to foreground
@@ -123,10 +174,12 @@ export default function APIUsageEnergyBar({ style }: APIUsageEnergyBarProps) {
     };
   }, [fetchUsage]);
 
-  // Don't render if not a free user (premium users don't see the energy bar)
-  if (!isFreeUser) {
-    return null;
-  }
+  // Watch for subscription plan changes and refresh immediately
+  useEffect(() => {
+    logger.log(`[APIUsageEnergyBar] Subscription plan changed to: ${subscription.plan}`);
+    // Refresh usage when subscription changes (e.g., beta switch to premium)
+    fetchUsage(false);
+  }, [subscription.plan, fetchUsage]);
 
   // Always render the component to maintain stable layout
   // On first mount (remainingBars === null), show all bars as inactive (grey) as loading state
@@ -134,25 +187,36 @@ export default function APIUsageEnergyBar({ style }: APIUsageEnergyBarProps) {
   // This ensures smooth transitions when navigating back - shows last known value immediately
   const isLoading = remainingBars === null && !hasLoadedOnce;
   const activeBars = isLoading ? 0 : (remainingBars ?? 0);
+  
+  // Determine number of bars and color scheme based on subscription
+  const maxBars = isPremiumUser ? PREMIUM_MAX_BARS : FREE_MAX_BARS;
+  const isGold = isPremiumUser;
 
   return (
     <View style={[styles.container, style]}>
-      <View style={styles.barContainer}>
-        {Array.from({ length: MAX_BARS }).map((_, index) => {
+      <View style={[
+        styles.barContainer,
+        isPremiumUser && styles.barContainerPremium
+      ]}>
+        {Array.from({ length: maxBars }).map((_, index) => {
           const isActive = index < activeBars;
           return (
             <View
               key={index}
               style={[
                 styles.bar,
-                isActive ? styles.barActive : styles.barInactive
+                ...(isPremiumUser ? [styles.barPremium] : []),
+                isActive ? (isGold ? styles.barActiveGold : styles.barActive) : styles.barInactive
               ]}
             >
               {isActive && (
                 <>
-                  {/* Main green gradient background */}
+                  {/* Main gradient background - gold for premium, green for free */}
                   <LinearGradient
-                    colors={['rgba(34, 197, 94, 0.5)', 'rgba(22, 163, 74, 0.6)']} // Lighter green to darker green
+                    colors={isGold 
+                      ? ['rgba(255, 193, 7, 0.5)', 'rgba(218, 165, 32, 0.6)'] // Gold gradient
+                      : ['rgba(34, 197, 94, 0.5)', 'rgba(22, 163, 74, 0.6)'] // Green gradient
+                    }
                     start={{ x: 0, y: 0 }}
                     end={{ x: 0, y: 1 }}
                     style={StyleSheet.absoluteFill}
@@ -197,6 +261,11 @@ const styles = StyleSheet.create({
     minWidth: 100,
     maxWidth: 120,
   },
+  barContainerPremium: {
+    maxWidth: 200, // Wider container for 10 bars
+    gap: 2, // Smaller gap for premium bars to fit better
+    alignSelf: 'center', // Center the container itself
+  },
   bar: {
     flex: 1,
     height: 10,
@@ -205,6 +274,12 @@ const styles = StyleSheet.create({
     maxWidth: 16,
     overflow: 'visible',
     position: 'relative',
+  },
+  barPremium: {
+    flex: 0, // Don't flex for premium bars - use fixed width
+    minWidth: 8, // Narrower minimum for premium bars
+    maxWidth: 12, // Narrower maximum for premium bars to fit 10 bars
+    width: 12, // Fixed width for consistent centering
   },
   glassOverlay: {
     position: 'absolute',
@@ -231,6 +306,15 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(34, 197, 94, 0.4)',
     borderWidth: 1,
     shadowColor: 'rgba(34, 197, 94, 0.7)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  barActiveGold: {
+    borderColor: 'rgba(255, 193, 7, 0.4)',
+    borderWidth: 1,
+    shadowColor: 'rgba(255, 193, 7, 0.7)',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.9,
     shadowRadius: 6,
