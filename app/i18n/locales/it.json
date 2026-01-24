@@ -470,7 +470,9 @@
     "continueWalkthrough": "No, Continua Tour",
     "endWalkthrough": "Sì, Termina Tour",
     "noTextFoundTitle": "Ops!",
-    "noTextFoundMessage": "Assicurati che l'evidenziazione arcobaleno copra tutto il testo che vuoi tradurre. Riproviamo!"
+    "noTextFoundMessage": "Assicurati che l'evidenziazione arcobaleno copra tutto il testo che vuoi tradurre. Riproviamo!",
+    "noEnergyTitle": "Barra Energia Vuota",
+    "noEnergyMessage": "Per vedere il tutorial, la tua barra energia deve essere ricaricata. Il tutorial richiede chiamate API per dimostrare le funzionalità. Attendi che la tua energia giornaliera si ricarichi o passa a Premium per più energia."
   },
   "debug": {
     "dailyStatsTitle": "Debug Statistiche Giornaliere",

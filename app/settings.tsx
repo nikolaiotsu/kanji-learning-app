@@ -16,6 +16,7 @@ import { PRODUCT_IDS, PRODUCT_DETAILS } from './constants/config';
 import PokedexLayout from './components/shared/PokedexLayout';
 import { resetReviewPromptState, resetLifetimeCount, getReviewStatus } from './services/reviewPromptService';
 import { resetWalkthrough } from './hooks/useWalkthrough';
+import { hasEnergyBarsRemaining } from './utils/walkthroughEnergyCheck';
 
 import { logger } from './utils/logger';
 export default function SettingsScreen() {
@@ -208,6 +209,17 @@ export default function SettingsScreen() {
   // Function to replay walkthrough
   const handleReplayWalkthrough = async () => {
     try {
+      // Check if user has energy bars before starting walkthrough
+      const hasEnergy = await hasEnergyBarsRemaining(subscription.plan);
+      
+      if (!hasEnergy) {
+        Alert.alert(
+          t('walkthrough.noEnergyTitle'),
+          t('walkthrough.noEnergyMessage')
+        );
+        return;
+      }
+      
       await resetWalkthrough();
       router.replace('/');
     } catch (error) {

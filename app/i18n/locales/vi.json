@@ -470,7 +470,9 @@
     "continueWalkthrough": "Không, Tiếp tục Hướng dẫn",
     "endWalkthrough": "Có, Kết thúc Hướng dẫn",
     "noTextFoundTitle": "Ối!",
-    "noTextFoundMessage": "Đảm bảo phần tô sáng cầu vồng bao phủ toàn bộ văn bản bạn muốn dịch. Hãy thử lại nhé!"
+    "noTextFoundMessage": "Đảm bảo phần tô sáng cầu vồng bao phủ toàn bộ văn bản bạn muốn dịch. Hãy thử lại nhé!",
+    "noEnergyTitle": "Thanh Năng Lượng Trống",
+    "noEnergyMessage": "Để xem hướng dẫn, thanh năng lượng của bạn cần được nạp lại. Hướng dẫn yêu cầu các cuộc gọi API để trình diễn các tính năng. Vui lòng đợi năng lượng hàng ngày của bạn được nạp lại hoặc nâng cấp lên Premium để có thêm năng lượng."
   },
   "debug": {
     "dailyStatsTitle": "Gỡ lỗi Thống kê Hàng ngày",

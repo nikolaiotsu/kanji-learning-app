@@ -471,7 +471,9 @@
     "continueWalkthrough": "No, Continue Walkthrough",
     "endWalkthrough": "Yes, End Walkthrough",
     "noTextFoundTitle": "Oops!",
-    "noTextFoundMessage": "Make sure the rainbow highlight covers the whole text that you want to translate. Let's try again!"
+    "noTextFoundMessage": "Make sure the rainbow highlight covers the whole text that you want to translate. Let's try again!",
+    "noEnergyTitle": "Energy Bar Empty",
+    "noEnergyMessage": "In order to see the walkthrough, your energy bar needs to be refilled. The walkthrough requires API calls to demonstrate the features. Please wait for your daily energy to refill or upgrade to Premium for more energy."
   },
   "debug": {
     "dailyStatsTitle": "Daily Stats Debug",

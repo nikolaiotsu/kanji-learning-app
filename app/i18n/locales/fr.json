@@ -470,7 +470,9 @@
     "continueWalkthrough": "Non, continuer le guide",
     "endWalkthrough": "Oui, terminer le guide",
     "noTextFoundTitle": "Oups !",
-    "noTextFoundMessage": "Assurez-vous que le surlignage arc-en-ciel couvre tout le texte que vous souhaitez traduire. Réessayons !"
+    "noTextFoundMessage": "Assurez-vous que le surlignage arc-en-ciel couvre tout le texte que vous souhaitez traduire. Réessayons !",
+    "noEnergyTitle": "Barre d'Énergie Vide",
+    "noEnergyMessage": "Pour voir le tutoriel, votre barre d'énergie doit être rechargée. Le tutoriel nécessite des appels API pour démontrer les fonctionnalités. Veuillez attendre que votre énergie quotidienne se recharge ou passez à Premium pour plus d'énergie."
   },
   "debug": {
     "dailyStatsTitle": "Debug des statistiques quotidiennes",

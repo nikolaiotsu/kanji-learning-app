@@ -467,6 +467,8 @@
     "continueWalkthrough": "不，继续教程",
     "endWalkthrough": "是，结束教程",
     "noTextFoundTitle": "哎呀！",
-    "noTextFoundMessage": "请确保彩虹高亮覆盖了您想要翻译的全部文本。让我们再试一次！"
+    "noTextFoundMessage": "请确保彩虹高亮覆盖了您想要翻译的全部文本。让我们再试一次！",
+    "noEnergyTitle": "能量条为空",
+    "noEnergyMessage": "要查看教程，您的能量条需要重新填充。教程需要API调用来演示功能。请等待您的每日能量重新填充，或升级到高级版以获得更多能量。"
   }
 } 

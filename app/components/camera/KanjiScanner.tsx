@@ -36,6 +36,7 @@ import WalkthroughOverlay from '../shared/WalkthroughOverlay';
 import { useWalkthrough, WalkthroughStep } from '../../hooks/useWalkthrough';
 import { ensureMeasuredThenAdvance, measureButton } from '../../utils/walkthroughUtils';
 import APIUsageEnergyBar from '../shared/APIUsageEnergyBar';
+import { hasEnergyBarsRemaining } from '../../utils/walkthroughEnergyCheck';
 
 import { logger } from '../../utils/logger';
 import * as Haptics from 'expo-haptics';
@@ -276,12 +277,34 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   useEffect(() => {
     if (shouldShowWalkthroughPrompt && !capturedImage && !isWalkthroughActive) {
       // Delay to ensure buttons are rendered and measured
-      const timer = setTimeout(() => {
-        startWalkthrough();
+      const timer = setTimeout(async () => {
+        // Check if user has energy bars before starting walkthrough
+        try {
+          const hasEnergy = await hasEnergyBarsRemaining(subscription.plan);
+          
+          if (!hasEnergy) {
+            // Show error message and don't start walkthrough
+            Alert.alert(
+              t('walkthrough.noEnergyTitle'),
+              t('walkthrough.noEnergyMessage')
+            );
+            return;
+          }
+          
+          // User has energy, proceed with walkthrough
+          startWalkthrough();
+        } catch (error) {
+          logger.error('[KanjiScanner] Error checking energy before walkthrough:', error);
+          // On error, show message and don't start walkthrough
+          Alert.alert(
+            t('walkthrough.noEnergyTitle'),
+            t('walkthrough.noEnergyMessage')
+          );
+        }
       }, 800);
       return () => clearTimeout(timer);
     }
-  }, [shouldShowWalkthroughPrompt, capturedImage, isWalkthroughActive]);
+  }, [shouldShowWalkthroughPrompt, capturedImage, isWalkthroughActive, subscription.plan, t]);
 
   // Track if initial measurements have been done
   const hasMeasuredRef = useRef<boolean>(false);

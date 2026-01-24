@@ -474,7 +474,9 @@
     "continueWalkthrough": "No, continuar el tutorial",
     "endWalkthrough": "Sí, terminar el tutorial",
     "noTextFoundTitle": "¡Ups!",
-    "noTextFoundMessage": "¡Asegúrate de que el resaltado arcoíris cubra todo el texto que quieres traducir. ¡Intentémoslo de nuevo!"
+    "noTextFoundMessage": "¡Asegúrate de que el resaltado arcoíris cubra todo el texto que quieres traducir. ¡Intentémoslo de nuevo!",
+    "noEnergyTitle": "Barra de Energía Vacía",
+    "noEnergyMessage": "Para ver el tutorial, tu barra de energía necesita recargarse. El tutorial requiere llamadas API para demostrar las funciones. Por favor espera a que se recargue tu energía diaria o actualiza a Premium para obtener más energía."
   }
 }
 

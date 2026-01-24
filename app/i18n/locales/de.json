@@ -470,7 +470,9 @@
     "continueWalkthrough": "Nein, Tour fortsetzen",
     "endWalkthrough": "Ja, Tour beenden",
     "noTextFoundTitle": "Ups!",
-    "noTextFoundMessage": "Stelle sicher, dass der Regenbogen-Markierung den gesamten Text abdeckt, den du übersetzen möchtest. Versuchen wir es noch einmal!"
+    "noTextFoundMessage": "Stelle sicher, dass der Regenbogen-Markierung den gesamten Text abdeckt, den du übersetzen möchtest. Versuchen wir es noch einmal!",
+    "noEnergyTitle": "Energieleiste Leer",
+    "noEnergyMessage": "Um das Tutorial zu sehen, muss deine Energieleiste aufgeladen werden. Das Tutorial benötigt API-Aufrufe, um die Funktionen zu demonstrieren. Bitte warte, bis sich deine tägliche Energie auflädt, oder upgrade auf Premium für mehr Energie."
   },
   "debug": {
     "dailyStatsTitle": "Tägliche Statistiken Debug",
