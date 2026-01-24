@@ -12,9 +12,9 @@ export const APP_CONFIG = {
 // API limits are UNIFIED - all API call types (translate, wordscope, OCR, etc.) count against the same limit
 export const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanConfig> = {
   FREE: {
-    ocrScansPerDay: 5, // Legacy field - use apiCallsPerDay instead
+    ocrScansPerDay: 30, // Legacy field - use apiCallsPerDay instead
     flashcardsPerDay: 5, // 5 flashcards per day for free users
-    maxDecks: 2, // Free users can create up to 2 decks
+    maxDecks: 3, // Free users can create up to 3 decks
     showAds: true,
     features: ['basic_scanning', 'flashcards', 'basic_ocr'],
     // Legacy separate limits (deprecated)
@@ -24,7 +24,7 @@ export const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanConfig> = {
     apiCallsPerDay: 5
   },
   PREMIUM: {
-    ocrScansPerDay: 120, // Legacy field - use apiCallsPerDay instead
+    ocrScansPerDay: 300, // Legacy field - use apiCallsPerDay instead
     flashcardsPerDay: -1, // -1 represents unlimited flashcards for premium users
     maxDecks: 150, // Essentially unlimited decks for premium users
     showAds: false,
