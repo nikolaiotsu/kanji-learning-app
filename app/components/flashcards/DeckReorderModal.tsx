@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -72,6 +72,8 @@ export default function DeckReorderModal({
   const { t } = useTranslation();
   const [reorderedDecks, setReorderedDecks] = useState<Deck[]>(decks);
   const [isLoading, setIsLoading] = useState(false);
+  // Force re-render counter - increments on each drag end to force FlatList to re-render all items
+  const [renderKey, setRenderKey] = useState(0);
 
   // Update local state when decks prop changes
   useEffect(() => {
@@ -105,6 +107,8 @@ export default function DeckReorderModal({
     }
     
     setReorderedDecks(validatedData);
+    // Force FlatList to re-render all items by incrementing the render key
+    setRenderKey(prev => prev + 1);
     // Provide subtle haptic feedback when drag ends
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
@@ -169,14 +173,22 @@ export default function DeckReorderModal({
     onClose();
   };
 
-  const renderItem = ({ item, index, drag, isActive }: RenderItemParams<Deck>) => (
-    <ReorderDeckItem 
-      item={item} 
-      index={index} 
-      drag={drag} 
-      isActive={isActive} 
-    />
-  );
+  const renderItem = useCallback(({ item, drag, isActive, getIndex }: RenderItemParams<Deck>) => {
+    const index = getIndex() ?? 0;
+    // #region agent log
+    console.log('[DEBUG-AB] renderItem called:', JSON.stringify({index,itemId:item?.id,itemName:item?.name,isActive,hasItem:!!item}));
+    // #endregion
+    return (
+      <ReorderDeckItem 
+        item={item} 
+        index={index} 
+        drag={drag} 
+        isActive={isActive} 
+      />
+    );
+  }, []);
+
+  const keyExtractor = useCallback((item: Deck) => item.id, []);
 
   return (
     <Modal
@@ -212,12 +224,21 @@ export default function DeckReorderModal({
         </View>
 
         <DraggableFlatList
+          // Force complete re-mount of the list when order changes to reset animation state
+          key={`draggable-list-${renderKey}`}
           data={reorderedDecks}
           renderItem={renderItem}
-          keyExtractor={(item) => item.id}
+          keyExtractor={keyExtractor}
           onDragEnd={handleDragEnd}
           activationDistance={10}
           contentContainerStyle={styles.listContainer}
+          // Force re-render of all items when order changes
+          extraData={renderKey}
+          // Performance props to prevent cell recycling/blank issues
+          windowSize={21}
+          initialNumToRender={20}
+          maxToRenderPerBatch={20}
+          removeClippedSubviews={false}
         />
       </View>
     </Modal>
@@ -282,6 +303,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.darkSurface,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.lightGray,
+    minHeight: 72, // Fixed height to prevent layout shifts during drag
   },
   activeDeckItem: {
     backgroundColor: COLORS.mediumSurface,
