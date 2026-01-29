@@ -747,6 +747,24 @@ export default function SettingsScreen() {
                 Reset Review Prompt
               </Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.resetCountButton, { backgroundColor: COLORS.mediumSurface }]}
+              onPress={async () => {
+                try {
+                  await resetSwipeCounts();
+                  Alert.alert(t('common.success') ?? 'Done', 'Streak counter reset to 0.');
+                } catch (e) {
+                  logger.error('Error resetting streak counter:', e);
+                  Alert.alert(t('common.error') ?? 'Error', 'Could not reset streak counter.');
+                }
+              }}
+            >
+              <Ionicons name="flame-outline" size={16} color="white" style={{ marginRight: 8 }} />
+              <Text style={styles.resetCountButtonText}>
+                Reset Streak Counter
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 

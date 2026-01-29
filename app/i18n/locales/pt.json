@@ -285,7 +285,11 @@
       "error": "Falha ao redefinir cartões. Por favor, tente novamente.",
       "errorGeneric": "Ocorreu um erro ao redefinir cartões."
     },
-    "noCardsToDisplay": "Nenhum cartão para exibir"
+    "noCardsToDisplay": "Nenhum cartão para exibir",
+    "streak": {
+      "congratsTitle": "Parabéns!",
+      "congratsBody": "Você começou sua sequência de revisão! Deslize para a direita mais três cartas amanhã no modo Revisão para continuar sua sequência."
+    }
   },
   "savedFlashcards": {
     "title": "Suas Coleções",

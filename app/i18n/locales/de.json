@@ -285,7 +285,11 @@
       "error": "Zurücksetzen der Karten fehlgeschlagen. Bitte versuchen Sie es erneut.",
       "errorGeneric": "Beim Zurücksetzen der Karten ist ein Fehler aufgetreten."
     },
-    "noCardsToDisplay": "Keine Karten zum Anzeigen"
+    "noCardsToDisplay": "Keine Karten zum Anzeigen",
+    "streak": {
+      "congratsTitle": "Herzlichen Glückwunsch!",
+      "congratsBody": "Du hast deine Überprüfungs-Serie gestartet! Wische morgen im Überprüfungsmodus drei weitere Karten nach rechts, um deine Serie fortzusetzen!"
+    }
   },
   "savedFlashcards": {
     "title": "Ihre Sammlungen",

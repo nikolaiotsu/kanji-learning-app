@@ -133,7 +133,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
   const { recognizeKanji, isProcessing, error } = useKanjiRecognition();
   const { incrementOCRCount, canPerformOCR, remainingScans } = useOCRCounter();
   const { canCreateFlashcard, remainingFlashcards } = useFlashcardCounter();
-  const { rightSwipeCount, currentDeckSwipedCount, deckTotalCards, resetSwipeCounts } = useSwipeCounter();
+  const { rightSwipeCount, streakCount, currentDeckSwipedCount, deckTotalCards, resetSwipeCounts } = useSwipeCounter();
   const { purchaseSubscription, subscription } = useSubscription();
   const { forcedDetectionLanguage } = useSettings();
   const { isConnected } = useNetworkState();
@@ -2292,8 +2292,16 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 </TouchableOpacity>
               </WalkthroughTarget>
               
-              {/* API Usage Energy Bar - positioned to the right of settings button */}
-              <APIUsageEnergyBar style={styles.energyBar} />
+              {/* API Usage Energy Bar + Streak (fire) indicator */}
+              <View style={styles.energyBarRow}>
+                <APIUsageEnergyBar style={styles.energyBarInRow} />
+                <View style={styles.energyBarFireIndicator}>
+                  <Ionicons name="flame" size={10} color="#F59E0B" style={styles.energyBarFireIcon} />
+                  <Text style={styles.energyBarStreakCount} numberOfLines={1}>
+                    {streakCount}
+                  </Text>
+                </View>
+              </View>
               
               {settingsMenuVisible && (
                 <>
@@ -2543,25 +2551,25 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 {!highlightModeActive && !cropModeActive && !rotateModeActive && !localProcessing && !isNavigating && (
                   <>
                     <WalkthroughTarget
-                      targetRef={highlightButtonRef}
-                      stepId="highlight"
+                      targetRef={rotateButtonRef}
+                      stepId="rotate"
                       currentStepId={currentStep?.id}
                       isWalkthroughActive={isWalkthroughActive}
                       highlightStyle={styles.highlightedToolbarButtonWrapper}
                       dimStyle={styles.dimmedToolbarButton}
                     >
                       <PokedexButton
-                        onPress={activateHighlightMode}
-                        icon="create-outline"
+                        onPress={toggleRotateMode}
+                        icon="refresh"
                         iconColor={
                           isWalkthroughActive
-                            ? (currentStep?.id === 'highlight' ? '#FFFF00' : '#CCCCCC')
+                            ? (currentStep?.id === 'rotate' ? '#FFFF00' : '#CCCCCC')
                             : 'black' // Black icon color
                         }
                         color="grey" // Grey gradient to match card reviewer page
                         size="medium"
                         shape="square"
-                        disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'highlight')}
+                        disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'rotate')}
                       />
                     </WalkthroughTarget>
                     <WalkthroughTarget
@@ -2587,25 +2595,25 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                       />
                     </WalkthroughTarget>
                     <WalkthroughTarget
-                      targetRef={rotateButtonRef}
-                      stepId="rotate"
+                      targetRef={highlightButtonRef}
+                      stepId="highlight"
                       currentStepId={currentStep?.id}
                       isWalkthroughActive={isWalkthroughActive}
                       highlightStyle={styles.highlightedToolbarButtonWrapper}
                       dimStyle={styles.dimmedToolbarButton}
                     >
                       <PokedexButton
-                        onPress={toggleRotateMode}
-                        icon="refresh"
+                        onPress={activateHighlightMode}
+                        icon="create-outline"
                         iconColor={
                           isWalkthroughActive
-                            ? (currentStep?.id === 'rotate' ? '#FFFF00' : '#CCCCCC')
+                            ? (currentStep?.id === 'highlight' ? '#FFFF00' : '#CCCCCC')
                             : 'black' // Black icon color
                         }
                         color="grey" // Grey gradient to match card reviewer page
                         size="medium"
                         shape="square"
-                        disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'rotate')}
+                        disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'highlight')}
                       />
                     </WalkthroughTarget>
                   </>
@@ -2982,11 +2990,41 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     fontWeight: 'bold',
     textAlign: 'center',
   },
-  energyBar: {
+  energyBarRow: {
     position: 'absolute',
-    top: 16, // Centered vertically in the row (moved down from 5)
-    left: 15, // Moved right a few pixels from edge
-    zIndex: 800, // Same z-index as settings button - same layer
+    top: 16,
+    left: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 800,
+  },
+  energyBarFireIndicator: {
+    minWidth: 26,
+    height: 19,
+    borderRadius: 4,
+    backgroundColor: COLORS.mediumSurface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+    marginLeft: 6,
+    gap: 2,
+    flexShrink: 0, // Keep full width for 2–3 digit streak counts
+  },
+  energyBarFireIcon: {
+    marginTop: 0,
+  },
+  energyBarStreakCount: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: COLORS.text,
+    minWidth: 8,
+    textAlign: 'center',
+  },
+  energyBarInRow: {
+    marginLeft: 0,
   },
   settingsButton: {
     position: 'absolute',

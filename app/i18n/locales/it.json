@@ -285,7 +285,11 @@
       "error": "Reimpostazione schede fallita. Riprova.",
       "errorGeneric": "Si è verificato un errore durante la reimpostazione delle schede."
     },
-    "noCardsToDisplay": "Nessuna scheda da visualizzare"
+    "noCardsToDisplay": "Nessuna scheda da visualizzare",
+    "streak": {
+      "congratsTitle": "Congratulazioni!",
+      "congratsBody": "Hai iniziato la tua serie di ripassi! Scorri a destra altre tre carte domani in modalità Ripasso per continuare la tua serie."
+    }
   },
   "savedFlashcards": {
     "title": "Le Tue Collezioni",

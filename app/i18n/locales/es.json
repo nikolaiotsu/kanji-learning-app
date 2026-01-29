@@ -285,7 +285,11 @@
       "error": "Error al restablecer las tarjetas. Por favor intenta de nuevo.",
       "errorGeneric": "Ocurrió un error al restablecer las tarjetas."
     },
-    "noCardsToDisplay": "No hay tarjetas para mostrar"
+    "noCardsToDisplay": "No hay tarjetas para mostrar",
+    "streak": {
+      "congratsTitle": "¡Felicitaciones!",
+      "congratsBody": "¡Has comenzado tu racha de repaso! Desliza a la derecha tres cartas más mañana en modo Repaso para continuar tu racha."
+    }
   },
   "savedFlashcards": {
     "title": "Tus colecciones",

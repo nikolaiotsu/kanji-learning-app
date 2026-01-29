@@ -285,7 +285,11 @@
       "error": "カードのリセットに失敗しました。もう一度お試しください。",
       "errorGeneric": "カードのリセット中にエラーが発生しました。"
     },
-    "noCardsToDisplay": "表示するカードがありません"
+    "noCardsToDisplay": "表示するカードがありません",
+    "streak": {
+      "congratsTitle": "おめでとうございます！",
+      "congratsBody": "復習ストリークを開始しました！明日の復習モードで3枚以上のカードを右にスワイプして、ストリークを続けましょう！"
+    }
   },
   "savedFlashcards": {
     "title": "あなたのコレクション",

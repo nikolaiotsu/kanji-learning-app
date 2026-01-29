@@ -285,7 +285,11 @@
       "error": "Không thể đặt lại thẻ. Vui lòng thử lại.",
       "errorGeneric": "Đã xảy ra lỗi khi đặt lại thẻ."
     },
-    "noCardsToDisplay": "Không có thẻ để hiển thị"
+    "noCardsToDisplay": "Không có thẻ để hiển thị",
+    "streak": {
+      "congratsTitle": "Chúc mừng!",
+      "congratsBody": "Bạn đã bắt đầu chuỗi ôn tập! Vuốt sang phải thêm ba thẻ vào ngày mai ở chế độ Ôn tập để tiếp tục chuỗi của bạn!"
+    }
   },
   "savedFlashcards": {
     "title": "Bộ Sưu Tập Của Bạn",

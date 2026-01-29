@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Animated, PanResponder, Dimensions, Alert, Easing } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Animated, PanResponder, Dimensions, Alert, Easing, Modal } from 'react-native';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -58,12 +58,13 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { incrementRightSwipe, incrementLeftSwipe, setDeckCardIds, resetSwipeCounts } = useSwipeCounter();
+  const { incrementRightSwipe, incrementLeftSwipe, streakCount, setDeckCardIds, resetSwipeCounts } = useSwipeCounter();
   const { isConnected } = useNetworkState();
   
   // State that needs to be set before session finishes
   const [delaySessionFinish, setDelaySessionFinish] = useState(false);
   const [isTransitionLoading, setIsTransitionLoading] = useState(false);
+  const [showStreakCongratsOverlay, setShowStreakCongratsOverlay] = useState(false);
   
   // Callback to prepare for session finish - must be stable reference
   const handleSessionFinishing = useCallback(() => {
@@ -668,10 +669,9 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 setSessionStartDueCount(0);
 
                 // NOTE: totalDeckCards ref is preserved - it only changes on deck selection
+                // Streak counter is intentionally NOT reset here: the user may have earned
+                // a streak in other decks and only wanted to fix a mistaken swipe in this deck.
 
-                // Also reset swipe counter context to clear "already swiped right today" state
-                await resetSwipeCounts();
-                
                 Alert.alert(t('common.success'), t('review.srsReset.success', { count: resetCount }));
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               } else {
@@ -1151,11 +1151,15 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         // Pass the current card ID to track unique right swipes
         if (cardIdToTrack) {
           logger.log('👉 [SRS] Card swiped RIGHT - incrementing right counter, will increase box by 1');
-          incrementRightSwipe(cardIdToTrack);
-          
+          incrementRightSwipe(cardIdToTrack).then((newRightCount) => {
+            if (newRightCount === 3) {
+              setShowStreakCongratsOverlay(true);
+            }
+          });
+
           // Persist daily review stats (survives app restarts, resets at midnight)
           persistDailyReviewStats(cardIdToTrack);
-          
+
           // Track card swiped right in current session to prevent it from coming back
           setSessionSwipedCardIds((prevSet) => {
             const newSet = new Set(prevSet);
@@ -2302,6 +2306,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   }
 
   return (
+    <>
     <View style={styles.container}>
       <View style={styles.header}>
         <View 
@@ -2636,6 +2641,40 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       
       {deckSelector}
     </View>
+
+    {/* Streak congratulations overlay - shown when user reaches 3 right swipes in a review session */}
+    <Modal
+      visible={showStreakCongratsOverlay}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowStreakCongratsOverlay(false)}
+    >
+      <TouchableOpacity
+        style={styles.streakCongratsOverlay}
+        activeOpacity={1}
+        onPress={() => setShowStreakCongratsOverlay(false)}
+      >
+        <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+          <View style={styles.streakCongratsCard}>
+            <Text style={styles.streakCongratsTitle}>{t('review.streak.congratsTitle')}</Text>
+            <Text style={styles.streakCongratsBody}>
+              {t('review.streak.congratsBody')}
+            </Text>
+            <View style={styles.streakCongratsFireRow}>
+              <Ionicons name="flame" size={48} color="#F59E0B" style={styles.streakCongratsFireIcon} />
+              <Text style={styles.streakCongratsFireNumber}>{streakCount}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.streakCongratsButton}
+              onPress={() => setShowStreakCongratsOverlay(false)}
+            >
+              <Text style={styles.streakCongratsButtonText}>{t('common.ok')}</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+    </>
   );
 };
 
@@ -2923,6 +2962,62 @@ const createStyles = (
     borderRadius: 15,
     zIndex: 200, // Above the card content but below swipe overlays
     elevation: 200, // For Android
+  },
+  streakCongratsOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  streakCongratsCard: {
+    backgroundColor: COLORS.darkSurface,
+    borderRadius: 16,
+    padding: 24,
+    maxWidth: 340,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+  },
+  streakCongratsTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  streakCongratsBody: {
+    fontSize: 16,
+    color: COLORS.lightGray,
+    lineHeight: 24,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  streakCongratsFireRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    gap: 8,
+  },
+  streakCongratsFireIcon: {
+    marginTop: 0,
+  },
+  streakCongratsFireNumber: {
+    fontSize: 36,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  streakCongratsButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+  },
+  streakCongratsButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

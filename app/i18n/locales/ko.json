@@ -285,7 +285,11 @@
       "error": "카드 재설정에 실패했습니다. 다시 시도해주세요.",
       "errorGeneric": "카드 재설정 중 오류가 발생했습니다."
     },
-    "noCardsToDisplay": "표시할 카드 없음"
+    "noCardsToDisplay": "표시할 카드 없음",
+    "streak": {
+      "congratsTitle": "축하합니다!",
+      "congratsBody": "복습 연속 학습을 시작했어요! 내일 복습 모드에서 카드 세 장을 더 오른쪽으로 스와이프해서 연속 학습을 이어가세요!"
+    }
   },
   "savedFlashcards": {
     "title": "내 컬렉션",

@@ -286,7 +286,11 @@
       "error": "Failed to reset cards. Please try again.",
       "errorGeneric": "An error occurred while resetting cards."
     },
-    "noCardsToDisplay": "No cards to display"
+    "noCardsToDisplay": "No cards to display",
+    "streak": {
+      "congratsTitle": "Congratulations!",
+      "congratsBody": "You started your review streak! Swipe right on three more cards tomorrow in Review mode to continue your streak!"
+    }
   },
   "savedFlashcards": {
     "title": "Your Collections",

@@ -282,7 +282,11 @@
       "error": "重置卡片失败。请重试。",
       "errorGeneric": "重置卡片时发生错误。"
     },
-    "noCardsToDisplay": "没有要显示的卡片"
+    "noCardsToDisplay": "没有要显示的卡片",
+    "streak": {
+      "congratsTitle": "恭喜！",
+      "congratsBody": "你已开始复习连续打卡！明天在复习模式下再右滑三张卡片即可继续你的连续打卡！"
+    }
   },
   "savedFlashcards": {
     "title": "您的收藏集",

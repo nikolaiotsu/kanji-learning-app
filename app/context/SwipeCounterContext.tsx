@@ -13,7 +13,10 @@ interface SwipeCounterData {
 interface SwipeCounterContextType {
   rightSwipeCount: number;
   leftSwipeCount: number;
-  incrementRightSwipe: (cardId: string) => Promise<void>;
+  /** Streak: 1 if user has swiped right on 3+ cards in a review session today (once per day), else 0 */
+  streakCount: number;
+  /** Returns the new right swipe count after increment (or current count if card already swiped today). */
+  incrementRightSwipe: (cardId: string) => Promise<number>;
   incrementLeftSwipe: () => Promise<void>;
   resetSwipeCounts: () => Promise<void>;
   deckTotalCards: number;
@@ -70,46 +73,49 @@ export const SwipeCounterProvider: React.FC<{ children: React.ReactNode }> = ({ 
     loadSwipeCounter();
   }, []);
 
-  // Function to increment right swipe count
-  const incrementRightSwipe = async (cardId: string) => {
-    try {
-      const currentDate = getCurrentDate();
-      
-      // Check if this card has already been swiped right today
-      setSwipedRightCardIds((prevSwipedIds) => {
-        if (prevSwipedIds.includes(cardId)) {
-          // Card already swiped right today, don't increment counter
-          logger.info('Card already swiped right today, skipping increment:', cardId);
-          return prevSwipedIds;
-        }
-        
-        // New card swiped right, add to tracking array
-        const newSwipedIds = [...prevSwipedIds, cardId];
-        
-        // Increment the counter
-        setRightSwipeCount((prevCount) => {
-          const newRightCount = prevCount + 1;
-          
-          // Save to AsyncStorage with updated card IDs and count
-          const counterData: SwipeCounterData = {
-            rightSwipeCount: newRightCount,
-            leftSwipeCount: leftSwipeCount,
-            swipedRightCardIds: newSwipedIds,
-            date: currentDate
-          };
-          
-          AsyncStorage.setItem(SWIPE_COUNTER_STORAGE_KEY, JSON.stringify(counterData)).catch((error) => {
-            logger.error('Error saving right swipe counter to storage:', error);
+  // Function to increment right swipe count; returns new right count (for streak overlay when === 3).
+  const incrementRightSwipe = (cardId: string): Promise<number> => {
+    return new Promise((resolve, reject) => {
+      try {
+        const currentDate = getCurrentDate();
+
+        setSwipedRightCardIds((prevSwipedIds) => {
+          if (prevSwipedIds.includes(cardId)) {
+            logger.info('Card already swiped right today, skipping increment:', cardId);
+            setRightSwipeCount((c) => {
+              resolve(c);
+              return c;
+            });
+            return prevSwipedIds;
+          }
+
+          const newSwipedIds = [...prevSwipedIds, cardId];
+
+          setRightSwipeCount((prevCount) => {
+            const newRightCount = prevCount + 1;
+
+            const counterData: SwipeCounterData = {
+              rightSwipeCount: newRightCount,
+              leftSwipeCount: leftSwipeCount,
+              swipedRightCardIds: newSwipedIds,
+              date: currentDate
+            };
+
+            AsyncStorage.setItem(SWIPE_COUNTER_STORAGE_KEY, JSON.stringify(counterData)).catch((error) => {
+              logger.error('Error saving right swipe counter to storage:', error);
+            });
+
+            resolve(newRightCount);
+            return newRightCount;
           });
-          
-          return newRightCount;
+
+          return newSwipedIds;
         });
-        
-        return newSwipedIds;
-      });
-    } catch (error) {
-      logger.error('Error incrementing right swipe counter:', error);
-    }
+      } catch (error) {
+        logger.error('Error incrementing right swipe counter:', error);
+        reject(error);
+      }
+    });
   };
 
   // Function to increment left swipe count
@@ -183,11 +189,15 @@ export const SwipeCounterProvider: React.FC<{ children: React.ReactNode }> = ({ 
     });
   }, [swipedRightCardIds, currentDeckCardIds]);
 
+  // Streak: 1 only the first time user reaches 3 right swipes in a review session that day (24h); else 0
+  const streakCount = rightSwipeCount >= 3 ? 1 : 0;
+
   return (
     <SwipeCounterContext.Provider
       value={{
         rightSwipeCount,
         leftSwipeCount,
+        streakCount,
         incrementRightSwipe,
         incrementLeftSwipe,
         resetSwipeCounts,

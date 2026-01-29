@@ -285,7 +285,11 @@
       "error": "Échec de la réinitialisation des cartes. Veuillez réessayer.",
       "errorGeneric": "Une erreur s'est produite lors de la réinitialisation des cartes."
     },
-    "noCardsToDisplay": "Aucune carte à afficher"
+    "noCardsToDisplay": "Aucune carte à afficher",
+    "streak": {
+      "congratsTitle": "Félicitations !",
+      "congratsBody": "Vous avez commencé votre série de révisions ! Faites glisser trois cartes de plus vers la droite demain en mode Révision pour continuer votre série."
+    }
   },
   "savedFlashcards": {
     "title": "Vos collections",
