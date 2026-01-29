@@ -10,6 +10,7 @@ import { FlashcardCounterProvider } from './context/FlashcardCounterContext';
 import { SwipeCounterProvider } from './context/SwipeCounterContext';
 import AuthGuard from './components/auth/AuthGuard';
 import LoadingVideoScreen from './components/LoadingVideoScreen';
+import { LoadingVideoProvider } from './context/LoadingVideoContext';
 import { StyleSheet, View, LogBox } from 'react-native';
 import { COLORS } from './constants/colors';
 import TexturedBackground from './components/shared/TexturedBackground';
@@ -123,13 +124,14 @@ export default function RootLayout() {
             </View>
           ) : (
             <View style={styles.container} onLayout={onLayoutRootView}>
-              <AuthProvider>
-                <SettingsProvider>
-                  <SubscriptionProvider>
-                    <OCRCounterProvider>
-                      <FlashcardCounterProvider>
-                        <SwipeCounterProvider>
-                          <AuthGuard>
+              <LoadingVideoProvider>
+                <AuthProvider>
+                  <SettingsProvider>
+                    <SubscriptionProvider>
+                      <OCRCounterProvider>
+                        <FlashcardCounterProvider>
+                          <SwipeCounterProvider>
+                            <AuthGuard>
                             <Stack
                               screenOptions={{
                                 headerShown: true,
@@ -186,12 +188,13 @@ export default function RootLayout() {
                               <Stack.Screen name="reset-password" options={{ title: 'Reset Password' }} />
                             </Stack>
                           </AuthGuard>
-                        </SwipeCounterProvider>
-                      </FlashcardCounterProvider>
-                    </OCRCounterProvider>
-                  </SubscriptionProvider>
-                </SettingsProvider>
-              </AuthProvider>
+                          </SwipeCounterProvider>
+                        </FlashcardCounterProvider>
+                      </OCRCounterProvider>
+                    </SubscriptionProvider>
+                  </SettingsProvider>
+                </AuthProvider>
+              </LoadingVideoProvider>
             </View>
           )}
         </TexturedBackground>

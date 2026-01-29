@@ -3,6 +3,7 @@ import { View, StyleSheet, ActivityIndicator, Text, Animated, Easing } from 'rea
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEvent } from 'expo';
 import { COLORS } from '../constants/colors';
+import { useLoadingVideoPlayer } from '../context/LoadingVideoContext';
 
 /**
  * Place your custom loading video at: assets/loading.mp4
@@ -24,6 +25,20 @@ const FLOAT_DURATION = 1200;
 export default function LoadingVideoScreen({ message }: LoadingVideoScreenProps) {
   const [hasError, setHasError] = useState(false);
   const floatAnim = useRef(new Animated.Value(0)).current;
+  const preloadedPlayer = useLoadingVideoPlayer();
+  const localPlayer = useVideoPlayer(loadingVideoSource, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.play();
+  });
+  const player = preloadedPlayer ?? localPlayer;
+
+  // When using preloaded player, start playback on mount (it was only created, not played)
+  useEffect(() => {
+    if (preloadedPlayer) {
+      preloadedPlayer.play();
+    }
+  }, [preloadedPlayer]);
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -49,12 +64,6 @@ export default function LoadingVideoScreen({ message }: LoadingVideoScreenProps)
   const translateY = floatAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, -FLOAT_DISTANCE],
-  });
-
-  const player = useVideoPlayer(loadingVideoSource, (p) => {
-    p.loop = true;
-    p.muted = true;
-    p.play();
   });
 
   const { status } = useEvent(player, 'statusChange', { status: player.status });
