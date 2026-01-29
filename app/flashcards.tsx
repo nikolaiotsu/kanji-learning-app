@@ -852,7 +852,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
         
       } else {
         // If we didn't get valid results, show the error message from the API
-        setError(result.translatedText || 'Failed to process text with Claude API. Please try again later.');
+        setError(result.translatedText || 'Failed to process text. Please try changing your language settings.');
         setProcessingFailed(true);
         
         // For errors, complete immediately
@@ -863,7 +863,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     } catch (err) {
       logger.log('Error processing with Claude:', err);
       // Show specific error message if available (e.g., text too long, language mismatch)
-      const errorMessage = err instanceof Error ? err.message : 'Failed to process text with Claude API. Please try again later.';
+      const errorMessage = err instanceof Error ? err.message : 'Failed to process text. Please try changing your language settings.';
       setError(errorMessage);
       setProcessingFailed(true);
       
@@ -1248,14 +1248,14 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
         }, 1500);
         
       } else {
-        setError(result.translatedText || 'Failed to process text with Claude API. Please try again later.');
+        setError(result.translatedText || 'Failed to process text. Please try changing your language settings.');
         setProcessingFailed(true);
         setIsLoading(false);
         setIsManualOperation(false);
       }
     } catch (err) {
       logger.error('Error processing with Claude Scope:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to process text with Claude API. Please try again later.';
+      const errorMessage = err instanceof Error ? err.message : 'Failed to process text. Please try changing your language settings.';
       
       // Show user-friendly error message
       const userFriendlyMessage = errorMessage.includes('Scope analysis') || errorMessage.includes('malformed')

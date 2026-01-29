@@ -5591,6 +5591,55 @@ function parseWordScopeResponse(rawResponse: string): {
       } catch (e: any) {
         // If still failing, try more aggressive cleaning
         logger.log(`[WordScope Parser] Strategy 3a failed: ${e.message}, trying aggressive cleaning...`);
+        
+        // Strategy 3b: Try escaping smart quotes inside string values
+        // Smart quotes ("" '') can cause parsing issues when not escaped
+        // This regex finds content between JSON string delimiters and escapes smart quotes
+        try {
+          // First, let's try replacing smart quotes with escaped straight quotes
+          let cleanedJsonString = jsonString
+            // Convert smart double quotes inside strings to escaped regular quotes
+            .replace(/[\u201C\u201D]/g, '\\"')
+            // Convert smart single quotes to escaped apostrophes
+            .replace(/[\u2018\u2019]/g, "\\'");
+          
+          return JSON.parse(cleanedJsonString);
+        } catch (e2: any) {
+          logger.log(`[WordScope Parser] Strategy 3b (smart quote escaping) failed: ${e2.message}`);
+        }
+        
+        // Strategy 3c: More aggressive - try to fix double JSON objects
+        // Sometimes Claude outputs two separate JSON objects instead of nested
+        try {
+          // Check if response contains two separate JSON objects
+          const firstCloseBrace = jsonString.indexOf('}');
+          const secondOpenBrace = jsonString.indexOf('{', firstCloseBrace);
+          
+          if (firstCloseBrace !== -1 && secondOpenBrace !== -1 && secondOpenBrace > firstCloseBrace) {
+            // Detected two separate JSON objects - try to merge them
+            const firstObject = jsonString.substring(0, firstCloseBrace + 1);
+            const secondObject = jsonString.substring(secondOpenBrace);
+            
+            try {
+              const parsed1 = JSON.parse(firstObject);
+              const parsed2 = JSON.parse(secondObject);
+              
+              // Merge them - assume first is translation, second is scope
+              if (parsed1.translatedText && !parsed1.scopeAnalysis && parsed2.word) {
+                logger.log('[WordScope Parser] Strategy 3c (merge separate objects) succeeded');
+                return {
+                  furiganaText: parsed1.furiganaText || '',
+                  translatedText: parsed1.translatedText,
+                  scopeAnalysis: parsed2
+                };
+              }
+            } catch (mergeError) {
+              // Merging failed, continue to next strategy
+            }
+          }
+        } catch (e3: any) {
+          logger.log(`[WordScope Parser] Strategy 3c (merge objects) failed: ${e3.message}`);
+        }
       }
     }
   } catch (e: any) {
@@ -6420,10 +6469,19 @@ CRITICAL REQUIREMENTS:
     const isKoreanWithCaching = forcedLanguage === 'ko';
     const isCJKLanguage = isChineseWithCaching || isJapaneseWithCaching || isKoreanWithCaching;
     
-    // Select the appropriate system prompt - CJK languages have specialized prompts, others use general prompt
+    // Reading languages that are not CJK: Arabic, Hindi, Thai (have dedicated prompts with transliteration/romanization rules)
+    const isArabicWithReadings = forcedLanguage === 'ar';
+    const isHindiWithReadings = forcedLanguage === 'hi';
+    const isThaiWithReadings = forcedLanguage === 'th';
+    const isOtherReadingLanguage = isArabicWithReadings || isHindiWithReadings || isThaiWithReadings;
+    
+    // Select the appropriate system prompt - CJK and other reading languages get specialized prompts
     const systemPrompt = isChineseWithCaching ? chineseSystemPrompt : 
                          isJapaneseWithCaching ? japaneseSystemPrompt : 
                          isKoreanWithCaching ? koreanSystemPrompt :
+                         isArabicWithReadings ? arabicSystemPrompt :
+                         isHindiWithReadings ? hindiSystemPrompt :
+                         isThaiWithReadings ? thaiSystemPrompt :
                          generalLanguageSystemPrompt;
     
     // Determine language name for logging
@@ -6566,9 +6624,61 @@ CRITICAL REQUIREMENTS:
       } else {
         logger.log(`🔄 [WordScope Cache] ⚠️ NONE - Prompt may be too small (need 2048+ tokens for Haiku)`);
       }
+    } else if (needsReadings && (isOtherReadingLanguage || forcedLanguage === 'ru')) {
+      // READING LANGUAGES (Arabic, Hindi, Thai, Russian): Request readings via combinedPrompt
+      // ar/hi/th use language-specific system prompts with full transliteration rules; ru uses general prompt
+      // Same structure as CJK but with combinedPrompt that includes furiganaFieldInstruction and readingTask
+      dynamicUserMessage = combinedPrompt;
+
+      logger.log(`🔄 [WordScope Prompt Caching] Sending ${languageDisplayName} request with caching enabled (readings) - system prompt: ${systemPrompt.length} chars, user message: ${dynamicUserMessage.length} chars`);
+
+      response = await axios.post(
+        'https://api.anthropic.com/v1/messages',
+        {
+          model: wordScopeModel,
+          max_tokens: 4000,
+          temperature: 0.3,
+          system: [
+            {
+              type: "text",
+              text: systemPrompt,
+              cache_control: { type: "ephemeral" }
+            }
+          ],
+          messages: [
+            {
+              role: "user",
+              content: dynamicUserMessage
+            }
+          ]
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-beta': 'prompt-caching-2024-07-31'
+          },
+          timeout: 30000
+        }
+      );
+
+      const usage = response.data?.usage;
+      const cacheCreationTokens = usage?.cache_creation_input_tokens || 0;
+      const cacheReadTokens = usage?.cache_read_input_tokens || 0;
+
+      if (cacheCreationTokens > 0) {
+        logger.log(`🔄 [WordScope Cache] 💾 CREATED - ${cacheCreationTokens} tokens cached (full price)`);
+      } else if (cacheReadTokens > 0) {
+        const cacheCost = Math.round(cacheReadTokens * 0.1);
+        const cacheSavings = Math.round(cacheReadTokens * 0.9);
+        logger.log(`🔄 [WordScope Cache] ✅ HIT - ${cacheReadTokens} tokens read (90% discount = ${cacheCost} billed)`);
+        logger.log(`💵 [WordScope Savings] ${cacheSavings} tokens saved (90% off cached portion)`);
+      } else {
+        logger.log(`🔄 [WordScope Cache] ⚠️ NONE - Prompt may be too small (need 2048+ tokens for Haiku)`);
+      }
     } else {
-      // NON-CJK LANGUAGES: Use general system prompt with caching
-      // These languages don't need special reading annotations (furigana/pinyin/romanization)
+      // NON-READING LANGUAGES: Use general system prompt, no reading annotations
       dynamicUserMessage = `TEXT TO PROCESS: "${normalizedText}"
 SOURCE LANGUAGE: ${sourceLangName}
 TARGET LANGUAGE: ${targetLangName}
@@ -6655,7 +6765,7 @@ EXAMPLE (if translating ${sourceLangName} to ${targetLangName}):
 
 CRITICAL REQUIREMENTS:
 - ALL fields are required and must be complete
-- furiganaText should be empty for non-CJK languages (no reading annotations needed)
+- furiganaText should be empty for languages that do not require readings (no transliteration/romanization needed)
 - Write translation and analysis in ${targetLangName}
 - Example sentences MUST be in ${sourceLangName}
 - CRITICAL: The "examples" section MUST use the EXACT same words/phrase from "${normalizedText}" - create new sentences that contain the same phrase/words in different contexts, NOT synonyms or alternatives
@@ -6846,6 +6956,11 @@ async function processWithClaudeAndScopeFallback(
 ): Promise<ClaudeResponse> {
   logger.log('[WordScope Fallback] Using separate calls approach...');
   
+  // CRITICAL: Normalize quotation marks to prevent JSON parsing issues
+  // This fixes the bug where quotes in source text (e.g., "tapas") would cause
+  // Claude to output malformed JSON with nested unescaped quotes
+  const normalizedText = normalizeQuotationMarks(text);
+  
   // First, get the normal translation (pass subscription plan to avoid re-fetching)
   const translationResult = await processWithClaude(text, targetLanguage, forcedLanguage, onProgress, false, subscriptionPlan);
   
@@ -6869,11 +6984,13 @@ async function processWithClaudeAndScopeFallback(
     const targetLangName = LANGUAGE_NAMES_MAP[targetLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'English';
     const sourceLangName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'the source language';
     
-    const scopePrompt = `You are a ${sourceLangName} language teacher helping a ${targetLangName} speaker.
+    const scopePrompt = `TASK: Grammar analysis ONLY (translation already provided separately)
 
-Analyze: "${text}"
+Analyze the grammatical structure of this ${sourceLangName} text: "${normalizedText}"
 
-Respond in valid JSON:
+IMPORTANT: Output ONLY the grammar analysis JSON below. DO NOT include furiganaText or translatedText fields.
+
+Respond with this exact JSON structure:
 {
   "word": "word in original script",
   "reading": "pronunciation guide",
@@ -6887,17 +7004,17 @@ Respond in valid JSON:
   },
   "examples": [
     {
-      "sentence": "simple example sentence that uses the EXACT same words/phrase from '${text}' in a different context",
+      "sentence": "simple example sentence that uses the EXACT same words/phrase from '${normalizedText}' in a different context",
       "translation": "translation",
       "note": "brief grammar point (under 10 words)"
     },
     {
-      "sentence": "intermediate example sentence that uses the EXACT same words/phrase from '${text}' in a more complex context",
+      "sentence": "intermediate example sentence that uses the EXACT same words/phrase from '${normalizedText}' in a more complex context",
       "translation": "translation",
       "note": "different usage point"
     },
     {
-      "sentence": "intermediate example sentence that uses the EXACT same words/phrase from '${text}' in another context",
+      "sentence": "intermediate example sentence that uses the EXACT same words/phrase from '${normalizedText}' in another context",
       "translation": "translation",
       "note": "additional usage point"
     }
@@ -6931,8 +7048,8 @@ RULES:
 - Keep all explanations SHORT and practical
 - Example notes must be under 10 words
 - Examples should progress: simple → intermediate → intermediate
-- CRITICAL: The "examples" section MUST use the EXACT same words/phrase from "${text}" - create new sentences that contain the same phrase/words in different contexts, NOT synonyms or alternatives
-- The examples are to show how "${text}" works in different contexts, but must include the actual words/phrase from the scanned text
+- CRITICAL: The "examples" section MUST use the EXACT same words/phrase from "${normalizedText}" - create new sentences that contain the same phrase/words in different contexts, NOT synonyms or alternatives
+- The examples are to show how "${normalizedText}" works in different contexts, but must include the actual words/phrase from the scanned text
 - The "synonyms" section provides 3 alternative expressions for advanced learners - these MUST be DIFFERENT from what's used in examples
 - Particles array only needed for languages that use them (Japanese, Korean)
 - Focus only on what helps the learner USE the word correctly
@@ -6949,10 +7066,10 @@ RULES:
   * "commonContext" must end with a period if it's a complete sentence
   * "nuance" in synonyms array must end with a period
 - CRITICAL for "partOfSpeech": 
-  * YOU MUST ANALYZE THE SOURCE SENTENCE: "${text}"
+  * YOU MUST ANALYZE THE SOURCE SENTENCE: "${normalizedText}"
   * DO NOT analyze the translation - analyze the ORIGINAL SOURCE TEXT above
   * FORMAT: word1 [${targetLangName} label] + word2 [${targetLangName} label] + word3 [${targetLangName} label] + ...
-  * The words MUST come from "${text}" - the ${sourceLangName} source
+  * The words MUST come from "${normalizedText}" - the ${sourceLangName} source
   * The labels MUST be in ${targetLangName} - use these: ${getGrammarLabels(targetLanguage)}
   * Include ALL words from the source
   * WRONG: Using labels in ${sourceLangName} like [${sourceLangName === 'French' ? 'nom' : sourceLangName === 'Spanish' ? 'sustantivo' : 'grammar term'}]
@@ -6962,21 +7079,42 @@ RULES:
   * Translations ("translation" field) must be in ${targetLangName}
   * Notes, explanations, and all other text must be in ${targetLangName}
   * Common mistake examples ("wrong" and "correct" fields) must be in ${sourceLangName}
-  * Common mistake explanation ("reason" field) must be in ${targetLangName}`;
+  * Common mistake explanation ("reason" field) must be in ${targetLangName}
+- CRITICAL JSON ESCAPING: When including quotes in string values (like "tapas"), you MUST escape them as \\" in the JSON output`;
     
     const scopeMetrics = apiLogger.startAPICall('https://api.anthropic.com/v1/messages', {
-      text: text.substring(0, 100),
+      text: normalizedText.substring(0, 100),
       targetLanguage,
       forcedLanguage,
       analysisType: 'grammar'
     });
     
-    // Select appropriate system prompt for scope analysis caching
-    const isCJKLanguage = ['zh', 'ja', 'ko'].includes(forcedLanguage);
-    const scopeSystemPrompt = forcedLanguage === 'zh' ? chineseSystemPrompt :
-                               forcedLanguage === 'ja' ? japaneseSystemPrompt :
-                               forcedLanguage === 'ko' ? koreanSystemPrompt :
-                               generalLanguageSystemPrompt;
+    // IMPORTANT: Use a simple, non-cached system prompt for fallback scope analysis
+    // The cached generalLanguageSystemPrompt includes translation instructions which
+    // confuses Claude when we only want scope analysis (we already have the translation)
+    // This dedicated scope-only prompt ensures Claude outputs ONLY the scope JSON
+    const scopeOnlySystemPrompt = `You are a ${sourceLangName} language expert helping ${targetLangName} speakers learn grammar.
+
+YOUR TASK: Analyze the grammatical structure of the given ${sourceLangName} text.
+
+CRITICAL RULES:
+1. Output ONLY a single JSON object for grammar analysis
+2. DO NOT include any translation (furiganaText, translatedText fields)
+3. DO NOT output multiple JSON objects
+4. DO NOT include any text outside the JSON object
+5. Ensure all quotes inside JSON string values are properly escaped as \\"
+6. The partOfSpeech field must analyze the SOURCE text words, NOT translations
+
+OUTPUT FORMAT:
+{
+  "word": "main word/phrase from source",
+  "reading": "pronunciation if applicable, otherwise empty string",
+  "partOfSpeech": "word1 [label] + word2 [label] + ...",
+  "grammar": { "explanation": "...", "particles": [...] },
+  "examples": [...],
+  "commonMistake": { "wrong": "...", "correct": "...", "reason": "..." },
+  "synonyms": [...]
+}`;
     
     const response = await axios.post(
       'https://api.anthropic.com/v1/messages',
@@ -6984,21 +7122,15 @@ RULES:
         model: wordScopeModel,
         max_tokens: 2000, // Increased from 512 to prevent truncation
         temperature: 0.3,
-        system: [
-          {
-            type: "text",
-            text: scopeSystemPrompt,
-            cache_control: { type: "ephemeral" }  // ENABLES PROMPT CACHING
-          }
-        ],
+        system: scopeOnlySystemPrompt,  // Simple non-cached prompt for scope-only analysis
         messages: [{ role: 'user', content: scopePrompt }]
       },
       {
         headers: {
           'Content-Type': 'application/json',
           'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'anthropic-beta': 'prompt-caching-2024-07-31'  // REQUIRED FOR CACHING
+          'anthropic-version': '2023-06-01'
+          // Note: No prompt caching for fallback - we use a simple scope-only prompt
         },
         timeout: 15000
       }
