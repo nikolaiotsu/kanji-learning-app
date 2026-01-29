@@ -26,6 +26,12 @@ interface Region {
   height: number;
 }
 
+/** Options for cropImageToRegion. Use exactRegion: true when cropping a user-selected highlight so OCR gets only the selected area. */
+export interface CropImageToRegionOptions {
+  /** When true, crop exactly the given region with no margin. Use for user highlight → OCR so extra text is not included. */
+  exactRegion?: boolean;
+}
+
 interface TransformData {
   scale: number;
   translateX: number;
@@ -97,9 +103,14 @@ export async function captureVisibleRegion(imageRef: any, region: Region): Promi
 }
 
 // New helper function to crop image to exact region - Memory-aware version
-export async function cropImageToRegion(imageUri: string, region: Region): Promise<string> {
+export async function cropImageToRegion(
+  imageUri: string,
+  region: Region,
+  options?: CropImageToRegionOptions
+): Promise<string> {
   const memoryManager = MemoryManager.getInstance();
-  
+  const exactRegion = options?.exactRegion === true;
+
   try {
     // Only proceed with cropping if we have a valid region
     if (!region || region.width <= 0 || region.height <= 0) {
@@ -132,57 +143,42 @@ export async function cropImageToRegion(imageUri: string, region: Region): Promi
       x: region.x,
       y: region.y,
       width: region.width,
-      height: region.height
+      height: region.height,
+      exactRegion
     });
-    
-    // Add a margin around the region to ensure we capture all text
-    // Calculate margin based on region size (larger for bigger regions)
-    const isLargeRegion = region.width * region.height > 100000;
-    // Use a larger margin for wider selections to ensure text on the right side is captured
-    const isWideRegion = region.width > region.height * 2; // If width is more than twice the height
-    
-    // Adjust margins based on region characteristics
-    const marginPercentage = isLargeRegion ? 0.05 : 0.03; // 5% margin for large regions, 3% for smaller ones
-    const horizontalMarginPercentage = isWideRegion ? 0.08 : marginPercentage; // Larger horizontal margin for wide regions
-    
-    // Calculate margin in pixels
-    const marginX = Math.round(region.width * horizontalMarginPercentage);
-    const marginY = Math.round(region.height * marginPercentage);
-    
-    logger.log(`[DEBUG] Adding margin to crop region: ${marginX}px horizontal, ${marginY}px vertical${isWideRegion ? ' (wide region detected)' : ''}`);
-    
-    // Apply margin to the region (expanding it)
-    const expandedRegion = {
-      x: Math.max(0, region.x - marginX),
-      y: Math.max(0, region.y - marginY),
-      width: region.width + (marginX * 2),
-      height: region.height + (marginY * 2)
-    };
-    
-    logger.log('[DEBUG] Expanded crop region with margins:', expandedRegion);
-    
-    // Special handling for very wide regions - ensure they're fully captured
-    if (isWideRegion) {
-      logger.log('[DEBUG] Wide region handling: ensuring full width capture');
-      // Make sure we don't cut off the right side of the region
-      const rightEdge = expandedRegion.x + expandedRegion.width;
-      if (rightEdge > sourceImage.width) {
-        logger.log('[DEBUG] Right edge adjustment needed:', 
-                   { rightEdge, imageWidth: sourceImage.width, overflow: rightEdge - sourceImage.width });
-      }
+
+    // For user-selected highlight (exactRegion), use the region as-is so OCR output matches what the user highlighted.
+    // Otherwise add margin to help capture text at edges (e.g. for other callers).
+    let regionToUse: { x: number; y: number; width: number; height: number };
+    if (exactRegion) {
+      regionToUse = { ...region };
+      logger.log('[DEBUG] Using exact region (no margin) for user highlight');
+    } else {
+      const isLargeRegion = region.width * region.height > 100000;
+      const isWideRegion = region.width > region.height * 2;
+      const marginPercentage = isLargeRegion ? 0.05 : 0.03;
+      const horizontalMarginPercentage = isWideRegion ? 0.08 : marginPercentage;
+      const marginX = Math.round(region.width * horizontalMarginPercentage);
+      const marginY = Math.round(region.height * marginPercentage);
+      logger.log(`[DEBUG] Adding margin to crop region: ${marginX}px horizontal, ${marginY}px vertical${isWideRegion ? ' (wide region detected)' : ''}`);
+      regionToUse = {
+        x: Math.max(0, region.x - marginX),
+        y: Math.max(0, region.y - marginY),
+        width: region.width + marginX * 2,
+        height: region.height + marginY * 2
+      };
+      logger.log('[DEBUG] Expanded crop region with margins:', regionToUse);
     }
-    
+
     // Validate and adjust the crop region to fit within the image boundaries
-    const originX = Math.max(0, Math.min(Math.round(expandedRegion.x), sourceImage.width - 1));
-    const originY = Math.max(0, Math.min(Math.round(expandedRegion.y), sourceImage.height - 1));
-    
-    // Calculate maximum possible width and height based on the origin point
+    const originX = Math.max(0, Math.min(Math.round(regionToUse.x), sourceImage.width - 1));
+    const originY = Math.max(0, Math.min(Math.round(regionToUse.y), sourceImage.height - 1));
+
     const maxWidth = sourceImage.width - originX;
     const maxHeight = sourceImage.height - originY;
-    
-    // Ensure width and height are within bounds
-    const width = Math.max(1, Math.min(Math.round(expandedRegion.width), maxWidth));
-    const height = Math.max(1, Math.min(Math.round(expandedRegion.height), maxHeight));
+
+    const width = Math.max(1, Math.min(Math.round(regionToUse.width), maxWidth));
+    const height = Math.max(1, Math.min(Math.round(regionToUse.height), maxHeight));
     
     const safeRegion = {
       originX,

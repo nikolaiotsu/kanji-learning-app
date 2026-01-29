@@ -1244,10 +1244,19 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
 
     setLocalProcessing(true); // Restore local processing state
     try {
-      const { uri } = capturedImage;
-      
-      // Crop the exact highlighted region for OCR only
-      const exactCropUri = await cropImageToRegion(uri, originalRegionFromConfirm);
+      const { uri, width: imageW, height: imageH } = capturedImage;
+
+      // Region must be in current image pixel space (same as capturedImage dimensions).
+      // Clamp to current image bounds so crop never exceeds the image (important after crop).
+      const clampedRegion = {
+        x: Math.max(0, Math.min(originalRegionFromConfirm.x, imageW - 1)),
+        y: Math.max(0, Math.min(originalRegionFromConfirm.y, imageH - 1)),
+        width: Math.max(1, Math.min(originalRegionFromConfirm.width, imageW - Math.max(0, originalRegionFromConfirm.x))),
+        height: Math.max(1, Math.min(originalRegionFromConfirm.height, imageH - Math.max(0, originalRegionFromConfirm.y))),
+      };
+
+      // Crop exactly the highlighted region for OCR (no margin) so output matches what the user selected.
+      const exactCropUri = await cropImageToRegion(uri, clampedRegion, { exactRegion: true });
       // logger.log('[KanjiScanner PHR] Exact cropped URI (for diagnostic display):', exactCropUri); // No longer needed
 
       // --- Restore OCR and navigation --- 
@@ -1387,65 +1396,48 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     const transformData = imageHighlighterRef.current.getTransformData();
     logger.log('[KanjiScanner CnfHS] TransformData from ImageHighlighter:', transformData);
 
-    // Use the new properties from transformData
+    // Use the new properties from transformData.
+    // originalImageWidth/Height here are the CURRENT displayed image dimensions (capturedImage after crop), not the pre-crop original.
     const {
       originalImageWidth,
       originalImageHeight,
       displayImageViewWidth,
       displayImageViewHeight,
     } = transformData;
-    
+
     // Log the selection dimensions as percentages of the display
     const widthPercentage = (highlightRegion.width / displayImageViewWidth) * 100;
     const heightPercentage = (highlightRegion.height / displayImageViewHeight) * 100;
     logger.log(`[KanjiScanner CnfHS] Selection dimensions: ${highlightRegion.width}x${highlightRegion.height} (${widthPercentage.toFixed(1)}% x ${heightPercentage.toFixed(1)}% of view)`);
-    
-    // Detect wide selections that might need special handling
-    const isWideSelection = widthPercentage > 60; // If selection takes up more than 60% of the view width
-    if (isWideSelection) {
-      logger.log('[KanjiScanner CnfHS] Wide selection detected, ensuring proper processing');
-    }
-    
+
     // The highlightRegion state has its x,y already adjusted by ImageHighlighter
-    // to be relative to the visible image content's top-left.
-    // Clamp it against the displayImageView dimensions before scaling.
+    // to be relative to the visible image content's top-left (display pixels).
+    // Clamp it against the displayImageView dimensions before scaling to image pixels.
     const clampedHighlightRegion = {
       x: Math.max(0, Math.min(highlightRegion.x, displayImageViewWidth)),
       y: Math.max(0, Math.min(highlightRegion.y, displayImageViewHeight)),
       width: Math.max(5, highlightRegion.width),
       height: Math.max(5, highlightRegion.height)
     };
-    
-    // Additional bounds check to handle wide/tall selections 
-    clampedHighlightRegion.width = Math.min(clampedHighlightRegion.width, 
+
+    clampedHighlightRegion.width = Math.min(clampedHighlightRegion.width,
                                            displayImageViewWidth - clampedHighlightRegion.x);
-    clampedHighlightRegion.height = Math.min(clampedHighlightRegion.height, 
+    clampedHighlightRegion.height = Math.min(clampedHighlightRegion.height,
                                             displayImageViewHeight - clampedHighlightRegion.y);
-    
-    // Safety check to ensure width/height are positive
+
     if (clampedHighlightRegion.width <= 0) clampedHighlightRegion.width = 5;
     if (clampedHighlightRegion.height <= 0) clampedHighlightRegion.height = 5;
 
-    // Calculate the scaling ratio using displayImageView dimensions
+    // Convert display coordinates to current image pixel coordinates (no extra margin so OCR matches selection).
     const widthRatio = originalImageWidth / displayImageViewWidth;
     const heightRatio = originalImageHeight / displayImageViewHeight;
     logger.log('[KanjiScanner CnfHS] Clamped Region:', clampedHighlightRegion);
     logger.log('[KanjiScanner CnfHS] Scaling Ratios:', { widthRatio, heightRatio });
-    
-    // For wide selections, add a small horizontal margin to ensure capturing all text
-    // This helps with the bias toward left side text detection
-    let horizontalMargin = 0;
-    if (isWideSelection) {
-      // Add a margin proportional to the width of the selection
-      horizontalMargin = Math.round(clampedHighlightRegion.width * 0.03); // 3% of width
-      logger.log('[KanjiScanner CnfHS] Adding horizontal margin for wide selection:', horizontalMargin);
-    }
-    
-    // Convert the selected region to original image coordinates
+
     const originalRegion = {
-      x: Math.round((clampedHighlightRegion.x - horizontalMargin) * widthRatio),
+      x: Math.round(clampedHighlightRegion.x * widthRatio),
       y: Math.round(clampedHighlightRegion.y * heightRatio),
-      width: Math.round((clampedHighlightRegion.width + (horizontalMargin * 2)) * widthRatio),
+      width: Math.round(clampedHighlightRegion.width * widthRatio),
       height: Math.round(clampedHighlightRegion.height * heightRatio)
     };
     

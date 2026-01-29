@@ -280,17 +280,18 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
     }
   }, [cropMode, rainbowAnim]);
   
-  // Effect to track image changes and reset processing state
+  // Effect to track image changes: reset processing, highlight strokes, and crop state.
+  // Keeps accuracy high when the image changes (e.g. after crop, restore original, or fresh load).
   useEffect(() => {
     if (prevImageUriRef.current !== imageUri) {
-      // logger.log('[ImageHighlighter] imageUri changed:', imageUri); // Removed
-      // Clear processing state when image changes
       setIsProcessing(false);
-      prevImageUriRef.current = imageUri;
-      // Reset opacity to 0 for fade-in animation when image changes
       imageOpacity.setValue(0);
-      // Don't reset containerScreenOffset when image changes - layout dimensions remain the same
-      // Only reset it if we actually need to remeasure (which onLayout will handle)
+      setCropMode(false);
+      setCropBox({ x: 0, y: 0, width: 0, height: 0 });
+      setStrokes([]);
+      setCurrentStroke([]);
+      setDetectedRegions([]);
+      prevImageUriRef.current = imageUri;
     }
   }, [imageUri, imageOpacity]);
   
@@ -1199,21 +1200,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
     }
   };
 
-  // Reset when image changes
-  React.useEffect(() => {
-    if (prevImageUriRef.current !== imageUri) {
-      // logger.log('[ImageHighlighter] imageUri changed:', imageUri); // Removed
-      // Clear processing state when image changes
-      setIsProcessing(false);
-      setCropMode(false);
-      // Consider if rotateMode should also be reset or if parent controls it.
-      // For now, keeping rotation state unless explicitly cleared by user action or new image.
-      setCropBox({ x: 0, y: 0, width: 0, height: 0 });
-      // setRotation(0); // Do not reset rotation automatically on image change for now
-      // setInitialRotation(0); 
-      prevImageUriRef.current = imageUri;
-    }
-  }, [imageUri]);
+  // Note: Image-change reset (strokes, crop box, etc.) is handled in the earlier effect when imageUri changes.
   
   // Log when component renders with new props (for debugging specific layout/offset issues)
   React.useEffect(() => {
