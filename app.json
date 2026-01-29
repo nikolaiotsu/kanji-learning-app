@@ -39,6 +39,7 @@
       "favicon": "./assets/worddexiconlogo.png"
     },
     "plugins": [
+      "expo-video",
       [
         "expo-splash-screen",
         {

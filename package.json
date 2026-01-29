@@ -63,7 +63,8 @@
     "react-native-screens": "~4.4.0",
     "react-native-svg": "15.8.0",
     "react-native-view-shot": "~4.0.3",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "expo-video": "~2.0.6"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

@@ -9,7 +9,8 @@ import { OCRCounterProvider } from './context/OCRCounterContext';
 import { FlashcardCounterProvider } from './context/FlashcardCounterContext';
 import { SwipeCounterProvider } from './context/SwipeCounterContext';
 import AuthGuard from './components/auth/AuthGuard';
-import { StyleSheet, View, Text, ActivityIndicator, LogBox } from 'react-native';
+import LoadingVideoScreen from './components/LoadingVideoScreen';
+import { StyleSheet, View, LogBox } from 'react-native';
 import { COLORS } from './constants/colors';
 import TexturedBackground from './components/shared/TexturedBackground';
 import * as WebBrowser from 'expo-web-browser';
@@ -116,10 +117,9 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <TexturedBackground variant="default" style={styles.container}>
           {!isAppReady ? (
-            // Loading state - keep same background and structure
+            // Custom loading video (assets/loading.mp4) or fallback spinner
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={COLORS.primary} />
-              <Text style={styles.loadingText}>Loading...</Text>
+              <LoadingVideoScreen />
             </View>
           ) : (
             <View style={styles.container} onLayout={onLayoutRootView}>
@@ -212,11 +212,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     // No background color - let TexturedBackground show through
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.text,
   },
 });

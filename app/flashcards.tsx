@@ -36,6 +36,7 @@ import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import * as Crypto from 'expo-crypto';
 import * as FileSystem from 'expo-file-system';
 import DeckSelector from './components/flashcards/DeckSelector';
+import LoadingVideoScreen from './components/LoadingVideoScreen';
 import { useAuth } from './context/AuthContext';
 import { useSettings, AVAILABLE_LANGUAGES } from './context/SettingsContext';
 
@@ -1621,15 +1622,16 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
 
           {isLoading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#007AFF" />
-              <Text style={styles.loadingText}>
-                {processingProgress === 0 ? t('flashcard.processing.analyzing') :
-                 processingProgress === 1 ? t('flashcard.processing.analyzing') :
-                 processingProgress === 2 ? t('flashcard.processing.detecting') :
-                 processingProgress === 3 ? t('flashcard.processing.cultural') :
-                 processingProgress === 4 ? t('flashcard.processing.translating') :
-                 t('flashcard.processing.analyzing')}
-              </Text>
+              <LoadingVideoScreen
+                message={
+                  processingProgress === 0 ? t('flashcard.processing.analyzing') :
+                  processingProgress === 1 ? t('flashcard.processing.analyzing') :
+                  processingProgress === 2 ? t('flashcard.processing.detecting') :
+                  processingProgress === 3 ? t('flashcard.processing.cultural') :
+                  processingProgress === 4 ? t('flashcard.processing.translating') :
+                  t('flashcard.processing.analyzing')
+                }
+              />
             </View>
           ) : (
             <>
@@ -2388,6 +2390,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 120,
   },
   loadingText: {
     marginTop: 10,
