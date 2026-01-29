@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View, StyleSheet, Text } from 'react-native';
 import { useSegments, useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
+import { useOnboarding } from '../../context/OnboardingContext';
 import { useNetworkState } from '../../services/networkManager';
 import { COLORS } from '../../constants/colors';
 
@@ -9,11 +10,15 @@ import { logger } from '../../utils/logger';
 // Protected routes (require authentication)
 const PROTECTED_SEGMENTS = ['flashcards', 'saved-flashcards', '(screens)'];
 
-// Auth routes (accessible only when not authenticated)
-const AUTH_SEGMENTS = ['login', 'signup', 'reset-password'];
+// Auth routes (accessible without authentication)
+const AUTH_SEGMENTS = ['login', 'signup', 'reset-password', 'onboarding'];
+
+// Auth-only routes: when user is logged in, redirect these to home (onboarding is allowed for testing)
+const AUTH_ONLY_REDIRECT_SEGMENTS = ['login', 'signup', 'reset-password'];
 
 export const AuthGuard = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading, isOfflineMode } = useAuth();
+  const { hasCompletedOnboarding } = useOnboarding();
   const { isConnected } = useNetworkState();
   const segments = useSegments();
   const router = useRouter();
@@ -55,32 +60,46 @@ export const AuthGuard = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
-    // User is authenticated but tries to access auth routes (login, signup)
-    if (user && AUTH_SEGMENTS.includes(currentSegment)) {
+    // User is authenticated but tries to access login/signup/reset-password → go home (onboarding allowed for beta testing)
+    if (user && AUTH_ONLY_REDIRECT_SEGMENTS.includes(currentSegment)) {
       logger.log('🔐 [AuthGuard] User authenticated, redirecting from auth route to /');
       router.replace('/');
       return;
     }
 
-    // User is not authenticated but tries to access protected routes
+    // Wait for onboarding state to load before redirecting unauthenticated users
+    if (!user && hasCompletedOnboarding === null) {
+      logger.log('🔐 [AuthGuard] Onboarding state loading, skipping redirect');
+      return;
+    }
+
+    // First-time user: not authenticated and has not completed onboarding → show onboarding
+    if (!user && hasCompletedOnboarding === false && currentSegment !== 'onboarding') {
+      logger.log('🔐 [AuthGuard] First-time user, redirecting to /onboarding');
+      router.replace('/onboarding');
+      return;
+    }
+
+    // User is not authenticated but tries to access protected routes → login
     if (!user && PROTECTED_SEGMENTS.includes(currentSegment)) {
       logger.log('🔐 [AuthGuard] User not authenticated, redirecting to /login');
       router.replace('/login');
       return;
     }
 
-    // If no segment is specified and user is not authenticated
+    // No segment (root) and not authenticated → login (onboarding already completed)
     if (!user && !currentSegment) {
       logger.log('🔐 [AuthGuard] No segment and no user, redirecting to /login');
       router.replace('/login');
       return;
     }
-    
-    logger.log('🔐 [AuthGuard] No navigation needed');
-  }, [user, isLoading, currentSegment, isOfflineMode]);
 
-  // Show loading screen while checking authentication
-  if (isLoading) {
+    logger.log('🔐 [AuthGuard] No navigation needed');
+  }, [user, isLoading, hasCompletedOnboarding, currentSegment, isOfflineMode]);
+
+  // Show loading while auth or onboarding state is resolving (avoids flashing wrong screen)
+  const resolvingFirstTime = !user && hasCompletedOnboarding === null;
+  if (isLoading || resolvingFirstTime) {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color={COLORS.primary} />

@@ -17,12 +17,14 @@ const loadingVideoSource = require('../../assets/loading.mp4');
 type LoadingVideoScreenProps = {
   /** Optional message shown below the video (e.g. processing step text) */
   message?: string;
+  /** Compact mode: no message, no flex — for embedding (e.g. onboarding) */
+  compact?: boolean;
 };
 
 const FLOAT_DISTANCE = 6;
 const FLOAT_DURATION = 1200;
 
-export default function LoadingVideoScreen({ message }: LoadingVideoScreenProps) {
+export default function LoadingVideoScreen({ message, compact = false }: LoadingVideoScreenProps) {
   const [hasError, setHasError] = useState(false);
   const floatAnim = useRef(new Animated.Value(0)).current;
   const preloadedPlayer = useLoadingVideoPlayer();
@@ -72,7 +74,7 @@ export default function LoadingVideoScreen({ message }: LoadingVideoScreenProps)
     if (status === 'error') setHasError(true);
   }, [status]);
 
-  const displayMessage = message ?? 'Loading...';
+  const displayMessage = compact ? undefined : (message ?? 'Loading...');
 
   // Same layout for both video and fallback: rounded clip, float, same size
   const videoOrSpinner = (hasError || status === 'error') ? (
@@ -95,11 +97,11 @@ export default function LoadingVideoScreen({ message }: LoadingVideoScreenProps)
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, compact && styles.containerCompact]}>
       <Animated.View style={[styles.videoWrap, { transform: [{ translateY }] }]}>
         {videoOrSpinner}
       </Animated.View>
-      <Text style={styles.loadingText}>{displayMessage}</Text>
+      {displayMessage != null && <Text style={styles.loadingText}>{displayMessage}</Text>}
     </View>
   );
 }
@@ -109,6 +111,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  containerCompact: {
+    flex: 0,
   },
   videoWrap: {
     alignItems: 'center',

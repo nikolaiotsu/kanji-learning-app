@@ -59,6 +59,11 @@
       "registrationFailed": "Registration Failed"
     }
   },
+  "onboarding": {
+    "welcomeTitle": "Welcome to Worddex",
+    "welcomeSubtitle": "Scan text, collect words, and build your vocabulary. Create an account to sync your collections across devices.",
+    "getStarted": "Get Started"
+  },
   "deck": {
     "select": "Select Collection",
     "loading": "Loading collections...",
@@ -398,7 +403,7 @@
     },
     "reviewCards": {
       "title": "Review Cards",
-      "description": "This area is where your captured flashcards will appear for review. Swipe right to take cards out of the review session. Swipe left to review cards again.  The flip flashcard and see image buttons will be on the bottom right of your flashcards."
+      "description": "Your word collection lives here. In Review Mode, swipe right on cards you know (they're done for the day) and left on cards you need more practice with. In Browse Mode, swipe freely without affecting your review queue. Tap any card to flip it or view its source image."
     },
     "collections": {
       "title": "Collections",

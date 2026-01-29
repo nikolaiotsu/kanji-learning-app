@@ -59,6 +59,11 @@
       "pleaseTryAgain": "Por favor intenta de nuevo"
     }
   },
+  "onboarding": {
+    "welcomeTitle": "Bienvenido a Worddex",
+    "welcomeSubtitle": "Escanea texto, recoge palabras y amplía tu vocabulario. Crea una cuenta para sincronizar tus colecciones en todos tus dispositivos.",
+    "getStarted": "Empezar"
+  },
   "deck": {
     "select": "Seleccionar colección",
     "loading": "Cargando colecciones...",
@@ -401,7 +406,7 @@
     },
     "reviewCards": {
       "title": "Revisar tarjetas",
-      "description": "Tus tarjetas capturadas aparecerán aquí para revisar. Desliza a la derecha para sacar tarjetas de la sesión de revisión. Desliza a la izquierda para revisar tarjetas nuevamente. Los botones para voltear la tarjeta y ver la imagen estarán en la parte inferior derecha de tus tarjetas."
+      "description": "Tu colección de palabras está aquí. En modo Revisión, desliza a la derecha en las tarjetas que conoces (listas por hoy) y a la izquierda en las que necesitas practicar más. En modo Navegar, desliza libremente sin afectar tu cola de revisión. Toca cualquier tarjeta para voltearla o ver su imagen de origen."
     },
     "collections": {
       "title": "Colecciones",

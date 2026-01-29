@@ -9,6 +9,7 @@ import { OCRCounterProvider } from './context/OCRCounterContext';
 import { FlashcardCounterProvider } from './context/FlashcardCounterContext';
 import { SwipeCounterProvider } from './context/SwipeCounterContext';
 import AuthGuard from './components/auth/AuthGuard';
+import { OnboardingProvider } from './context/OnboardingContext';
 import LoadingVideoScreen from './components/LoadingVideoScreen';
 import { LoadingVideoProvider } from './context/LoadingVideoContext';
 import { StyleSheet, View, LogBox } from 'react-native';
@@ -126,12 +127,13 @@ export default function RootLayout() {
             <View style={styles.container} onLayout={onLayoutRootView}>
               <LoadingVideoProvider>
                 <AuthProvider>
-                  <SettingsProvider>
-                    <SubscriptionProvider>
-                      <OCRCounterProvider>
-                        <FlashcardCounterProvider>
-                          <SwipeCounterProvider>
-                            <AuthGuard>
+                  <OnboardingProvider>
+                    <SettingsProvider>
+                      <SubscriptionProvider>
+                        <OCRCounterProvider>
+                          <FlashcardCounterProvider>
+                            <SwipeCounterProvider>
+                              <AuthGuard>
                             <Stack
                               screenOptions={{
                                 headerShown: true,
@@ -183,17 +185,19 @@ export default function RootLayout() {
                                   },
                                 }} 
                               />
+                              <Stack.Screen name="onboarding" options={{ headerShown: false }} />
                               <Stack.Screen name="login" options={{ title: 'Login', headerShown: false }} />
                               <Stack.Screen name="signup" options={{ title: 'Sign Up', headerShown: false }} />
                               <Stack.Screen name="reset-password" options={{ title: 'Reset Password' }} />
                             </Stack>
                           </AuthGuard>
-                          </SwipeCounterProvider>
-                        </FlashcardCounterProvider>
-                      </OCRCounterProvider>
-                    </SubscriptionProvider>
-                  </SettingsProvider>
-                </AuthProvider>
+                        </SwipeCounterProvider>
+                      </FlashcardCounterProvider>
+                    </OCRCounterProvider>
+                  </SubscriptionProvider>
+                </SettingsProvider>
+              </OnboardingProvider>
+            </AuthProvider>
               </LoadingVideoProvider>
             </View>
           )}

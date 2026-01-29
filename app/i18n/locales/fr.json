@@ -59,6 +59,11 @@
       "registrationFailed": "Échec de l'inscription"
     }
   },
+  "onboarding": {
+    "welcomeTitle": "Bienvenue sur Worddex",
+    "welcomeSubtitle": "Scannez du texte, collectez des mots et enrichissez votre vocabulaire. Créez un compte pour synchroniser vos collections sur tous vos appareils.",
+    "getStarted": "Commencer"
+  },
   "deck": {
     "select": "Sélectionner une collection",
     "loading": "Chargement des collections...",
@@ -397,7 +402,7 @@
     },
     "reviewCards": {
       "title": "Réviser les cartes",
-      "description": "C'est ici que vos flashcards capturées apparaîtront pour révision. Balayez vers la droite pour retirer les cartes de la session de révision. Balayez vers la gauche pour réviser les cartes à nouveau. Les boutons retourner la flashcard et voir l'image se trouvent en bas à droite de vos flashcards."
+      "description": "Votre collection de mots se trouve ici. En mode Révision, balayez vers la droite sur les cartes que vous connaissez (elles sont faites pour la journée) et vers la gauche sur celles à revoir. En mode Parcourir, balayez librement sans affecter votre file de révision. Appuyez sur une carte pour la retourner ou voir son image source."
     },
     "collections": {
       "title": "Collections",

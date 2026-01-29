@@ -59,6 +59,11 @@
       "registrationFailed": "Registrazione fallita"
     }
   },
+  "onboarding": {
+    "welcomeTitle": "Benvenuto in Worddex",
+    "welcomeSubtitle": "Scansiona testo, raccogli parole e arricchisci il tuo vocabolario. Crea un account per sincronizzare le tue raccolte su tutti i dispositivi.",
+    "getStarted": "Inizia"
+  },
   "deck": {
     "select": "Seleziona Collezione",
     "loading": "Caricamento collezioni...",
@@ -397,7 +402,7 @@
     },
     "reviewCards": {
       "title": "Rivedi Schede",
-      "description": "Questa area è dove le tue schede catturate appariranno per la revisione. Scorri a destra per rimuovere le schede dalla sessione di revisione. Scorri a sinistra per rivedere le schede di nuovo. I pulsanti capovolgi scheda e vedi immagine saranno in basso a destra delle tue schede."
+      "description": "La tua raccolta di parole vive qui. In modalità Revisione, scorri a destra sulle schede che conosci (finite per oggi) e a sinistra su quelle da rivedere. In modalità Sfoglia, scorri liberamente senza influire sulla coda di revisione. Tocca una scheda per capovolgerla o vedere la sua immagine sorgente."
     },
     "collections": {
       "title": "Collezioni",

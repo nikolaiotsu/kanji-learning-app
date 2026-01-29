@@ -59,6 +59,11 @@
       "registrationFailed": "Falha no cadastro"
     }
   },
+  "onboarding": {
+    "welcomeTitle": "Bem-vindo ao Worddex",
+    "welcomeSubtitle": "Escaneie texto, colete palavras e amplie seu vocabulário. Crie uma conta para sincronizar suas coleções em todos os dispositivos.",
+    "getStarted": "Começar"
+  },
   "deck": {
     "select": "Selecionar Coleção",
     "loading": "Carregando coleções...",
@@ -397,7 +402,7 @@
     },
     "reviewCards": {
       "title": "Revisar Cartões",
-      "description": "Esta área é onde seus cartões capturados aparecerão para revisão. Deslize para a direita para remover cartões da sessão de revisão. Deslize para a esquerda para revisar cartões novamente. Os botões virar cartão e ver imagem estarão no canto inferior direito dos seus cartões."
+      "description": "Sua coleção de palavras está aqui. No modo Revisão, deslize para a direita nos cartões que você sabe (terminados por hoje) e para a esquerda nos que precisam de mais prática. No modo Navegar, deslize livremente sem afetar sua fila de revisão. Toque em qualquer cartão para virá-lo ou ver sua imagem de origem."
     },
     "collections": {
       "title": "Coleções",

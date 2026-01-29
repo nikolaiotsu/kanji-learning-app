@@ -59,6 +59,11 @@
       "registrationFailed": "Registrierung fehlgeschlagen"
     }
   },
+  "onboarding": {
+    "welcomeTitle": "Willkommen bei Worddex",
+    "welcomeSubtitle": "Scanne Text, sammle Wörter und erweitere deinen Wortschatz. Erstelle ein Konto, um deine Sammlungen geräteübergreifend zu synchronisieren.",
+    "getStarted": "Los geht's"
+  },
   "deck": {
     "select": "Sammlung auswählen",
     "loading": "Sammlungen werden geladen...",
@@ -397,7 +402,7 @@
     },
     "reviewCards": {
       "title": "Karten wiederholen",
-      "description": "In diesem Bereich erscheinen Ihre erfassten Karteikarten zur Wiederholung. Wischen Sie nach rechts, um Karten aus der Wiederholungssitzung zu entfernen. Wischen Sie nach links, um Karten erneut zu wiederholen. Die Buttons Karteikarte umdrehen und Bild anzeigen befinden sich unten rechts bei Ihren Karteikarten."
+      "description": "Deine Wortsammlung ist hier. Im Wiederholungsmodus: nach rechts wischen bei Karten, die du kannst (für heute erledigt), nach links bei Karten, die du noch üben musst. Im Durchsuchmodus: frei wischen, ohne deine Wiederholungsliste zu beeinflussen. Tippe auf eine Karte, um sie umzudrehen oder das Quellbild anzuzeigen."
     },
     "collections": {
       "title": "Sammlungen",

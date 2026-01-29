@@ -59,6 +59,11 @@
       "registrationFailed": "Đăng ký thất bại"
     }
   },
+  "onboarding": {
+    "welcomeTitle": "Chào mừng đến với Worddex",
+    "welcomeSubtitle": "Quét văn bản, thu thập từ vựng và mở rộng vốn từ. Tạo tài khoản để đồng bộ bộ sưu tập trên mọi thiết bị.",
+    "getStarted": "Bắt đầu"
+  },
   "deck": {
     "select": "Chọn Bộ Sưu Tập",
     "loading": "Đang tải bộ sưu tập...",
@@ -397,7 +402,7 @@
     },
     "reviewCards": {
       "title": "Ôn tập Thẻ",
-      "description": "Khu vực này là nơi thẻ bạn đã chụp sẽ xuất hiện để ôn tập. Vuốt sang phải để bỏ thẻ khỏi phiên ôn tập. Vuốt sang trái để ôn tập thẻ lại. Các nút lật thẻ và xem hình ảnh sẽ ở góc dưới bên phải của thẻ của bạn."
+      "description": "Bộ sưu tập từ của bạn ở đây. Ở chế độ Ôn tập, vuốt phải với thẻ bạn đã thuộc (xong trong ngày) và vuốt trái với thẻ cần ôn thêm. Ở chế độ Duyệt, vuốt tự do mà không ảnh hưởng hàng đợi ôn tập. Chạm vào thẻ để lật hoặc xem ảnh gốc."
     },
     "collections": {
       "title": "Bộ Sưu Tập",

@@ -9,6 +9,7 @@ import { useFlashcardCounter } from './context/FlashcardCounterContext';
 import { useSwipeCounter } from './context/SwipeCounterContext';
 import { useOCRCounter } from './context/OCRCounterContext';
 import { useSubscription } from './context/SubscriptionContext';
+import { useOnboarding } from './context/OnboardingContext';
 import { supabase } from './services/supabaseClient';
 import { useRouter } from 'expo-router';
 import { COLORS } from './constants/colors';
@@ -43,6 +44,7 @@ export default function SettingsScreen() {
     isLoading: isSubscriptionLoading,
     availableProducts
   } = useSubscription();
+  const { setHasCompletedOnboarding } = useOnboarding();
   
   const router = useRouter();
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
@@ -763,6 +765,24 @@ export default function SettingsScreen() {
               <Ionicons name="flame-outline" size={16} color="white" style={{ marginRight: 8 }} />
               <Text style={styles.resetCountButtonText}>
                 Reset Streak Counter
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.resetCountButton, { backgroundColor: COLORS.accent }]}
+              onPress={async () => {
+                try {
+                  await setHasCompletedOnboarding(false);
+                  router.replace('/onboarding');
+                } catch (e) {
+                  logger.error('Error launching onboarding:', e);
+                  Alert.alert(t('common.error') ?? 'Error', 'Could not launch onboarding.');
+                }
+              }}
+            >
+              <Ionicons name="rocket-outline" size={16} color="white" style={{ marginRight: 8 }} />
+              <Text style={styles.resetCountButtonText}>
+                Launch Onboarding
               </Text>
             </TouchableOpacity>
           </View>
