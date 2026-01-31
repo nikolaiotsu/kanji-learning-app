@@ -61,8 +61,11 @@
   },
   "onboarding": {
     "welcomeTitle": "Chào mừng đến với Worddex",
-    "welcomeSubtitle": "Quét văn bản, thu thập từ vựng và mở rộng vốn từ. Tạo tài khoản để đồng bộ bộ sưu tập trên mọi thiết bị.",
-    "getStarted": "Bắt đầu"
+    "welcomeSubtitle1": "Cách nhanh nhất để học từ vựng từ cuộc sống thực.",
+    "welcomeSubtitle2": "Mỗi từ bạn quét hiển thị ngữ pháp, ngữ cảnh và từ đồng nghĩa — ngay lập tức.",
+    "getStarted": "Bắt đầu",
+    "alreadyHaveAccount": "Đã có tài khoản?",
+    "signIn": "Đăng nhập"
   },
   "deck": {
     "select": "Chọn Bộ Sưu Tập",

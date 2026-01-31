@@ -61,8 +61,11 @@
   },
   "onboarding": {
     "welcomeTitle": "Worddex에 오신 것을 환영합니다",
-    "welcomeSubtitle": "텍스트를 스캔하고 단어를 수집하며 어휘를 늘려 보세요. 계정을 만들면 컬렉션을 기기 간에 동기화할 수 있습니다.",
-    "getStarted": "시작하기"
+    "welcomeSubtitle1": "실생활에서 어휘를 배우는 가장 빠른 방법.",
+    "welcomeSubtitle2": "스캔한 모든 단어에서 문법, 맥락, 동의어가 즉시 표시됩니다.",
+    "getStarted": "시작하기",
+    "alreadyHaveAccount": "이미 계정이 있으신가요?",
+    "signIn": "로그인"
   },
   "deck": {
     "select": "컬렉션 선택",

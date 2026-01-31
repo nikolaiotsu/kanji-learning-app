@@ -61,8 +61,11 @@
   },
   "onboarding": {
     "welcomeTitle": "欢迎使用 Worddex",
-    "welcomeSubtitle": "扫描文字、收集词汇、积累词汇量。创建账户可在所有设备间同步你的收藏。",
-    "getStarted": "开始使用"
+    "welcomeSubtitle1": "从真实生活中学习词汇的最快方式。",
+    "welcomeSubtitle2": "扫描的每个单词都会即时显示语法、语境和同义词。",
+    "getStarted": "开始使用",
+    "alreadyHaveAccount": "已有账户？",
+    "signIn": "登录"
   },
   "deck": {
     "select": "选择收藏集",

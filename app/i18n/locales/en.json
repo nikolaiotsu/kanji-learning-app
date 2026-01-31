@@ -61,8 +61,11 @@
   },
   "onboarding": {
     "welcomeTitle": "Welcome to Worddex",
-    "welcomeSubtitle": "Scan text, collect words, and build your vocabulary. Create an account to sync your collections across devices.",
-    "getStarted": "Get Started"
+    "welcomeSubtitle1": "The fastest way to learn vocabulary from your real life.",
+    "welcomeSubtitle2": "Every word you scan reveals grammar, context, and synonyms — instantly.",
+    "getStarted": "Get Started",
+    "alreadyHaveAccount": "Already have an account?",
+    "signIn": "Sign in"
   },
   "deck": {
     "select": "Select Collection",

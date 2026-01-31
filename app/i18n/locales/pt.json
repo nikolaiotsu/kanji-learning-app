@@ -61,8 +61,11 @@
   },
   "onboarding": {
     "welcomeTitle": "Bem-vindo ao Worddex",
-    "welcomeSubtitle": "Escaneie texto, colete palavras e amplie seu vocabulário. Crie uma conta para sincronizar suas coleções em todos os dispositivos.",
-    "getStarted": "Começar"
+    "welcomeSubtitle1": "A forma mais rápida de aprender vocabulário da sua vida real.",
+    "welcomeSubtitle2": "Cada palavra que você escaneia revela gramática, contexto e sinônimos — instantaneamente.",
+    "getStarted": "Começar",
+    "alreadyHaveAccount": "Já tem uma conta?",
+    "signIn": "Entrar"
   },
   "deck": {
     "select": "Selecionar Coleção",

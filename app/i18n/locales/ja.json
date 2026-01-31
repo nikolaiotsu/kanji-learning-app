@@ -61,8 +61,11 @@
   },
   "onboarding": {
     "welcomeTitle": "Worddexへようこそ",
-    "welcomeSubtitle": "テキストをスキャンして単語を収集し、語彙を増やしましょう。アカウントを作成すると、コレクションをデバイス間で同期できます。",
-    "getStarted": "はじめる"
+    "welcomeSubtitle1": "実生活から語彙を学ぶ最速の方法。",
+    "welcomeSubtitle2": "スキャンしたすべての単語から、文法・文脈・同義語が瞬時に表示されます。",
+    "getStarted": "はじめる",
+    "alreadyHaveAccount": "すでにアカウントをお持ちですか？",
+    "signIn": "サインイン"
   },
   "deck": {
     "select": "コレクションを選択",

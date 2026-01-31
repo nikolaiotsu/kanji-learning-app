@@ -1,0 +1,291 @@
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  StatusBar,
+  Platform,
+  Modal,
+  FlatList,
+  Pressable,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import { useOnboarding } from './context/OnboardingContext';
+import { useSettings, AVAILABLE_LANGUAGES, DETECTABLE_LANGUAGES } from './context/SettingsContext';
+import { COLORS } from './constants/colors';
+import { Ionicons } from '@expo/vector-icons';
+import LoadingVideoScreen from './components/LoadingVideoScreen';
+
+const SPEAK_LANGUAGE_DATA = Object.entries(AVAILABLE_LANGUAGES).map(([code, name]) => ({ code, name }));
+const LEARN_LANGUAGE_DATA = Object.entries(DETECTABLE_LANGUAGES).map(([code, name]) => ({ code, name }));
+
+export default function OnboardingLanguageScreen() {
+  const { setHasCompletedOnboarding } = useOnboarding();
+  const { targetLanguage, setTargetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage } = useSettings();
+  const [showSpeakPicker, setShowSpeakPicker] = useState(false);
+  const [showLearnPicker, setShowLearnPicker] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      StatusBar.setBarStyle('light-content');
+    }
+  }, []);
+
+  const selectedSpeakName = AVAILABLE_LANGUAGES[targetLanguage as keyof typeof AVAILABLE_LANGUAGES] ?? 'English';
+  const selectedLearnName = DETECTABLE_LANGUAGES[forcedDetectionLanguage as keyof typeof DETECTABLE_LANGUAGES] ?? 'Japanese';
+
+  const handleSelectSpeakLanguage = async (langCode: string) => {
+    await setTargetLanguage(langCode);
+    setShowSpeakPicker(false);
+  };
+
+  const handleSelectLearnLanguage = async (langCode: string) => {
+    await setForcedDetectionLanguage(langCode);
+    setShowLearnPicker(false);
+  };
+
+  const handleContinue = () => {
+    router.push('/onboarding-faster');
+  };
+
+  return (
+    <View style={styles.fullScreen}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+        <View style={styles.content}>
+          <View style={styles.videoSection}>
+            <LoadingVideoScreen compact />
+          </View>
+          <View style={styles.textBlock}>
+            <Text style={styles.title}>What language do you speak?</Text>
+            <TouchableOpacity
+              style={styles.languageButton}
+              onPress={() => setShowSpeakPicker(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.languageButtonText}>{selectedSpeakName}</Text>
+              <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+            <Text style={[styles.title, styles.titleWithSpacing]}>What language do you want to learn?</Text>
+            <TouchableOpacity
+              style={styles.languageButton}
+              onPress={() => setShowLearnPicker(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.languageButtonText}>{selectedLearnName}</Text>
+              <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleContinue}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.buttonText}>Continue</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+
+      <Modal
+        visible={showSpeakPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowSpeakPicker(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowSpeakPicker(false)}>
+          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select language</Text>
+              <TouchableOpacity onPress={() => setShowSpeakPicker(false)}>
+                <Ionicons name="close" size={22} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={SPEAK_LANGUAGE_DATA}
+              keyExtractor={(item) => item.code}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.languageItem,
+                    targetLanguage === item.code && styles.selectedLanguageItem,
+                  ]}
+                  onPress={() => handleSelectSpeakLanguage(item.code)}
+                >
+                  <Text
+                    style={[
+                      styles.languageText,
+                      targetLanguage === item.code && styles.selectedLanguageText,
+                    ]}
+                  >
+                    {item.name}
+                  </Text>
+                  {targetLanguage === item.code && (
+                    <Ionicons name="checkmark" size={22} color={COLORS.primary} />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={showLearnPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowLearnPicker(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowLearnPicker(false)}>
+          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select language to learn</Text>
+              <TouchableOpacity onPress={() => setShowLearnPicker(false)}>
+                <Ionicons name="close" size={22} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={LEARN_LANGUAGE_DATA}
+              keyExtractor={(item) => item.code}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.languageItem,
+                    forcedDetectionLanguage === item.code && styles.selectedLanguageItem,
+                  ]}
+                  onPress={() => handleSelectLearnLanguage(item.code)}
+                >
+                  <Text
+                    style={[
+                      styles.languageText,
+                      forcedDetectionLanguage === item.code && styles.selectedLanguageText,
+                    ]}
+                  >
+                    {item.name}
+                  </Text>
+                  {forcedDetectionLanguage === item.code && (
+                    <Ionicons name="checkmark" size={22} color={COLORS.primary} />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  fullScreen: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  safeArea: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 28,
+    justifyContent: 'center',
+    alignItems: 'stretch',
+  },
+  videoSection: {
+    marginBottom: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textBlock: {
+    alignSelf: 'stretch',
+    marginBottom: 32,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: COLORS.text,
+    textAlign: 'left',
+    marginBottom: 12,
+    letterSpacing: -0.5,
+  },
+  titleWithSpacing: {
+    marginTop: 24,
+  },
+  languageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+  },
+  languageButtonText: {
+    fontSize: 15,
+    color: COLORS.text,
+    fontWeight: '500',
+  },
+  button: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  buttonText: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: COLORS.darkSurface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  languageItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  selectedLanguageItem: {
+    backgroundColor: COLORS.primary + '33',
+  },
+  languageText: {
+    fontSize: 15,
+    color: COLORS.text,
+  },
+  selectedLanguageText: {
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+});

@@ -23,7 +23,11 @@ export default function OnboardingScreen() {
     }
   }, []);
 
-  const handleGetStarted = async () => {
+  const handleGetStarted = () => {
+    router.push('/onboarding-language');
+  };
+
+  const handleSignIn = async () => {
     await setHasCompletedOnboarding(true);
     router.replace('/login');
   };
@@ -33,10 +37,19 @@ export default function OnboardingScreen() {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.content}>
-          <Text style={styles.title}>{t('onboarding.welcomeTitle')}</Text>
-          <Text style={styles.subtitle}>{t('onboarding.welcomeSubtitle')}</Text>
-          <View style={styles.loadingWrap}>
+          <View style={styles.videoSection}>
             <LoadingVideoScreen compact />
+          </View>
+          <View style={styles.textBlock}>
+            <Text style={styles.title}>{t('onboarding.welcomeTitle')}</Text>
+            <View style={styles.bulletRow}>
+              <View style={styles.bullet} />
+              <Text style={styles.subtitle}>{t('onboarding.welcomeSubtitle1')}</Text>
+            </View>
+            <View style={styles.bulletRow}>
+              <View style={styles.bullet} />
+              <Text style={styles.subtitle}>{t('onboarding.welcomeSubtitle2')}</Text>
+            </View>
           </View>
           <TouchableOpacity
             style={styles.button}
@@ -45,6 +58,13 @@ export default function OnboardingScreen() {
           >
             <Text style={styles.buttonText}>{t('onboarding.getStarted')}</Text>
           </TouchableOpacity>
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>{t('onboarding.alreadyHaveAccount')}{' '}
+              <Text style={styles.signInLink} onPress={handleSignIn}>
+                {t('onboarding.signIn')}
+              </Text>
+            </Text>
+          </View>
         </View>
       </SafeAreaView>
     </View>
@@ -61,41 +81,76 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 28,
     justifyContent: 'center',
+    alignItems: 'stretch',
+  },
+  videoSection: {
+    marginBottom: 40,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textBlock: {
+    alignSelf: 'stretch',
+    marginBottom: 40,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 34,
+    fontWeight: '700',
     color: COLORS.text,
-    textAlign: 'center',
+    textAlign: 'left',
+    marginBottom: 28,
+    letterSpacing: -0.5,
+  },
+  bulletRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     marginBottom: 16,
   },
-  subtitle: {
-    fontSize: 17,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 24,
-    paddingHorizontal: 8,
+  bullet: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.primary,
+    marginTop: 10,
+    marginRight: 14,
   },
-  loadingWrap: {
-    marginBottom: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
+  subtitle: {
+    flex: 1,
+    fontSize: 22,
+    color: COLORS.text,
+    lineHeight: 32,
+    opacity: 0.9,
   },
   button: {
     backgroundColor: COLORS.primary,
-    paddingVertical: 16,
+    paddingVertical: 18,
     paddingHorizontal: 32,
-    borderRadius: 12,
-    minWidth: 200,
+    borderRadius: 14,
     alignItems: 'center',
+    alignSelf: 'stretch',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
   },
   buttonText: {
     color: COLORS.text,
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  footer: {
+    marginTop: 28,
+    alignSelf: 'stretch',
+  },
+  footerText: {
+    fontSize: 15,
+    color: COLORS.textSecondary,
+    textAlign: 'left',
+  },
+  signInLink: {
+    color: COLORS.primary,
+    fontWeight: '600',
   },
 });

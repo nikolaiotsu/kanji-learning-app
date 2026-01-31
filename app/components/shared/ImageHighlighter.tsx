@@ -2124,8 +2124,8 @@ ImageHighlighter.displayName = 'ImageHighlighter';
 const SCREEN_FRAME_INSET = 14;
 const CORNER_BRACKET_SIZE = 24;
 const CORNER_BRACKET_STROKE = 2;
-const FRAME_COLOR = 'rgba(0, 255, 65, 0.28)';   // matrix green, translucent
-const CORNER_COLOR = 'rgba(0, 255, 100, 0.45)'; // matrix green (brighter), translucent
+const FRAME_COLOR = 'rgba(0, 140, 45, 0.4)';   // darker matrix green, translucent
+const CORNER_COLOR = 'rgba(0, 120, 40, 0.55)';  // darker matrix green (corners), translucent
 
 const styles = StyleSheet.create({
   container: {

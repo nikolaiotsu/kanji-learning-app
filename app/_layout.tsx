@@ -186,6 +186,10 @@ export default function RootLayout() {
                                 }} 
                               />
                               <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+                              <Stack.Screen name="onboarding-language" options={{ headerShown: false }} />
+                              <Stack.Screen name="onboarding-faster" options={{ headerShown: false }} />
+                              <Stack.Screen name="onboarding-relevant" options={{ headerShown: false }} />
+                              <Stack.Screen name="onboarding-educational" options={{ headerShown: false }} />
                               <Stack.Screen name="login" options={{ title: 'Login', headerShown: false }} />
                               <Stack.Screen name="signup" options={{ title: 'Sign Up', headerShown: false }} />
                               <Stack.Screen name="reset-password" options={{ title: 'Reset Password' }} />

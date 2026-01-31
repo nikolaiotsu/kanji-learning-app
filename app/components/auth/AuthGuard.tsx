@@ -74,7 +74,8 @@ export const AuthGuard = ({ children }: { children: React.ReactNode }) => {
     }
 
     // First-time user: not authenticated and has not completed onboarding → show onboarding
-    if (!user && hasCompletedOnboarding === false && currentSegment !== 'onboarding') {
+    const onboardingSegments = ['onboarding', 'onboarding-language', 'onboarding-faster', 'onboarding-relevant', 'onboarding-educational'];
+    if (!user && hasCompletedOnboarding === false && !onboardingSegments.includes(currentSegment)) {
       logger.log('🔐 [AuthGuard] First-time user, redirecting to /onboarding');
       router.replace('/onboarding');
       return;
