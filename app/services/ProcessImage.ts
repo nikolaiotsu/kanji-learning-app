@@ -42,15 +42,14 @@ export async function rotateImage(imageUri: string, angle: number): Promise<stri
     // const originalInfo = await getImageInfo(imageUri);
     // logger.log('[ProcessImage] Original image dimensions:', originalInfo.width, 'x', originalInfo.height);
     
-    // Use ImageManipulator to rotate the image with balanced quality settings
+    // Use PNG format to avoid white background in rotated corners (JPEG fills with white)
     const result = await ImageManipulator.manipulateAsync(
       imageUri,
       [
         { rotate: angle }
       ],
       { 
-        format: ImageManipulator.SaveFormat.JPEG, 
-        compress: 0.8,  // Better balance between quality and speed
+        format: ImageManipulator.SaveFormat.PNG,
       }
     );
     
@@ -142,15 +141,14 @@ export async function processImage(
       // For rotation-only operations, ensure the entire image is preserved without resizing
       logger.log('[ProcessImage] Performing rotation-only operation');
       
-              // Rotate the image with standard quality settings
-        const rotatedResult = await ImageManipulator.manipulateAsync(
-          imageUri,
-          [{ rotate: operations.rotate! }],
-          { 
-            format: ImageManipulator.SaveFormat.JPEG, 
-            compress: standardConfig.compress, // Use standard compression
-          }
-        );
+      // Use PNG format to avoid white background in rotated corners (JPEG fills with white)
+      const rotatedResult = await ImageManipulator.manipulateAsync(
+        imageUri,
+        [{ rotate: operations.rotate! }],
+        { 
+          format: ImageManipulator.SaveFormat.PNG,
+        }
+      );
       
       logger.log('[ProcessImage] Rotated image dimensions:', rotatedResult.width, 'x', rotatedResult.height);
       

@@ -1021,12 +1021,12 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       try {
         // Perform the rotation directly using ImageManipulator for simplicity
         // This avoids any potential dimension issues from complex processing chains
+        // Use PNG format to avoid white background in rotated corners (JPEG fills with white)
         const result = await ImageManipulator.manipulateAsync(
           imageUri,
           [{ rotate: rotation }],
           { 
-            format: ImageManipulator.SaveFormat.JPEG,
-            compress: 1.0,
+            format: ImageManipulator.SaveFormat.PNG,
           }
         );
         
@@ -1829,8 +1829,12 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         style={styles.container} 
         onLayout={onLayout}
       >
-        {/* Show a loader until initial measurements are done */}
-        <ActivityIndicator size="large" color={COLORS.primary} style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}/>
+        <View style={styles.screenFrame} />
+        <View style={[styles.cornerBracket, styles.cornerTopLeft]} />
+        <View style={[styles.cornerBracket, styles.cornerTopRight]} />
+        <View style={[styles.cornerBracket, styles.cornerBottomLeft]} />
+        <View style={[styles.cornerBracket, styles.cornerBottomRight]} />
+        <ActivityIndicator size="large" color={FRAME_COLOR} style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}/>
       </View>
     );
   }
@@ -1879,7 +1883,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
                   outputRange: ['-360deg', '360deg'],
                 })
               }],
-              opacity: imageOpacity
+              opacity: imageOpacity,
             }
           ]}
           resizeMode="contain"
@@ -1947,6 +1951,13 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           <Text style={styles.instructionText}>{t('imageHighlighter.dragToCrop')}</Text>
         </View>
       )}
+
+      {/* Tech screen frame on top of image: translucent matrix-green border and corner brackets */}
+      <View style={styles.screenFrame} />
+      <View style={[styles.cornerBracket, styles.cornerTopLeft]} />
+      <View style={[styles.cornerBracket, styles.cornerTopRight]} />
+      <View style={[styles.cornerBracket, styles.cornerBottomLeft]} />
+      <View style={[styles.cornerBracket, styles.cornerBottomRight]} />
 
       {/* Composite capture: White background + image visible only through row-based rectangles (accurate staircase, no diagonal cuts) */}
       {isCompositeCaptureReady && compositeCaptureParams && (() => {
@@ -2109,11 +2120,67 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
 // Add display name for debugging
 ImageHighlighter.displayName = 'ImageHighlighter';
 
+// Tech/screen frame constants
+const SCREEN_FRAME_INSET = 14;
+const CORNER_BRACKET_SIZE = 24;
+const CORNER_BRACKET_STROKE = 2;
+const FRAME_COLOR = 'rgba(0, 255, 65, 0.28)';   // matrix green, translucent
+const CORNER_COLOR = 'rgba(0, 255, 100, 0.45)'; // matrix green (brighter), translucent
+
 const styles = StyleSheet.create({
   container: {
-    flex: 1, 
-    width: '100%', 
+    flex: 1,
+    width: '100%',
     overflow: 'hidden',
+    backgroundColor: '#000000', // Black screen behind uploaded image
+  },
+  screenFrame: {
+    position: 'absolute',
+    left: SCREEN_FRAME_INSET,
+    right: SCREEN_FRAME_INSET,
+    top: SCREEN_FRAME_INSET,
+    bottom: SCREEN_FRAME_INSET,
+    borderWidth: 1,
+    borderColor: FRAME_COLOR,
+    borderRadius: 6,
+    pointerEvents: 'none',
+    zIndex: 50,  // above image, below instruction overlays (100)
+  },
+  cornerBracket: {
+    position: 'absolute',
+    width: CORNER_BRACKET_SIZE,
+    height: CORNER_BRACKET_SIZE,
+    borderColor: CORNER_COLOR,
+    pointerEvents: 'none',
+    zIndex: 51,  // above frame, below instruction overlays (100)
+  },
+  cornerTopLeft: {
+    left: SCREEN_FRAME_INSET,
+    top: SCREEN_FRAME_INSET,
+    borderLeftWidth: CORNER_BRACKET_STROKE,
+    borderTopWidth: CORNER_BRACKET_STROKE,
+    borderTopLeftRadius: 6,
+  },
+  cornerTopRight: {
+    right: SCREEN_FRAME_INSET,
+    top: SCREEN_FRAME_INSET,
+    borderRightWidth: CORNER_BRACKET_STROKE,
+    borderTopWidth: CORNER_BRACKET_STROKE,
+    borderTopRightRadius: 6,
+  },
+  cornerBottomLeft: {
+    left: SCREEN_FRAME_INSET,
+    bottom: SCREEN_FRAME_INSET,
+    borderLeftWidth: CORNER_BRACKET_STROKE,
+    borderBottomWidth: CORNER_BRACKET_STROKE,
+    borderBottomLeftRadius: 6,
+  },
+  cornerBottomRight: {
+    right: SCREEN_FRAME_INSET,
+    bottom: SCREEN_FRAME_INSET,
+    borderRightWidth: CORNER_BRACKET_STROKE,
+    borderBottomWidth: CORNER_BRACKET_STROKE,
+    borderBottomRightRadius: 6,
   },
   imageWrapper: {
     flex: 1, // Fill the container

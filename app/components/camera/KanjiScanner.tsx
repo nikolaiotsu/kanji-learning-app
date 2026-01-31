@@ -3036,6 +3036,7 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#000000', // Black screen behind uploaded image
   },
   errorContainer: {
     backgroundColor: 'rgba(255, 45, 85, 0.8)',
