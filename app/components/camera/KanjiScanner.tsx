@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, ActivityIndicator, Dimensions, Animated, ScrollView } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, ActivityIndicator, Dimensions, Animated, ScrollView, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -19,9 +19,11 @@ import { apiLogger } from '../../services/apiUsageLogger';
 import { getCurrentSubscriptionPlan } from '../../services/receiptValidationService';
 import { COLORS } from '../../constants/colors';
 import { PRODUCT_IDS } from '../../constants/config';
-import { CapturedImage, TextAnnotation } from '../../../types';
+import { CapturedImage, TextAnnotation, VisionApiResponse } from '../../../types';
 import { captureRef } from 'react-native-view-shot';
 import { detectJapaneseText, convertToOriginalImageCoordinates, cropImageToRegion, resizeImageToRegion } from '../../services/visionApi';
+import { imageUriToBase64DataUri, convertStrokesToCropRelative } from '../../services/imageMaskUtils';
+import MaskedImageCapture from '../shared/MaskedImageCapture';
 import { ImageHighlighterRef, ImageHighlighterRotationState } from '../shared/ImageHighlighter';
 import * as ImageManipulator from 'expo-image-manipulator';
 import RandomCardReviewer from '../flashcards/RandomCardReviewer';
@@ -80,7 +82,18 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
     y: number;
     width: number;
     height: number;
+    strokes?: { x: number; y: number }[][];
+    strokeWidth?: number;
   } | null>(null);
+  const [maskCaptureParams, setMaskCaptureParams] = useState<{
+    imageDataUri: string;
+    width: number;
+    height: number;
+    strokes: { x: number; y: number }[][];
+    strokeWidth: number;
+  } | null>(null);
+  const maskCaptureViewRef = useRef<View>(null);
+  const maskCaptureResolveRef = useRef<((uri: string) => void) | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
   // Add a flag to track when we're returning from flashcards
   const [returningFromFlashcards, setReturningFromFlashcards] = useState(false);
@@ -1215,12 +1228,16 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   };
 
   // New function to process the highlight region
-  const processHighlightRegion = async (originalRegionFromConfirm: {
+  const processHighlightRegion = async (params: {
     x: number;
     y: number;
     width: number;
     height: number;
+    strokes?: { x: number; y: number }[][];
+    strokeWidth?: number;
+    regionDisplay?: { x: number; y: number; width: number; height: number };
   }) => {
+    const originalRegionFromConfirm = { x: params.x, y: params.y, width: params.width, height: params.height };
     if (!capturedImage) return;
     
     // Check if user can perform OCR
@@ -1255,94 +1272,85 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
         height: Math.max(1, Math.min(originalRegionFromConfirm.height, imageH - Math.max(0, originalRegionFromConfirm.y))),
       };
 
-      // Crop exactly the highlighted region for OCR (no margin) so output matches what the user selected.
-      const exactCropUri = await cropImageToRegion(uri, clampedRegion, { exactRegion: true });
-      // logger.log('[KanjiScanner PHR] Exact cropped URI (for diagnostic display):', exactCropUri); // No longer needed
+      const croppedImageUri = await cropImageToRegion(uri, clampedRegion, { exactRegion: true });
+      let textRegions: VisionApiResponse[] = [];
 
-      // --- Restore OCR and navigation --- 
-      logger.log('[KanjiScanner PHR] Calling detectJapaneseText with exactCropUri and full region for OCR.');
-
-      const textRegions = await detectJapaneseText(
-        exactCropUri,
-        { x: 0, y: 0, width: 1000, height: 1000 }, // Use entire cropped image
-        false
-      );
-      
-      logger.log('OCR result:', textRegions.length > 0 ? `${textRegions.length} texts found` : 'No text found');
-      
-      // Increment OCR counter for successful scan attempts (whether text is found or not)
-      await incrementOCRCount();
-      
-      if (textRegions && textRegions.length > 0) {
-        // Join all detected text items with newlines
-        const detectedText = textRegions.map(item => item.text).join('\n');
-        logger.log('Extracted text:', detectedText);
-        
-        // Set navigation state to prevent UI flash - use BOTH state and ref
-        // The ref ensures we hide the component immediately without waiting for re-render
-        setIsNavigating(true);
-        isNavigatingToFlashcardsRef.current = true;
-        logger.log('[KanjiScanner] Navigation initiated - component will hide from render tree');
-        
-        // Store the current image state before navigating
-        // This ensures we have the original image stored for history navigation
-        if (!originalImage) {
-          logger.log('[KanjiScanner PHR] Storing current image as original before navigating');
-          setOriginalImage(capturedImage);
-          // Also mark it in the memory manager
-          const memoryManager = MemoryManager.getInstance();
-          memoryManager.markAsOriginalImage(capturedImage.uri);
+      // Shared continuation after we have OCR result (used by both composite path and debug preview)
+      const completeHighlightWithOcrResult = async (regions: VisionApiResponse[]) => {
+        logger.log('OCR result:', regions.length > 0 ? `${regions.length} texts found` : 'No text found');
+        await incrementOCRCount();
+        if (regions && regions.length > 0) {
+          const detectedText = regions.map(item => item.text).join('\n');
+          logger.log('Extracted text:', detectedText);
+          setIsNavigating(true);
+          isNavigatingToFlashcardsRef.current = true;
+          logger.log('[KanjiScanner] Navigation initiated - component will hide from render tree');
+          if (!originalImage) {
+            logger.log('[KanjiScanner PHR] Storing current image as original before navigating');
+            setOriginalImage(capturedImage);
+            const memoryManager = MemoryManager.getInstance();
+            memoryManager.markAsOriginalImage(capturedImage.uri);
+          } else {
+            logger.log('[KanjiScanner PHR] Original image already stored:', originalImage.uri);
+          }
+          imageHighlighterRef.current?.clearHighlightBox?.();
+          const params: any = { text: detectedText, imageUri: uri };
+          if (isWalkthroughActive) {
+            params.walkthroughActive = 'true';
+            completeWalkthrough();
+          }
+          router.push({ pathname: '/flashcards', params });
         } else {
-          logger.log('[KanjiScanner PHR] Original image already stored:', originalImage.uri);
+          if (isWalkthroughActive) {
+            Alert.alert(
+              t('walkthrough.noTextFoundTitle'),
+              t('walkthrough.noTextFoundMessage'),
+              [{ text: t('common.ok'), onPress: () => { setHideWalkthroughOverlay(false); previousStep(); } }]
+            );
+          } else {
+            const languageName = DETECTABLE_LANGUAGES[forcedDetectionLanguage as keyof typeof DETECTABLE_LANGUAGES] || 'text';
+            Alert.alert(
+              t('camera.noTextFoundTitle', { language: languageName }),
+              t('camera.noTextFoundMessage', { language: languageName.toLowerCase() }),
+              [{ text: t('common.ok') }]
+            );
+          }
         }
-        
-        // Clear the highlight box
-        imageHighlighterRef.current?.clearHighlightBox?.();
-        
-        // Navigate to flashcards with the detected text and the FULL original image URI
-        const params: any = {
-          text: detectedText,
-          imageUri: uri // Send the full original image for maximum context
-        };
+      };
 
-        // If walkthrough is active, pass the flag to continue walkthrough on flashcards page
-        if (isWalkthroughActive) {
-          params.walkthroughActive = 'true';
-          // Complete the walkthrough on the scanner side - it will continue on flashcards page
-          completeWalkthrough();
-        }
-
-        router.push({
-          pathname: "/flashcards",
-          params
-        });
-      } else {
-        // Check if we're in walkthrough mode - show a friendlier message and don't disrupt the flow
-        if (isWalkthroughActive) {
-          Alert.alert(
-            t('walkthrough.noTextFoundTitle'),
-            t('walkthrough.noTextFoundMessage'),
-            [{ 
-              text: t('common.ok'),
-              onPress: () => {
-                // Go back to the highlight step so user can try again
-                // Reset overlay visibility so walkthrough shows again
-                setHideWalkthroughOverlay(false);
-                previousStep();
-              }
-            }]
-          );
-        } else {
-          // Get the current forced language name
-          const languageName = DETECTABLE_LANGUAGES[forcedDetectionLanguage as keyof typeof DETECTABLE_LANGUAGES] || 'text';
-            
-          Alert.alert(
-            t('camera.noTextFoundTitle', { language: languageName }),
-            t('camera.noTextFoundMessage', { language: languageName.toLowerCase() }),
-            [{ text: t('common.ok') }]
-          );
+      // COMPOSITE APPROACH: Create ONE image from all stroke rectangles (white + stroke regions), send to OCR
+      if (imageHighlighterRef.current && params.strokes && params.strokes.length > 0) {
+        try {
+          logger.log('[KanjiScanner PHR] Capturing composite image (one picture from all stroke rectangles)...');
+          const compositeResult = await imageHighlighterRef.current.captureCompositeStrokeImage();
+          
+          if (compositeResult?.uri) {
+            logger.log('[KanjiScanner PHR] Using composite image for OCR, dimensions:', compositeResult.width, 'x', compositeResult.height);
+            textRegions = await detectJapaneseText(
+              compositeResult.uri,
+              { x: 0, y: 0, width: 1000, height: 1000 },
+              false
+            );
+            if (textRegions.length > 0) {
+              logger.log('[KanjiScanner PHR] Composite OCR success');
+            }
+          }
+        } catch (compositeError) {
+          logger.warn('[KanjiScanner PHR] Composite capture/OCR failed, falling back to full crop:', compositeError);
         }
       }
+
+      // Fallback: if composite failed or found nothing, use the full bounding box crop
+      if (textRegions.length === 0) {
+        logger.log('[KanjiScanner PHR] Using full bounding box crop for OCR');
+        textRegions = await detectJapaneseText(
+          croppedImageUri,
+          { x: 0, y: 0, width: 1000, height: 1000 },
+          false
+        );
+      }
+      
+      await completeHighlightWithOcrResult(textRegions);
     } catch (error: any) {
       logger.error('Error processing highlight region:', error);
       
@@ -1460,7 +1468,12 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       logger.log('[KanjiScanner CnfHS] Warning: Very large region selected, OCR processing may take longer');
     }
     
-    await processHighlightRegion(originalRegion);
+    await processHighlightRegion({
+      ...originalRegion,
+      strokes: highlightRegion.strokes,
+      strokeWidth: highlightRegion.strokeWidth,
+      regionDisplay: clampedHighlightRegion,
+    });
   };
 
   const cancelHighlightSelection = () => {
@@ -1691,6 +1704,32 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       });
     }
   }, [capturedImage]);
+
+  // Effect to capture masked image when maskCaptureParams is set
+  useEffect(() => {
+    if (!maskCaptureParams || !maskCaptureViewRef.current || !maskCaptureResolveRef.current) return;
+
+    const captureMaskedImage = async () => {
+      try {
+        await new Promise((r) => setTimeout(r, 150));
+        const uri = await captureRef(maskCaptureViewRef, {
+          format: 'jpg',
+          quality: 0.95,
+          result: 'tmpfile',
+        });
+        maskCaptureResolveRef.current?.(uri);
+        logger.log('[KanjiScanner] Masked image captured successfully');
+      } catch (error) {
+        logger.error('[KanjiScanner] Failed to capture masked image:', error);
+        maskCaptureResolveRef.current?.('');
+      } finally {
+        maskCaptureResolveRef.current = null;
+        setMaskCaptureParams(null);
+      }
+    };
+
+    captureMaskedImage();
+  }, [maskCaptureParams]);
 
   // Restore the handleCancel function which was accidentally removed
   const handleCancel = async () => {
@@ -2245,6 +2284,30 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
         // logger.log(`[KanjiScannerRootView] onLayout: x:${x}, y:${y}, width:${width}, height:${height}`);
       }}
     >
+      {/* Off-screen masked image capture for stroke-based OCR (rendered when maskCaptureParams is set) */}
+      {maskCaptureParams && (
+        <View
+          ref={maskCaptureViewRef}
+          style={{
+            position: 'absolute',
+            left: -9999,
+            top: 0,
+            width: maskCaptureParams.width,
+            height: maskCaptureParams.height,
+            opacity: 0.01,
+            pointerEvents: 'none',
+          }}
+          collapsable={false}
+        >
+          <MaskedImageCapture
+            imageDataUri={maskCaptureParams.imageDataUri}
+            width={maskCaptureParams.width}
+            height={maskCaptureParams.height}
+            strokes={maskCaptureParams.strokes}
+            strokeWidth={maskCaptureParams.strokeWidth}
+          />
+        </View>
+      )}
       {/* Early return when navigating - prevents the component from rendering during transition */}
       {/* This is the industry standard approach: remove from component tree instead of just hiding */}
       {isNavigatingToFlashcardsRef.current ? null : (

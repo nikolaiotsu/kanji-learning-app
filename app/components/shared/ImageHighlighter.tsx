@@ -13,7 +13,7 @@ import {
   Animated,
   Easing,
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, Rect, G, ClipPath, Polygon, Image as SvgImage } from 'react-native-svg';
 import { useTranslation } from 'react-i18next';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { detectJapaneseText } from '../../services/visionApi';
@@ -21,8 +21,10 @@ import { router } from 'expo-router';
 import { COLORS } from '../../constants/colors';
 import { Ionicons, FontAwesome6 } from '@expo/vector-icons';
 import { processImage } from '../../services/ProcessImage';
+import { captureRef } from 'react-native-view-shot';
 
 import { logger } from '../../utils/logger';
+import { imageUriToBase64DataUri } from '../../services/imageMaskUtils';
 
 // Create animated SVG components
 const AnimatedPath = Animated.createAnimatedComponent(Path);
@@ -46,6 +48,14 @@ export interface ImageHighlighterRef {
   hasCropRegion: boolean;
   clearHighlightBox: () => void;
   clearCropBox: () => void;
+  /** Capture a masked image showing only the highlighted regions (white bg, image visible only under strokes) */
+  captureMaskedHighlight: () => Promise<{ uri: string; width: number; height: number } | null>;
+  /** Get current strokes data for external use */
+  getStrokes: () => Point[][];
+  /** Get stroke bounding boxes in original image pixel coordinates */
+  getStrokeBoundsInOriginalCoords: () => Array<{ x: number; y: number; width: number; height: number }>;
+  /** Capture a single composite image: white background with only stroke regions showing. One OCR-ready image. */
+  captureCompositeStrokeImage: () => Promise<{ uri: string; width: number; height: number } | null>;
 
   // New rotation methods
   undoRotationChange: () => boolean;
@@ -64,6 +74,12 @@ export interface ImageHighlighterRef {
 // Export the type for the rotation state object
 export type ImageHighlighterRotationState = ReturnType<ImageHighlighterRef['getRotationState']>;
 
+// Export Point for use in mask utilities
+export interface Point {
+  x: number;
+  y: number;
+}
+
 interface ImageHighlighterProps {
   imageUri: string;
   imageWidth: number;
@@ -77,6 +93,10 @@ interface ImageHighlighterProps {
     height: number;
     detectedText?: string[];
     rotation?: number;
+    /** Stroke paths in image-relative coordinates (same space as x,y,width,height) for mask generation */
+    strokes?: Point[][];
+    /** Width of the highlighter stroke in display pixels */
+    strokeWidth?: number;
   }) => void;
   onRotationStateChange?: (state: ImageHighlighterRotationState) => void;
   onImageLoaded?: () => void; // Called when the image has finished loading and is visible
@@ -90,18 +110,22 @@ interface CropBox {
   height: number;
 }
 
-// Define Point interface for stroke-based highlighting
-interface Point {
-  x: number;
-  y: number;
-}
-
 // Constants for layout calculations
 const CROP_HANDLE_SIZE = 30;
 const CROP_HANDLE_TOUCH_AREA = 40;
 const ROTATION_SMOOTHING_FACTOR = 0.4; // New, for smoothing rotation during drag
 const EDGE_TOLERANCE = 50; // pixels outside image boundary for starting highlights/crops
 const STROKE_WIDTH = 20; // Width of the highlighter stroke
+/** Extra width when building composite mask polygons so adjacent strokes overlap (no white streaks). Keep moderate to avoid including adjacent text. */
+const COMPOSITE_MASK_STROKE_INFLATION = 10;
+/** Pixels to expand each composite polygon outward (minimal—prioritize accuracy over capturing edge chars) */
+const COMPOSITE_MASK_EDGE_PADDING = 0;
+/** Horizontal padding (in original image pixels) added to each row rect to prevent edge character clipping (e.g. "p" in pensé, "a" in autre) */
+const ROW_HORIZONTAL_PADDING = 28;
+/** Vertical padding (in original image pixels) added above/below original stroke bounds. 
+ * Must be enough to capture full text height (characters extend above/below stroke line).
+ * ~30px works well for typical text sizes while avoiding adjacent lines. */
+const ROW_VERTICAL_PADDING = 30;
 const POINT_THROTTLE_MS = 16; // ~60fps for point collection
 
 // Ref for the PanResponder View - MOVED INSIDE COMPONENT
@@ -119,6 +143,25 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
 }, ref) => {
   const { t } = useTranslation();
   const panResponderViewRef = React.useRef<View>(null); // ADDED HERE
+  const maskCaptureRef = useRef<View>(null);
+  const compositeCaptureRef = useRef<View>(null);
+  const [isCompositeCaptureReady, setIsCompositeCaptureReady] = useState(false);
+  const [compositeCaptureParams, setCompositeCaptureParams] = useState<{
+    strokeBounds: Array<{ x: number; y: number; width: number; height: number }>;
+    /** Row-based rectangles for accurate staircase mask (no diagonal cuts, no extraneous corners) */
+    rowRects: Array<{ x: number; y: number; width: number; height: number }>;
+    /** Base64 data URI for SVG Image href (file:// not reliable in react-native-svg on iOS) */
+    imageDataUri: string;
+    mergedMinX: number;
+    mergedMinY: number;
+    mergedWidth: number;
+    mergedHeight: number;
+  } | null>(null);
+  const compositeImagesLoadedRef = useRef(0);
+  const [isMaskCaptureReady, setIsMaskCaptureReady] = useState(false);
+  const [maskImageLoaded, setMaskImageLoaded] = useState(false);
+  const maskImageLoadedRef = useRef(false);
+  const maskCaptureResolveRef = useRef<((result: { uri: string; width: number; height: number } | null) => void) | null>(null);
   const [measuredLayout, setMeasuredLayout] = useState<{width: number, height: number} | null>(null);
   const [containerScreenOffset, setContainerScreenOffset] = useState<{x: number, y: number} | null>(null);
 
@@ -203,6 +246,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   useEffect(() => { activeCropHandleRef.current = activeCropHandle; }, [activeCropHandle]);
   useEffect(() => { isCropDrawingRef.current = isCropDrawing; }, [isCropDrawing]);
   useEffect(() => { isDrawingRef.current = isDrawing; }, [isDrawing]);
+  useEffect(() => { maskImageLoadedRef.current = maskImageLoaded; }, [maskImageLoaded]);
 
   // Reference to the image view for capturing screenshots
   const imageViewRef = useRef<View>(null);
@@ -565,6 +609,371 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       setCropBox({ x: 0, y: 0, width: 0, height: 0 });
       setIsCropDrawing(false);
       setActiveCropHandle(null);
+    },
+    getStrokes: () => strokes,
+    getStrokeBoundsInOriginalCoords: () => {
+      if (strokes.length === 0 || !measuredLayout || scaledContainerWidth === 0) {
+        return [];
+      }
+      
+      // Scale factors from display to original image
+      const scaleX = imageWidth / scaledContainerWidth;
+      const scaleY = imageHeight / scaledContainerHeight;
+      
+      const rawBounds: Array<{ x: number; y: number; width: number; height: number }> = [];
+      
+      for (const stroke of strokes) {
+        if (stroke.length < 2) continue;
+        
+        // Convert stroke to image-relative coordinates
+        const imageRelativeStroke = stroke.map(p => ({
+          x: p.x - displayImageOffsetX,
+          y: p.y - displayImageOffsetY,
+        }));
+        
+        // Get polygon points for this stroke (includes stroke width)
+        const polygonPoints = strokeToFilledPolygon(imageRelativeStroke, STROKE_WIDTH);
+        if (!polygonPoints) continue;
+        
+        // Parse polygon points to find bounds in display coordinates
+        const pairs = polygonPoints.split(' ').filter(p => p.includes(','));
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const pair of pairs) {
+          const [x, y] = pair.split(',').map(Number);
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+        }
+        
+        if (minX < Infinity) {
+          // Clamp to display bounds
+          minX = Math.max(0, minX);
+          minY = Math.max(0, minY);
+          maxX = Math.min(scaledContainerWidth, maxX);
+          maxY = Math.min(scaledContainerHeight, maxY);
+          
+          // Convert to original image coordinates
+          const origX = Math.round(minX * scaleX);
+          const origY = Math.round(minY * scaleY);
+          const origWidth = Math.round((maxX - minX) * scaleX);
+          const origHeight = Math.round((maxY - minY) * scaleY);
+          
+          // Filter out very small strokes (accidental touches) - must be at least 10px in both dims
+          if (origWidth < 10 || origHeight < 10) {
+            logger.log('[ImageHighlighter] Filtering out small stroke:', origWidth, 'x', origHeight);
+            continue;
+          }
+          
+          // Clamp to original image bounds
+          rawBounds.push({
+            x: Math.max(0, Math.min(origX, imageWidth - 1)),
+            y: Math.max(0, Math.min(origY, imageHeight - 1)),
+            width: Math.max(1, Math.min(origWidth, imageWidth - origX)),
+            height: Math.max(1, Math.min(origHeight, imageHeight - origY)),
+          });
+        }
+      }
+      
+      // Merge overlapping bounds to avoid duplicate OCR
+      const mergedBounds = mergeOverlappingBounds(rawBounds);
+      
+      logger.log('[ImageHighlighter] getStrokeBoundsInOriginalCoords:', rawBounds.length, 'raw ->', mergedBounds.length, 'merged');
+      return mergedBounds;
+    },
+    captureCompositeStrokeImage: async () => {
+      if (strokes.length === 0 || !measuredLayout || scaledContainerWidth === 0) return null;
+      
+      const scaleX = imageWidth / scaledContainerWidth;
+      const scaleY = imageHeight / scaledContainerHeight;
+      const rawBounds: Array<{ x: number; y: number; width: number; height: number }> = [];
+      
+      for (const stroke of strokes) {
+        if (stroke.length < 2) continue;
+        const imageRelativeStroke = stroke.map(p => ({
+          x: p.x - displayImageOffsetX,
+          y: p.y - displayImageOffsetY,
+        }));
+        const polygonPoints = strokeToFilledPolygon(imageRelativeStroke, STROKE_WIDTH);
+        if (!polygonPoints) continue;
+        
+        const pairs = polygonPoints.split(' ').filter(p => p.includes(','));
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const pair of pairs) {
+          const [x, y] = pair.split(',').map(Number);
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+        }
+        if (minX >= Infinity) continue;
+        
+        minX = Math.max(0, minX);
+        minY = Math.max(0, minY);
+        maxX = Math.min(scaledContainerWidth, maxX);
+        maxY = Math.min(scaledContainerHeight, maxY);
+        
+        const origX = Math.round(minX * scaleX);
+        const origY = Math.round(minY * scaleY);
+        const origWidth = Math.round((maxX - minX) * scaleX);
+        const origHeight = Math.round((maxY - minY) * scaleY);
+        
+        if (origWidth < 10 || origHeight < 10) continue;
+        
+        rawBounds.push({
+          x: Math.max(0, Math.min(origX, imageWidth - 1)),
+          y: Math.max(0, Math.min(origY, imageHeight - 1)),
+          width: Math.max(1, Math.min(origWidth, imageWidth - origX)),
+          height: Math.max(1, Math.min(origHeight, imageHeight - origY)),
+        });
+      }
+      
+      if (rawBounds.length === 0) return null;
+      
+      let mergedMinX = Infinity, mergedMinY = Infinity, mergedMaxX = -Infinity, mergedMaxY = -Infinity;
+      for (const b of rawBounds) {
+        mergedMinX = Math.min(mergedMinX, b.x);
+        mergedMinY = Math.min(mergedMinY, b.y);
+        mergedMaxX = Math.max(mergedMaxX, b.x + b.width);
+        mergedMaxY = Math.max(mergedMaxY, b.y + b.height);
+      }
+      const mergedWidth = Math.round(mergedMaxX - mergedMinX);
+      const mergedHeight = Math.round(mergedMaxY - mergedMinY);
+      
+      // ROW-BASED BOUNDING BOXES: Group strokes by their ORIGINAL center Y (not inflated)
+      // This prevents strokes on different text lines from merging into one row
+      const compositeStrokeWidth = STROKE_WIDTH + COMPOSITE_MASK_STROKE_INFLATION;
+      
+      // Build per-stroke data: original centerY for grouping, asymmetric bounds for masking
+      // HORIZONTAL: Use inflated bounds (captures full character width)
+      // VERTICAL: Use original stroke bounds + small padding (avoids barely-touched adjacent text)
+      const strokeData: Array<{
+        originalCenterY: number; // From raw stroke points - for row grouping
+        minX: number; minY: number; maxX: number; maxY: number; // Asymmetric bounds - for masking
+      }> = [];
+      
+      for (const stroke of strokes) {
+        if (stroke.length < 2) continue;
+        const imageRelativeStroke = stroke.map(p => ({
+          x: p.x - displayImageOffsetX,
+          y: p.y - displayImageOffsetY,
+        }));
+        
+        // Compute ORIGINAL stroke vertical bounds (tight, from raw points)
+        const rawYs = imageRelativeStroke.map(p => p.y * scaleY - mergedMinY);
+        const originalMinY = Math.min(...rawYs);
+        const originalMaxY = Math.max(...rawYs);
+        const originalCenterY = (originalMinY + originalMaxY) / 2;
+        
+        // Compute INFLATED horizontal bounds (from polygon, captures full char width)
+        const polygonPointsStr = strokeToFilledPolygon(imageRelativeStroke, compositeStrokeWidth);
+        if (!polygonPointsStr) continue;
+        
+        const pairs = polygonPointsStr.split(' ').filter(p => p.includes(','));
+        let sMinX = Infinity, sMaxX = -Infinity;
+        for (const pair of pairs) {
+          const [px] = pair.split(',').map(Number);
+          const vx = px * scaleX - mergedMinX;
+          sMinX = Math.min(sMinX, vx);
+          sMaxX = Math.max(sMaxX, vx);
+        }
+        
+        if (sMinX < Infinity) {
+          // Use TIGHT vertical bounds (original stroke + small padding) to avoid barely-touched text
+          const tightMinY = Math.max(0, originalMinY - ROW_VERTICAL_PADDING);
+          const tightMaxY = Math.min(mergedHeight, originalMaxY + ROW_VERTICAL_PADDING);
+          strokeData.push({ originalCenterY, minX: sMinX, minY: tightMinY, maxX: sMaxX, maxY: tightMaxY });
+        }
+      }
+      
+      if (strokeData.length === 0) return null;
+      
+      // Group strokes into rows based on ORIGINAL centerY (tight threshold)
+      // Strokes are on the same row only if their original centers are very close
+      const ROW_CENTER_THRESHOLD = 15; // pixels - strokes with centers within this distance = same row
+      strokeData.sort((a, b) => a.originalCenterY - b.originalCenterY);
+      
+      const rows: Array<Array<typeof strokeData[0]>> = [];
+      for (const sd of strokeData) {
+        // Find a row with similar centerY
+        let foundRow = false;
+        for (const row of rows) {
+          const rowAvgCenterY = row.reduce((sum, r) => sum + r.originalCenterY, 0) / row.length;
+          if (Math.abs(sd.originalCenterY - rowAvgCenterY) <= ROW_CENTER_THRESHOLD) {
+            row.push(sd);
+            foundRow = true;
+            break;
+          }
+        }
+        if (!foundRow) {
+          rows.push([sd]);
+        }
+      }
+      
+      // Compute bounding rectangle for each row (using inflated bounds)
+      // Also track the original centerY for later clipping
+      const rowRectsWithCenter: Array<{ x: number; y: number; width: number; height: number; centerY: number }> = [];
+      for (const row of rows) {
+        const rMinX = Math.max(0, Math.round(Math.min(...row.map(r => r.minX))));
+        const rMinY = Math.max(0, Math.round(Math.min(...row.map(r => r.minY))));
+        const rMaxX = Math.min(mergedWidth, Math.round(Math.max(...row.map(r => r.maxX))));
+        const rMaxY = Math.min(mergedHeight, Math.round(Math.max(...row.map(r => r.maxY))));
+        const avgCenterY = row.reduce((sum, r) => sum + r.originalCenterY, 0) / row.length;
+        rowRectsWithCenter.push({ x: rMinX, y: rMinY, width: rMaxX - rMinX, height: rMaxY - rMinY, centerY: avgCenterY });
+      }
+      
+      // Sort rows top-to-bottom by centerY
+      rowRectsWithCenter.sort((a, b) => a.centerY - b.centerY);
+      
+      // Clip adjacent rows to prevent overlap: split at midpoint between row centers
+      const rowRects: Array<{ x: number; y: number; width: number; height: number }> = [];
+      for (let i = 0; i < rowRectsWithCenter.length; i++) {
+        const curr = rowRectsWithCenter[i];
+        let clippedMinY = curr.y;
+        let clippedMaxY = curr.y + curr.height;
+        
+        // Clip top against previous row
+        if (i > 0) {
+          const prev = rowRectsWithCenter[i - 1];
+          const midY = Math.round((prev.centerY + curr.centerY) / 2);
+          clippedMinY = Math.max(clippedMinY, midY);
+        }
+        
+        // Clip bottom against next row
+        if (i < rowRectsWithCenter.length - 1) {
+          const next = rowRectsWithCenter[i + 1];
+          const midY = Math.round((curr.centerY + next.centerY) / 2);
+          clippedMaxY = Math.min(clippedMaxY, midY);
+        }
+        
+        const clippedHeight = Math.max(1, clippedMaxY - clippedMinY);
+        
+        // Add horizontal padding to prevent edge character clipping, clamped to merged region bounds
+        const paddedX = Math.max(0, curr.x - ROW_HORIZONTAL_PADDING);
+        const paddedWidth = Math.min(mergedWidth - paddedX, curr.width + ROW_HORIZONTAL_PADDING * 2);
+        
+        rowRects.push({ x: paddedX, y: clippedMinY, width: paddedWidth, height: clippedHeight });
+      }
+      
+      logger.log('[ImageHighlighter] Row-based bounds:', rowRects.length, 'rows from', strokeData.length, 'strokes',
+        'rowHeights:', rowRects.map(r => r.height), 'with', ROW_HORIZONTAL_PADDING, 'px horizontal padding');
+      
+      if (rowRects.length === 0) return null;
+      
+      let imageDataUri: string;
+      try {
+        imageDataUri = await imageUriToBase64DataUri(imageUri);
+      } catch (e) {
+        logger.warn('[ImageHighlighter] Composite: failed to get base64 for image, using uri:', e);
+        imageDataUri = imageUri;
+      }
+      
+      compositeImagesLoadedRef.current = 0;
+      setCompositeCaptureParams({
+        strokeBounds: rawBounds,
+        rowRects, // Row-based rectangles for accurate staircase mask
+        imageDataUri,
+        mergedMinX,
+        mergedMinY,
+        mergedWidth,
+        mergedHeight,
+      });
+      setIsCompositeCaptureReady(true);
+      
+      const maxWait = 2000;
+      const start = Date.now();
+      while (compositeImagesLoadedRef.current < 1 && (Date.now() - start) < maxWait) {
+        await new Promise(r => setTimeout(r, 50));
+      }
+      await new Promise(r => setTimeout(r, 150));
+      
+      if (!compositeCaptureRef.current) {
+        setIsCompositeCaptureReady(false);
+        setCompositeCaptureParams(null);
+        return null;
+      }
+      
+      try {
+        const uri = await captureRef(compositeCaptureRef, {
+          format: 'jpg',
+          quality: 0.95,
+          result: 'tmpfile',
+        });
+        logger.log('[ImageHighlighter] Composite captured:', mergedWidth, 'x', mergedHeight);
+        return { uri, width: mergedWidth, height: mergedHeight };
+      } catch (e) {
+        logger.error('[ImageHighlighter] Composite capture failed:', e);
+        return null;
+      } finally {
+        setIsCompositeCaptureReady(false);
+        setCompositeCaptureParams(null);
+      }
+    },
+    captureMaskedHighlight: async () => {
+      if (strokes.length === 0 || !measuredLayout || scaledContainerWidth === 0) {
+        logger.warn('[ImageHighlighter] Cannot capture mask: no strokes or layout not ready');
+        return null;
+      }
+      
+      try {
+        // Log stroke info for debugging
+        logger.log('[ImageHighlighter] Mask capture - strokes:', strokes.length, 
+          'displayOffset:', displayImageOffsetX, displayImageOffsetY,
+          'imageSize:', scaledContainerWidth, 'x', scaledContainerHeight);
+        if (strokes.length > 0 && strokes[0].length > 0) {
+          logger.log('[ImageHighlighter] First stroke first point (container):', strokes[0][0]);
+          logger.log('[ImageHighlighter] First stroke first point (image-relative):', {
+            x: strokes[0][0].x - displayImageOffsetX,
+            y: strokes[0][0].y - displayImageOffsetY,
+          });
+        }
+        
+        // Trigger mask capture view rendering
+        setMaskImageLoaded(false);
+        setIsMaskCaptureReady(true);
+        
+        // Wait for Image onLoad callback (with timeout)
+        const maxWait = 2000;
+        const startTime = Date.now();
+        while (!maskImageLoadedRef.current && (Date.now() - startTime) < maxWait) {
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+        
+        if (!maskImageLoadedRef.current) {
+          logger.warn('[ImageHighlighter] Mask image did not load in time');
+        }
+        
+        // Extra time for SVG overlay to render after image loads
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        if (!maskCaptureRef.current) {
+          logger.warn('[ImageHighlighter] Mask capture ref not available');
+          setIsMaskCaptureReady(false);
+          return null;
+        }
+        
+        const uri = await captureRef(maskCaptureRef, {
+          format: 'jpg',
+          quality: 0.95,
+          result: 'tmpfile',
+        });
+        
+        logger.log('[ImageHighlighter] Mask captured successfully, dimensions:', scaledContainerWidth, 'x', scaledContainerHeight, 'imageLoaded:', maskImageLoadedRef.current);
+        
+        setIsMaskCaptureReady(false);
+        setMaskImageLoaded(false);
+        
+        return {
+          uri,
+          width: Math.round(scaledContainerWidth),
+          height: Math.round(scaledContainerHeight),
+        };
+      } catch (error) {
+        logger.error('[ImageHighlighter] Failed to capture mask:', error);
+        setIsMaskCaptureReady(false);
+        setMaskImageLoaded(false);
+        return null;
+      }
     },
 
     // --- New Rotation Control Methods ---
@@ -1008,6 +1417,15 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
                   const finalWidth = Math.max(1, Math.min(reportedWidth, scaledW - finalX));
                   const finalHeight = Math.max(1, Math.min(reportedHeight, scaledH - finalY));
                   
+                  // Convert strokes to image-relative coordinates for mask generation
+                  const offsetX = displayImageOffsetXRef.current;
+                  const offsetY = displayImageOffsetYRef.current;
+                  const strokesImageRelative: Point[][] = allStrokes.map(stroke =>
+                    stroke
+                      .filter(p => p.x >= imageMinX && p.x <= imageMaxX && p.y >= imageMinY && p.y <= imageMaxY)
+                      .map(p => ({ x: p.x - offsetX, y: p.y - offsetY }))
+                  ).filter(s => s.length > 0);
+
                   const regionForParent = {
                     x: finalX,
                     y: finalY,
@@ -1015,6 +1433,8 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
                     height: finalHeight,
                     detectedText: [],
                     rotation: rotationRef.current,
+                    strokes: strokesImageRelative,
+                    strokeWidth: STROKE_WIDTH,
                   };
 
                   // Defer callback to avoid state update conflicts
@@ -1066,6 +1486,150 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
     path += ` L ${last.x} ${last.y}`;
     
     return path;
+  };
+
+  // Merge overlapping or adjacent rectangles to avoid duplicate OCR
+  const mergeOverlappingBounds = (
+    bounds: Array<{ x: number; y: number; width: number; height: number }>
+  ): Array<{ x: number; y: number; width: number; height: number }> => {
+    if (bounds.length <= 1) return bounds;
+    
+    // Helper to check if two rectangles overlap or are adjacent (within padding)
+    const rectsOverlap = (
+      a: { x: number; y: number; width: number; height: number },
+      b: { x: number; y: number; width: number; height: number },
+      padding = 20 // Merge if within 20 pixels
+    ): boolean => {
+      return !(
+        a.x + a.width + padding < b.x ||
+        b.x + b.width + padding < a.x ||
+        a.y + a.height + padding < b.y ||
+        b.y + b.height + padding < a.y
+      );
+    };
+    
+    // Helper to merge two rectangles into their bounding box
+    const mergeRects = (
+      a: { x: number; y: number; width: number; height: number },
+      b: { x: number; y: number; width: number; height: number }
+    ): { x: number; y: number; width: number; height: number } => {
+      const minX = Math.min(a.x, b.x);
+      const minY = Math.min(a.y, b.y);
+      const maxX = Math.max(a.x + a.width, b.x + b.width);
+      const maxY = Math.max(a.y + a.height, b.y + b.height);
+      return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+    };
+    
+    // Iteratively merge until no more merges are possible
+    let merged = [...bounds];
+    let changed = true;
+    
+    while (changed) {
+      changed = false;
+      const newMerged: typeof merged = [];
+      const used = new Set<number>();
+      
+      for (let i = 0; i < merged.length; i++) {
+        if (used.has(i)) continue;
+        
+        let current = merged[i];
+        
+        for (let j = i + 1; j < merged.length; j++) {
+          if (used.has(j)) continue;
+          
+          if (rectsOverlap(current, merged[j])) {
+            current = mergeRects(current, merged[j]);
+            used.add(j);
+            changed = true;
+          }
+        }
+        
+        newMerged.push(current);
+        used.add(i);
+      }
+      
+      merged = newMerged;
+    }
+    
+    // Sort by y position (top to bottom) for natural reading order
+    merged.sort((a, b) => a.y - b.y);
+    
+    return merged;
+  };
+
+  // Compute convex hull of a set of points using Graham scan algorithm
+  // This creates a single boundary polygon that wraps all points with no internal gaps
+  const computeConvexHull = (points: Point[]): Point[] => {
+    if (points.length < 3) return points;
+    
+    // Find the point with lowest y (and leftmost if tie)
+    let start = 0;
+    for (let i = 1; i < points.length; i++) {
+      if (points[i].y < points[start].y || 
+          (points[i].y === points[start].y && points[i].x < points[start].x)) {
+        start = i;
+      }
+    }
+    const pivot = points[start];
+    
+    // Sort points by polar angle with respect to pivot
+    const sorted = points
+      .filter((_, i) => i !== start)
+      .map(p => ({ point: p, angle: Math.atan2(p.y - pivot.y, p.x - pivot.x) }))
+      .sort((a, b) => a.angle - b.angle || 
+        (Math.hypot(a.point.x - pivot.x, a.point.y - pivot.y) - 
+         Math.hypot(b.point.x - pivot.x, b.point.y - pivot.y)))
+      .map(item => item.point);
+    
+    // Cross product to determine turn direction
+    const cross = (o: Point, a: Point, b: Point) =>
+      (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+    
+    const hull: Point[] = [pivot];
+    for (const p of sorted) {
+      // Remove points that make clockwise turn (keep only counter-clockwise)
+      while (hull.length > 1 && cross(hull[hull.length - 2], hull[hull.length - 1], p) <= 0) {
+        hull.pop();
+      }
+      hull.push(p);
+    }
+    
+    return hull;
+  };
+
+  // Convert stroke to filled polygon for masking (creates a "ribbon" shape from stroke width)
+  const strokeToFilledPolygon = (points: Point[], strokeW: number): string => {
+    if (points.length < 2) return '';
+    
+    const halfWidth = strokeW / 2;
+    const topPoints: Point[] = [];
+    const bottomPoints: Point[] = [];
+    
+    for (let i = 0; i < points.length; i++) {
+      const curr = points[i];
+      let dx: number, dy: number;
+      
+      if (i === 0) {
+        dx = points[1].x - curr.x;
+        dy = points[1].y - curr.y;
+      } else if (i === points.length - 1) {
+        dx = curr.x - points[i - 1].x;
+        dy = curr.y - points[i - 1].y;
+      } else {
+        dx = points[i + 1].x - points[i - 1].x;
+        dy = points[i + 1].y - points[i - 1].y;
+      }
+      
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      const perpX = -dy / len * halfWidth;
+      const perpY = dx / len * halfWidth;
+      
+      topPoints.push({ x: curr.x + perpX, y: curr.y + perpY });
+      bottomPoints.push({ x: curr.x - perpX, y: curr.y - perpY });
+    }
+    
+    const allPoints = [...topPoints, ...bottomPoints.reverse()];
+    return allPoints.map(p => `${p.x},${p.y}`).join(' ');
   };
 
   // Function to render highlight strokes
@@ -1383,6 +1947,161 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           <Text style={styles.instructionText}>{t('imageHighlighter.dragToCrop')}</Text>
         </View>
       )}
+
+      {/* Composite capture: White background + image visible only through row-based rectangles (accurate staircase, no diagonal cuts) */}
+      {isCompositeCaptureReady && compositeCaptureParams && (() => {
+        const { rowRects, imageDataUri, mergedMinX, mergedMinY, mergedWidth, mergedHeight } = compositeCaptureParams;
+        
+        // Build a single Path with all rectangles as subpaths (nonzero fill rule = additive, no cancellation)
+        const rowPathD = rowRects.map(rect => 
+          `M ${rect.x} ${rect.y} L ${rect.x + rect.width} ${rect.y} L ${rect.x + rect.width} ${rect.y + rect.height} L ${rect.x} ${rect.y + rect.height} Z`
+        ).join(' ');
+        
+        return (
+          <View
+            ref={compositeCaptureRef}
+            style={{
+              position: 'absolute',
+              left: -10000,
+              top: 0,
+              width: mergedWidth,
+              height: mergedHeight,
+              overflow: 'hidden',
+              zIndex: 9999,
+              backgroundColor: 'white',
+            }}
+            collapsable={false}
+            pointerEvents="none"
+            removeClippedSubviews={false}
+          >
+            <Svg width={mergedWidth} height={mergedHeight} viewBox={`0 0 ${mergedWidth} ${mergedHeight}`}>
+              <Rect x={0} y={0} width={mergedWidth} height={mergedHeight} fill="white" />
+              <ClipPath id="compositeClipRows">
+                {/* Single Path with nonzero fill rule - overlapping regions are additive, not canceling */}
+                <Path d={rowPathD} fillRule="nonzero" />
+              </ClipPath>
+              <SvgImage
+                href={imageDataUri}
+                x={-mergedMinX}
+                y={-mergedMinY}
+                width={imageWidth}
+                height={imageHeight}
+                preserveAspectRatio="none"
+                clipPath="url(#compositeClipRows)"
+              />
+            </Svg>
+            {/* Invisible RN Image to trigger onLoad so we know when to capture (SVG may not fire onLoad) */}
+            <Image
+              source={{ uri: imageUri }}
+              style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }}
+              onLoad={() => {
+                compositeImagesLoadedRef.current = (compositeImagesLoadedRef.current || 0) + 1;
+              }}
+            />
+          </View>
+        );
+      })()}
+
+      {/* Hidden mask capture view - white background with image showing only through stroke windows */}
+      {isMaskCaptureReady && strokes.length > 0 && scaledContainerWidth > 0 && (() => {
+        // Convert strokes from container coordinates to image-relative coordinates
+        const imageRelativeStrokes = strokes.map(stroke =>
+          stroke.map(p => ({
+            x: p.x - displayImageOffsetX,
+            y: p.y - displayImageOffsetY,
+          }))
+        );
+        
+        // Calculate bounding box for each stroke
+        const strokeBounds: Array<{x: number, y: number, width: number, height: number}> = [];
+        for (const stroke of imageRelativeStrokes) {
+          if (stroke.length < 2) continue;
+          
+          const polygonPoints = strokeToFilledPolygon(stroke, STROKE_WIDTH);
+          if (!polygonPoints) continue;
+          
+          const pairs = polygonPoints.split(' ').filter(p => p.includes(','));
+          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+          for (const pair of pairs) {
+            const [x, y] = pair.split(',').map(Number);
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
+          }
+          
+          if (minX < Infinity) {
+            // Clamp to image bounds
+            minX = Math.max(0, minX);
+            minY = Math.max(0, minY);
+            maxX = Math.min(scaledContainerWidth, maxX);
+            maxY = Math.min(scaledContainerHeight, maxY);
+            strokeBounds.push({ 
+              x: minX, 
+              y: minY, 
+              width: maxX - minX, 
+              height: maxY - minY 
+            });
+          }
+        }
+        
+        logger.log('[ImageHighlighter] Mask - per-stroke bounds:', strokeBounds.length, 
+          strokeBounds.map(b => `${Math.round(b.x)},${Math.round(b.y)} ${Math.round(b.width)}x${Math.round(b.height)}`));
+        
+        // For debugging: save actual captured content to see what's being captured
+        logger.log('[ImageHighlighter] Rendering mask capture view with', strokeBounds.length, 'windows');
+        
+        return (
+          <View
+            ref={maskCaptureRef}
+            style={{
+              position: 'absolute',
+              // Position far off-screen but fully opaque (opacity: 0 prevents rendering)
+              left: -5000,
+              top: 0,
+              width: scaledContainerWidth,
+              height: scaledContainerHeight,
+              backgroundColor: 'white',
+              overflow: 'hidden',
+            }}
+            collapsable={false}
+            pointerEvents="none"
+          >
+            {/* For each stroke, render just that portion of the image */}
+            {strokeBounds.map((bounds, index) => (
+              <View
+                key={index}
+                style={{
+                  position: 'absolute',
+                  left: bounds.x,
+                  top: bounds.y,
+                  width: bounds.width,
+                  height: bounds.height,
+                  overflow: 'hidden',
+                  backgroundColor: 'transparent',
+                }}
+              >
+                {/* Image positioned so the correct region shows through */}
+                <Image
+                  source={{ uri: imageUri }}
+                  style={{
+                    position: 'absolute',
+                    left: -bounds.x,
+                    top: -bounds.y,
+                    width: scaledContainerWidth,
+                    height: scaledContainerHeight,
+                  }}
+                  resizeMode="stretch"
+                  onLoad={index === 0 ? () => {
+                    logger.log('[ImageHighlighter] Mask window image onLoad fired for window 0');
+                    setMaskImageLoaded(true);
+                  } : undefined}
+                />
+              </View>
+            ))}
+          </View>
+        );
+      })()}
     </View>
   );
 });

@@ -573,13 +573,11 @@ export async function analyzeImage(imageUri: string, region?: Region) {
     logger.log('Image cropped to region before analysis');
   }
 
-  const response = await fetch(processedImageUri);
-  const blob = await response.blob();
-  const base64Image = await new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result);
-    reader.readAsDataURL(blob);
-  });
+  // Use getBase64ForImage for reliable file:// URI handling (especially on iOS)
+  const base64Image = await getBase64ForImage(processedImageUri);
+  if (!base64Image) {
+    throw new Error('Failed to convert image to base64');
+  }
 
   try {
     const result = await fetch(
@@ -622,8 +620,23 @@ export async function getBase64ForImage(imageUri: string): Promise<string | null
   try {
     if (imageUri.startsWith('data:image')) {
       // Already a base64 image
+      logger.log('[getBase64ForImage] Using existing base64 data URI');
       return imageUri;
+    } else if (imageUri.startsWith('file://') || imageUri.startsWith('/')) {
+      // Use expo-file-system for local file URIs (more reliable on iOS, especially for captureRef files)
+      const normalizedUri = imageUri.startsWith('/') ? `file://${imageUri}` : imageUri;
+      logger.log('[getBase64ForImage] Reading local file with FileSystem:', normalizedUri.substring(0, 80) + '...');
+      const base64 = await FileSystem.readAsStringAsync(normalizedUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      // Detect image type from URI extension
+      const isJpeg = normalizedUri.toLowerCase().includes('.jpg') || normalizedUri.toLowerCase().includes('.jpeg');
+      const mimeType = isJpeg ? 'image/jpeg' : 'image/png';
+      logger.log('[getBase64ForImage] Successfully read file, base64 length:', base64.length);
+      return `data:${mimeType};base64,${base64}`;
     } else {
+      // For remote URLs, use fetch
+      logger.log('[getBase64ForImage] Fetching remote URL:', imageUri.substring(0, 80) + '...');
       const response = await fetch(imageUri);
       const blob = await response.blob();
       return await new Promise((resolve) => {
@@ -633,7 +646,7 @@ export async function getBase64ForImage(imageUri: string): Promise<string | null
       });
     }
   } catch (error) {
-    logger.error('Error converting image to base64:', error);
+    logger.error('[getBase64ForImage] Error converting image to base64:', error);
     return null;
   }
 }
