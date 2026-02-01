@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import KanjiScanner from './components/camera/KanjiScanner';
-import { COLORS } from './constants/colors';
 import PokedexLayout from './components/shared/PokedexLayout';
 import { Asset } from 'expo-asset';
 

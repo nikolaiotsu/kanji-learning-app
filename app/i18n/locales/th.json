@@ -17,7 +17,15 @@
     "reset": "รีเซ็ต",
     "skip": "ข้าม",
     "back": "กลับ",
-    "next": "ถัดไป"
+    "next": "ถัดไป",
+    "dismiss": "ปิด"
+  },
+  "badgeCelebration": {
+    "title": "ยินดีด้วย!",
+    "description": "คุณได้รับตราสำหรับการบันทึกการ์ดแรก!",
+    "badgeName": {
+      "cards_created": "การ์ดแรก"
+    }
   },
   "auth": {
     "login": {
@@ -66,6 +74,9 @@
     "getStarted": "เริ่มต้น",
     "alreadyHaveAccount": "มีบัญชีอยู่แล้ว?",
     "signIn": "เข้าสู่ระบบ"
+  },
+  "badges": {
+    "title": "เหรียญของคุณ"
   },
   "deck": {
     "select": "เลือกคอลเลกชัน",

@@ -17,7 +17,15 @@
     "reset": "Сбросить",
     "skip": "Пропустить",
     "back": "Назад",
-    "next": "Далее"
+    "next": "Далее",
+    "dismiss": "Закрыть"
+  },
+  "badgeCelebration": {
+    "title": "Поздравляем!",
+    "description": "Вы получили значок за сохранение первой карточки!",
+    "badgeName": {
+      "cards_created": "Первая карточка"
+    }
   },
   "auth": {
     "login": {
@@ -66,6 +74,9 @@
     "getStarted": "Начать",
     "alreadyHaveAccount": "Уже есть аккаунт?",
     "signIn": "Войти"
+  },
+  "badges": {
+    "title": "Ваши значки"
   },
   "deck": {
     "select": "Выбрать коллекцию",

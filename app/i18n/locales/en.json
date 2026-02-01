@@ -17,7 +17,15 @@
     "reset": "Reset",
     "skip": "Skip",
     "back": "Back",
-    "next": "Next"
+    "next": "Next",
+    "dismiss": "Dismiss"
+  },
+  "badgeCelebration": {
+    "title": "Congratulations!",
+    "description": "You've received a badge for collecting your first flashcard!",
+    "badgeName": {
+      "cards_created": "First Flashcard"
+    }
   },
   "auth": {
     "login": {
@@ -86,6 +94,9 @@
     "empoweringBullet1": "Research shows: meaningful context accelerates learning.",
     "empoweringBullet2": "With WordDex, your world becomes your classroom. Explore without limits!",
     "empoweringCta": "See it in action!"
+  },
+  "badges": {
+    "title": "Your Badges"
   },
   "deck": {
     "select": "Select Collection",

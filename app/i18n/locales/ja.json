@@ -17,7 +17,15 @@
     "skip": "スキップ",
     "back": "戻る",
     "next": "次へ",
-    "done": "完了"
+    "done": "完了",
+    "dismiss": "閉じる"
+  },
+  "badgeCelebration": {
+    "title": "おめでとうございます！",
+    "description": "初めてのフラッシュカードを保存した記念にバッジを獲得しました！",
+    "badgeName": {
+      "cards_created": "初めてのフラッシュカード"
+    }
   },
   "auth": {
     "login": {
@@ -86,6 +94,9 @@
     "empoweringBullet1": "研究により証明:意味のある文脈が学習を加速させる。",
     "empoweringBullet2": "WordDexなら、あなたの世界が教室に。制限なく、自由に学べる!",
     "empoweringCta": "実際に見てみよう!"
+  },
+  "badges": {
+    "title": "あなたのバッジ"
   },
   "deck": {
     "select": "コレクションを選択",

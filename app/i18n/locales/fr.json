@@ -17,7 +17,15 @@
     "reset": "Réinitialiser",
     "skip": "Passer",
     "back": "Retour",
-    "next": "Suivant"
+    "next": "Suivant",
+    "dismiss": "Fermer"
+  },
+  "badgeCelebration": {
+    "title": "Félicitations !",
+    "description": "Vous avez reçu un badge pour avoir sauvegardé votre première carte !",
+    "badgeName": {
+      "cards_created": "Première carte"
+    }
   },
   "auth": {
     "login": {
@@ -66,6 +74,9 @@
     "getStarted": "Commencer",
     "alreadyHaveAccount": "Déjà un compte ?",
     "signIn": "Se connecter"
+  },
+  "badges": {
+    "title": "Vos Badges"
   },
   "deck": {
     "select": "Sélectionner une collection",

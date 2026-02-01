@@ -17,7 +17,15 @@
     "reset": "Đặt lại",
     "skip": "Bỏ qua",
     "back": "Quay lại",
-    "next": "Tiếp theo"
+    "next": "Tiếp theo",
+    "dismiss": "Đóng"
+  },
+  "badgeCelebration": {
+    "title": "Chúc mừng!",
+    "description": "Bạn đã nhận được huy hiệu vì đã lưu thẻ đầu tiên!",
+    "badgeName": {
+      "cards_created": "Thẻ đầu tiên"
+    }
   },
   "auth": {
     "login": {
@@ -66,6 +74,9 @@
     "getStarted": "Bắt đầu",
     "alreadyHaveAccount": "Đã có tài khoản?",
     "signIn": "Đăng nhập"
+  },
+  "badges": {
+    "title": "Huy Hiệu Của Bạn"
   },
   "deck": {
     "select": "Chọn Bộ Sưu Tập",

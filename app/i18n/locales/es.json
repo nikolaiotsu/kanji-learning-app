@@ -17,7 +17,15 @@
     "reset": "Restablecer",
     "skip": "Omitir",
     "back": "Atrás",
-    "next": "Siguiente"
+    "next": "Siguiente",
+    "dismiss": "Cerrar"
+  },
+  "badgeCelebration": {
+    "title": "¡Felicitaciones!",
+    "description": "¡Has recibido una insignia por guardar tu primera tarjeta!",
+    "badgeName": {
+      "cards_created": "Primera tarjeta"
+    }
   },
   "auth": {
     "login": {
@@ -66,6 +74,9 @@
     "getStarted": "Empezar",
     "alreadyHaveAccount": "¿Ya tienes una cuenta?",
     "signIn": "Iniciar sesión"
+  },
+  "badges": {
+    "title": "Tus Insignias"
   },
   "deck": {
     "select": "Seleccionar colección",

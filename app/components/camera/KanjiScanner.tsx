@@ -2324,36 +2324,52 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           </Animated.View>
           {!capturedImage ? (
             <>
-          {/* Settings Button */}
+          {/* Badge + Settings Buttons */}
           {!capturedImage && (
             <>
-              <WalkthroughTarget
-                targetRef={settingsButtonRef}
-                stepId="settings"
-                currentStepId={currentStep?.id}
-                isWalkthroughActive={isWalkthroughActive}
-                style={styles.settingsButton}
-                highlightStyle={styles.highlightedSettingsButtonWrapper}
-              >
-                <TouchableOpacity 
+              <View style={styles.topRightButtonRow}>
+                <TouchableOpacity
                   style={[
-                    styles.settingsButtonTouchable,
+                    styles.badgeButtonTouchable,
                     (localProcessing || isImageProcessing) ? styles.disabledButton : null
-                  ]} 
-                  onPress={toggleSettingsMenu}
-                  disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'settings')}
+                  ]}
+                  onPress={() => router.push('/badges')}
+                  disabled={localProcessing || isImageProcessing}
                 >
-                  <Ionicons 
-                    name="menu-outline" 
-                    size={30} 
-                    color={
-                      isWalkthroughActive
-                        ? (currentStep?.id === 'settings' ? '#FFFF00' : '#CCCCCC')
-                        : 'grey'
-                    } 
+                  <Ionicons
+                    name="medal-outline"
+                    size={28}
+                    color="grey"
                   />
                 </TouchableOpacity>
-              </WalkthroughTarget>
+                <WalkthroughTarget
+                  targetRef={settingsButtonRef}
+                  stepId="settings"
+                  currentStepId={currentStep?.id}
+                  isWalkthroughActive={isWalkthroughActive}
+                  style={styles.settingsButton}
+                  highlightStyle={styles.highlightedSettingsButtonWrapper}
+                >
+                  <TouchableOpacity 
+                    style={[
+                      styles.settingsButtonTouchable,
+                      (localProcessing || isImageProcessing) ? styles.disabledButton : null
+                    ]} 
+                    onPress={toggleSettingsMenu}
+                    disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'settings')}
+                  >
+                    <Ionicons 
+                      name="menu-outline" 
+                      size={30} 
+                      color={
+                        isWalkthroughActive
+                          ? (currentStep?.id === 'settings' ? '#FFFF00' : '#CCCCCC')
+                          : 'grey'
+                      } 
+                    />
+                  </TouchableOpacity>
+                </WalkthroughTarget>
+              </View>
               
               {/* API Usage Energy Bar + Streak (fire) indicator */}
               <View style={styles.energyBarRow}>
@@ -3090,11 +3106,22 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
   energyBarInRow: {
     marginLeft: 0,
   },
-  settingsButton: {
+  topRightButtonRow: {
     position: 'absolute',
-    top: 5, // Moved slightly higher from the edge
+    top: 5,
     right: 10,
-    zIndex: 800, // Reduced z-index to be below the card reviewer
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    zIndex: 800,
+  },
+  badgeButtonTouchable: {
+    padding: 6,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  settingsButton: {
+    // No position - lives inside topRightButtonRow
   },
   settingsButtonTouchable: {
     padding: 6,

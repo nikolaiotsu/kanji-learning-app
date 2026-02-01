@@ -16,6 +16,8 @@ import { COLORS } from './constants/colors';
 import { PRODUCT_IDS, PRODUCT_DETAILS } from './constants/config';
 import PokedexLayout from './components/shared/PokedexLayout';
 import { resetReviewPromptState, resetLifetimeCount, getReviewStatus } from './services/reviewPromptService';
+import { resetBadgeProgress } from './services/badgeService';
+import { useBadge } from './context/BadgeContext';
 import { resetWalkthrough } from './hooks/useWalkthrough';
 import { hasEnergyBarsRemaining } from './utils/walkthroughEnergyCheck';
 
@@ -45,6 +47,7 @@ export default function SettingsScreen() {
     availableProducts
   } = useSubscription();
   const { setHasCompletedOnboarding } = useOnboarding();
+  const { clearPendingBadge, setPendingBadge } = useBadge();
   
   const router = useRouter();
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
@@ -206,6 +209,53 @@ export default function SettingsScreen() {
       logger.error('Error resetting review prompt:', error);
       Alert.alert('Error', 'Failed to reset review prompt state. Please try again.');
     }
+  };
+
+  // Function to test badge modal (sets fake badge, navigate home to see it)
+  const handleTestBadgeModal = () => {
+    setPendingBadge({
+      id: 'test-badge',
+      name: 'First Flashcard',
+      description: "Created your first flashcard!",
+      imagePath: 'fc1.png',
+      badgeType: 'cards_created',
+      threshold: 1,
+      createdAt: new Date().toISOString(),
+    });
+    Alert.alert(
+      'Test Badge Modal',
+      'A test badge has been set. Tap OK then navigate back to home to see the celebration modal.',
+      [{ text: 'OK', onPress: () => router.back() }]
+    );
+  };
+
+  // Function to reset badge progress for testing
+  const handleResetBadgeProgress = async () => {
+    Alert.alert(
+      'Reset Badge Progress',
+      'This will reset your badge progress and earned badges. You can re-earn the "First Flashcard" badge by creating a new flashcard.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              clearPendingBadge();
+              const success = await resetBadgeProgress();
+              if (success) {
+                Alert.alert('Success', 'Badge progress has been reset. Create a flashcard and return home to see the celebration modal.');
+              } else {
+                Alert.alert('Error', 'Failed to reset badge progress. Please try again.');
+              }
+            } catch (error) {
+              logger.error('Error resetting badge progress:', error);
+              Alert.alert('Error', 'Failed to reset badge progress. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   // Function to replay walkthrough
@@ -765,6 +815,26 @@ export default function SettingsScreen() {
               <Ionicons name="flame-outline" size={16} color="white" style={{ marginRight: 8 }} />
               <Text style={styles.resetCountButtonText}>
                 Reset Streak Counter
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.resetCountButton, { backgroundColor: COLORS.pokedexAmberGlow }]}
+              onPress={handleResetBadgeProgress}
+            >
+              <Ionicons name="medal-outline" size={16} color={COLORS.background} style={{ marginRight: 8 }} />
+              <Text style={[styles.resetCountButtonText, { color: COLORS.background }]}>
+                Reset Badge Progress
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.resetCountButton, { backgroundColor: COLORS.accent }]}
+              onPress={handleTestBadgeModal}
+            >
+              <Ionicons name="sparkles" size={16} color="white" style={{ marginRight: 8 }} />
+              <Text style={styles.resetCountButtonText}>
+                Test Badge Modal
               </Text>
             </TouchableOpacity>
 

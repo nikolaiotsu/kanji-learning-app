@@ -53,6 +53,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import PokedexLayout from './components/shared/PokedexLayout';
 import FuriganaText from './components/shared/FuriganaText';
 import { useFlashcardCounter } from './context/FlashcardCounterContext';
+import { useBadge } from './context/BadgeContext';
 import { useSubscription } from './context/SubscriptionContext';
 import { PRODUCT_IDS } from './constants/config';
 import MemoryManager from './services/memoryManager';
@@ -70,6 +71,7 @@ export default function LanguageFlashcardsScreen() {
   const { user } = useAuth();
 const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, setBothLanguages } = useSettings();
   const { incrementFlashcardCount, canCreateFlashcard, remainingFlashcards } = useFlashcardCounter();
+  const { checkAndUnlockBadges } = useBadge();
   const { purchaseSubscription, subscription } = useSubscription();
   const { isConnected } = useNetworkState();
   
@@ -988,6 +990,9 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       
       // Increment flashcard counter after successful save
       await incrementFlashcardCount();
+
+      // Check for badge unlocks (e.g., first flashcard badge)
+      await checkAndUnlockBadges('cards_created');
       
       // Increment lifetime count and check if we should show review prompt
       await incrementLifetimeCount();

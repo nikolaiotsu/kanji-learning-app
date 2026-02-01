@@ -17,7 +17,15 @@
     "reset": "Zurücksetzen",
     "skip": "Überspringen",
     "back": "Zurück",
-    "next": "Weiter"
+    "next": "Weiter",
+    "dismiss": "Schließen"
+  },
+  "badgeCelebration": {
+    "title": "Herzlichen Glückwunsch!",
+    "description": "Du hast einen Badge für deine erste Karteikarte erhalten!",
+    "badgeName": {
+      "cards_created": "Erste Karteikarte"
+    }
   },
   "auth": {
     "login": {
@@ -66,6 +74,9 @@
     "getStarted": "Los geht's",
     "alreadyHaveAccount": "Bereits ein Konto?",
     "signIn": "Anmelden"
+  },
+  "badges": {
+    "title": "Deine Abzeichen"
   },
   "deck": {
     "select": "Sammlung auswählen",

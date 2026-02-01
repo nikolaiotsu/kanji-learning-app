@@ -17,7 +17,15 @@
     "reset": "إعادة تعيين",
     "skip": "تخطي",
     "back": "رجوع",
-    "next": "التالي"
+    "next": "التالي",
+    "dismiss": "إغلاق"
+  },
+  "badgeCelebration": {
+    "title": "تهانينا!",
+    "description": "لقد حصلت على شارة لحفظ بطاقتك الأولى!",
+    "badgeName": {
+      "cards_created": "البطاقة الأولى"
+    }
   },
   "auth": {
     "login": {
@@ -66,6 +74,9 @@
     "getStarted": "ابدأ",
     "alreadyHaveAccount": "لديك حساب بالفعل؟",
     "signIn": "تسجيل الدخول"
+  },
+  "badges": {
+    "title": "شاراتك"
   },
   "deck": {
     "select": "اختر المجموعة",

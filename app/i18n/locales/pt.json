@@ -17,7 +17,15 @@
     "reset": "Redefinir",
     "skip": "Pular",
     "back": "Voltar",
-    "next": "Próximo"
+    "next": "Próximo",
+    "dismiss": "Fechar"
+  },
+  "badgeCelebration": {
+    "title": "Parabéns!",
+    "description": "Você recebeu um distintivo por salvar seu primeiro cartão!",
+    "badgeName": {
+      "cards_created": "Primeiro cartão"
+    }
   },
   "auth": {
     "login": {
@@ -66,6 +74,9 @@
     "getStarted": "Começar",
     "alreadyHaveAccount": "Já tem uma conta?",
     "signIn": "Entrar"
+  },
+  "badges": {
+    "title": "Seus Emblemas"
   },
   "deck": {
     "select": "Selecionar Coleção",

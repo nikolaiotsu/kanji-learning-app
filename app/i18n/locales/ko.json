@@ -17,7 +17,15 @@
     "reset": "재설정",
     "skip": "건너뛰기",
     "back": "뒤로",
-    "next": "다음"
+    "next": "다음",
+    "dismiss": "닫기"
+  },
+  "badgeCelebration": {
+    "title": "축하합니다!",
+    "description": "첫 번째 플래시카드를 저장한 기념으로 배지를 획득했습니다!",
+    "badgeName": {
+      "cards_created": "첫 번째 플래시카드"
+    }
   },
   "auth": {
     "login": {
@@ -66,6 +74,9 @@
     "getStarted": "시작하기",
     "alreadyHaveAccount": "이미 계정이 있으신가요?",
     "signIn": "로그인"
+  },
+  "badges": {
+    "title": "나의 배지"
   },
   "deck": {
     "select": "컬렉션 선택",

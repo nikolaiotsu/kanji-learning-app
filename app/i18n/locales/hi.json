@@ -17,7 +17,15 @@
     "skip": "छोड़ें",
     "back": "वापस",
     "next": "अगला",
-    "done": "पूर्ण"
+    "done": "पूर्ण",
+    "dismiss": "बंद करें"
+  },
+  "badgeCelebration": {
+    "title": "बधाई हो!",
+    "description": "आपने अपना पहला फ्लैशकार्ड सहेजने के लिए बैज प्राप्त किया!",
+    "badgeName": {
+      "cards_created": "पहला फ्लैशकार्ड"
+    }
   },
   "auth": {
     "login": {
@@ -66,6 +74,9 @@
     "getStarted": "शुरू करें",
     "alreadyHaveAccount": "पहले से अकाउंट है?",
     "signIn": "साइन इन करें"
+  },
+  "badges": {
+    "title": "आपके बैज"
   },
   "deck": {
     "select": "संग्रह चुनें",

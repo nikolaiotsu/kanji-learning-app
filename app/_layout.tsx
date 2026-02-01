@@ -7,8 +7,10 @@ import SettingsProvider from './context/SettingsContext';
 import { SubscriptionProvider } from './context/SubscriptionContext';
 import { OCRCounterProvider } from './context/OCRCounterContext';
 import { FlashcardCounterProvider } from './context/FlashcardCounterContext';
+import { BadgeProvider } from './context/BadgeContext';
 import { SwipeCounterProvider } from './context/SwipeCounterContext';
 import AuthGuard from './components/auth/AuthGuard';
+import BadgeModalGate from './components/shared/BadgeModalGate';
 import { OnboardingProvider } from './context/OnboardingContext';
 import LoadingVideoScreen from './components/LoadingVideoScreen';
 import { LoadingVideoProvider } from './context/LoadingVideoContext';
@@ -134,8 +136,10 @@ export default function RootLayout() {
                       <SubscriptionProvider>
                         <OCRCounterProvider>
                           <FlashcardCounterProvider>
-                            <SwipeCounterProvider>
+                            <BadgeProvider>
+                              <SwipeCounterProvider>
                               <AuthGuard>
+                            <>
                             <Stack
                               screenOptions={{
                                 headerShown: true,
@@ -187,6 +191,22 @@ export default function RootLayout() {
                                   },
                                 }} 
                               />
+                              <Stack.Screen
+                                name="badges"
+                                options={{
+                                  title: 'Your Badges',
+                                  gestureEnabled: true,
+                                  presentation: 'modal',
+                                  headerBackVisible: false,
+                                  headerStyle: {
+                                    backgroundColor: COLORS.background,
+                                  },
+                                  headerTintColor: '#FFFFFF',
+                                  headerTitleStyle: {
+                                    fontWeight: 'bold',
+                                  },
+                                }}
+                              />
                               <Stack.Screen name="onboarding" options={{ headerShown: false }} />
                               <Stack.Screen name="onboarding-language" options={{ headerShown: false }} />
                               <Stack.Screen name="onboarding-why" options={{ headerShown: false }} />
@@ -197,8 +217,11 @@ export default function RootLayout() {
                               <Stack.Screen name="signup" options={{ title: 'Sign Up', headerShown: false }} />
                               <Stack.Screen name="reset-password" options={{ title: 'Reset Password' }} />
                             </Stack>
+                            <BadgeModalGate />
+                            </>
                           </AuthGuard>
                         </SwipeCounterProvider>
+                            </BadgeProvider>
                       </FlashcardCounterProvider>
                     </OCRCounterProvider>
                   </SubscriptionProvider>
