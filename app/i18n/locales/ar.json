@@ -133,7 +133,7 @@
     "wordscope": {
       "grammar": "قواعد",
       "examples": "أمثلة",
-      "commonMistake": "خطأ شائع",
+      "commonMistake": "خطأ شائع أو الفروق الدقيقة",
       "commonContext": "سياق شائع",
       "alternativeExpressions": "تعابير بديلة"
     },

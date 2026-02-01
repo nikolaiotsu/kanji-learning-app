@@ -188,6 +188,9 @@ RESPOND WITH JSON:
   "translatedText": "Natural translation in target language"
 }`;
 
+// Lite Japanese system prompt for WordScope (J→E etc.) - bare minimum
+const japaneseWordScopeSystemPromptLite = `Japanese expert: translation + furigana + grammar. Translate naturally; no readings in translation. Furigana: hiragana in ( ) after every kanji word, standard compound readings. Leave hiragana/katakana/numbers/English unchanged; never convert hiragana to kanji. Format: 東京(とうきょう), hiragana only. Respond with JSON: furiganaText, translatedText, scopeAnalysis.`;
+
 // STATIC SYSTEM PROMPT FOR KOREAN (CACHEABLE) - Shared across functions
 // Just above 2048 token minimum for Haiku caching
 const koreanSystemPrompt = `You are a Korean language expert. Your task is to annotate Korean text with romanization and translate it.
@@ -898,6 +901,27 @@ RESPOND WITH JSON:
   "translatedText": "Natural translation in target language"
 }`;
 
+// Feature flag: use lite prompts (Haiku 4.5 optimized, ~50%+ token reduction)
+const USE_LITE_PROMPTS = true;
+
+// Lite system prompt for WordScope - bare minimum; language rules injected at runtime
+function buildGeneralLanguageSystemPromptLite(sourceLanguage: string): string {
+  const languageRules = getLanguageFamilyRules(sourceLanguage);
+  const rulesBlock = languageRules ? `\n${languageRules}\n` : '';
+  return `Translation + grammar expert. Translate naturally; preserve meaning/tone; no romanization in translation. Grammar: analyze SOURCE only. Format: word1 [label] + word2 [label] + ... all words; labels in TARGET. Examples in SOURCE, translations in TARGET. Mistake: wrong/correct in SOURCE, reason in TARGET.${rulesBlock}JSON: furiganaText, translatedText, scopeAnalysis.`;
+}
+
+/** Lite scope instructions - bare minimum; schema in user message. */
+function buildScopeInstructionsLite(
+  normalizedText: string,
+  sourceLangName: string,
+  targetLangName: string
+): string {
+  return `Analyze "${normalizedText}" as ${sourceLangName} teacher for ${targetLangName} speaker.
+partOfSpeech: word1 [label] + word2 [label] + ... all words from source; labels in ${targetLangName}.
+examples: 3 items, sentence uses exact phrase from text. synonyms: 3 items, different from examples. Period-end sentence-like fields. particles/baseForm only if needed (JA/KO).`;
+}
+
 // Language validation caching system to reduce API costs
 interface CachedValidationResult {
   result: { isValid: boolean; detectedLanguage: string; confidence: string };
@@ -1134,6 +1158,38 @@ function getGrammarLabels(targetLanguage: string): string {
   
   // Default to English if language not found
   return labels[targetLanguage] || 'noun, verb, adjective, adverb, pronoun, preposition, article, conjunction, auxiliary verb, modal verb, past participle, present participle, infinitive, gerund, relative pronoun, possessive, determiner, interjection, proper noun, cardinal number, ordinal number, reflexive pronoun, definite article, indefinite article';
+}
+
+/** Returns only the grammar rules relevant to the source language (for lite prompts). */
+function getLanguageFamilyRules(sourceLanguage: string): string {
+  const rules: Record<string, string> = {
+    ja: `FOR JAPANESE:
+- Identify particles and their grammatical functions
+- Note verb conjugation patterns (polite, plain, potential, etc.)
+- Watch for topic vs subject marking (は vs が)`,
+    zh: `FOR CHINESE:
+- Note measure word/classifier usage
+- Identify aspect markers (了, 过, 着)
+- Watch for topic-comment structure`,
+    ko: `FOR KOREAN:
+- Identify particles and honorific levels
+- Note verb endings for politeness/formality
+- Watch for SOV word order`,
+    fr: `FOR FRENCH: Note gender/number agreement, subjunctive mood, object pronoun placement.`,
+    es: `FOR SPANISH: Note gender/number agreement, ser vs estar, subjunctive triggers.`,
+    it: `FOR ITALIAN: Note gender/number agreement, subjunctive, object pronoun placement.`,
+    pt: `FOR PORTUGUESE: Note gender/number agreement, subjunctive, reflexive verbs.`,
+    de: `FOR GERMAN: Note case (nominative, accusative, dative, genitive), verb position (V2), separable prefixes.`,
+    ru: `FOR RUSSIAN: Note case (6 cases), aspect (perfective/imperfective), gender/number agreement.`,
+    ar: `FOR ARABIC: Note root system, gender agreement, definite article, word order (VSO/SVO).`,
+    hi: `FOR HINDI: Note postpositions (not prepositions), ergative in past tense, honorific forms.`,
+    th: `FOR THAI: Note classifiers, particles (question/politeness), topic-comment, no conjugation.`,
+    vi: `FOR VIETNAMESE: Note classifiers, particles, serial verbs, topic-comment, no conjugation.`,
+    tl: `FOR TAGALOG: Note focus system, particles (ang, ng, sa), verb affixes.`,
+    eo: `FOR ESPERANTO: Note regular grammar, word-building through affixes, consistent part-of-speech markers.`,
+    en: `FOR ENGLISH: Note articles (a/the), phrasal verbs, auxiliary verbs, tense/aspect.`,
+  };
+  return rules[sourceLanguage] || '';
 }
 
 function getLanguageCodeFromName(name?: string): string | undefined {
@@ -3641,7 +3697,7 @@ Format your response as valid JSON with these exact keys:
       const isRomanizationLanguage = isArabicWithRomanization || isHindiWithRomanization || isThaiWithRomanization;
       const needsCaching = isCJKLanguage || isRomanizationLanguage;
       
-      // Select the appropriate system prompt:
+      // Select the appropriate system prompt (Translate flow: no generalLanguageSystemPrompt; already minimal when USE_LITE_PROMPTS)
       // - CJK languages use specialized prompts with reading annotations (cached due to size)
       // - Romanization languages (Arabic, Hindi, Thai) use specialized prompts with romanization rules (cached due to size)
       // - Other languages use simple translation prompt (small, no caching needed)
@@ -5805,9 +5861,9 @@ function parseWordScopeResponse(rawResponse: string): {
  * Ensures a sentence ends with a period, question mark, or exclamation point
  * Adds a period if the text doesn't end with sentence-ending punctuation
  */
-function ensureSentenceEnding(text: string): string {
-  if (!text || text.trim().length === 0) {
-    return text;
+function ensureSentenceEnding(text: string | undefined): string {
+  if (text == null || String(text).trim().length === 0) {
+    return '';
   }
   
   const trimmed = text.trim();
@@ -5826,16 +5882,16 @@ function ensureSentenceEnding(text: string): string {
  * Formats the JSON scope analysis response into plain text format
  */
 function formatScopeAnalysis(analysisJson: {
-  word: string;
-  reading: string;
-  partOfSpeech: string;
+  word?: string;
+  reading?: string;
+  partOfSpeech?: string;
   baseForm?: string;
   grammar?: {
     explanation?: string;
     particles?: Array<{ particle: string; use: string; example: string }>;
   };
-  examples: Array<{ sentence: string; translation: string; note: string }>;
-  commonMistake: {
+  examples?: Array<{ sentence: string; translation: string; note: string }>;
+  commonMistake?: {
     wrong: string;
     correct: string;
     reason: string;
@@ -5843,15 +5899,26 @@ function formatScopeAnalysis(analysisJson: {
   commonContext?: string;
   synonyms?: Array<{ phrase: string; translation: string; nuance: string }>;
 }): string {
+  const a = analysisJson as Record<string, unknown>;
+  const partOfSpeech = (a.partOfSpeech ?? a.part_of_speech ?? a.pos ?? '') as string;
+  const baseForm = (a.baseForm ?? a.base_form ?? '') as string;
+  const word = (a.word ?? a.key ?? a.phrase ?? '') as string;
+
   let formatted = '';
-  
-  // Part of speech breakdown (with Grammar header above it)
-  if (analysisJson.baseForm) {
-    formatted += `${analysisJson.partOfSpeech}\n→ Base: ${analysisJson.baseForm}\n`;
-  } else {
-    formatted += `${analysisJson.partOfSpeech}\n`;
+  if (word) {
+    formatted += `${word}\n`;
   }
-  
+  if (partOfSpeech) {
+    if (baseForm) {
+      formatted += `${partOfSpeech}\n→ Base: ${baseForm}\n`;
+    } else {
+      formatted += `${partOfSpeech}\n`;
+    }
+  }
+  if (!partOfSpeech && !word) {
+    formatted += '(No word or part-of-speech breakdown)\n';
+  }
+
   formatted += '\nGrammar\n';
   if (analysisJson.grammar?.explanation) {
     formatted += `${ensureSentenceEnding(analysisJson.grammar.explanation)}\n`;
@@ -5859,37 +5926,49 @@ function formatScopeAnalysis(analysisJson: {
     formatted += 'Grammar information unavailable.\n';
   }
 
-  // Particles section (if applicable)
-  if (analysisJson.grammar?.particles && analysisJson.grammar.particles.length > 0) {
+  // Particles section (if applicable) — guard: API may return non-array (e.g. string/object)
+  const particlesList = Array.isArray(analysisJson.grammar?.particles)
+    ? analysisJson.grammar.particles
+    : [];
+  if (particlesList.length > 0) {
     formatted += '\nCommon particles:\n';
-    analysisJson.grammar.particles.forEach((p) => {
-      // For particles, ensure use and example end properly
-      const use = ensureSentenceEnding(p.use);
-      const example = ensureSentenceEnding(p.example);
-      formatted += `- ${p.particle} (${use}): ${example}\n`;
+    particlesList.forEach((p: { particle?: string; use?: string; example?: string }) => {
+      const particle = p.particle ?? '';
+      const use = ensureSentenceEnding(p.use ?? '');
+      const example = ensureSentenceEnding(p.example ?? '');
+      if (particle || use || example) {
+        formatted += `- ${particle} (${use}): ${example}\n`;
+      }
     });
   }
   
-  // Examples section
+  // Examples section (support alternate keys from API: sentence/translation/note or text/meaning/definition)
   formatted += '\nExamples\n';
-  analysisJson.examples.forEach((ex, index) => {
-    // Ensure sentences and translations end with periods
-    const sentence = ensureSentenceEnding(ex.sentence);
-    const translation = ensureSentenceEnding(ex.translation);
-    const note = ensureSentenceEnding(ex.note);
-    formatted += `${index + 1}. ${sentence}\n`;
-    formatted += `   ${translation}\n`;
-    formatted += `   → ${note}\n`;
-    if (index < analysisJson.examples.length - 1) {
-      formatted += '\n';
+  const examples = Array.isArray(analysisJson.examples) ? analysisJson.examples : [];
+  examples.forEach((ex: { sentence?: string; translation?: string; note?: string; text?: string; meaning?: string; definition?: string }, index: number) => {
+    const sentence = ensureSentenceEnding(ex.sentence ?? ex.text ?? '');
+    const translation = ensureSentenceEnding(ex.translation ?? ex.meaning ?? '');
+    const note = ensureSentenceEnding(ex.note ?? ex.definition ?? '');
+    if (sentence || translation || note) {
+      formatted += `${index + 1}. ${sentence}\n`;
+      formatted += `   ${translation}\n`;
+      formatted += `   → ${note}\n`;
+      if (index < examples.length - 1) {
+        formatted += '\n';
+      }
     }
   });
   
-  // Common mistake section
-  formatted += '\n⚠️ Common Mistake\n';
-  formatted += `✗ ${ensureSentenceEnding(analysisJson.commonMistake.wrong)}\n`;
-  formatted += `✓ ${ensureSentenceEnding(analysisJson.commonMistake.correct)}\n`;
-  formatted += `${ensureSentenceEnding(analysisJson.commonMistake.reason)}`;
+  // Common mistake or nuance section
+  const cm = analysisJson.commonMistake;
+  formatted += '\n⚠️ Common Mistake or Nuance\n';
+  if (cm) {
+    formatted += `✗ ${ensureSentenceEnding(cm.wrong)}\n`;
+    formatted += `✓ ${ensureSentenceEnding(cm.correct)}\n`;
+    formatted += `${ensureSentenceEnding(cm.reason)}`;
+  } else {
+    formatted += 'Common mistake information unavailable.\n';
+  }
   
   // Common context section (if provided)
   if (analysisJson.commonContext) {
@@ -5897,18 +5976,21 @@ function formatScopeAnalysis(analysisJson: {
     formatted += `${ensureSentenceEnding(analysisJson.commonContext)}`;
   }
   
-  // Synonyms/Alternative expressions section (for advanced learners)
-  if (analysisJson.synonyms && analysisJson.synonyms.length > 0) {
+  // Synonyms/Alternative expressions section (support phrase/translation/nuance or expression/meaning/note)
+  const synonyms = Array.isArray(analysisJson.synonyms) ? analysisJson.synonyms : [];
+  if (synonyms.length > 0) {
     formatted += '\n\n🔄 Alternative Expressions\n';
-    analysisJson.synonyms.forEach((syn, index) => {
-      const phrase = syn.phrase;
-      const translation = ensureSentenceEnding(syn.translation);
-      const nuance = ensureSentenceEnding(syn.nuance);
-      formatted += `${index + 1}. ${phrase}\n`;
-      formatted += `   ${translation}\n`;
-      formatted += `   → ${nuance}\n`;
-      if (index < analysisJson.synonyms!.length - 1) {
-        formatted += '\n';
+    synonyms.forEach((syn: { phrase?: string; translation?: string; nuance?: string; expression?: string; meaning?: string; note?: string }, index: number) => {
+      const phrase = syn.phrase ?? syn.expression ?? '';
+      const translation = ensureSentenceEnding(syn.translation ?? syn.meaning ?? '');
+      const nuance = ensureSentenceEnding(syn.nuance ?? syn.note ?? '');
+      if (phrase || translation || nuance) {
+        formatted += `${index + 1}. ${phrase}\n`;
+        formatted += `   ${translation}\n`;
+        formatted += `   → ${nuance}\n`;
+        if (index < synonyms.length - 1) {
+          formatted += '\n';
+        }
       }
     });
   }
@@ -6084,9 +6166,14 @@ export async function processWithClaudeAndScope(
     
     logger.log(`[WordScope Combined] Grammar analysis, needsReadings: ${needsReadings}`);
     
-    // Build the scope analysis instructions - unified grammar-focused format
-    const scopeInstructions = `SCOPE ANALYSIS (Grammar):
-You are a ${sourceLangName} language teacher helping a ${targetLanguage} speaker.
+    // Build scope instructions - lite version when USE_LITE_PROMPTS (Haiku 4.5 optimized)
+    const scopeInstructions = USE_LITE_PROMPTS
+      ? buildScopeInstructionsLite(normalizedText, sourceLangName, targetLangName)
+      : (() => {
+          const src = sourceLangName;
+          const tgt = targetLangName;
+          return `SCOPE ANALYSIS (Grammar):
+You are a ${src} language teacher helping a ${tgt} speaker.
 
 Analyze: "${normalizedText}"
 
@@ -6126,8 +6213,8 @@ Respond in valid JSON:
   },
   "synonyms": [
     {
-      "phrase": "alternative way to express the same meaning in ${sourceLangName}",
-      "translation": "translation in ${targetLangName}",
+      "phrase": "alternative way to express the same meaning in ${src}",
+      "translation": "translation in ${tgt}",
       "nuance": "brief note on when to use this vs the original (under 15 words)"
     },
     {
@@ -6164,29 +6251,32 @@ RULES:
 - Focus only on what helps the learner USE the word correctly
 - If baseForm is the same as word, omit the baseForm field
 - Synonyms should provide 3 alternative ways to express the same meaning for advanced learners
-- CRITICAL for "partOfSpeech": 
+- CRITICAL for "partOfSpeech":
   * YOU MUST ANALYZE THE SOURCE SENTENCE: "${normalizedText}"
   * DO NOT analyze the translation - analyze the ORIGINAL SOURCE TEXT above
   * FORMAT: word1 [label] + word2 [label] + word3 [label] + ...
   * Use square brackets for labels, e.g.: I [pronom] + want [verbe] + to [préposition] + go [verbe]
-  * The words MUST come from "${normalizedText}" - the ${sourceLangName} source
-  * The labels MUST be in ${targetLangName}
+  * The words MUST come from "${normalizedText}" - the ${src} source
+  * The labels MUST be in ${tgt}
   * Include ALL words from the source: nouns, verbs, pronouns, adverbs, adjectives, prepositions, particles, conjunctions
-  * WRONG: Analyzing the ${targetLangName} translation instead of the source
+  * WRONG: Analyzing the ${tgt} translation instead of the source
   * CORRECT: Breaking down "${normalizedText}" word by word
 - LANGUAGE REQUIREMENTS:
-  * Example sentences ("sentence" field) must be in ${sourceLangName} (the scanned language)
-  * Translations ("translation" field) must be in ${targetLangName}
-  * Notes, explanations, and all other text must be in ${targetLangName}
-  * Common mistake examples ("wrong" and "correct" fields) must be in ${sourceLangName}
-  * Common mistake explanation ("reason" field) must be in ${targetLangName}`;
+  * Example sentences ("sentence" field) must be in ${src} (the scanned language)
+  * Translations ("translation" field) must be in ${tgt}
+  * Notes, explanations, and all other text must be in ${tgt}
+  * Common mistake examples ("wrong" and "correct" fields) must be in ${src}
+  * Common mistake explanation ("reason" field) must be in ${tgt}`;
+        })();
 
-    // Build detailed reading instructions based on source language
-    // These match the quality of the regular Translate button prompts
+    // Build reading instructions. With USE_LITE_PROMPTS, system prompt already has full rules - use short reminder only.
     let readingTask = '';
-    
     if (needsReadings && readingInfo) {
-      if (forcedLanguage === 'ja') {
+      if (USE_LITE_PROMPTS) {
+        readingTask = `
+=== TASK 3: READINGS ===
+Add readings to the original ${sourceLangName} text per system instructions (furigana/pinyin/romanization in parentheses).`;
+      } else if (forcedLanguage === 'ja') {
         // Japanese - detailed furigana instructions (same as Translate button)
         readingTask = `
 === TASK 3: FURIGANA ===
@@ -6478,13 +6568,13 @@ CRITICAL REQUIREMENTS:
     const isOtherReadingLanguage = isArabicWithReadings || isHindiWithReadings || isThaiWithReadings;
     
     // Select the appropriate system prompt - CJK and other reading languages get specialized prompts
-    const systemPrompt = isChineseWithCaching ? chineseSystemPrompt : 
-                         isJapaneseWithCaching ? japaneseSystemPrompt : 
+    const systemPrompt = isChineseWithCaching ? chineseSystemPrompt :
+                         isJapaneseWithCaching ? (USE_LITE_PROMPTS ? japaneseWordScopeSystemPromptLite : japaneseSystemPrompt) :
                          isKoreanWithCaching ? koreanSystemPrompt :
                          isArabicWithReadings ? arabicSystemPrompt :
                          isHindiWithReadings ? hindiSystemPrompt :
                          isThaiWithReadings ? thaiSystemPrompt :
-                         generalLanguageSystemPrompt;
+                         USE_LITE_PROMPTS ? buildGeneralLanguageSystemPromptLite(forcedLanguage) : generalLanguageSystemPrompt;
     
     // Determine language name for logging
     const languageDisplayNames: Record<string, string> = {
@@ -6505,7 +6595,15 @@ CRITICAL REQUIREMENTS:
                          'romanization';
       const wordType = isJapaneseWithCaching ? 'kanji' : 'word';
       
-      dynamicUserMessage = `TEXT TO PROCESS: "${normalizedText}"
+      if (USE_LITE_PROMPTS) {
+        // Lite CJK user message: bare minimum; exact keys required for formatScopeAnalysis (camelCase: word, partOfSpeech).
+        dynamicUserMessage = `TEXT: "${normalizedText}"
+
+GRAMMAR: ${scopeInstructions}
+
+JSON (camelCase keys): furiganaText, translatedText, scopeAnalysis: { word (main phrase), reading, partOfSpeech (word1 [label]+...), baseForm?, grammar: { explanation, particles? }, examples: [ { sentence, translation, note } ] x3, commonMistake: { wrong, correct, reason }, commonContext?, synonyms: [ { phrase, translation, nuance } ] x3 }. Period-end sentence fields. Labels in ${targetLangName}.`;
+      } else {
+        dynamicUserMessage = `TEXT TO PROCESS: "${normalizedText}"
 
 === TASK 2: GRAMMAR ANALYSIS ===
 ${scopeInstructions}
@@ -6573,6 +6671,7 @@ CRITICAL REQUIREMENTS:
 - Ensure proper JSON escaping: use \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes
 - Do NOT truncate or abbreviate any field
 - commonContext should briefly mention typical situations, relationships, or settings where the phrase appears`;
+      }
 
       logger.log(`🔄 [WordScope Prompt Caching] Sending ${languageDisplayName} request with caching enabled - system prompt: ${systemPrompt.length} chars, user message: ${dynamicUserMessage.length} chars`);
       

@@ -313,9 +313,9 @@ export function localizeScopeAnalysisHeadings(
   localized = localized.replace(/\nExamples\n/g, `\n${headingsMap.examples}\n`);
   localized = localized.replace(/^Examples\n/g, `${headingsMap.examples}\n`);
 
-  // Replace Common Mistake heading (with emoji and optional newline before it)
-  localized = localized.replace(/\n⚠️ Common Mistake\n/g, `\n⚠️ ${headingsMap.commonMistake}\n`);
-  localized = localized.replace(/^⚠️ Common Mistake\n/g, `⚠️ ${headingsMap.commonMistake}\n`);
+  // Replace Common Mistake or Nuance heading (with emoji and optional newline before it)
+  localized = localized.replace(/\n⚠️ Common Mistake or Nuance\n/g, `\n⚠️ ${headingsMap.commonMistake}\n`);
+  localized = localized.replace(/^⚠️ Common Mistake or Nuance\n/g, `⚠️ ${headingsMap.commonMistake}\n`);
 
   // Replace Common Context heading (with emoji and optional newline before it)
   localized = localized.replace(/\n\n📍 Common Context\n/g, `\n\n📍 ${headingsMap.commonContext}\n`);

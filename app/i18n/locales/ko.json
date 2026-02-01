@@ -133,7 +133,7 @@
     "wordscope": {
       "grammar": "문법",
       "examples": "예문",
-      "commonMistake": "흔한 실수",
+      "commonMistake": "흔한 실수 또는 뉘앙스",
       "commonContext": "자주 쓰이는 상황",
       "alternativeExpressions": "다른 표현"
     },

@@ -133,7 +133,7 @@
     "wordscope": {
       "grammar": "Грамматика",
       "examples": "Примеры",
-      "commonMistake": "Частая ошибка",
+      "commonMistake": "Частая ошибка или нюанс",
       "commonContext": "Частый контекст",
       "alternativeExpressions": "Альтернативные выражения"
     },

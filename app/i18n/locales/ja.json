@@ -153,7 +153,7 @@
     "wordscope": {
       "grammar": "文法",
       "examples": "例文",
-      "commonMistake": "よくある間違い",
+      "commonMistake": "よくある間違い・ニュアンス",
       "commonContext": "よく使われる場面",
       "alternativeExpressions": "別の表現"
     },

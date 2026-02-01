@@ -133,7 +133,7 @@
     "wordscope": {
       "grammar": "Grammatik",
       "examples": "Beispiele",
-      "commonMistake": "Häufiger Fehler",
+      "commonMistake": "Häufiger Fehler oder Nuance",
       "commonContext": "Häufiger Kontext",
       "alternativeExpressions": "Alternative Ausdrücke"
     },

@@ -133,7 +133,7 @@
     "wordscope": {
       "grammar": "ไวยากรณ์",
       "examples": "ตัวอย่าง",
-      "commonMistake": "ข้อผิดพลาดที่พบบ่อย",
+      "commonMistake": "ข้อผิดพลาดที่พบบ่อยหรือความหมายย่อย",
       "commonContext": "บริบทที่พบบ่อย",
       "alternativeExpressions": "สำนวนทางเลือก"
     },
