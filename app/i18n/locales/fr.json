@@ -429,11 +429,13 @@
     },
     "crop": {
       "title": "Recadrer l'image",
-      "description": "Recadrez la photo sur la zone importante pour ne traiter que le texte dont vous avez besoin."
+      "description": "Recadrez la photo sur la zone importante pour ne traiter que le texte dont vous avez besoin.",
+      "cta": "Recadrer"
     },
     "highlight": {
       "title": "Surligner le texte",
-      "description": "Essayons de surligner du texte dans l'image. Utilisez le surligneur arc-en-ciel pour surligner le texte que vous souhaitez traduire."
+      "description": "Essayons de surligner du texte dans l'image. Utilisez le surligneur arc-en-ciel pour surligner le texte que vous souhaitez traduire.",
+      "cta": "Surligner"
     },
     "confirmHighlight": {
       "title": "Confirmer la sélection",

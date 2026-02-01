@@ -3007,9 +3007,9 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           onSkip={skipWalkthrough}
           onDone={completeWalkthrough}
           customNextLabel={
-            currentStep?.id === 'crop' ? 'Crop' :
-            currentStep?.id === 'highlight' ? 'Highlight' :
-            currentStep?.id === 'confirm-highlight' ? 'Next' :
+            currentStep?.id === 'crop' ? t('walkthrough.crop.cta') :
+            currentStep?.id === 'highlight' ? t('walkthrough.highlight.cta') :
+            currentStep?.id === 'confirm-highlight' ? t('common.next') :
             undefined
           }
           treatAsNonFinal={currentStep?.id === 'confirm-highlight'}

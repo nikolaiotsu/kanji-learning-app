@@ -429,11 +429,13 @@
     },
     "crop": {
       "title": "Bild zuschneiden",
-      "description": "Schneiden Sie das Foto auf den wichtigen Bereich zu, damit Sie nur den benötigten Text verarbeiten."
+      "description": "Schneiden Sie das Foto auf den wichtigen Bereich zu, damit Sie nur den benötigten Text verarbeiten.",
+      "cta": "Zuschneiden"
     },
     "highlight": {
       "title": "Text hervorheben",
-      "description": "Versuchen wir, etwas Text im Bild hervorzuheben. Verwenden Sie den Regenbogen-Marker, um den Text hervorzuheben, den Sie übersetzen möchten."
+      "description": "Versuchen wir, etwas Text im Bild hervorzuheben. Verwenden Sie den Regenbogen-Marker, um den Text hervorzuheben, den Sie übersetzen möchten.",
+      "cta": "Hervorheben"
     },
     "confirmHighlight": {
       "title": "Auswahl bestätigen",

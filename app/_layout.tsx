@@ -12,6 +12,7 @@ import AuthGuard from './components/auth/AuthGuard';
 import { OnboardingProvider } from './context/OnboardingContext';
 import LoadingVideoScreen from './components/LoadingVideoScreen';
 import { LoadingVideoProvider } from './context/LoadingVideoContext';
+import { OnboardingVideosProvider } from './context/OnboardingVideosContext';
 import { StyleSheet, View, LogBox } from 'react-native';
 import { COLORS } from './constants/colors';
 import TexturedBackground from './components/shared/TexturedBackground';
@@ -126,6 +127,7 @@ export default function RootLayout() {
           ) : (
             <View style={styles.container} onLayout={onLayoutRootView}>
               <LoadingVideoProvider>
+                <OnboardingVideosProvider>
                 <AuthProvider>
                   <OnboardingProvider>
                     <SettingsProvider>
@@ -187,6 +189,7 @@ export default function RootLayout() {
                               />
                               <Stack.Screen name="onboarding" options={{ headerShown: false }} />
                               <Stack.Screen name="onboarding-language" options={{ headerShown: false }} />
+                              <Stack.Screen name="onboarding-why" options={{ headerShown: false }} />
                               <Stack.Screen name="onboarding-faster" options={{ headerShown: false }} />
                               <Stack.Screen name="onboarding-relevant" options={{ headerShown: false }} />
                               <Stack.Screen name="onboarding-educational" options={{ headerShown: false }} />
@@ -202,6 +205,7 @@ export default function RootLayout() {
                 </SettingsProvider>
               </OnboardingProvider>
             </AuthProvider>
+                </OnboardingVideosProvider>
               </LoadingVideoProvider>
             </View>
           )}

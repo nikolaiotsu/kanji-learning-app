@@ -61,11 +61,31 @@
   },
   "onboarding": {
     "welcomeTitle": "Welcome to Worddex",
-    "welcomeSubtitle1": "The fastest way to learn vocabulary from your real life.",
-    "welcomeSubtitle2": "Every word you scan reveals grammar, context, and synonyms — instantly.",
+    "welcomeSubtitle1": "Turn the world into your classroom.",
+    "welcomeSubtitle2": "Scan any word to unlock its meaning, context, and usage — save it instantly as a flashcard.",
     "getStarted": "Get Started",
     "alreadyHaveAccount": "Already have an account?",
-    "signIn": "Sign in"
+    "signIn": "Sign in",
+    "languageTitle1": "What language do you speak?",
+    "languageTitle2": "What language do you want to learn?",
+    "languageContinue": "Continue",
+    "selectLanguageSpeak": "Select language",
+    "selectLanguageLearn": "Select language to learn",
+    "whyTitle": "Why are you learning a new language?",
+    "whyWork": "For work or school",
+    "whyTravel": "For travel or daily life",
+    "whyPeople": "For people I care about",
+    "whyCta": "Here's how WordDex can help...",
+    "fastTitleSuffix": "is...fast.",
+    "fastBullet": "Other traditional flashcard apps make YOU do all the work.",
+    "fastCta": "There's a faster way",
+    "relevantTitleSuffix": "is...relevant.",
+    "relevantBullet": "Course apps teach sentences you'll probably never use",
+    "relevantCta": "What if you chose the content?",
+    "empoweringTitleSuffix": "is...empowering.",
+    "empoweringBullet1": "Research shows: meaningful context accelerates learning.",
+    "empoweringBullet2": "With WordDex, your world becomes your classroom. Explore without limits!",
+    "empoweringCta": "See it in action!"
   },
   "deck": {
     "select": "Select Collection",
@@ -390,83 +410,85 @@
   "walkthrough": {
     "camera": {
       "title": "Take Picture",
-      "description": "Tap here to take a photo of text you want to learn. The camera will scan and create flashcards from your photos."
+      "description": "Snap any text. Watch it become a flashcard."
     },
     "gallery": {
       "title": "Gallery",
-      "description": "Choose an existing photo from your gallery to create flashcards from. Great for images you've saved previously."
+      "description": "Got a saved photo? Use that instead."
     },
     "flashcards": {
       "title": "View your Collection",
-      "description": "Access your flashcard collection to organize, edit, and manage your saved cards."
+      "description": "All your flashcards live here. Go visit them!"
     },
     "customCard": {
       "title": "Add Custom Card",
-      "description": "Create a custom flashcard manually by entering text directly. Perfect for adding cards without taking a photo."
+      "description": "No image? Heard a phrase? No problem. Type it in here."
     },
     "reviewCards": {
       "title": "Review Cards",
-      "description": "Your word collection lives here. In Review Mode, swipe right on cards you know (they're done for the day) and left on cards you need more practice with. In Browse Mode, swipe freely without affecting your review queue. Tap any card to flip it or view its source image."
+      "description": "Your cards hang out here. Swipe right = nailed it. Swipe left = needs work. Tap to flip!"
     },
     "collections": {
       "title": "Collections",
-      "description": "Tap here to select which deck of flashcards you want to review.  Long press a deck to isolate it. You can choose multiple collections to review cards from all of them at once."
+      "description": "Pick which decks to review. Long press to focus on just one."
     },
     "reviewButton": {
       "title": "Review Button",
-      "description": "Tap this button to start an SRS (Spaced Repetition System) review session with your selected decks. A flashing rainbow button means there are cards available for review! Long press the button to reset the SRS tracking for all cards in the selected decks."
+      "description": "Start a review session here. Rainbow glow = cards are waiting for you!"
     },
     "settings": {
       "title": "Settings",
-      "description": "Manage translation languages, subscription plan, sign out, and other account settings here."
+      "description": "Tweak languages, manage your account, and all that good stuff."
     },
     "galleryConfirm": {
       "title": "Upload from Gallery",
-      "description": "Let's try uploading an image from the gallery. After you choose one, we'll guide you through rotate, crop, and highlight."
+      "description": "Let's make your first card! Pick an image and we'll guide you through."
     },
     "rotate": {
       "title": "Rotate Image",
-      "description": "Rotate your photo if you need before cropping or highlighting text."
+      "description": "Tilted photo? Straighten it out here."
     },
     "crop": {
       "title": "Crop Image",
-      "description": "Crop the photo to the important area so you only process the text you need."
+      "description": "Zoom in on the good stuff. Crop to the text you want.",
+      "cta": "Crop"
     },
     "highlight": {
       "title": "Highlight Text",
-      "description": "Let's try highlighting some text in the image. Use the rainbow highlighter to highlight the text you want to translate."
+      "description": "Draw a highlight on the text you want to learn. Easy!",
+      "cta": "Highlight"
     },
     "confirmHighlight": {
       "title": "Confirm Selection",
-      "description": "Does the rainbow highlight neatly surround text that you want to translate? If so, press next, and then the checkmark, if not, press the back button and try again."
+      "description": "Looking good? Hit the checkmark. Need a redo? Tap back."
     },
     "translateButton": {
       "title": "Translate",
-      "description": "Tap here to translate your detected text into your target language. The translation will appear below along with pronunciation guides if applicable."
+      "description": "Quick translation. Boom."
     },
     "wordscopeButton": {
       "title": "Wordscope",
-      "description": "This powerful tool provides both translation AND detailed analysis of the text - including a grammar breakdown, usage examples, common mistakes, context, and possible synonyms. It's perfect for deeper learning!"
+      "description": "Want the full story? Wordscope shows you grammar, examples, usage — it's all here."
     },
     "editTextButton": {
       "title": "Edit Text",
-      "description": "Tap here to edit the detected text in case there are words you don't need or want to modify before translating.  If everything looks good, go ahead and tap either the translate or Wordscope button!"
+      "description": "Scanner hiccup? Fix any errors before translating."
     },
     "chooseTranslation": {
       "title": "Ready to Translate!",
-      "description": "Now tap either Translate for a quick translation, or Wordscope for a deeper analysis. Both will process your text and prepare it for saving as a flashcard!"
+      "description": "Your call: Translate (quick) or Wordscope (deep dive)."
     },
     "saveButton": {
       "title": "Save Flashcard",
-      "description": "Tap here to save your new flashcard to your collection. You can organize cards into different decks!"
+      "description": "Add this card to your collection!"
     },
     "viewSavedButton": {
       "title": "View Saved Flashcards",
-      "description": "Tap here to browse all your saved flashcards. You can review, edit, or delete cards from your collection."
+      "description": "Peek at all your saved cards anytime."
     },
     "editTranslationButton": {
       "title": "Edit Translation",
-      "description": "Not happy with the translation? Tap here to manually edit the translated text or pronunciation guide before saving."
+      "description": "Not quite right? Tweak the translation here."
     },
     "editInputRetranslateButton": {
       "title": "Edit & Retranslate",
@@ -474,11 +496,11 @@
     },
     "finalSavePrompt": {
       "title": "Save Your First Flashcard!",
-      "description": "Now just tap this button to save your first flashcard to your collection!"
+      "description": "This is it! Tap to save your very first card."
     },
     "congratulations": {
       "title": "Congratulations! 🎉",
-      "description": "You've saved your first flashcard! Here's to many more! Cheers! 🥳"
+      "description": "You did it! First flashcard saved. Here's to hundreds more. 🎉"
     },
     "continueWalkthrough": "No, Continue Walkthrough",
     "endWalkthrough": "Yes, End Walkthrough",

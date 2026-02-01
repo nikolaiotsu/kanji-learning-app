@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useOnboarding } from './context/OnboardingContext';
 import { useSettings, AVAILABLE_LANGUAGES, DETECTABLE_LANGUAGES } from './context/SettingsContext';
 import { COLORS } from './constants/colors';
@@ -22,6 +23,7 @@ const SPEAK_LANGUAGE_DATA = Object.entries(AVAILABLE_LANGUAGES).map(([code, name
 const LEARN_LANGUAGE_DATA = Object.entries(DETECTABLE_LANGUAGES).map(([code, name]) => ({ code, name }));
 
 export default function OnboardingLanguageScreen() {
+  const { t } = useTranslation();
   const { setHasCompletedOnboarding } = useOnboarding();
   const { targetLanguage, setTargetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage } = useSettings();
   const [showSpeakPicker, setShowSpeakPicker] = useState(false);
@@ -47,7 +49,7 @@ export default function OnboardingLanguageScreen() {
   };
 
   const handleContinue = () => {
-    router.push('/onboarding-faster');
+    router.push('/onboarding-why');
   };
 
   return (
@@ -59,7 +61,7 @@ export default function OnboardingLanguageScreen() {
             <LoadingVideoScreen compact />
           </View>
           <View style={styles.textBlock}>
-            <Text style={styles.title}>What language do you speak?</Text>
+            <Text style={styles.title}>{t('onboarding.languageTitle1')}</Text>
             <TouchableOpacity
               style={styles.languageButton}
               onPress={() => setShowSpeakPicker(true)}
@@ -68,7 +70,7 @@ export default function OnboardingLanguageScreen() {
               <Text style={styles.languageButtonText}>{selectedSpeakName}</Text>
               <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
             </TouchableOpacity>
-            <Text style={[styles.title, styles.titleWithSpacing]}>What language do you want to learn?</Text>
+            <Text style={[styles.title, styles.titleWithSpacing]}>{t('onboarding.languageTitle2')}</Text>
             <TouchableOpacity
               style={styles.languageButton}
               onPress={() => setShowLearnPicker(true)}
@@ -83,7 +85,7 @@ export default function OnboardingLanguageScreen() {
             onPress={handleContinue}
             activeOpacity={0.8}
           >
-            <Text style={styles.buttonText}>Continue</Text>
+            <Text style={styles.buttonText}>{t('onboarding.languageContinue')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -97,7 +99,7 @@ export default function OnboardingLanguageScreen() {
         <Pressable style={styles.modalOverlay} onPress={() => setShowSpeakPicker(false)}>
           <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select language</Text>
+              <Text style={styles.modalTitle}>{t('onboarding.selectLanguageSpeak')}</Text>
               <TouchableOpacity onPress={() => setShowSpeakPicker(false)}>
                 <Ionicons name="close" size={22} color={COLORS.text} />
               </TouchableOpacity>
@@ -140,7 +142,7 @@ export default function OnboardingLanguageScreen() {
         <Pressable style={styles.modalOverlay} onPress={() => setShowLearnPicker(false)}>
           <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select language to learn</Text>
+              <Text style={styles.modalTitle}>{t('onboarding.selectLanguageLearn')}</Text>
               <TouchableOpacity onPress={() => setShowLearnPicker(false)}>
                 <Ionicons name="close" size={22} color={COLORS.text} />
               </TouchableOpacity>

@@ -429,11 +429,13 @@
     },
     "crop": {
       "title": "Ritaglia Immagine",
-      "description": "Ritaglia la foto sull'area importante così elabori solo il testo di cui hai bisogno."
+      "description": "Ritaglia la foto sull'area importante così elabori solo il testo di cui hai bisogno.",
+      "cta": "Ritaglia"
     },
     "highlight": {
       "title": "Evidenzia Testo",
-      "description": "Proviamo a evidenziare del testo nell'immagine. Usa l'evidenziatore arcobaleno per evidenziare il testo che vuoi tradurre."
+      "description": "Proviamo a evidenziare del testo nell'immagine. Usa l'evidenziatore arcobaleno per evidenziare il testo che vuoi tradurre.",
+      "cta": "Evidenzia"
     },
     "confirmHighlight": {
       "title": "Conferma Selezione",

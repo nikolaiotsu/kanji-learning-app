@@ -429,11 +429,13 @@
     },
     "crop": {
       "title": "Cắt Hình ảnh",
-      "description": "Cắt ảnh đến vùng quan trọng để bạn chỉ xử lý văn bản bạn cần."
+      "description": "Cắt ảnh đến vùng quan trọng để bạn chỉ xử lý văn bản bạn cần.",
+      "cta": "Cắt"
     },
     "highlight": {
       "title": "Làm nổi bật Văn bản",
-      "description": "Hãy thử làm nổi bật một số văn bản trong hình ảnh. Sử dụng bút làm nổi bật cầu vồng để làm nổi bật văn bản bạn muốn dịch."
+      "description": "Hãy thử làm nổi bật một số văn bản trong hình ảnh. Sử dụng bút làm nổi bật cầu vồng để làm nổi bật văn bản bạn muốn dịch.",
+      "cta": "Làm nổi bật"
     },
     "confirmHighlight": {
       "title": "Xác nhận Lựa chọn",

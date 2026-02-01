@@ -10,7 +10,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { useOnboardingVideo } from './context/OnboardingVideosContext';
 import { useEvent } from 'expo';
 import { useOnboarding } from './context/OnboardingContext';
 import { COLORS } from './constants/colors';
@@ -19,14 +21,21 @@ import LoadingVideoScreen from './components/LoadingVideoScreen';
 const guytypingVideoSource = require('../assets/guytyping1.mp4');
 
 export default function OnboardingFasterScreen() {
+  const { t } = useTranslation();
   const { setHasCompletedOnboarding } = useOnboarding();
   const [hasError, setHasError] = useState(false);
 
-  const player = useVideoPlayer(guytypingVideoSource, (p) => {
+  const preloadedPlayer = useOnboardingVideo('guytyping');
+  const localPlayer = useVideoPlayer(guytypingVideoSource, (p) => {
     p.loop = true;
     p.muted = true;
     p.play();
   });
+  const player = preloadedPlayer ?? localPlayer;
+
+  useEffect(() => {
+    if (preloadedPlayer) preloadedPlayer.play();
+  }, [preloadedPlayer]);
 
   const { status } = useEvent(player, 'statusChange', { status: player.status });
 
@@ -54,12 +63,12 @@ export default function OnboardingFasterScreen() {
               <View style={styles.titleLogoWrap}>
                 <LoadingVideoScreen compact />
               </View>
-              <Text style={styles.titleText}>is...fast.</Text>
+              <Text style={styles.titleText}>{t('onboarding.fastTitleSuffix')}</Text>
             </View>
             <View style={styles.bulletRow}>
               <View style={styles.bullet} />
               <Text style={styles.subtitle}>
-                Other traditional flashcard apps make YOU do all the work.
+                {t('onboarding.fastBullet')}
               </Text>
             </View>
           </View>
@@ -90,7 +99,7 @@ export default function OnboardingFasterScreen() {
             onPress={handleCTA}
             activeOpacity={0.8}
           >
-            <Text style={styles.buttonText}>There's a faster way</Text>
+            <Text style={styles.buttonText}>{t('onboarding.fastCta')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -183,17 +192,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   videoClip: {
-    width: 240,
-    height: 240,
+    width: 200,
+    height: 267,
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   video: {
-    width: 240,
-    height: 240,
+    width: 200,
+    height: 267,
   },
   button: {
     backgroundColor: COLORS.primary,

@@ -429,11 +429,13 @@
     },
     "crop": {
       "title": "Cortar Imagem",
-      "description": "Corte a foto para a área importante para processar apenas o texto que você precisa."
+      "description": "Corte a foto para a área importante para processar apenas o texto que você precisa.",
+      "cta": "Cortar"
     },
     "highlight": {
       "title": "Destacar Texto",
-      "description": "Vamos tentar destacar algum texto na imagem. Use o marcador arco-íris para destacar o texto que você quer traduzir."
+      "description": "Vamos tentar destacar algum texto na imagem. Use o marcador arco-íris para destacar o texto que você quer traduzir.",
+      "cta": "Destacar"
     },
     "confirmHighlight": {
       "title": "Confirmar Seleção",

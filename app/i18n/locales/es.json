@@ -433,11 +433,13 @@
     },
     "crop": {
       "title": "Recortar imagen",
-      "description": "Recorta la foto al área importante para procesar solo el texto que necesitas."
+      "description": "Recorta la foto al área importante para procesar solo el texto que necesitas.",
+      "cta": "Recortar"
     },
     "highlight": {
       "title": "Resaltar texto",
-      "description": "Intentemos resaltar algo de texto en la imagen. Usa el resaltador arcoíris para resaltar el texto que quieres traducir."
+      "description": "Intentemos resaltar algo de texto en la imagen. Usa el resaltador arcoíris para resaltar el texto que quieres traducir.",
+      "cta": "Resaltar"
     },
     "confirmHighlight": {
       "title": "Confirmar selección",
