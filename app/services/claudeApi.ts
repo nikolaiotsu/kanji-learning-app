@@ -7,8 +7,12 @@ import { logger } from '../utils/logger';
 import { sanitizeKoreanRomanization, analyzeKoreanRomanization } from './koreanRomanizationGuards';
 import { fetchSubscriptionStatus, getSubscriptionPlan } from './receiptValidationService';
 
+// Minimum prompt length (tokens) for prompt caching to apply. Haiku 4.5 requires 4096; Haiku 3.x required 2048.
+// See https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching#cache-limitations
+const MIN_CACHEABLE_TOKENS_HAIKU_45 = 4096;
+
 // STATIC SYSTEM PROMPT FOR CHINESE (CACHEABLE) - Shared across functions
-// Just above 2048 token minimum for Haiku caching
+// Just above 2048 token minimum for Haiku 3.x caching (Haiku 4.5 requires 4096)
 const chineseSystemPrompt = `You are a Chinese language expert specializing in translation and pinyin annotation.
 
 TRANSLATION RULES:
@@ -712,19 +716,19 @@ RESPOND WITH JSON:
 
 // STATIC SYSTEM PROMPT FOR GENERAL LANGUAGES (CACHEABLE) - For WordScope/grammar analysis
 // This covers: French, Spanish, Italian, German, Portuguese, Russian, Arabic, Hindi, Thai, Vietnamese, Tagalog, Esperanto, etc.
-// Expanded to exceed 2048 token minimum for Haiku caching (approximately 9000+ characters)
+// Expanded for Haiku caching (Haiku 4.5 requires 4096+ tokens; ~9000 chars ≈ ~2250 tokens, so not cacheable for 4.5)
 // NOTE: This prompt is ONLY used for WordScope analysis, NOT for basic translations
-const generalLanguageSystemPrompt = `You are a multilingual language expert specializing in translation and grammatical analysis for language learners.
+const generalLanguageSystemPrompt = `You are a multilingual translation expert adept at correctly translating into natural, commonly used phrases by native speakers.
 
 === TRANSLATION RULES ===
-- Translate into natural, fluent target language
+- Translate into natural, commonly used by native speakers, target language
 - Preserve original meaning, tone, and register (formal/informal/casual)
-- Use natural expressions appropriate for the target language
+- Double check that you are using only natural expressions appropriate for the target language
 - Do NOT add any romanization, pronunciation guides, or annotations to the translation itself
 - The translation must be pure target language text only
 - Maintain the style: formal text stays formal, casual stays casual
 - Preserve cultural nuances where possible
-- Handle idiomatic expressions appropriately - translate meaning, not word-for-word
+- Handle idiomatic expressions appropriately - translate meaning as close as naturally possible, not word-for-word
 
 === GRAMMAR ANALYSIS RULES ===
 When analyzing grammar, you must provide comprehensive analysis that helps language learners understand:
@@ -768,12 +772,12 @@ The labels describe grammar - they must be in the language the learner understan
 
 === EXAMPLE SENTENCES RULES ===
 - Examples must be in the SOURCE language being analyzed
-- Translations of examples must be in the TARGET language
+- Translations of examples must be as natural as possibl in the TARGET language
 - Examples should demonstrate the same grammatical pattern as the analyzed sentence
 - Progress from simple → intermediate → natural/casual usage
 - Keep notes brief and practical (under 10 words)
-- Notes should highlight the grammar point being demonstrated
-- Choose examples that reinforce the learning objective
+- Notes should highlight the grammar point being demonstrated and should be what native speakers say
+- Double check the naturalness of the translations of the examples please
 
 === COMMON MISTAKE ANALYSIS ===
 - Identify errors learners commonly make with this structure
@@ -864,7 +868,7 @@ Always respond with properly formatted JSON. Ensure:
 
 === QUALITY CHECKLIST ===
 Before responding, verify:
-- Translation is natural and fluent; grammar analysis covers the COMPLETE source sentence
+- Translation is natural and would be said by native speakers; grammar analysis covers the COMPLETE source sentence
 - Part of speech breakdown includes ALL words with labels in target language
 - Examples are in source language, translations in target language, and demonstrate the same pattern
 - Common mistakes are relevant; JSON is valid and properly escaped
@@ -1896,7 +1900,7 @@ Be precise and return ONLY the JSON with no additional explanation.`;
       const response = await axios.post(
         'https://api.anthropic.com/v1/messages',
         {
-          model: "claude-3-haiku-20240307",
+          model: "claude-haiku-4-5-20251001",
           max_tokens: 200, // Small response, just need the JSON
           temperature: 0,
           messages: [
@@ -1934,7 +1938,7 @@ Be precise and return ONLY the JSON with no additional explanation.`;
             
             // Log language validation API call with token usage
             await logClaudeAPI(validationMetrics, true, textContent.text, undefined, {
-              model: 'claude-3-haiku-20240307',
+              model: 'claude-haiku-4-5-20251001',
               forcedLanguage,
               textLength: text.length,
               detectedLanguage: result.detectedLanguage,
@@ -2515,7 +2519,7 @@ Format your response as valid JSON with these exact keys:
         const response = await axios.post(
           'https://api.anthropic.com/v1/messages',
           {
-            model: "claude-3-haiku-20240307",
+            model: "claude-haiku-4-5-20251001",
             max_tokens: 4000,
             temperature: 0,
             system: [
@@ -2570,7 +2574,7 @@ Format your response as valid JSON with these exact keys:
           totalCost += cacheCost;
           logger.log(`🔄 [Cache] ✅ HIT - ${cacheReadTokens} tokens read (90% discount = ${cacheCost} billed)`);
         } else {
-          logger.log(`🔄 [Cache] ⚠️ NONE - Prompt too small (${Math.round(cacheableTokens)} tokens < 2048)`);
+          logger.log(`🔄 [Cache] ⚠️ NONE - Prompt too small (${Math.round(cacheableTokens)} tokens < ${MIN_CACHEABLE_TOKENS_HAIKU_45} for Haiku 4.5)`);
         }
 
         // Log comprehensive cost breakdown
@@ -2709,7 +2713,7 @@ Format your response as valid JSON:
                       const retryResponse = await axios.post(
                         'https://api.anthropic.com/v1/messages',
                         {
-                          model: "claude-3-haiku-20240307",
+                          model: "claude-haiku-4-5-20251001",
                           max_tokens: 4000,
                           temperature: 0.1,
                           messages: [{ role: "user", content: koreanRetryPrompt }]
@@ -2769,7 +2773,7 @@ Format your response as valid JSON:
                 try {
                   logger.log('[Claude API] About to log translate API call (early return path)...');
                   await logClaudeAPI(metrics, true, JSON.stringify(result), undefined, {
-                    model: 'claude-3-haiku-20240307',
+                    model: 'claude-haiku-4-5-20251001',
                     targetLanguage,
                     forcedLanguage,
                     textLength: text.length,
@@ -2823,7 +2827,7 @@ Format your response as valid JSON with these exact keys:
                 const verificationResponse = await axios.post(
                   'https://api.anthropic.com/v1/messages',
                   {
-                    model: "claude-3-haiku-20240307",
+                    model: "claude-haiku-4-5-20251001",
                     max_tokens: 4000,
                     temperature: 0,
                     messages: [
@@ -2865,7 +2869,7 @@ Format your response as valid JSON with these exact keys:
                       const verifiedTranslatedText = verificationParsedContent.translatedText || "";
 
                       await logClaudeAPI(verificationMetrics, true, verificationTextContent.text, undefined, {
-                        model: 'claude-3-haiku-20240307',
+                        model: 'claude-haiku-4-5-20251001',
                         operationType: 'translation_verification',
                         targetLanguage,
                         forcedLanguage,
@@ -2891,7 +2895,7 @@ Format your response as valid JSON with these exact keys:
                     } catch (verificationParseError) {
                       logger.error("Error parsing verification response:", verificationParseError);
                       await logClaudeAPI(verificationMetrics, false, undefined, verificationParseError instanceof Error ? verificationParseError : new Error(String(verificationParseError)), {
-                        model: 'claude-3-haiku-20240307',
+                        model: 'claude-haiku-4-5-20251001',
                         operationType: 'translation_verification',
                         targetLanguage,
                         forcedLanguage
@@ -2899,7 +2903,7 @@ Format your response as valid JSON with these exact keys:
                     }
                   } else {
                     await logClaudeAPI(verificationMetrics, false, undefined, new Error('No text content in verification response'), {
-                      model: 'claude-3-haiku-20240307',
+                      model: 'claude-haiku-4-5-20251001',
                       operationType: 'translation_verification',
                       targetLanguage,
                       forcedLanguage
@@ -2907,7 +2911,7 @@ Format your response as valid JSON with these exact keys:
                   }
                 } else {
                   await logClaudeAPI(verificationMetrics, false, undefined, new Error('Invalid verification response structure'), {
-                    model: 'claude-3-haiku-20240307',
+                    model: 'claude-haiku-4-5-20251001',
                     operationType: 'translation_verification',
                     targetLanguage,
                     forcedLanguage
@@ -3040,7 +3044,7 @@ Format your response as valid JSON with these exact keys:
                     const retryResponse = await axios.post(
                       'https://api.anthropic.com/v1/messages',
                       {
-                        model: "claude-3-haiku-20240307",
+                        model: "claude-haiku-4-5-20251001",
                         max_tokens: 4000,
                         temperature: 0,
                         messages: [
@@ -3685,7 +3689,7 @@ Format your response as valid JSON with these exact keys:
         response = await axios.post(
           'https://api.anthropic.com/v1/messages',
           {
-            model: "claude-3-haiku-20240307",
+            model: "claude-haiku-4-5-20251001",
             max_tokens: 4000,
             temperature: 0,
             system: systemConfig,
@@ -3723,7 +3727,7 @@ Format your response as valid JSON with these exact keys:
         response = await axios.post(
           'https://api.anthropic.com/v1/messages',
           {
-            model: "claude-3-haiku-20240307",
+            model: "claude-haiku-4-5-20251001",
             max_tokens: 4000,
             temperature: 0,
             system: systemPrompt,  // Simple string, no caching
@@ -3985,7 +3989,7 @@ Format your response as valid JSON:
                     const retryResponse = await axios.post(
                       'https://api.anthropic.com/v1/messages',
                       {
-                        model: "claude-3-haiku-20240307",
+                        model: "claude-haiku-4-5-20251001",
                         max_tokens: 4000,
                         temperature: 0.1,
                         messages: [{ role: "user", content: koreanRetryPrompt }]
@@ -4046,7 +4050,7 @@ Format your response as valid JSON:
               try {
                 logger.log('[Claude API] About to log translate API call (early return path 2)...');
                 await logClaudeAPI(metrics, true, JSON.stringify(result), undefined, {
-                  model: 'claude-3-haiku-20240307',
+                  model: 'claude-haiku-4-5-20251001',
                   targetLanguage,
                   forcedLanguage,
                   textLength: text.length,
@@ -4104,7 +4108,7 @@ Format your response as valid JSON with these exact keys:
               const verificationResponse = await axios.post(
                 'https://api.anthropic.com/v1/messages',
                 {
-                  model: "claude-3-haiku-20240307",
+                  model: "claude-haiku-4-5-20251001",
                   max_tokens: 4000,
                   temperature: 0,
                   messages: [
@@ -4151,7 +4155,7 @@ Format your response as valid JSON with these exact keys:
                     
                     // Log token usage for verification
                     await logClaudeAPI(verificationMetrics, true, verificationTextContent.text, undefined, {
-                      model: 'claude-3-haiku-20240307',
+                      model: 'claude-haiku-4-5-20251001',
                       operationType: 'translation_verification',
                       targetLanguage,
                       forcedLanguage,
@@ -4178,7 +4182,7 @@ Format your response as valid JSON with these exact keys:
                     logger.error("Error parsing verification response:", verificationParseError);
                     // Log error for verification
                     await logClaudeAPI(verificationMetrics, false, undefined, verificationParseError instanceof Error ? verificationParseError : new Error(String(verificationParseError)), {
-                      model: 'claude-3-haiku-20240307',
+                      model: 'claude-haiku-4-5-20251001',
                       operationType: 'translation_verification',
                       targetLanguage,
                       forcedLanguage
@@ -4188,7 +4192,7 @@ Format your response as valid JSON with these exact keys:
                 } else {
                   // Log error if no text content found
                   await logClaudeAPI(verificationMetrics, false, undefined, new Error('No text content in verification response'), {
-                    model: 'claude-3-haiku-20240307',
+                    model: 'claude-haiku-4-5-20251001',
                     operationType: 'translation_verification',
                     targetLanguage,
                     forcedLanguage
@@ -4197,7 +4201,7 @@ Format your response as valid JSON with these exact keys:
               } else {
                 // Log error if response structure is invalid
                 await logClaudeAPI(verificationMetrics, false, undefined, new Error('Invalid verification response structure'), {
-                  model: 'claude-3-haiku-20240307',
+                  model: 'claude-haiku-4-5-20251001',
                   operationType: 'translation_verification',
                   targetLanguage,
                   forcedLanguage
@@ -4304,7 +4308,7 @@ Format as JSON:
                   const retryResponse = await axios.post(
                     'https://api.anthropic.com/v1/messages',
                     {
-                      model: "claude-3-haiku-20240307",
+                      model: "claude-haiku-4-5-20251001",
                       max_tokens: 4000,  // Increased from 1000 to ensure we get complete responses
                       temperature: 0,
                       messages: [
@@ -4355,7 +4359,7 @@ Format as JSON:
                         
                         // Log token usage for retry
                         await logClaudeAPI(retryMetrics, true, retryTextContent.text, undefined, {
-                          model: 'claude-3-haiku-20240307',
+                          model: 'claude-haiku-4-5-20251001',
                           operationType: 'furigana_retry',
                           targetLanguage,
                           forcedLanguage,
@@ -4375,7 +4379,7 @@ Format as JSON:
                         logger.error("Error parsing retry response:", retryParseError);
                         // Log error for retry
                         await logClaudeAPI(retryMetrics, false, undefined, retryParseError instanceof Error ? retryParseError : new Error(String(retryParseError)), {
-                          model: 'claude-3-haiku-20240307',
+                          model: 'claude-haiku-4-5-20251001',
                           operationType: 'furigana_retry',
                           targetLanguage,
                           forcedLanguage
@@ -4385,7 +4389,7 @@ Format as JSON:
                     } else {
                       // Log error if no text content found
                       await logClaudeAPI(retryMetrics, false, undefined, new Error('No text content in retry response'), {
-                        model: 'claude-3-haiku-20240307',
+                        model: 'claude-haiku-4-5-20251001',
                         operationType: 'furigana_retry',
                         targetLanguage,
                         forcedLanguage
@@ -4394,7 +4398,7 @@ Format as JSON:
                   } else {
                     // Log error if response structure is invalid
                     await logClaudeAPI(retryMetrics, false, undefined, new Error('Invalid retry response structure'), {
-                      model: 'claude-3-haiku-20240307',
+                      model: 'claude-haiku-4-5-20251001',
                       operationType: 'furigana_retry',
                       targetLanguage,
                       forcedLanguage
@@ -4471,7 +4475,7 @@ Format as JSON:
                   const retryResponse = await axios.post(
                     'https://api.anthropic.com/v1/messages',
                     {
-                      model: "claude-3-haiku-20240307",
+                      model: "claude-haiku-4-5-20251001",
                       max_tokens: 4000,
                       temperature: 0,
                       messages: [
@@ -4635,7 +4639,7 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
                     const retryResponse = await axios.post(
                       'https://api.anthropic.com/v1/messages',
                       {
-                        model: "claude-3-haiku-20240307",
+                        model: "claude-haiku-4-5-20251001",
                         max_tokens: 4000,
                         temperature: 0.1,
                         messages: [{
@@ -4778,7 +4782,7 @@ CRITICAL: Every Russian word must have its ORIGINAL CYRILLIC text preserved with
                   const retryResponse = await axios.post(
                     'https://api.anthropic.com/v1/messages',
                     {
-                      model: "claude-3-haiku-20240307",
+                      model: "claude-haiku-4-5-20251001",
                       max_tokens: 4000,
                       temperature: 0,
                       messages: [{
@@ -4908,7 +4912,7 @@ CRITICAL: Every Arabic word must have its ORIGINAL ARABIC text preserved with ro
                   const retryResponse = await axios.post(
                     'https://api.anthropic.com/v1/messages',
                     {
-                      model: "claude-3-haiku-20240307",
+                      model: "claude-haiku-4-5-20251001",
                       max_tokens: 4000,
                       temperature: 0,
                       messages: [{
@@ -5035,7 +5039,7 @@ CRITICAL: Every Hindi word must have its ORIGINAL DEVANAGARI text preserved with
                   const retryResponse = await axios.post(
                     'https://api.anthropic.com/v1/messages',
                     {
-                      model: "claude-3-haiku-20240307",
+                      model: "claude-haiku-4-5-20251001",
                       max_tokens: 4000,
                       temperature: 0,
                       messages: [{
@@ -5207,7 +5211,7 @@ Format your response as valid JSON with these exact keys:
               const readingVerificationResponse = await axios.post(
                 'https://api.anthropic.com/v1/messages',
                 {
-                  model: "claude-3-haiku-20240307",
+                  model: "claude-haiku-4-5-20251001",
                   max_tokens: 4000,
                   temperature: 0,
                   messages: [
@@ -5254,7 +5258,7 @@ Format your response as valid JSON with these exact keys:
                     
                     // Log token usage for reading verification
                     await logClaudeAPI(readingVerificationMetrics, true, readingVerificationTextContent.text, undefined, {
-                      model: 'claude-3-haiku-20240307',
+                      model: 'claude-haiku-4-5-20251001',
                       operationType: 'reading_verification',
                       targetLanguage,
                       forcedLanguage,
@@ -5277,7 +5281,7 @@ Format your response as valid JSON with these exact keys:
                     logger.error("Error parsing reading verification response:", readingVerificationParseError);
                     // Log error for reading verification
                     await logClaudeAPI(readingVerificationMetrics, false, undefined, readingVerificationParseError instanceof Error ? readingVerificationParseError : new Error(String(readingVerificationParseError)), {
-                      model: 'claude-3-haiku-20240307',
+                      model: 'claude-haiku-4-5-20251001',
                       operationType: 'reading_verification',
                       targetLanguage,
                       forcedLanguage,
@@ -5288,7 +5292,7 @@ Format your response as valid JSON with these exact keys:
                 } else {
                   // Log error if no text content found
                   await logClaudeAPI(readingVerificationMetrics, false, undefined, new Error('No text content in reading verification response'), {
-                    model: 'claude-3-haiku-20240307',
+                    model: 'claude-haiku-4-5-20251001',
                     operationType: 'reading_verification',
                     targetLanguage,
                     forcedLanguage,
@@ -5298,7 +5302,7 @@ Format your response as valid JSON with these exact keys:
               } else {
                 // Log error if response structure is invalid
                 await logClaudeAPI(readingVerificationMetrics, false, undefined, new Error('Invalid reading verification response structure'), {
-                  model: 'claude-3-haiku-20240307',
+                  model: 'claude-haiku-4-5-20251001',
                   operationType: 'reading_verification',
                   targetLanguage,
                   forcedLanguage,
@@ -5326,7 +5330,7 @@ Format your response as valid JSON with these exact keys:
             try {
               logger.log('[Claude API] About to log translate API call...');
               await logClaudeAPI(metrics, true, JSON.stringify(result), undefined, {
-                model: 'claude-3-haiku-20240307',
+                model: 'claude-haiku-4-5-20251001',
                 targetLanguage,
                 forcedLanguage,
                 textLength: text.length,
@@ -5364,7 +5368,7 @@ Format your response as valid JSON with these exact keys:
 
                 // Log successful API call
                 await logClaudeAPI(metrics, true, JSON.stringify(result), undefined, {
-                  model: 'claude-3-haiku-20240307',
+                  model: 'claude-haiku-4-5-20251001',
                   targetLanguage,
                   forcedLanguage,
                   textLength: text.length,
@@ -5390,7 +5394,7 @@ Format your response as valid JSON with these exact keys:
 
                 // Log successful API call
                 await logClaudeAPI(metrics, true, JSON.stringify(result), undefined, {
-                  model: 'claude-3-haiku-20240307',
+                  model: 'claude-haiku-4-5-20251001',
                   targetLanguage,
                   forcedLanguage,
                   textLength: text.length,
@@ -5421,7 +5425,7 @@ Format your response as valid JSON with these exact keys:
 
                 // Log successful API call
                 await logClaudeAPI(metrics, true, JSON.stringify(result), undefined, {
-                  model: 'claude-3-haiku-20240307',
+                  model: 'claude-haiku-4-5-20251001',
                   targetLanguage,
                   forcedLanguage,
                   textLength: text.length,
@@ -5508,7 +5512,7 @@ Format your response as valid JSON with these exact keys:
   // Log failed API call
   const finalError = lastError instanceof Error ? lastError : new Error(String(lastError));
   await logClaudeAPI(metrics, false, undefined, finalError, {
-    model: 'claude-3-haiku-20240307',
+    model: 'claude-haiku-4-5-20251001',
     targetLanguage,
     forcedLanguage,
     textLength: text.length,
@@ -5978,10 +5982,8 @@ export async function processWithClaudeAndScope(
       throw new Error('Claude API key not configured');
     }
     
-    // Use Haiku 3.5 only for Japanese (complex furigana readings), regular Haiku for other languages
-    const wordScopeModel = forcedLanguage === 'ja' 
-      ? 'claude-3-5-haiku-20241022'  // Better accuracy for Japanese compound word readings
-      : 'claude-3-haiku-20240307';   // Regular Haiku for other languages
+    // Haiku 4.5 for all languages (WordScope combined translation + grammar)
+    const wordScopeModel = 'claude-haiku-4-5-20251001';
     
     // LANGUAGE VALIDATION (same logic as processWithClaude)
     // This ensures Latin-to-Latin language mismatches are caught before processing
@@ -6577,7 +6579,7 @@ CRITICAL REQUIREMENTS:
       response = await axios.post(
         'https://api.anthropic.com/v1/messages',
         {
-          model: wordScopeModel,  // Haiku 3.5 for Japanese, regular Haiku for others
+          model: wordScopeModel,  // Haiku 4.5 for all languages
           max_tokens: 4000, // Increased to handle full scope analysis with examples
           temperature: 0.3,
           system: [
@@ -6622,7 +6624,7 @@ CRITICAL REQUIREMENTS:
         logger.log(`🔄 [WordScope Cache] ✅ HIT - ${cacheReadTokens} tokens read (90% discount = ${cacheCost} billed)`);
         logger.log(`💵 [WordScope Savings] ${cacheSavings} tokens saved (90% off cached portion)`);
       } else {
-        logger.log(`🔄 [WordScope Cache] ⚠️ NONE - Prompt may be too small (need 2048+ tokens for Haiku)`);
+        logger.log(`🔄 [WordScope Cache] ⚠️ NONE - Prompt may be too small (need ${MIN_CACHEABLE_TOKENS_HAIKU_45}+ tokens for Haiku 4.5)`);
       }
     } else if (needsReadings && (isOtherReadingLanguage || forcedLanguage === 'ru')) {
       // READING LANGUAGES (Arabic, Hindi, Thai, Russian): Request readings via combinedPrompt
@@ -6675,7 +6677,7 @@ CRITICAL REQUIREMENTS:
         logger.log(`🔄 [WordScope Cache] ✅ HIT - ${cacheReadTokens} tokens read (90% discount = ${cacheCost} billed)`);
         logger.log(`💵 [WordScope Savings] ${cacheSavings} tokens saved (90% off cached portion)`);
       } else {
-        logger.log(`🔄 [WordScope Cache] ⚠️ NONE - Prompt may be too small (need 2048+ tokens for Haiku)`);
+        logger.log(`🔄 [WordScope Cache] ⚠️ NONE - Prompt may be too small (need ${MIN_CACHEABLE_TOKENS_HAIKU_45}+ tokens for Haiku 4.5)`);
       }
     } else {
       // NON-READING LANGUAGES: Use general system prompt, no reading annotations
@@ -6836,7 +6838,7 @@ CRITICAL REQUIREMENTS:
         logger.log(`🔄 [WordScope Cache] ✅ HIT - ${cacheReadTokens} tokens read (90% discount = ${cacheCost} billed)`);
         logger.log(`💵 [WordScope Savings] ${cacheSavings} tokens saved (90% off cached portion)`);
       } else {
-        logger.log(`🔄 [WordScope Cache] ⚠️ NONE - Prompt may be too small (need 2048+ tokens for Haiku)`);
+        logger.log(`🔄 [WordScope Cache] ⚠️ NONE - Prompt may be too small (need ${MIN_CACHEABLE_TOKENS_HAIKU_45}+ tokens for Haiku 4.5)`);
       }
     }
     
@@ -6976,10 +6978,8 @@ async function processWithClaudeAndScopeFallback(
       throw new Error('Claude API key not configured');
     }
     
-    // Use Haiku 3.5 only for Japanese (complex furigana readings), regular Haiku for other languages
-    const wordScopeModel = forcedLanguage === 'ja' 
-      ? 'claude-3-5-haiku-20241022'  // Better accuracy for Japanese compound word readings
-      : 'claude-3-haiku-20240307';   // Regular Haiku for other languages
+    // Haiku 4.5 for all languages (fallback scope-only call)
+    const wordScopeModel = 'claude-haiku-4-5-20251001';
     
     const targetLangName = LANGUAGE_NAMES_MAP[targetLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'English';
     const sourceLangName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'the source language';
@@ -7340,7 +7340,7 @@ Write your analysis in ${targetLangName}. Maximum 200 words. Focus on helping le
     const response = await axios.post(
       'https://api.anthropic.com/v1/messages',
       {
-        model: 'claude-3-haiku-20240307',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 512,
         temperature: 0.3,
         messages: [{ role: 'user', content: scopePrompt }]
@@ -7367,7 +7367,7 @@ Write your analysis in ${targetLangName}. Maximum 200 words. Focus on helping le
     
     // Log single scope analysis API call with token usage
     await logClaudeAPI(scopeMetrics, true, analysis, undefined, {
-      model: 'claude-3-haiku-20240307',
+      model: 'claude-haiku-4-5-20251001',
       targetLanguage,
       forcedLanguage,
       textLength: text.length,
