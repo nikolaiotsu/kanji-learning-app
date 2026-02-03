@@ -353,6 +353,18 @@ RESPOND WITH JSON:
 }
 Output only this JSON. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
 
+// Lite Korean system prompt for translation-only (no scope). Same principles as Japanese/Chinese/Arabic/Hindi/Thai lite.
+const koreanTranslationSystemPromptLite = `You are a Korean translation and Revised Romanization expert.
+
+Translate into natural, fluent target language. Preserve meaning and tone. Do not add romanization to the translation itself.
+
+Romanization: readingsText MUST be original 한글 with romanization in parentheses immediately after each word. Format: 문법(mun-beop) 포인트(po-in-teu). No space before (. Revised Romanization: ㅓ=eo, ㅗ=o, ㅡ=eu, ㅜ=u; 받침 rules (e.g. ㄱ+ㄱ=kk, ㄷ+ㄷ=tt); particles 이(i)/가(ga), 은(eun)/는(neun), 을(eul)/를(reul). Leave English/numbers unchanged.
+
+OUTPUT: Reply with ONLY the JSON object. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation. Escape \\", \\n, \\. No trailing commas. Example: {"readingsText":"안녕하세요(an-nyeong-ha-se-yo)","translatedText":"..."}`;
+
+// Lite Korean system prompt for WordScope (translation + romanization + grammar).
+const koreanWordScopeSystemPromptLite = `Korean expert: translation + Revised Romanization + grammar. Translate naturally; no romanization in translation. readingsText MUST be original 한글 with (romanization) after each word. Format: 문법(mun-beop) 포인트(po-in-teu). 받침 rules; particles i/ga, eun/neun, eul/reul. Leave English/numbers unchanged. Respond with JSON: readingsText, translatedText, scopeAnalysis. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes.`;
+
 // STATIC SYSTEM PROMPT FOR ARABIC (CACHEABLE) - Shared across functions
 // Just above 2048 token minimum for Haiku caching
 const arabicSystemPrompt = `You are an Arabic language expert specializing in translation and transliteration annotation.
@@ -465,6 +477,42 @@ RESPOND WITH JSON:
   "translatedText": "Accurate translation in target language reflecting the full meaning in context"
 }
 Output only this JSON. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
+
+// Lite Arabic system prompt for translation-only (no scope). Same principles as Japanese/Chinese lite.
+const arabicTranslationSystemPromptLite = `You are an Arabic translation and transliteration expert.
+
+Translate into natural, fluent target language. Preserve meaning and tone. Do not add transliteration to the translation itself.
+
+Transliteration: readingsText MUST be original Arabic with transliteration in parentheses immediately after each word. Format: العربية(al-'arabiyyah). No space before (. Sun letter assimilation: الـ before ت ث د ذ ر ز س ش ص ض ط ظ ل ن assimilates (e.g. الشمس = ash-shams not al-shams). Moon letters keep al-. Long vowels: ا/ى = aa, و = uu/oo, ي = ii/ee. Hamza = '. Use only ASCII (a-z, '); no diacritics (no ṣ, ḍ, ṭ). Leave English/numbers unchanged.
+
+OUTPUT: Reply with ONLY the JSON object. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation. Escape \\", \\n, \\. No trailing commas. Example: {"readingsText":"مرحبا(marhabaa)","translatedText":"..."}`;
+
+// Lite Arabic system prompt for WordScope (translation + transliteration + grammar).
+const arabicWordScopeSystemPromptLite = `Arabic expert: translation + transliteration + grammar. Translate naturally; no transliteration in translation. readingsText MUST be original Arabic with (transliteration) after each word. Format: العربية(al-'arabiyyah). Sun letter assimilation (الـ before sun letters → ash-shams not al-shams). Long vowels aa/ii/uu; hamza '. ASCII only, no diacritics. Leave English/numbers unchanged. Respond with JSON: readingsText, translatedText, scopeAnalysis. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes.`;
+
+// Lite Hindi system prompt for translation-only (no scope). Same principles as Japanese/Chinese/Arabic lite.
+const hindiTranslationSystemPromptLite = `You are a Hindi translation and IAST romanization expert.
+
+Translate into natural, fluent target language. Preserve meaning and tone. Do not add romanization to the translation itself.
+
+Romanization: readingsText MUST be original Devanagari with IAST in parentheses immediately after each word. Format: हिन्दी(hindī). No space before (. IAST: long vowels ā ī ū (आ ई ऊ); retroflex ṭ ṭh ḍ ḍh ṇ; sibilants ś (श) ṣ (ष) s (स); compound क्ष = kṣ, ज्ञ = jñ; anusvara ṃ. Leave English/numbers unchanged.
+
+OUTPUT: Reply with ONLY the JSON object. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation. Escape \\", \\n, \\. No trailing commas. Example: {"readingsText":"नमस्ते(namaste)","translatedText":"..."}`;
+
+// Lite Hindi system prompt for WordScope (translation + romanization + grammar).
+const hindiWordScopeSystemPromptLite = `Hindi expert: translation + IAST romanization + grammar. Translate naturally; no romanization in translation. readingsText MUST be original Devanagari with (IAST) after each word. Format: हिन्दी(hindī). Long vowels ā ī ū; retroflex ṭ ḍ ṇ; sibilants ś ṣ s; compound kṣ, jñ. Leave English/numbers unchanged. Respond with JSON: readingsText, translatedText, scopeAnalysis. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes.`;
+
+// Lite Thai system prompt for translation-only (no scope). Same principles as Japanese/Chinese/Arabic/Hindi lite.
+const thaiTranslationSystemPromptLite = `You are a Thai translation and RTGS romanization expert.
+
+Translate into natural, fluent target language. Preserve meaning and tone. Do not add romanization to the translation itself.
+
+Romanization: readingsText MUST be original Thai with RTGS in parentheses immediately after each word. Format: สวัสดี(sawatdee). No space before (. RTGS: no tone marks; aspirated ph, th, kh, ch; long vowels aa, ii, uu, ee, oo; diphthongs ai, ao, ue, oi; silent อ at syllable start; ng for ง. Leave English/numbers unchanged.
+
+OUTPUT: Reply with ONLY the JSON object. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation. Escape \\", \\n, \\. No trailing commas. Example: {"readingsText":"สวัสดี(sawatdee)","translatedText":"..."}`;
+
+// Lite Thai system prompt for WordScope (translation + romanization + grammar).
+const thaiWordScopeSystemPromptLite = `Thai expert: translation + RTGS romanization + grammar. Translate naturally; no romanization in translation. readingsText MUST be original Thai with (RTGS) after each word. Format: สวัสดี(sawatdee). Aspirated ph/th/kh/ch; long vowels aa/ii/uu/ee/oo; no tone marks. Leave English/numbers unchanged. Respond with JSON: readingsText, translatedText, scopeAnalysis. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes.`;
 
 // STATIC SYSTEM PROMPT FOR THAI (CACHEABLE) - Shared across functions
 // Just above 2048 token minimum for Haiku caching
@@ -1146,6 +1194,8 @@ export interface ClaudeResponse {
   translatedText: string;
   scopeAnalysis?: string; // Optional scope analysis field
   languageMismatch?: LanguageMismatchInfo;
+  /** For beta testing: token usage for this API call (input + output = total) */
+  tokenUsage?: { input: number; output: number; total: number };
 }
 
 // Map for language code to name for prompts
@@ -2589,7 +2639,8 @@ If the target language is Vietnamese, the translation must use Vietnamese script
         !hasSourceReadingPrompt
       ) {
         logger.log(`[DEBUG] TRANSLATING TO JAPANESE: Using natural Japanese translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
-        if (primaryLanguage === "English" && USE_LITE_PROMPTS) {
+        if (USE_LITE_PROMPTS) {
+          // Lite user message for any source → Japanese (German, French, English, etc.) to cut tokens
           userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
 "${text}"`;
         } else {
@@ -2622,7 +2673,8 @@ Format your response as valid JSON with these exact keys:
       // Check if we're translating TO Chinese from a non-Chinese source (but NOT from a reading language)
       else if (targetLanguage === 'zh' && forcedLanguage !== 'zh' && primaryLanguage !== 'Chinese' && !hasSourceReadingPrompt) {
         logger.log(`[DEBUG] TRANSLATING TO CHINESE: Using natural Chinese translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
-        if (primaryLanguage === "English" && USE_LITE_PROMPTS) {
+        if (USE_LITE_PROMPTS) {
+          // Lite user message for any source → Chinese (German, French, English, etc.) to cut tokens
           userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
 "${text}"`;
         } else {
@@ -2915,7 +2967,8 @@ Format your response as valid JSON:
 
                 const result = {
                   readingsText: earlyFuriganaText,
-                  translatedText: sanitizeTranslatedText(parsedContent.translatedText || "", targetLanguage)
+                  translatedText: sanitizeTranslatedText(parsedContent.translatedText || "", targetLanguage),
+                  tokenUsage: { input: inputTokens ?? 0, output: outputTokens ?? 0, total: (inputTokens ?? 0) + (outputTokens ?? 0) }
                 };
 
                 // Log successful API call (early return path)
@@ -3275,8 +3328,11 @@ Format your response as valid JSON with these exact keys:
       // Check if we're translating TO Korean from a non-Korean source (but NOT from a reading language)
       else if (targetLanguage === 'ko' && forcedLanguage !== 'ko' && primaryLanguage !== 'Korean' && !hasSourceReadingPrompt) {
         logger.log(`[DEBUG] TRANSLATING TO KOREAN: Using natural Korean translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
-        // Natural Korean translation prompt - for translating TO Korean
-        userMessage = `
+        if (USE_LITE_PROMPTS) {
+          userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+        } else {
+          userMessage = `
 ${promptTopSection}
 You are a professional Korean translator. I need you to translate this text into natural, native-level Korean: "${text}"
 
@@ -3300,10 +3356,14 @@ Format your response as valid JSON with these exact keys:
   "readingsText": "",
   "translatedText": "Natural Korean translation using Hangul characters - NO romanization"
 }`;
+        }
       } else if (targetLanguage === 'th' && forcedLanguage !== 'th' && primaryLanguage !== 'Thai' && !hasSourceReadingPrompt) {
         logger.log(`[DEBUG] TRANSLATING TO THAI: Using natural Thai translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
-        // Natural Thai translation prompt - for translating TO Thai
-        userMessage = `
+        if (USE_LITE_PROMPTS) {
+          userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+        } else {
+          userMessage = `
 ${promptTopSection}
 You are a professional Thai translator. I need you to translate this text into natural, native-level Thai: "${text}"
 
@@ -3326,10 +3386,14 @@ Format your response as valid JSON with these exact keys:
   "readingsText": "",
   "translatedText": "Natural Thai translation using Thai script only - NO romanization"
 }`;
+        }
       } else if (targetLanguage === 'vi' && forcedLanguage !== 'vi' && primaryLanguage !== 'Vietnamese' && !hasSourceReadingPrompt) {
         logger.log(`[DEBUG] TRANSLATING TO VIETNAMESE: Using natural Vietnamese translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
-        // Natural Vietnamese translation prompt - for translating TO Vietnamese
-        userMessage = `
+        if (USE_LITE_PROMPTS) {
+          userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+        } else {
+          userMessage = `
 ${promptTopSection}
 You are a professional Vietnamese translator. I need you to translate this text into natural, native-level Vietnamese: "${text}"
 
@@ -3351,6 +3415,7 @@ Format your response as valid JSON with these exact keys:
   "readingsText": "",
   "translatedText": "Natural Vietnamese translation using proper Vietnamese orthography with all necessary diacritics - NO romanization"
 }`;
+        }
       } else if (primaryLanguage === "Korean" && targetLanguage !== 'ko') {
         logger.log(`[DEBUG] Using Korean prompt (romanization) with prompt caching for primaryLanguage: ${primaryLanguage}, forcedLanguage: ${forcedLanguage}, targetLanguage: ${targetLanguage}`);
         // Use cached system prompt for Korean (similar to Japanese and Chinese)
@@ -3360,8 +3425,11 @@ Format your response as valid JSON with these exact keys:
       // Check if we're translating TO Russian from a non-Russian source (but NOT from a reading language)
       else if (targetLanguage === 'ru' && forcedLanguage !== 'ru' && primaryLanguage !== 'Russian' && !hasSourceReadingPrompt) {
         logger.log(`[DEBUG] TRANSLATING TO RUSSIAN: Using natural Russian translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
-        // Natural Russian translation prompt - for translating TO Russian
-        userMessage = `
+        if (USE_LITE_PROMPTS) {
+          userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+        } else {
+          userMessage = `
 ${promptTopSection}
 You are a professional Russian translator. I need you to translate this text into natural, native-level Russian: "${text}"
 
@@ -3385,9 +3453,13 @@ Format your response as valid JSON with these exact keys:
   "readingsText": "",
   "translatedText": "Natural Russian translation using Cyrillic characters - NO romanization"
 }`;
+        }
       } else if (primaryLanguage === "Russian") {
-        // Russian-specific prompt - treated as standard Roman language (no romanization needed, Cyrillic is phonetic)
-        userMessage = `
+        if (USE_LITE_PROMPTS) {
+          userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+        } else {
+          userMessage = `
 ${promptTopSection}
 You are a Russian language expert. I need you to translate this Russian text: "${text}"
 
@@ -3402,12 +3474,16 @@ Format your response as valid JSON with these exact keys:
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
+        }
       }
       // Check if we're translating TO Arabic from a non-Arabic source (but NOT from a reading language)
       else if (targetLanguage === 'ar' && forcedLanguage !== 'ar' && primaryLanguage !== 'Arabic' && !hasSourceReadingPrompt) {
         logger.log(`[DEBUG] TRANSLATING TO ARABIC: Using natural Arabic translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
-        // Natural Arabic translation prompt - for translating TO Arabic
-        userMessage = `
+        if (USE_LITE_PROMPTS) {
+          userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+        } else {
+          userMessage = `
 ${promptTopSection}
 You are a professional Arabic translator. I need you to translate this text into natural, native-level Arabic: "${text}"
 
@@ -3431,26 +3507,36 @@ Format your response as valid JSON with these exact keys:
   "readingsText": "",
   "translatedText": "Natural Arabic translation using Arabic script - NO transliteration"
 }`;
+        }
       } else if ((primaryLanguage === "Arabic" || forcedLanguage === 'ar') && targetLanguage !== 'ar') {
         // Arabic-specific prompt with Enhanced Arabic Chat Alphabet including Sun Letter Assimilation
-        // CRITICAL: This should run regardless of target language to preserve Arabic script + transliteration
-        // Note: Only add transliteration when translating TO a different language (Arabic speakers don't need transliteration for their native language)
-        userMessage = `
+        if (USE_LITE_PROMPTS) {
+          userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+        } else {
+          userMessage = `
 ${promptTopSection}
 Translate this Arabic text and add transliteration: "${text}"
 Target language: ${targetLangName}`;
+        }
       } else if ((primaryLanguage === "Thai" || forcedLanguage === 'th') && targetLanguage !== 'th') {
         logger.log(`[DEBUG] THAI SOURCE TEXT: Adding RTGS romanization and translating to ${targetLangName} (targetLanguage: ${targetLanguage})`);
-        // Thai-specific prompt with RTGS romanization accuracy
-        // CRITICAL: This should run regardless of target language to preserve Thai script + romanization
-        // Note: Only add romanization when translating TO a different language (Thai speakers don't need romanization for Thai target)
-        userMessage = `
+        if (USE_LITE_PROMPTS) {
+          userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+        } else {
+          userMessage = `
 ${promptTopSection}
 Translate this Thai text and add RTGS romanization: "${text}"
 Target language: ${targetLangName}`;
+        }
       } else if ((primaryLanguage === "Vietnamese" || forcedLanguage === 'vi') && targetLanguage !== 'vi') {
         logger.log(`[DEBUG] VIETNAMESE SOURCE TEXT: Translating Vietnamese to ${targetLangName} (targetLanguage: ${targetLanguage})`);
-        userMessage = `
+        if (USE_LITE_PROMPTS) {
+          userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+        } else {
+          userMessage = `
 ${promptTopSection}
 You are a Vietnamese language expert. I need you to analyze and translate this Vietnamese text: "${text}"
 
@@ -3470,12 +3556,16 @@ Format your response as valid JSON with these exact keys:
   "readingsText": "",
   "translatedText": "Accurate translation in ${targetLangName} language that preserves the full Vietnamese meaning, tone, and diacritics"
 }`;
+        }
       }
       // Check if we're translating TO Hindi from a non-Hindi source (but NOT from a reading language)
       else if (targetLanguage === 'hi' && forcedLanguage !== 'hi' && primaryLanguage !== 'Hindi' && !hasSourceReadingPrompt) {
         logger.log(`[DEBUG] TRANSLATING TO HINDI: Using natural Hindi translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
-        // Natural Hindi translation prompt - for translating TO Hindi
-        userMessage = `
+        if (USE_LITE_PROMPTS) {
+          userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+        } else {
+          userMessage = `
 ${promptTopSection}
 You are a professional Hindi translator. I need you to translate this text into natural, native-level Hindi: "${text}"
 
@@ -3499,17 +3589,24 @@ Format your response as valid JSON with these exact keys:
   "readingsText": "",
   "translatedText": "Natural Hindi translation using Devanagari script - NO romanization"
 }`;
+        }
       } else if ((primaryLanguage === "Hindi" || forcedLanguage === 'hi') && targetLanguage !== 'hi') {
         // Enhanced Hindi-specific prompt with comprehensive romanization accuracy
-        // CRITICAL: This should run regardless of target language to preserve Devanagari script + romanization
-        // Note: Only add romanization when translating TO a different language (Hindi speakers don't need romanization for their native language)
-        userMessage = `
+        if (USE_LITE_PROMPTS) {
+          userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+        } else {
+          userMessage = `
 ${promptTopSection}
 Translate this Hindi text and add romanization: "${text}"
 Target language: ${targetLangName}`;
+        }
       } else if (primaryLanguage === "Esperanto") {
-        // Esperanto-specific prompt
-        userMessage = `
+        if (USE_LITE_PROMPTS) {
+          userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+        } else {
+          userMessage = `
 ${promptTopSection}
 You are an Esperanto language expert. I need you to translate this Esperanto text: "${text}"
 
@@ -3528,9 +3625,13 @@ Format your response as valid JSON with these exact keys:
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
+        }
       } else if (primaryLanguage === "Italian") {
-        // Italian-specific prompt
-        userMessage = `
+        if (USE_LITE_PROMPTS) {
+          userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+        } else {
+          userMessage = `
 ${promptTopSection}
 You are an Italian language expert. I need you to translate this Italian text: "${text}"
 
@@ -3545,9 +3646,13 @@ Format your response as valid JSON with these exact keys:
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
+        }
       } else if (primaryLanguage === "Spanish") {
-        // Spanish-specific prompt
-        userMessage = `
+        if (USE_LITE_PROMPTS) {
+          userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+        } else {
+          userMessage = `
 ${promptTopSection}
 You are a Spanish language expert. I need you to translate this Spanish text: "${text}"
 
@@ -3562,9 +3667,13 @@ Format your response as valid JSON with these exact keys:
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
+        }
       } else if (primaryLanguage === "French") {
-        // French-specific prompt
-        userMessage = `
+        if (USE_LITE_PROMPTS) {
+          userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+        } else {
+          userMessage = `
 ${promptTopSection}
 You are a French language expert. I need you to translate this French text: "${text}"
 
@@ -3579,9 +3688,13 @@ Format your response as valid JSON with these exact keys:
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
+        }
       } else if (primaryLanguage === "Portuguese") {
-        // Portuguese-specific prompt
-        userMessage = `
+        if (USE_LITE_PROMPTS) {
+          userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+        } else {
+          userMessage = `
 ${promptTopSection}
 You are a Portuguese language expert. I need you to translate this Portuguese text: "${text}"
 
@@ -3596,9 +3709,13 @@ Format your response as valid JSON with these exact keys:
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
+        }
       } else if (primaryLanguage === "German") {
-        // German-specific prompt
-        userMessage = `
+        if (USE_LITE_PROMPTS) {
+          userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+        } else {
+          userMessage = `
 ${promptTopSection}
 You are a German language expert. I need you to translate this German text: "${text}"
 
@@ -3613,9 +3730,13 @@ Format your response as valid JSON with these exact keys:
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
+        }
       } else if (primaryLanguage === "Tagalog") {
-        // Tagalog-specific prompt
-        userMessage = `
+        if (USE_LITE_PROMPTS) {
+          userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+        } else {
+          userMessage = `
 ${promptTopSection}
 You are a Tagalog language expert. I need you to translate this Tagalog text: "${text}"
 
@@ -3630,6 +3751,7 @@ Format your response as valid JSON with these exact keys:
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
+        }
       } else if (primaryLanguage === "English") {
         // English→any: use minimal prompt when lite to cut input tokens (~608 → ~150–200)
         if (USE_LITE_PROMPTS) {
@@ -3751,8 +3873,11 @@ Format your response as valid JSON with these exact keys:
 }`;
       } else {
         logger.log(`[DEBUG] Using default prompt for primaryLanguage: ${primaryLanguage}`);
-        // Default prompt for other languages
-        userMessage = `
+        if (USE_LITE_PROMPTS) {
+          userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+        } else {
+          userMessage = `
 ${promptTopSection}
 I need you to translate this text: "${text}"
 
@@ -3765,6 +3890,7 @@ Format your response as valid JSON with these exact keys:
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
+        }
       }
 
       logger.log(`Processing text (${text.substring(0, 40)}${text.length > 40 ? '...' : ''})`);
@@ -3801,11 +3927,11 @@ Format your response as valid JSON with these exact keys:
       // - Other languages use simple translation prompt (small, no caching needed)
       const systemPrompt = isChineseWithCaching ? (USE_LITE_PROMPTS ? chineseTranslationSystemPromptLite : chineseSystemPrompt) : 
                            isJapaneseWithCaching ? (USE_LITE_PROMPTS ? japaneseTranslationSystemPromptLite : japaneseSystemPrompt) : 
-                           isKoreanWithCaching ? koreanSystemPrompt :
-                           isArabicWithRomanization ? arabicSystemPrompt :
-                           isHindiWithRomanization ? hindiSystemPrompt :
-                           isThaiWithRomanization ? thaiSystemPrompt :
-                           (primaryLanguage === "English" && USE_LITE_PROMPTS ? simpleTranslationPromptLite : simpleTranslationPrompt);
+                           isKoreanWithCaching ? (USE_LITE_PROMPTS ? koreanTranslationSystemPromptLite : koreanSystemPrompt) :
+                           isArabicWithRomanization ? (USE_LITE_PROMPTS ? arabicTranslationSystemPromptLite : arabicSystemPrompt) :
+                           isHindiWithRomanization ? (USE_LITE_PROMPTS ? hindiTranslationSystemPromptLite : hindiSystemPrompt) :
+                           isThaiWithRomanization ? (USE_LITE_PROMPTS ? thaiTranslationSystemPromptLite : thaiSystemPrompt) :
+                           (USE_LITE_PROMPTS ? simpleTranslationPromptLite : simpleTranslationPrompt);
       
       // Determine language name for logging
       const languageDisplayNames: Record<string, string> = {
@@ -3914,6 +4040,7 @@ Format your response as valid JSON with these exact keys:
       const usage = response.data?.usage;
       const inputTokens = usage?.input_tokens;
       const outputTokens = usage?.output_tokens;
+      const tokenUsage = { input: inputTokens ?? 0, output: outputTokens ?? 0, total: (inputTokens ?? 0) + (outputTokens ?? 0) };
 
       const regularCost = (inputTokens || 0) + (outputTokens || 0);
       logger.log(`💵 [Regular Translation Cost] Input: ${inputTokens || 0} | Output: ${outputTokens || 0} | TOTAL: ${regularCost} tokens`);
@@ -4197,7 +4324,8 @@ Format your response as valid JSON:
               
               const result = {
                 readingsText: earlyFuriganaText2,
-                translatedText: sanitizeTranslatedText(parsedContent.translatedText || "", targetLanguage)
+                translatedText: sanitizeTranslatedText(parsedContent.translatedText || "", targetLanguage),
+                tokenUsage: { input: inputTokens ?? 0, output: outputTokens ?? 0, total: (inputTokens ?? 0) + (outputTokens ?? 0) }
               };
 
               // Log successful API call (early return path 2)
@@ -5471,7 +5599,8 @@ Format your response as valid JSON with these exact keys:
             
             const result = {
               readingsText: applyKoreanRomanizationGuards(furiganaText, "final-output"),
-              translatedText: sanitizeTranslatedText(translatedText, targetLanguage)
+              translatedText: sanitizeTranslatedText(translatedText, targetLanguage),
+              tokenUsage
             };
 
             // RETRY COUNTER LOGGING: Summary before returning
@@ -5517,7 +5646,8 @@ Format your response as valid JSON with these exact keys:
                 logger.log("Successfully parsed JSON from block markers");
                 const result = {
                   readingsText: applyKoreanRomanizationGuards(blockParsedContent.readingsText || "", "fallback-block-parse"),
-                  translatedText: sanitizeTranslatedText(blockParsedContent.translatedText || "", targetLanguage)
+                  translatedText: sanitizeTranslatedText(blockParsedContent.translatedText || "", targetLanguage),
+                  tokenUsage
                 };
 
                 // Log successful API call
@@ -5543,7 +5673,8 @@ Format your response as valid JSON with these exact keys:
                 logger.log("Successfully parsed JSON with flexible regex");
                 const result = {
                   readingsText: applyKoreanRomanizationGuards(flexibleParsedContent.readingsText || "", "fallback-flex-parse"),
-                  translatedText: sanitizeTranslatedText(flexibleParsedContent.translatedText || "", targetLanguage)
+                  translatedText: sanitizeTranslatedText(flexibleParsedContent.translatedText || "", targetLanguage),
+                  tokenUsage
                 };
 
                 // Log successful API call
@@ -5574,7 +5705,8 @@ Format your response as valid JSON with these exact keys:
                   translatedText: sanitizeTranslatedText(
                     translatedMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\'),
                     targetLanguage
-                  )
+                  ),
+                  tokenUsage
                 };
 
                 // Log successful API call
@@ -6668,10 +6800,10 @@ CRITICAL REQUIREMENTS:
     // Select the appropriate system prompt - CJK and other reading languages get specialized prompts
     const systemPrompt = isChineseWithCaching ? (USE_LITE_PROMPTS ? chineseWordScopeSystemPromptLite : chineseSystemPrompt) :
                          isJapaneseWithCaching ? (USE_LITE_PROMPTS ? japaneseWordScopeSystemPromptLite : japaneseSystemPrompt) :
-                         isKoreanWithCaching ? koreanSystemPrompt :
-                         isArabicWithReadings ? arabicSystemPrompt :
-                         isHindiWithReadings ? hindiSystemPrompt :
-                         isThaiWithReadings ? thaiSystemPrompt :
+                         isKoreanWithCaching ? (USE_LITE_PROMPTS ? koreanWordScopeSystemPromptLite : koreanSystemPrompt) :
+                         isArabicWithReadings ? (USE_LITE_PROMPTS ? arabicWordScopeSystemPromptLite : arabicSystemPrompt) :
+                         isHindiWithReadings ? (USE_LITE_PROMPTS ? hindiWordScopeSystemPromptLite : hindiSystemPrompt) :
+                         isThaiWithReadings ? (USE_LITE_PROMPTS ? thaiWordScopeSystemPromptLite : thaiSystemPrompt) :
                          USE_LITE_PROMPTS ? buildGeneralLanguageSystemPromptLite(forcedLanguage) : generalLanguageSystemPrompt;
     
     // Determine language name for logging
@@ -6825,10 +6957,17 @@ CRITICAL REQUIREMENTS:
         logger.log(`🔄 [WordScope Cache] ⚠️ NONE - Prompt may be too small (need ${MIN_CACHEABLE_TOKENS_HAIKU_45}+ tokens for Haiku 4.5)`);
       }
     } else if (needsReadings && (isOtherReadingLanguage || forcedLanguage === 'ru')) {
-      // READING LANGUAGES (Arabic, Hindi, Thai, Russian): Request readings via combinedPrompt
+      // READING LANGUAGES (Arabic, Hindi, Thai, Russian): Request readings via combinedPrompt (or lite user message for Arabic when USE_LITE_PROMPTS)
       // ar/hi/th use language-specific system prompts with full transliteration rules; ru uses general prompt
-      // Same structure as CJK but with combinedPrompt that includes furiganaFieldInstruction and readingTask
-      dynamicUserMessage = combinedPrompt;
+      if (USE_LITE_PROMPTS && (isArabicWithReadings || isHindiWithReadings || isThaiWithReadings || forcedLanguage === 'ru')) {
+        dynamicUserMessage = `TEXT: "${normalizedText}"
+
+GRAMMAR: ${scopeInstructions}
+
+JSON (camelCase keys): readingsText, translatedText, scopeAnalysis: { word (main phrase), reading, partOfSpeech (word1 [label]+...), baseForm?, grammar: { explanation, particles? }, examples: [ { sentence, translation, note } ] x3, commonMistake: { wrong, correct, reason }, commonContext?, synonyms: [ { phrase, translation, nuance } ] x3 }. Period-end sentence fields. Labels in ${targetLangName}. All explanations in ${targetLangName}. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
+      } else {
+        dynamicUserMessage = combinedPrompt;
+      }
 
       logger.log(`🔄 [WordScope Prompt Caching] Sending ${languageDisplayName} request with caching enabled (readings) - system prompt: ${systemPrompt.length} chars, user message: ${dynamicUserMessage.length} chars`);
 
@@ -7144,7 +7283,8 @@ CRITICAL REQUIREMENTS:
       readingsText: furiganaResult,
       translatedText: parsedResult.translatedText,
       scopeAnalysis: formattedScopeAnalysis,
-      languageMismatch: undefined
+      languageMismatch: undefined,
+      tokenUsage: { input: inputTokens ?? 0, output: outputTokens ?? 0, total: (inputTokens ?? 0) + (outputTokens ?? 0) }
     };
     
   } catch (error) {
@@ -7466,9 +7606,13 @@ OUTPUT FORMAT:
       operationType: 'scope_analysis_fallback'
     }, scopeInputTokens, scopeOutputTokens);
     
+    const translateUsage = translationResult.tokenUsage;
+    const totalInput = (translateUsage?.input ?? 0) + scopeInputTokens;
+    const totalOutput = (translateUsage?.output ?? 0) + scopeOutputTokens;
     return {
       ...translationResult,
-      scopeAnalysis: formattedScopeAnalysis
+      scopeAnalysis: formattedScopeAnalysis,
+      tokenUsage: { input: totalInput, output: totalOutput, total: totalInput + totalOutput }
     };
   } catch (error) {
     logger.error('[WordScope Fallback] Scope analysis failed:', error);
