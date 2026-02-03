@@ -197,22 +197,22 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
 
   // Determine pronunciation guide type based on content (no language detection needed)
   useEffect(() => {
-    const furiganaText = flashcard.furiganaText;
-    
-    if (!furiganaText) {
+const readingsText = flashcard.readingsText;
+
+    if (!readingsText) {
       setNeedsRomanization(false);
       setDetectedLanguage('English'); // Default for text without pronunciation guide
       return;
     }
 
-    // Check what type of pronunciation guide the furiganaText contains
-    const containsHiragana = /[\u3040-\u309F]/.test(furiganaText); // Japanese furigana
-    const containsHangul = /[\uAC00-\uD7AF]/.test(furiganaText); // Korean
-    const containsCyrillic = /[\u0400-\u04FF]/.test(furiganaText); // Russian
-    const containsArabicScript = /[\u0600-\u06FF]/.test(furiganaText); // Arabic
-    const containsThaiScript = /[\u0E00-\u0E7F]/.test(furiganaText); // Thai
-    const containsDevanagari = /[\u0900-\u097F]/.test(furiganaText); // Hindi
-    const containsLatinInParentheses = /\([a-zA-Zāēīōūǎěǐǒǔàèìòùáéíóúǘǜɑ\s\.\-]+\)/.test(furiganaText); // Chinese pinyin or other romanization (includes periods for Thai RTGS)
+    // Check what type of pronunciation guide the readingsText contains
+    const containsHiragana = /[\u3040-\u309F]/.test(readingsText); // Japanese furigana
+    const containsHangul = /[\uAC00-\uD7AF]/.test(readingsText); // Korean
+    const containsCyrillic = /[\u0400-\u04FF]/.test(readingsText); // Russian
+    const containsArabicScript = /[\u0600-\u06FF]/.test(readingsText); // Arabic
+    const containsThaiScript = /[\u0E00-\u0E7F]/.test(readingsText); // Thai
+    const containsDevanagari = /[\u0900-\u097F]/.test(readingsText); // Hindi
+    const containsLatinInParentheses = /\([a-zA-Zāēīōūǎěǐǒǔàèìòùáéíóúǘǜɑ\s\.\-]+\)/.test(readingsText); // Chinese pinyin or other romanization (includes periods for Thai RTGS)
 
     let language = 'unknown';
     if (containsHiragana) {
@@ -254,8 +254,8 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
     }
     
     setDetectedLanguage(language);
-    setNeedsRomanization(furiganaText.length > 0);
-  }, [flashcard.furiganaText]);
+    setNeedsRomanization(readingsText.length > 0);
+  }, [flashcard.readingsText]);
 
   // Function to handle card flipping
   const handleFlip = () => {
@@ -666,7 +666,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
                 checkContentScrollable(scrollView, 'back');
               }}
             >
-              {needsRomanization && flashcard.furiganaText && (
+              {needsRomanization && flashcard.readingsText && (
                 <>
                   <Text style={styles.sectionTitle}>
                     {detectedLanguage === 'Japanese' ? t('flashcard.sectionTitles.withFurigana') :
@@ -683,7 +683,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
                   </Text>
                   {(detectedLanguage === 'Japanese' || detectedLanguage === 'Chinese' || detectedLanguage === 'Korean' || detectedLanguage === 'Russian' || detectedLanguage === 'Arabic' || detectedLanguage === 'Hindi' || detectedLanguage === 'Thai') ? (
                     <FuriganaText
-                      text={flashcard.furiganaText}
+                      text={flashcard.readingsText}
                       fontSize={20}
                       furiganaFontSize={12}
                       color={COLORS.text}
@@ -691,8 +691,8 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
                       textAlign="center"
                     />
                   ) : (
-                    <Text style={styles.furiganaText}>
-                      {flashcard.furiganaText}
+                    <Text style={styles.readingsText}>
+                      {flashcard.readingsText}
                     </Text>
                   )}
                 </>
@@ -963,14 +963,14 @@ const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean
     marginTop: 15,
     textAlign: 'center', // Center the title
   },
-  furiganaText: {
+  readingsText: {
     fontSize: 20, // Increased from 18 for better visibility on larger cards
     textAlign: 'center', // Center the text
     color: COLORS.text,
     marginBottom: 15,
     lineHeight: 30, // Increased proportionally
   },
-  furiganaTextComponent: {
+  readingsTextComponent: {
     marginBottom: 15,
     alignSelf: 'center',
   },

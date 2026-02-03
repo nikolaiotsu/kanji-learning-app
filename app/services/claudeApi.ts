@@ -93,9 +93,10 @@ EXTRA QUALITY NOTES:
 
 RESPOND WITH JSON:
 {
-  "furiganaText": "Original Chinese text with complete pinyin annotations",
+  "readingsText": "Original Chinese text with complete pinyin annotations",
   "translatedText": "Natural translation in target language"
-}`;
+}
+Output only this JSON. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
 
 // STATIC SYSTEM PROMPT FOR JAPANESE (CACHEABLE) - Shared across functions
 // Just above 2048 token minimum for Haiku caching
@@ -184,19 +185,47 @@ EXTRA QUALITY NOTES:
 
 RESPOND WITH JSON:
 {
-  "furiganaText": "Original Japanese text with complete furigana annotations",
+  "readingsText": "Original Japanese text with complete furigana annotations",
   "translatedText": "Natural translation in target language"
-}`;
+}
+Output only this JSON. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
 
 // Lite Japanese system prompt for WordScope (J→E etc.) - bare minimum
-const japaneseWordScopeSystemPromptLite = `Japanese expert: translation + furigana + grammar. Translate naturally; no readings in translation. Furigana: hiragana in ( ) after every kanji word, standard compound readings. Leave hiragana/katakana/numbers/English unchanged; never convert hiragana to kanji. Format: 東京(とうきょう), hiragana only. Respond with JSON: furiganaText, translatedText, scopeAnalysis.`;
+const japaneseWordScopeSystemPromptLite = `Japanese expert: translation + furigana + grammar. Translate naturally; no readings in translation. Furigana: hiragana in ( ) after every kanji word. Be extra careful with compound words; double-check furigana against standard dictionary readings—do not combine individual kanji readings phonetically. Leave hiragana/katakana/numbers/English unchanged; never convert hiragana to kanji. Format: 東京(とうきょう), hiragana only. Respond with JSON: readingsText, translatedText, scopeAnalysis. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes.`;
+
+// Lite Japanese system prompt for translation-only (no scope). Haiku 4.5 can follow minimal instructions.
+const japaneseTranslationSystemPromptLite = `You are a Japanese translation and furigana expert.
+
+Translate into natural, fluent target language. Preserve meaning and tone. Do not add readings to the translation.
+
+Be extra careful with compound words. Double check the dictionary readings for compounds.
+
+Furigana: For every word containing kanji, add hiragana readings in parentheses immediately after it. Use standard dictionary readings for compounds. Format: 東京(とうきょう). Leave hiragana, katakana, numbers, and English unchanged. Never add furigana to kana-only words. Never convert hiragana to kanji.
+
+Double check that you have included the appropriate furigana for all the words in the text if appropriate.
+
+OUTPUT: Reply with ONLY the JSON object. No preamble, no explanation of the text, no commentary, no notes. translatedText must contain ONLY the translation—nothing else. Do NOT add phrases like "This means...", "Here is...", or any explanation inside or outside the JSON. Inside string values: escape double quotes as \\", newlines as \\n, backslashes as \\. No trailing commas. Example: {"readingsText":"...","translatedText":"..."}`;
+
+// Lite Chinese system prompt for translation-only (no scope). Context-appropriate for pinyin/tone difficulties.
+const chineseTranslationSystemPromptLite = `You are a Chinese translation and pinyin expert.
+
+Translate into natural, fluent target language. Preserve meaning and tone. Do not add pinyin to the translation.
+
+Pinyin: Use Hanyu Pinyin with tone marks (ā é ǐ ò ū ǖ). readingsText MUST be the original Chinese text with pinyin in parentheses immediately after each word or character so the app can show pinyin on top. No space before (. WRONG: "※ jià gé hán fú wù fèi" (pinyin only). CORRECT: "※价(jià)格(gé)含(hán)服(fú)务(wù)费(fèi)" (Chinese then (pinyin) for each part). Format: 中文(zhōngwén) or 价格(jiàgé) for compounds. Tone sandhi: 不 bú before 4th (不是 búshì), 一 yī/yí/yì by context, 3rd+3rd→2nd+3rd (你好 níhǎo). Neutral: 的(de), 了(le), 吗(ma). Polyphonic: 行 háng vs xíng by context. Leave English, numbers, symbols unchanged.
+
+Double-check: compound readings and tone sandhi correct; readingsText is inline 汉字(pinyin) for every part so pinyin displays on top of characters.
+
+OUTPUT: Reply with ONLY the JSON object. No preamble, no explanation of the text, no commentary, no notes. translatedText must contain ONLY the translation—nothing else. Do NOT add phrases like "This means...", "Here is...", or any explanation inside or outside the JSON. Escape \\", \\n, \\. No trailing commas. Example: {"readingsText":"※价(jià)格(gé)含(hán)服(fú)务(wù)费(fèi)","translatedText":"..."}`;
+
+// Lite Chinese system prompt for WordScope (translation + pinyin + grammar). Same principles as Japanese lite.
+const chineseWordScopeSystemPromptLite = `Chinese expert: translation + pinyin + grammar. Translate naturally; no readings in translation. readingsText MUST be original Chinese with pinyin in ( ) immediately after each word/character so the app shows pinyin on top. WRONG: pinyin only or on separate line (e.g. "jià gé hán fú wù fèi"). CORRECT: inline 价(jià)格(gé)含(hán)服(fú)务(wù)费(fèi)—no space before (. Format: 中文(zhōngwén) or 价格(jiàgé) for compounds. Tone sandhi: 不 bú, 一 yī/yí/yì, 3rd+3rd→2nd+3rd. Neutral: 的(de), 了(le), 吗(ma). Polyphonic by context. Leave English/numbers/symbols unchanged. Respond with JSON: readingsText, translatedText, scopeAnalysis. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes.`;
 
 // STATIC SYSTEM PROMPT FOR KOREAN (CACHEABLE) - Shared across functions
 // Just above 2048 token minimum for Haiku caching
 const koreanSystemPrompt = `You are a Korean language expert. Your task is to annotate Korean text with romanization and translate it.
 
 ⚠️ CRITICAL RULE #1 - NEVER VIOLATE:
-The furiganaText MUST contain the ORIGINAL KOREAN CHARACTERS (한글).
+The readingsText MUST contain the ORIGINAL KOREAN CHARACTERS (한글).
 WRONG: "munbeob poin-teu" ❌ (romanization only - NO Korean!)
 CORRECT: "문법(mun-beop) 포인트(po-in-teu)" ✓ (Korean + romanization)
 
@@ -205,7 +234,7 @@ The translatedText must be PURE target language. NO romanization.
 WRONG: "eun/neun vs i/ga" ❌ (romanization in translation)
 CORRECT: "topic marker vs subject marker" ✓ (actual translation)
 
-FORMAT FOR furiganaText:
+FORMAT FOR readingsText:
 - Every Korean word: 한글(romanization) - Korean FIRST, then romanization in parentheses
 - Slashes: 은/는 → 은(eun)/는(neun) - annotate EACH word separately
 - Parentheses: (조사) → (조사(jo-sa)) - add romanization inside
@@ -213,13 +242,13 @@ FORMAT FOR furiganaText:
 
 EXAMPLES:
 Input: "문법 포인트"
-furiganaText: "문법(mun-beop) 포인트(po-in-teu)"
+readingsText: "문법(mun-beop) 포인트(po-in-teu)"
 
 Input: "은/는 vs 이/가"
-furiganaText: "은(eun)/는(neun) vs 이(i)/가(ga)"
+readingsText: "은(eun)/는(neun) vs 이(i)/가(ga)"
 
 Input: "(목적격 조사)"
-furiganaText: "(목적격(mog-jeog-gyeog) 조사(jo-sa))"
+readingsText: "(목적격(mog-jeog-gyeog) 조사(jo-sa))"
 
 ROMANIZATION RULES:
 - ㅓ = eo, ㅗ = o, ㅡ = eu, ㅜ = u
@@ -270,7 +299,7 @@ COMPOUND WORDS:
 - Loan words: 컴퓨터(keom-pyu-teo), 버스(beo-seu)
 
 VERIFICATION CHECKLIST:
-✓ Every Korean character preserved in furiganaText
+✓ Every Korean character preserved in readingsText
 ✓ Romanization in (parentheses) with no space before (
 ✓ Correct 받침 pronunciation changes
 ✓ Proper particle romanization (i/ga, eun/neun, eul/reul)
@@ -309,7 +338,7 @@ REGIONAL VARIATIONS:
 
 SELF-VERIFICATION CHECKLIST:
 Before submitting, verify each Korean element:
-✓ Original 한글 preserved in furiganaText
+✓ Original 한글 preserved in readingsText
 ✓ 받침 pronunciation changes applied correctly
 ✓ Particles romanized properly (eun/neun, i/ga, eul/reul)
 ✓ No Korean in translatedText (only target language)
@@ -319,9 +348,10 @@ Before submitting, verify each Korean element:
 
 RESPOND WITH JSON:
 {
-  "furiganaText": "Korean text with romanization annotations",
+  "readingsText": "Korean text with romanization annotations",
   "translatedText": "Pure translation in target language (NO romanization)"
-}`;
+}
+Output only this JSON. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
 
 // STATIC SYSTEM PROMPT FOR ARABIC (CACHEABLE) - Shared across functions
 // Just above 2048 token minimum for Haiku caching
@@ -431,9 +461,10 @@ CRITICAL ERRORS TO AVOID:
 
 RESPOND WITH JSON:
 {
-  "furiganaText": "Arabic text with enhanced transliteration in parentheses immediately after each Arabic word - following the sun letter assimilation rules, long vowel consistency rules, AND systematic hamza representation above",
+  "readingsText": "Arabic text with enhanced transliteration in parentheses immediately after each Arabic word - following the sun letter assimilation rules, long vowel consistency rules, AND systematic hamza representation above",
   "translatedText": "Accurate translation in target language reflecting the full meaning in context"
-}`;
+}
+Output only this JSON. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
 
 // STATIC SYSTEM PROMPT FOR THAI (CACHEABLE) - Shared across functions
 // Just above 2048 token minimum for Haiku caching
@@ -550,9 +581,10 @@ ADVANCED RTGS RULES:
 
 RESPOND WITH JSON:
 {
-  "furiganaText": "Thai text with RTGS romanization in parentheses after each word following all rules above",
+  "readingsText": "Thai text with RTGS romanization in parentheses after each word following all rules above",
   "translatedText": "Accurate translation in target language reflecting the full meaning in context"
-}`;
+}
+Output only this JSON. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
 
 // STATIC SYSTEM PROMPT FOR HINDI (CACHEABLE) - Shared across functions
 // Just above 2048 token minimum for Haiku caching
@@ -693,9 +725,10 @@ Before finalizing your romanization, systematically verify each element:
 
 RESPOND WITH JSON:
 {
-  "furiganaText": "Hindi text with IAST romanization in parentheses immediately after each Hindi word - following the vowel length, retroflex, sibilant, and compound consonant rules above",
+  "readingsText": "Hindi text with IAST romanization in parentheses immediately after each Hindi word - following the vowel length, retroflex, sibilant, and compound consonant rules above",
   "translatedText": "Accurate translation in target language reflecting the full meaning in context"
-}`;
+}
+Output only this JSON. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
 
 // SIMPLE TRANSLATION PROMPT - For basic translations without grammar analysis
 // This is a lightweight prompt for when users just want translations (no WordScope)
@@ -713,9 +746,13 @@ RULES:
 
 RESPOND WITH JSON:
 {
-  "furiganaText": "",
+  "readingsText": "",
   "translatedText": "Natural translation in target language"
-}`;
+}
+Output only this JSON. No preamble, no explanation of the text, no commentary. translatedText must contain ONLY the translation. Do NOT add "This means...", "Here is...", or any explanation. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
+
+// Minimal prompt for English→any when USE_LITE_PROMPTS (saves ~80 tokens vs simpleTranslationPrompt)
+const simpleTranslationPromptLite = `Translate to the requested target language. Natural, fluent output only. No readings/romanization in translation. Output ONLY the JSON object: {"readingsText": "", "translatedText": "translation"}. No preamble, no explanation, no commentary. translatedText must be ONLY the translation. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes.`;
 
 // STATIC SYSTEM PROMPT FOR GENERAL LANGUAGES (CACHEABLE) - For WordScope/grammar analysis
 // This covers: French, Spanish, Italian, German, Portuguese, Russian, Arabic, Hindi, Thai, Vietnamese, Tagalog, Esperanto, etc.
@@ -897,9 +934,10 @@ When analyzing sentence structure, identify:
 
 RESPOND WITH JSON:
 {
-  "furiganaText": "",
+  "readingsText": "",
   "translatedText": "Natural translation in target language"
-}`;
+}
+Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
 
 // Feature flag: use lite prompts (Haiku 4.5 optimized, ~50%+ token reduction)
 const USE_LITE_PROMPTS = true;
@@ -908,7 +946,7 @@ const USE_LITE_PROMPTS = true;
 function buildGeneralLanguageSystemPromptLite(sourceLanguage: string): string {
   const languageRules = getLanguageFamilyRules(sourceLanguage);
   const rulesBlock = languageRules ? `\n${languageRules}\n` : '';
-  return `Translation + grammar expert. Translate naturally; preserve meaning/tone; no romanization in translation. Grammar: analyze SOURCE only. Format: word1 [label] + word2 [label] + ... all words; labels in TARGET. Examples in SOURCE, translations in TARGET. Mistake: wrong/correct in SOURCE, reason in TARGET.${rulesBlock}JSON: furiganaText, translatedText, scopeAnalysis.`;
+  return `Translation + grammar expert. Translate naturally; preserve meaning/tone; no romanization in translation. Grammar: analyze SOURCE only. Format: word1 [label] + word2 [label] + ... all words; labels in TARGET. Example sentences in SOURCE; translation, note, explanation, reason, nuance in TARGET. Mistake: wrong/correct in SOURCE, reason in TARGET. All WordScope explanations and learner-facing text (explanation, note, translation, reason, nuance) MUST be in the TARGET language. Double-check that scope output is in target language, not source.${rulesBlock}JSON: readingsText, translatedText, scopeAnalysis. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes.`;
 }
 
 /** Lite scope instructions - bare minimum; schema in user message. */
@@ -919,7 +957,7 @@ function buildScopeInstructionsLite(
 ): string {
   return `Analyze "${normalizedText}" as ${sourceLangName} teacher for ${targetLangName} speaker.
 partOfSpeech: word1 [label] + word2 [label] + ... all words from source; labels in ${targetLangName}.
-examples: 3 items, sentence uses exact phrase from text. synonyms: 3 items, different from examples. Period-end sentence-like fields. particles/baseForm only if needed (JA/KO).`;
+examples: 3 items; sentence in ${sourceLangName}, translation and note in ${targetLangName}. synonyms: 3 items; phrase in ${sourceLangName}, translation and nuance in ${targetLangName}. grammar.explanation, commonMistake.reason in ${targetLangName}. All explanations and learner-facing text in ${targetLangName} only. Double-check. Period-end sentence-like fields. particles/baseForm only if needed (JA/KO).`;
 }
 
 // Language validation caching system to reduce API costs
@@ -1065,7 +1103,7 @@ function containsErrorPatterns(text: string): boolean {
 // Check for JSON parsing artifacts that shouldn't be in final translation
 function containsJsonArtifacts(text: string): boolean {
   const jsonArtifacts = [
-    /"furiganaText"\s*:/,
+    /"readingsText"\s*:/,
     /"translatedText"\s*:/,
     /"isComplete"\s*:/,
     /\{[\s\S]*\}/,  // JSON objects
@@ -1104,7 +1142,7 @@ export interface LanguageMismatchInfo {
 }
 
 export interface ClaudeResponse {
-  furiganaText: string;
+  readingsText: string;
   translatedText: string;
   scopeAnalysis?: string; // Optional scope analysis field
   languageMismatch?: LanguageMismatchInfo;
@@ -1272,7 +1310,7 @@ function cleanJsonString(jsonString: string): string {
   
   try {
     // Find furiganaText value using simple string methods
-    const furiganaStart = cleaned.indexOf('"furiganaText"');
+    const furiganaStart = cleaned.indexOf('"readingsText"');
     const translationStart = cleaned.indexOf('"translatedText"');
     
     if (translationStart === -1) {
@@ -1331,6 +1369,50 @@ function cleanJsonString(jsonString: string): string {
       }
 
       furiganaValue = cleaned.substring(furiganaQuoteStart, furiganaQuoteEnd);
+    }
+
+    // Fallback: legacy responses may use "furiganaText" or "pinyinText"
+    if (!furiganaValue && cleaned.indexOf('"furiganaText"') !== -1) {
+      const legacyStart = cleaned.indexOf('"furiganaText"');
+      const legacyColon = cleaned.indexOf(':', legacyStart);
+      const legacyQuoteStart = cleaned.indexOf('"', legacyColon) + 1;
+      let legacyQuoteEnd = legacyQuoteStart;
+      let inEscapeLegacy = false;
+      while (legacyQuoteEnd < cleaned.length) {
+        const c = cleaned[legacyQuoteEnd];
+        if (inEscapeLegacy) { inEscapeLegacy = false; legacyQuoteEnd++; continue; }
+        if (c === '\\') { inEscapeLegacy = true; legacyQuoteEnd++; continue; }
+        if (c === '"') {
+          let next = legacyQuoteEnd + 1;
+          while (next < cleaned.length && /\s/.test(cleaned[next])) next++;
+          const nextChar = cleaned[next];
+          if (nextChar === ',' && isInlineComma(next)) { legacyQuoteEnd++; continue; }
+          if (nextChar === ',' || nextChar === '}' || next >= cleaned.length) break;
+        }
+        legacyQuoteEnd++;
+      }
+      furiganaValue = cleaned.substring(legacyQuoteStart, legacyQuoteEnd);
+    }
+    if (!furiganaValue && cleaned.indexOf('"pinyinText"') !== -1) {
+      const pinyinStart = cleaned.indexOf('"pinyinText"');
+      const pinyinColonIndex = cleaned.indexOf(':', pinyinStart);
+      const pinyinQuoteStart = cleaned.indexOf('"', pinyinColonIndex) + 1;
+      let pinyinQuoteEnd = pinyinQuoteStart;
+      let inEscapePinyin = false;
+      while (pinyinQuoteEnd < cleaned.length) {
+        const c = cleaned[pinyinQuoteEnd];
+        if (inEscapePinyin) { inEscapePinyin = false; pinyinQuoteEnd++; continue; }
+        if (c === '\\') { inEscapePinyin = true; pinyinQuoteEnd++; continue; }
+        if (c === '"') {
+          let next = pinyinQuoteEnd + 1;
+          while (next < cleaned.length && /\s/.test(cleaned[next])) next++;
+          const nextChar = cleaned[next];
+          if (nextChar === ',' && isInlineComma(next)) { pinyinQuoteEnd++; continue; }
+          if (nextChar === ',' || nextChar === '}' || next >= cleaned.length) break;
+        }
+        pinyinQuoteEnd++;
+      }
+      furiganaValue = cleaned.substring(pinyinQuoteStart, pinyinQuoteEnd);
     }
 
     // Extract translatedText value with INDUSTRY STANDARD approach
@@ -1496,7 +1578,7 @@ function cleanJsonString(jsonString: string): string {
     // Build clean JSON from scratch with properly escaped values
     // Include optional verification fields if they were present in the original
     const resultObj: Record<string, unknown> = {
-      furiganaText: furiganaValue,
+      readingsText: furiganaValue,
       translatedText: translationValue
     };
     
@@ -2234,7 +2316,7 @@ export async function processWithClaude(
               );
 
               return {
-                furiganaText: '',
+                readingsText: '',
                 translatedText: '',
                 languageMismatch: mismatchInfo
               };
@@ -2270,7 +2352,7 @@ export async function processWithClaude(
         logger.log(`[Claude API] ${errorMessage}`);
 
         return {
-          furiganaText: '',
+          readingsText: '',
           translatedText: '',
           languageMismatch: mismatchInfo
         };
@@ -2309,7 +2391,7 @@ export async function processWithClaude(
         logger.log(`[Claude API] Language mismatch: Text contains ${detectedNonLatinLanguage} characters but source is set to ${forcedLanguage}`);
         
         return {
-          furiganaText: '',
+          readingsText: '',
           translatedText: '',
           languageMismatch: mismatchInfo
         };
@@ -2339,7 +2421,7 @@ export async function processWithClaude(
               );
               
               return {
-                furiganaText: '',
+                readingsText: '',
                 translatedText: '',
                 languageMismatch: mismatchInfo
               };
@@ -2497,6 +2579,8 @@ If the target language is Vietnamese, the translation must use Vietnamese script
         readingLanguageCodes.has(normalizedForcedLanguage) ||
         readingLanguageNames.has(primaryLanguage);
       
+      // FLOW: "Translate TO X" is checked first. ENG→CH hits "TRANSLATING TO CHINESE", ENG→JA hits "TRANSLATING TO JAPANESE".
+      // The "primaryLanguage === English" branch is only used when target is NOT ja/zh (e.g. ENG→French). So for ENG→CH/ENG→JA we must lite here to cut tokens.
       // Check if we're translating TO Japanese from a non-Japanese source
       if (
         targetLanguage === 'ja' &&
@@ -2505,8 +2589,11 @@ If the target language is Vietnamese, the translation must use Vietnamese script
         !hasSourceReadingPrompt
       ) {
         logger.log(`[DEBUG] TRANSLATING TO JAPANESE: Using natural Japanese translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
-        // Natural Japanese translation prompt - for translating TO Japanese
-        userMessage = `
+        if (primaryLanguage === "English" && USE_LITE_PROMPTS) {
+          userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+        } else {
+          userMessage = `
 ${promptTopSection}
 You are a professional Japanese translator. I need you to translate this text into natural, native-level Japanese: "${text}"
 
@@ -2527,15 +2614,19 @@ TRANSLATION GUIDELINES:
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "",
+  "readingsText": "",
   "translatedText": "Natural Japanese translation using appropriate kanji, hiragana, and katakana - NO furigana readings"
 }`;
+        }
       }
       // Check if we're translating TO Chinese from a non-Chinese source (but NOT from a reading language)
       else if (targetLanguage === 'zh' && forcedLanguage !== 'zh' && primaryLanguage !== 'Chinese' && !hasSourceReadingPrompt) {
         logger.log(`[DEBUG] TRANSLATING TO CHINESE: Using natural Chinese translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
-        // Natural Chinese translation prompt - for translating TO Chinese
-        userMessage = `
+        if (primaryLanguage === "English" && USE_LITE_PROMPTS) {
+          userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+        } else {
+          userMessage = `
 ${promptTopSection}
 You are a professional Chinese translator. I need you to translate this text into natural, native-level Chinese: "${text}"
 
@@ -2558,19 +2649,21 @@ TRANSLATION GUIDELINES:
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "",
+  "readingsText": "",
   "translatedText": "Natural Chinese translation using appropriate Chinese characters and Chinese quotation marks 「」- NO pinyin readings or Western quotes"
 }`;
+        }
       }
       // FAILSAFE: If Japanese is forced, use Japanese prompt with PROMPT CACHING
       else if (forcedLanguage === 'ja' && targetLanguage !== 'ja') {
-        logger.log(`[DEBUG] FORCED JAPANESE: Using Japanese prompt with prompt caching`);
+        const jaTranslatePrompt = USE_LITE_PROMPTS ? japaneseTranslationSystemPromptLite : japaneseSystemPrompt;
+        logger.log(`[DEBUG] FORCED JAPANESE: Using ${USE_LITE_PROMPTS ? 'lite' : 'full'} Japanese prompt with prompt caching`);
 
         // DYNAMIC USER MESSAGE (NOT CACHEABLE) - Only the text and target language
         const userMessage = `Translate to ${targetLangName}: "${text}"`;
 
         // API CALL WITH PROMPT CACHING ENABLED
-        logger.log(`🔄 [Prompt Caching] Sending request with caching enabled - system prompt: ${japaneseSystemPrompt.length} chars, user message: ${userMessage.length} chars`);
+        logger.log(`🔄 [Prompt Caching] Sending request with caching enabled - system prompt: ${jaTranslatePrompt.length} chars, user message: ${userMessage.length} chars`);
 
         const response = await axios.post(
           'https://api.anthropic.com/v1/messages',
@@ -2581,7 +2674,7 @@ Format your response as valid JSON with these exact keys:
             system: [
               {
                 type: "text",
-                text: japaneseSystemPrompt,
+                text: jaTranslatePrompt,
                 cache_control: { type: "ephemeral" }  // ENABLES PROMPT CACHING
               }
             ],
@@ -2612,7 +2705,7 @@ Format your response as valid JSON with these exact keys:
         const cacheReadTokens = usage?.cache_read_input_tokens || 0;
 
         // Analyze caching effectiveness
-        const cacheableTokens = japaneseSystemPrompt.length / 4; // Rough token estimate
+        const cacheableTokens = jaTranslatePrompt.length / 4; // Rough token estimate
         const dynamicTokens = userMessage.length / 4; // Rough token estimate
 
         // Calculate ACTUAL TOTAL COST including cache pricing
@@ -2668,7 +2761,7 @@ Format your response as valid JSON with these exact keys:
               } catch (parseError) {
                 logger.log('🚨 Initial JSON parse failed, trying emergency fallback...');
 
-                const furiganaMatch = textContent.text.match(/"furiganaText"\s*:\s*"((?:\\.|[^"\\])*?)"/s);
+                const furiganaMatch = textContent.text.match(/"readingsText"\s*:\s*"((?:\\.|[^"\\])*?)"/s);
                 const translationMatch = textContent.text.match(/"translatedText"\s*:\s*"((?:\\.|[^"\\])*?)"/s);
 
                 if (furiganaMatch && translationMatch) {
@@ -2688,7 +2781,7 @@ Format your response as valid JSON with these exact keys:
                   logger.log("Extracted translation length:", translationValue.length);
 
                   parsedContent = {
-                    furiganaText: furiganaValue,
+                    readingsText: furiganaValue,
                     translatedText: translationValue
                   };
 
@@ -2704,7 +2797,7 @@ Format your response as valid JSON with these exact keys:
 
               // CRITICAL: Run Korean romanization validation BEFORE smart verification early return
               // This ensures we catch cases where Claude returns romanization-only without Korean characters
-              let earlyFuriganaText = applyKoreanRomanizationGuards(parsedContent.furiganaText || "", "initial-parse-early");
+              let earlyFuriganaText = applyKoreanRomanizationGuards(parsedContent.readingsText || "", "initial-parse-early");
               
               if ((primaryLanguage === "Korean" || forcedLanguage as string === 'ko') && earlyFuriganaText) {
                 const koreanValidation = validateKoreanRomanization(text, earlyFuriganaText);
@@ -2760,7 +2853,7 @@ TRANSLATION REQUIREMENTS (CRITICAL):
 
 Format your response as valid JSON:
 {
-  "furiganaText": "MUST contain original Korean text with romanization in parentheses",
+  "readingsText": "MUST contain original Korean text with romanization in parentheses",
   "translatedText": "PURE ${targetLangName} translation - NO romanization, only natural ${targetLangName} text"
 }
 `;
@@ -2791,15 +2884,15 @@ Format your response as valid JSON:
                         const retryJson = cleanJsonString(retryText);
                         const retryParsed = JSON.parse(retryJson);
                         
-                        const retryValidation = validateKoreanRomanization(text, retryParsed.furiganaText || "");
+                        const retryValidation = validateKoreanRomanization(text, retryParsed.readingsText || "");
                         logger.log(`Korean retry validation: ${retryValidation.details}`);
                         
                         if (retryValidation.accuracy > koreanValidation.accuracy) {
-                          earlyFuriganaText = applyKoreanRomanizationGuards(retryParsed.furiganaText || "", "korean-retry-early");
+                          earlyFuriganaText = applyKoreanRomanizationGuards(retryParsed.readingsText || "", "korean-retry-early");
                           logger.log(`Korean retry successful - improved from ${koreanValidation.accuracy}% to ${retryValidation.accuracy}%`);
                           
                           // Update parsedContent with retry results
-                          parsedContent.furiganaText = earlyFuriganaText;
+                          parsedContent.readingsText = earlyFuriganaText;
                           if (retryParsed.translatedText) {
                             parsedContent.translatedText = retryParsed.translatedText;
                           }
@@ -2821,7 +2914,7 @@ Format your response as valid JSON:
                 logger.log("✅ [Smart Verification] High quality confirmed, skipping verification");
 
                 const result = {
-                  furiganaText: earlyFuriganaText,
+                  readingsText: earlyFuriganaText,
                   translatedText: sanitizeTranslatedText(parsedContent.translatedText || "", targetLanguage)
                 };
 
@@ -2833,7 +2926,7 @@ Format your response as valid JSON:
                     targetLanguage,
                     forcedLanguage,
                     textLength: text.length,
-                    hasJapanese: result.furiganaText ? true : false,
+                    hasJapanese: result.readingsText ? true : false,
                     parseMethod: 'direct',
                     operationType: 'translate'
                   }, inputTokens, outputTokens);
@@ -2871,7 +2964,7 @@ Format your response as valid JSON with these exact keys:
 {
   "isComplete": true/false (boolean indicating if the current translation is complete),
   "analysis": "Brief explanation of what's missing or incomplete (if applicable)",
-  "furiganaText": "${parsedContent.furiganaText || ""}",
+  "readingsText": "${parsedContent.readingsText || ""}",
   "translatedText": "Complete and accurate translation in ${targetLangName} language - either the original if it was complete, or a new complete translation if it wasn't"
 }`;
 
@@ -2938,7 +3031,7 @@ Format your response as valid JSON with these exact keys:
                         logger.log(`New translation: "${verifiedTranslatedText.substring(0, 60)}${verifiedTranslatedText.length > 60 ? '...' : ''}"`);
 
                         return {
-                          furiganaText: restoreSlashes(parsedContent.furiganaText || ""),
+                          readingsText: restoreSlashes(parsedContent.readingsText || ""),
                           translatedText: sanitizeTranslatedText(verifiedTranslatedText, targetLanguage)
                         };
                       } else {
@@ -2975,7 +3068,7 @@ Format your response as valid JSON with these exact keys:
                 }
               }
 
-              let furiganaText = applyKoreanRomanizationGuards(parsedContent.furiganaText || "", "initial-parse");
+              let furiganaText = applyKoreanRomanizationGuards(parsedContent.readingsText || "", "initial-parse");
 
               if ((primaryLanguage === "Japanese" || forcedLanguage === 'ja') && furiganaText) {
                 const validation = validateJapaneseFurigana(text, furiganaText);
@@ -3084,7 +3177,7 @@ If you encounter a kanji whose reading you're uncertain about, use the most comm
 CRITICAL RESPONSE FORMAT REQUIREMENTS:
 1. Format your response as valid JSON with these exact keys
 2. Do NOT truncate or abbreviate any part of the response
-3. Include the COMPLETE furiganaText and translatedText without omissions
+3. Include the COMPLETE readingsText and translatedText without omissions
 4. Ensure all special characters are properly escaped in the JSON
 5. Do NOT use ellipses (...) or any other abbreviation markers
 6. Do NOT split the response into multiple parts
@@ -3093,7 +3186,7 @@ CRITICAL RESPONSE FORMAT REQUIREMENTS:
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "Japanese text with furigana after EVERY kanji word as shown in examples - THIS IS MANDATORY AND MUST BE COMPLETE",
+  "readingsText": "Japanese text with furigana after EVERY kanji word as shown in examples - THIS IS MANDATORY AND MUST BE COMPLETE",
   "translatedText": "Complete and accurate translation in ${targetLangName} without any truncation or abbreviation"
 }`;
 
@@ -3130,7 +3223,7 @@ Format your response as valid JSON with these exact keys:
                           retryJsonString = cleanJsonString(retryJsonString);
                           const retryParsedContent = JSON.parse(retryJsonString);
 
-                          const retryPinyinText = retryParsedContent.furiganaText || "";
+                          const retryPinyinText = retryParsedContent.readingsText || "";
                           const retryValidation = validateJapaneseFurigana(text, retryPinyinText);
 
                           logger.log(`Retry furigana validation: ${retryValidation.details}`);
@@ -3154,12 +3247,12 @@ Format your response as valid JSON with these exact keys:
                 }
 
                 return {
-                  furiganaText: furiganaText,
+                  readingsText: furiganaText,
                   translatedText: sanitizeTranslatedText(parsedContent.translatedText || "", targetLanguage)
                 };
               } else {
                 return {
-                  furiganaText: restoreSlashes(parsedContent.furiganaText || ""),
+                  readingsText: restoreSlashes(parsedContent.readingsText || ""),
                   translatedText: sanitizeTranslatedText(translatedText, targetLanguage)
                 };
               }
@@ -3204,7 +3297,7 @@ TRANSLATION GUIDELINES:
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "",
+  "readingsText": "",
   "translatedText": "Natural Korean translation using Hangul characters - NO romanization"
 }`;
       } else if (targetLanguage === 'th' && forcedLanguage !== 'th' && primaryLanguage !== 'Thai' && !hasSourceReadingPrompt) {
@@ -3230,7 +3323,7 @@ TRANSLATION GUIDELINES:
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "",
+  "readingsText": "",
   "translatedText": "Natural Thai translation using Thai script only - NO romanization"
 }`;
       } else if (targetLanguage === 'vi' && forcedLanguage !== 'vi' && primaryLanguage !== 'Vietnamese' && !hasSourceReadingPrompt) {
@@ -3255,7 +3348,7 @@ TRANSLATION GUIDELINES:
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "",
+  "readingsText": "",
   "translatedText": "Natural Vietnamese translation using proper Vietnamese orthography with all necessary diacritics - NO romanization"
 }`;
       } else if (primaryLanguage === "Korean" && targetLanguage !== 'ko') {
@@ -3289,7 +3382,7 @@ TRANSLATION GUIDELINES:
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "",
+  "readingsText": "",
   "translatedText": "Natural Russian translation using Cyrillic characters - NO romanization"
 }`;
       } else if (primaryLanguage === "Russian") {
@@ -3305,7 +3398,7 @@ IMPORTANT FORMATTING REQUIREMENTS FOR RUSSIAN TEXT:
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "", 
+  "readingsText": "", 
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
@@ -3335,7 +3428,7 @@ TRANSLATION GUIDELINES:
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "",
+  "readingsText": "",
   "translatedText": "Natural Arabic translation using Arabic script - NO transliteration"
 }`;
       } else if ((primaryLanguage === "Arabic" || forcedLanguage === 'ar') && targetLanguage !== 'ar') {
@@ -3374,7 +3467,7 @@ TRANSLATION GUIDELINES:
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "",
+  "readingsText": "",
   "translatedText": "Accurate translation in ${targetLangName} language that preserves the full Vietnamese meaning, tone, and diacritics"
 }`;
       }
@@ -3403,7 +3496,7 @@ TRANSLATION GUIDELINES:
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "",
+  "readingsText": "",
   "translatedText": "Natural Hindi translation using Devanagari script - NO romanization"
 }`;
       } else if ((primaryLanguage === "Hindi" || forcedLanguage === 'hi') && targetLanguage !== 'hi') {
@@ -3431,7 +3524,7 @@ IMPORTANT FORMATTING REQUIREMENTS FOR ESPERANTO TEXT:
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "", 
+  "readingsText": "", 
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
@@ -3448,7 +3541,7 @@ IMPORTANT FORMATTING REQUIREMENTS FOR ITALIAN TEXT:
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "", 
+  "readingsText": "", 
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
@@ -3465,7 +3558,7 @@ IMPORTANT FORMATTING REQUIREMENTS FOR SPANISH TEXT:
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "", 
+  "readingsText": "", 
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
@@ -3482,7 +3575,7 @@ IMPORTANT FORMATTING REQUIREMENTS FOR FRENCH TEXT:
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "", 
+  "readingsText": "", 
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
@@ -3499,7 +3592,7 @@ IMPORTANT FORMATTING REQUIREMENTS FOR PORTUGUESE TEXT:
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "", 
+  "readingsText": "", 
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
@@ -3516,7 +3609,7 @@ IMPORTANT FORMATTING REQUIREMENTS FOR GERMAN TEXT:
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "", 
+  "readingsText": "", 
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
@@ -3533,13 +3626,17 @@ IMPORTANT FORMATTING REQUIREMENTS FOR TAGALOG TEXT:
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "", 
+  "readingsText": "", 
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
       } else if (primaryLanguage === "English") {
-        // English-specific prompt
-        userMessage = `
+        // English→any: use minimal prompt when lite to cut input tokens (~608 → ~150–200)
+        if (USE_LITE_PROMPTS) {
+          userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+        } else {
+          userMessage = `
 ${promptTopSection}
 You are an English language expert. I need you to translate this English text: "${text}"
 
@@ -3550,10 +3647,11 @@ IMPORTANT FORMATTING REQUIREMENTS FOR ENGLISH TEXT:
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "", 
+  "readingsText": "", 
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
+        }
       } else if (primaryLanguage === "Japanese" && forcedLanguage !== 'ja') {
         logger.log(`[DEBUG] Using Japanese prompt (furigana) for primaryLanguage: ${primaryLanguage}`);
         // Japanese prompt - Enhanced for contextual compound word readings (only when not using forced detection)
@@ -3639,7 +3737,7 @@ If you encounter a kanji whose reading you're uncertain about, use the most comm
 CRITICAL RESPONSE FORMAT REQUIREMENTS:
 1. Format your response as valid JSON with these exact keys
 2. Do NOT truncate or abbreviate any part of the response
-3. Include the COMPLETE furiganaText and translatedText without omissions
+3. Include the COMPLETE readingsText and translatedText without omissions
 4. Ensure all special characters are properly escaped in the JSON
 5. Do NOT use ellipses (...) or any other abbreviation markers
 6. Do NOT split the response into multiple parts
@@ -3648,7 +3746,7 @@ CRITICAL RESPONSE FORMAT REQUIREMENTS:
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "Japanese text with furigana after EVERY kanji word as shown in examples - THIS IS MANDATORY AND MUST BE COMPLETE",
+  "readingsText": "Japanese text with furigana after EVERY kanji word as shown in examples - THIS IS MANDATORY AND MUST BE COMPLETE",
   "translatedText": "Complete and accurate translation in ${targetLangName} without any truncation or abbreviation"
 }`;
       } else {
@@ -3663,7 +3761,7 @@ IMPORTANT:
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "", 
+  "readingsText": "", 
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
@@ -3701,13 +3799,13 @@ Format your response as valid JSON with these exact keys:
       // - CJK languages use specialized prompts with reading annotations (cached due to size)
       // - Romanization languages (Arabic, Hindi, Thai) use specialized prompts with romanization rules (cached due to size)
       // - Other languages use simple translation prompt (small, no caching needed)
-      const systemPrompt = isChineseWithCaching ? chineseSystemPrompt : 
-                           isJapaneseWithCaching ? japaneseSystemPrompt : 
+      const systemPrompt = isChineseWithCaching ? (USE_LITE_PROMPTS ? chineseTranslationSystemPromptLite : chineseSystemPrompt) : 
+                           isJapaneseWithCaching ? (USE_LITE_PROMPTS ? japaneseTranslationSystemPromptLite : japaneseSystemPrompt) : 
                            isKoreanWithCaching ? koreanSystemPrompt :
                            isArabicWithRomanization ? arabicSystemPrompt :
                            isHindiWithRomanization ? hindiSystemPrompt :
                            isThaiWithRomanization ? thaiSystemPrompt :
-                           simpleTranslationPrompt;
+                           (primaryLanguage === "English" && USE_LITE_PROMPTS ? simpleTranslationPromptLite : simpleTranslationPrompt);
       
       // Determine language name for logging
       const languageDisplayNames: Record<string, string> = {
@@ -3851,7 +3949,7 @@ Format your response as valid JSON with these exact keys:
               // Emergency fallback: manually extract values using regex
               try {
                 // Use a more comprehensive regex pattern that can handle multi-line values
-                const furiganaMatch = textContent.text.match(/"furiganaText"\s*:\s*"((?:\\.|[^"\\])*?)"/s);
+                const furiganaMatch = textContent.text.match(/"readingsText"\s*:\s*"((?:\\.|[^"\\])*?)"/s);
                 const translationMatch = textContent.text.match(/"translatedText"\s*:\s*"((?:\\.|[^"\\])*?)"/s);
                 
                 if (furiganaMatch && translationMatch) {
@@ -3872,7 +3970,7 @@ Format your response as valid JSON with these exact keys:
                   logger.log("Extracted translation length:", translationValue.length);
                   
                   parsedContent = {
-                    furiganaText: furiganaValue,
+                    readingsText: furiganaValue,
                     translatedText: translationValue
                   };
                   
@@ -3881,7 +3979,7 @@ Format your response as valid JSON with these exact keys:
                   // Try even more aggressive extraction
                   logger.log("Regex extraction failed, trying direct string search...");
                   
-                  const furiganaTextKey = '"furiganaText":';
+                  const furiganaTextKey = '"readingsText":';
                   const translatedTextKey = '"translatedText":';
                   
                   if (textContent.text.includes(furiganaTextKey) && textContent.text.includes(translatedTextKey)) {
@@ -3958,7 +4056,7 @@ Format your response as valid JSON with these exact keys:
                     logger.log("Direct extraction translation length:", translationValue.length);
                     
                     parsedContent = {
-                      furiganaText: furiganaValue,
+                      readingsText: furiganaValue,
                       translatedText: translationValue
                     };
                     
@@ -3980,7 +4078,7 @@ Format your response as valid JSON with these exact keys:
             
             // CRITICAL: Run Korean romanization validation BEFORE smart verification early return
             // This ensures we catch cases where Claude returns romanization-only without Korean characters
-            let earlyFuriganaText2 = applyKoreanRomanizationGuards(parsedContent.furiganaText || "", "initial-parse-early-path2");
+            let earlyFuriganaText2 = applyKoreanRomanizationGuards(parsedContent.readingsText || "", "initial-parse-early-path2");
             
             if ((primaryLanguage === "Korean" || forcedLanguage === 'ko') && earlyFuriganaText2) {
               const koreanValidation = validateKoreanRomanization(text, earlyFuriganaText2);
@@ -4036,7 +4134,7 @@ TRANSLATION REQUIREMENTS (CRITICAL):
 
 Format your response as valid JSON:
 {
-  "furiganaText": "MUST contain original Korean text with romanization in parentheses",
+  "readingsText": "MUST contain original Korean text with romanization in parentheses",
   "translatedText": "PURE ${targetLangName} translation - NO romanization, only natural ${targetLangName} text"
 }
 `;
@@ -4067,15 +4165,15 @@ Format your response as valid JSON:
                       const retryJson = cleanJsonString(retryText);
                       const retryParsed = JSON.parse(retryJson);
                       
-                      const retryValidation = validateKoreanRomanization(text, retryParsed.furiganaText || "");
+                      const retryValidation = validateKoreanRomanization(text, retryParsed.readingsText || "");
                       logger.log(`Korean retry validation (path 2): ${retryValidation.details}`);
                       
                       if (retryValidation.accuracy > koreanValidation.accuracy) {
-                        earlyFuriganaText2 = applyKoreanRomanizationGuards(retryParsed.furiganaText || "", "korean-retry-early-path2");
+                        earlyFuriganaText2 = applyKoreanRomanizationGuards(retryParsed.readingsText || "", "korean-retry-early-path2");
                         logger.log(`Korean retry successful (path 2) - improved from ${koreanValidation.accuracy}% to ${retryValidation.accuracy}%`);
                         
                         // Update parsedContent with retry results
-                        parsedContent.furiganaText = earlyFuriganaText2;
+                        parsedContent.readingsText = earlyFuriganaText2;
                         if (retryParsed.translatedText) {
                           parsedContent.translatedText = retryParsed.translatedText;
                         }
@@ -4098,7 +4196,7 @@ Format your response as valid JSON:
               logger.log("✅ [Smart Verification] High quality confirmed, skipping verification");
               
               const result = {
-                furiganaText: earlyFuriganaText2,
+                readingsText: earlyFuriganaText2,
                 translatedText: sanitizeTranslatedText(parsedContent.translatedText || "", targetLanguage)
               };
 
@@ -4110,7 +4208,7 @@ Format your response as valid JSON:
                   targetLanguage,
                   forcedLanguage,
                   textLength: text.length,
-                  hasJapanese: result.furiganaText ? true : false,
+                  hasJapanese: result.readingsText ? true : false,
                   parseMethod: 'direct',
                   operationType: 'translate'
                 }, inputTokens, outputTokens);
@@ -4150,7 +4248,7 @@ Format your response as valid JSON with these exact keys:
 {
   "isComplete": true/false (boolean indicating if the current translation is complete),
   "analysis": "Brief explanation of what's missing or incomplete (if applicable)",
-  "furiganaText": "${parsedContent.furiganaText || ""}", 
+  "readingsText": "${parsedContent.readingsText || ""}", 
   "translatedText": "Complete and accurate translation in ${targetLangName} - either the original if it was complete, or a new complete translation if it wasn't"
 }`;
 
@@ -4224,7 +4322,7 @@ Format your response as valid JSON with these exact keys:
                       logger.log(`New translation: "${verifiedTranslatedText.substring(0, 60)}${verifiedTranslatedText.length > 60 ? '...' : ''}"`);
                       
                       return {
-                        furiganaText: restoreSlashes(parsedContent.furiganaText || ""),
+                        readingsText: restoreSlashes(parsedContent.readingsText || ""),
                         translatedText: sanitizeTranslatedText(verifiedTranslatedText, targetLanguage)
                       };
                     } else {
@@ -4266,7 +4364,7 @@ Format your response as valid JSON with these exact keys:
             }
             
             // For Japanese text, validate furigana coverage
-            let furiganaText = applyKoreanRomanizationGuards(parsedContent.furiganaText || "", "initial-parse");
+            let furiganaText = applyKoreanRomanizationGuards(parsedContent.readingsText || "", "initial-parse");
             
             // ============================================================================
             // STEP 1: LANGUAGE-SPECIFIC VALIDATION (Script/Format Correctness)
@@ -4350,7 +4448,7 @@ VERIFICATION STEP: Before responding, manually check:
 
 Format as JSON:
 {
-  "furiganaText": "Text with furigana for ALL ${validation.totalKanjiCount} kanji - MANDATORY",
+  "readingsText": "Text with furigana for ALL ${validation.totalKanjiCount} kanji - MANDATORY",
   "translatedText": "Translation in ${targetLangName}"
 }`;
 
@@ -4408,7 +4506,7 @@ Format as JSON:
                         
                         const retryParsedContent = JSON.parse(retryJsonString);
                         
-                        const retryFuriganaText = retryParsedContent.furiganaText || "";
+                        const retryFuriganaText = retryParsedContent.readingsText || "";
                         const retryValidation = validateJapaneseFurigana(text, retryFuriganaText);
                         
                         logger.log(`Retry furigana validation: ${retryValidation.details}`);
@@ -4523,7 +4621,7 @@ SELF-VERIFICATION BEFORE RESPONDING:
 
 Format as JSON:
 {
-  "furiganaText": "Chinese text with corrected pinyin addressing all issues above",
+  "readingsText": "Chinese text with corrected pinyin addressing all issues above",
   "translatedText": "Translation in ${targetLangName}"
 }`;
 
@@ -4562,7 +4660,7 @@ Format as JSON:
                         retryJsonString = cleanJsonString(retryJsonString);
                         const retryParsedContent = JSON.parse(retryJsonString);
                         
-                        const retryPinyinText = retryParsedContent.furiganaText || "";
+                        const retryPinyinText = retryParsedContent.readingsText || "";
                         const retryValidation = validatePinyinAccuracy(text, retryPinyinText);
                         
                         logger.log(`Retry pinyin validation: ${retryValidation.details}`);
@@ -4644,7 +4742,7 @@ TRANSLATION REQUIREMENTS (CRITICAL):
 
 Format your response as valid JSON:
 {
-  "furiganaText": "MUST contain original Korean text with romanization in parentheses",
+  "readingsText": "MUST contain original Korean text with romanization in parentheses",
   "translatedText": "PURE ${targetLangName} translation - NO romanization, only natural ${targetLangName} text"
 }
 ` : `
@@ -4683,7 +4781,7 @@ SPECIFIC PATTERN FIXES REQUIRED:
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "Korean text with corrected romanization addressing all issues above",
+  "readingsText": "Korean text with corrected romanization addressing all issues above",
   "translatedText": "Accurate translation in ${targetLangName} language"
 }
 
@@ -4720,7 +4818,7 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
                         
                         const retryCleanedJson = cleanJsonString(retryResponseText);
                         const retryParsedResponse = JSON.parse(retryCleanedJson);
-                        const retryRomanizedText = retryParsedResponse.furiganaText;
+                        const retryRomanizedText = retryParsedResponse.readingsText;
                         
                         // Validate the retry result
                         const retryValidation = validateKoreanRomanization(text, retryRomanizedText);
@@ -4826,7 +4924,7 @@ WRONG examples (DO NOT USE):
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "Russian text with Cyrillic base + transliteration addressing all issues above",
+  "readingsText": "Russian text with Cyrillic base + transliteration addressing all issues above",
   "translatedText": "Accurate translation in ${targetLangName} language"
 }
 
@@ -4863,7 +4961,7 @@ CRITICAL: Every Russian word must have its ORIGINAL CYRILLIC text preserved with
                       
                       const retryCleanedJson = cleanJsonString(retryResponseText);
                       const retryParsedResponse = JSON.parse(retryCleanedJson);
-                      const retryTransliteratedText = retryParsedResponse.furiganaText;
+                      const retryTransliteratedText = retryParsedResponse.readingsText;
                       
                       // Validate the retry result
                       const retryValidation = validateRussianTransliteration(text, retryTransliteratedText);
@@ -4956,7 +5054,7 @@ WRONG examples (DO NOT USE):
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "Arabic text with Arabic base + Chat Alphabet addressing all issues above",
+  "readingsText": "Arabic text with Arabic base + Chat Alphabet addressing all issues above",
   "translatedText": "Accurate translation in ${targetLangName} language"
 }
 
@@ -4993,7 +5091,7 @@ CRITICAL: Every Arabic word must have its ORIGINAL ARABIC text preserved with ro
                       
                       const retryCleanedJson = cleanJsonString(retryResponseText);
                       const retryParsedResponse = JSON.parse(retryCleanedJson);
-                      const retryRomanizedText = retryParsedResponse.furiganaText;
+                      const retryRomanizedText = retryParsedResponse.readingsText;
                       
                       // Validate the retry result
                       const retryValidation = validateArabicRomanization(text, retryRomanizedText);
@@ -5083,7 +5181,7 @@ WRONG examples (DO NOT USE):
 
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "Hindi text with Devanagari base + IAST romanization addressing all issues above",
+  "readingsText": "Hindi text with Devanagari base + IAST romanization addressing all issues above",
   "translatedText": "Accurate translation in ${targetLangName} language"
 }
 
@@ -5120,7 +5218,7 @@ CRITICAL: Every Hindi word must have its ORIGINAL DEVANAGARI text preserved with
                       
                       const retryCleanedJson = cleanJsonString(retryResponseText);
                       const retryParsedResponse = JSON.parse(retryCleanedJson);
-                      const retryRomanizedText = retryParsedResponse.furiganaText;
+                      const retryRomanizedText = retryParsedResponse.readingsText;
                       
                       // Validate the retry result
                       const retryValidation = validateHindiRomanization(text, retryRomanizedText);
@@ -5252,7 +5350,7 @@ Format your response as valid JSON with these exact keys:
 {
   "isComplete": true/false (boolean indicating if the current ${readingType} are complete),
   "analysis": "Brief explanation of what's missing or incomplete (if applicable)",
-  "furiganaText": "Complete text with ${readingType} for ALL appropriate words - either the original if it was complete, or a new complete version if it wasn't",
+  "readingsText": "Complete text with ${readingType} for ALL appropriate words - either the original if it was complete, or a new complete version if it wasn't",
   "translatedText": "${parsedContent.translatedText || ""}"
 }`;
 
@@ -5310,7 +5408,7 @@ Format your response as valid JSON with these exact keys:
                     const readingVerificationParsedContent = JSON.parse(readingVerificationJsonString);
                     const isReadingComplete = readingVerificationParsedContent.isComplete === true;
                     const readingAnalysis = readingVerificationParsedContent.analysis || "";
-                    const verifiedFuriganaText = readingVerificationParsedContent.furiganaText || "";
+                    const verifiedFuriganaText = readingVerificationParsedContent.readingsText || "";
                     
                     // Log token usage for reading verification
                     await logClaudeAPI(readingVerificationMetrics, true, readingVerificationTextContent.text, undefined, {
@@ -5372,7 +5470,7 @@ Format your response as valid JSON with these exact keys:
             onProgress?.(4);
             
             const result = {
-              furiganaText: applyKoreanRomanizationGuards(furiganaText, "final-output"),
+              readingsText: applyKoreanRomanizationGuards(furiganaText, "final-output"),
               translatedText: sanitizeTranslatedText(translatedText, targetLanguage)
             };
 
@@ -5390,7 +5488,7 @@ Format your response as valid JSON with these exact keys:
                 targetLanguage,
                 forcedLanguage,
                 textLength: text.length,
-                hasJapanese: result.furiganaText ? true : false,
+                hasJapanese: result.readingsText ? true : false,
                 parseMethod: 'direct',
                 operationType: 'translate',
                 internalApiCallCount,
@@ -5418,7 +5516,7 @@ Format your response as valid JSON with these exact keys:
                 const blockParsedContent = JSON.parse(blockJsonString);
                 logger.log("Successfully parsed JSON from block markers");
                 const result = {
-                  furiganaText: applyKoreanRomanizationGuards(blockParsedContent.furiganaText || "", "fallback-block-parse"),
+                  readingsText: applyKoreanRomanizationGuards(blockParsedContent.readingsText || "", "fallback-block-parse"),
                   translatedText: sanitizeTranslatedText(blockParsedContent.translatedText || "", targetLanguage)
                 };
 
@@ -5428,7 +5526,7 @@ Format your response as valid JSON with these exact keys:
                   targetLanguage,
                   forcedLanguage,
                   textLength: text.length,
-                  hasJapanese: result.furiganaText ? true : false,
+                  hasJapanese: result.readingsText ? true : false,
                   parseMethod: 'block',
                   operationType: 'translate'
                 }, inputTokens, outputTokens);
@@ -5437,14 +5535,14 @@ Format your response as valid JSON with these exact keys:
               }
               
               // Method 2: Try to extract JSON with more flexible regex
-              const flexibleJsonMatch = textContent.text.match(/\{[^{}]*"furiganaText"[^{}]*"translatedText"[^{}]*\}/);
+              const flexibleJsonMatch = textContent.text.match(/\{[^{}]*"readingsText"[^{}]*"translatedText"[^{}]*\}/);
               if (flexibleJsonMatch) {
                 logger.log("Found JSON with flexible regex, trying to parse...");
                 const flexibleJsonString = cleanJsonString(flexibleJsonMatch[0]);
                 const flexibleParsedContent = JSON.parse(flexibleJsonString);
                 logger.log("Successfully parsed JSON with flexible regex");
                 const result = {
-                  furiganaText: applyKoreanRomanizationGuards(flexibleParsedContent.furiganaText || "", "fallback-flex-parse"),
+                  readingsText: applyKoreanRomanizationGuards(flexibleParsedContent.readingsText || "", "fallback-flex-parse"),
                   translatedText: sanitizeTranslatedText(flexibleParsedContent.translatedText || "", targetLanguage)
                 };
 
@@ -5454,7 +5552,7 @@ Format your response as valid JSON with these exact keys:
                   targetLanguage,
                   forcedLanguage,
                   textLength: text.length,
-                  hasJapanese: result.furiganaText ? true : false,
+                  hasJapanese: result.readingsText ? true : false,
                   parseMethod: 'flexible',
                   operationType: 'translate'
                 }, inputTokens, outputTokens);
@@ -5463,13 +5561,13 @@ Format your response as valid JSON with these exact keys:
               }
               
               // Method 3: Try to extract values manually with regex
-              const furiganaMatch = textContent.text.match(/"furiganaText":\s*"([^"]*(?:\\.[^"]*)*)"/);
+              const furiganaMatch = textContent.text.match(/"readingsText":\s*"([^"]*(?:\\.[^"]*)*)"/);
               const translatedMatch = textContent.text.match(/"translatedText":\s*"([^"]*(?:\\.[^"]*)*)"/);
               
               if (furiganaMatch && translatedMatch) {
                 logger.log("Extracted values manually with regex");
                 const result = {
-                  furiganaText: applyKoreanRomanizationGuards(
+                  readingsText: applyKoreanRomanizationGuards(
                     furiganaMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\'),
                     "fallback-manual-parse"
                   ),
@@ -5485,7 +5583,7 @@ Format your response as valid JSON with these exact keys:
                   targetLanguage,
                   forcedLanguage,
                   textLength: text.length,
-                  hasJapanese: result.furiganaText ? true : false,
+                  hasJapanese: result.readingsText ? true : false,
                   parseMethod: 'manual',
                   operationType: 'translate'
                 }, inputTokens, outputTokens);
@@ -5580,7 +5678,7 @@ Format your response as valid JSON with these exact keys:
   });
   
   return {
-    furiganaText: '',
+    readingsText: '',
     translatedText: 'Error processing text with Claude API. The service may be temporarily overloaded. Please try again later.'
   };
 }
@@ -5590,7 +5688,7 @@ Format your response as valid JSON with these exact keys:
  * Uses industry-standard progressive parsing strategy
  */
 function parseWordScopeResponse(rawResponse: string): {
-  furiganaText?: string;
+  readingsText?: string;
   translatedText: string;
   scopeAnalysis: string | {
     word: string;
@@ -5688,7 +5786,7 @@ function parseWordScopeResponse(rawResponse: string): {
               if (parsed1.translatedText && !parsed1.scopeAnalysis && parsed2.word) {
                 logger.log('[WordScope Parser] Strategy 3c (merge separate objects) succeeded');
                 return {
-                  furiganaText: parsed1.furiganaText || '',
+                  readingsText: parsed1.readingsText || '',
                   translatedText: parsed1.translatedText,
                   scopeAnalysis: parsed2
                 };
@@ -5829,7 +5927,7 @@ function parseWordScopeResponse(rawResponse: string): {
     if (firstBrace !== -1 && lastBrace !== -1) {
       const jsonString = cleanedResponse.substring(firstBrace, lastBrace + 1);
       
-      const furiganaText = extractFieldValue('furiganaText', jsonString, false);
+      const furiganaText = extractFieldValue('readingsText', jsonString, false) ?? extractFieldValue('furiganaText', jsonString, false);
       const translatedText = extractFieldValue('translatedText', jsonString, false);
       const scopeAnalysis = extractFieldValue('scopeAnalysis', jsonString, true);
       
@@ -5839,7 +5937,7 @@ function parseWordScopeResponse(rawResponse: string): {
           scopeAnalysis
         };
         if (furiganaText) {
-          result.furiganaText = furiganaText;
+          result.readingsText = furiganaText;
         }
         logger.log('[WordScope Parser] Strategy 4 (manual extraction) succeeded');
         return result;
@@ -6085,7 +6183,7 @@ export async function processWithClaudeAndScope(
           );
           logger.log(`[WordScope Combined] Language mismatch: expected ${forcedLanguage}, detected ${validationResult.detectedLanguage}`);
           return {
-            furiganaText: '',
+            readingsText: '',
             translatedText: '',
             languageMismatch: mismatchInfo
           };
@@ -6113,7 +6211,7 @@ export async function processWithClaudeAndScope(
           const mismatchInfo = buildLanguageMismatchInfo(forcedLanguage, detectedNonLatinLanguage);
           logger.log(`[WordScope Combined] Non-Latin text detected: ${detectedNonLatinLanguage} (expected ${forcedLanguage})`);
           return {
-            furiganaText: '',
+            readingsText: '',
             translatedText: '',
             languageMismatch: mismatchInfo
           };
@@ -6132,7 +6230,7 @@ export async function processWithClaudeAndScope(
               logger.log(`[WordScope Combined] AI detected language mismatch: expected ${forcedLanguage}, got ${aiValidation.detectedLanguage}`);
               const mismatchInfo = buildLanguageMismatchInfo(forcedLanguage, aiValidation.detectedLanguage);
               return {
-                furiganaText: '',
+                readingsText: '',
                 translatedText: '',
                 languageMismatch: mismatchInfo
               };
@@ -6440,15 +6538,15 @@ NO spaces between Thai script and the opening parenthesis.
       }
     }
 
-    // Build the furiganaText field instruction based on language
-    let furiganaFieldInstruction = `"furiganaText": "",`;
+    // Build the readingsText field instruction based on language
+    let furiganaFieldInstruction = `"readingsText": "",`;
     if (needsReadings && readingInfo) {
       if (forcedLanguage === 'ja') {
-        furiganaFieldInstruction = `"furiganaText": "Original Japanese text with furigana after EVERY kanji word - THIS IS MANDATORY",`;
+        furiganaFieldInstruction = `"readingsText": "Original Japanese text with furigana after EVERY kanji word - THIS IS MANDATORY",`;
       } else if (forcedLanguage === 'zh') {
-        furiganaFieldInstruction = `"furiganaText": "Original Chinese text with pinyin (including tone marks) after each word",`;
+        furiganaFieldInstruction = `"readingsText": "Original Chinese text with pinyin (including tone marks) after each word",`;
       } else {
-        furiganaFieldInstruction = `"furiganaText": "Original ${sourceLangName} text with ${readingInfo.readingType} in parentheses",`;
+        furiganaFieldInstruction = `"readingsText": "Original ${sourceLangName} text with ${readingInfo.readingType} in parentheses",`;
       }
     }
 
@@ -6543,7 +6641,7 @@ CRITICAL REQUIREMENTS:
 - The examples are to show how "${normalizedText}" works in different contexts, but must include the actual words/phrase from the scanned text
 - The "synonyms" section provides 3 alternative expressions for advanced learners - these MUST be DIFFERENT from what's used in examples
 - ALL fields are required and must be complete${needsReadings ? `
-- furiganaText MUST contain the COMPLETE original text WITH ${readingInfo?.readingType} for EVERY applicable character/word
+- readingsText MUST contain the COMPLETE original text WITH ${readingInfo?.readingType} for EVERY applicable character/word
 - Do NOT skip any readings - every ${forcedLanguage === 'ja' ? 'kanji' : 'word'} must have its reading` : ''}
 - Write translation and analysis in ${targetLangName}
 - Do not include any text outside the JSON object
@@ -6568,7 +6666,7 @@ CRITICAL REQUIREMENTS:
     const isOtherReadingLanguage = isArabicWithReadings || isHindiWithReadings || isThaiWithReadings;
     
     // Select the appropriate system prompt - CJK and other reading languages get specialized prompts
-    const systemPrompt = isChineseWithCaching ? chineseSystemPrompt :
+    const systemPrompt = isChineseWithCaching ? (USE_LITE_PROMPTS ? chineseWordScopeSystemPromptLite : chineseSystemPrompt) :
                          isJapaneseWithCaching ? (USE_LITE_PROMPTS ? japaneseWordScopeSystemPromptLite : japaneseSystemPrompt) :
                          isKoreanWithCaching ? koreanSystemPrompt :
                          isArabicWithReadings ? arabicSystemPrompt :
@@ -6597,11 +6695,12 @@ CRITICAL REQUIREMENTS:
       
       if (USE_LITE_PROMPTS) {
         // Lite CJK user message: bare minimum; exact keys required for formatScopeAnalysis (camelCase: word, partOfSpeech).
-        dynamicUserMessage = `TEXT: "${normalizedText}"
+        const jaFuriganaReminder = isJapaneseWithCaching ? '\nFurigana: Be extra careful with compound words; double-check against standard dictionary readings.\n' : '';
+        dynamicUserMessage = `TEXT: "${normalizedText}"${jaFuriganaReminder}
 
 GRAMMAR: ${scopeInstructions}
 
-JSON (camelCase keys): furiganaText, translatedText, scopeAnalysis: { word (main phrase), reading, partOfSpeech (word1 [label]+...), baseForm?, grammar: { explanation, particles? }, examples: [ { sentence, translation, note } ] x3, commonMistake: { wrong, correct, reason }, commonContext?, synonyms: [ { phrase, translation, nuance } ] x3 }. Period-end sentence fields. Labels in ${targetLangName}.`;
+JSON (camelCase keys): readingsText, translatedText, scopeAnalysis: { word (main phrase), reading, partOfSpeech (word1 [label]+...), baseForm?, grammar: { explanation, particles? }, examples: [ { sentence, translation, note } ] x3, commonMistake: { wrong, correct, reason }, commonContext?, synonyms: [ { phrase, translation, nuance } ] x3 }. Period-end sentence fields. Labels in ${targetLangName}. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
       } else {
         dynamicUserMessage = `TEXT TO PROCESS: "${normalizedText}"
 
@@ -6664,7 +6763,7 @@ EXAMPLE (${sourceLangName} to ${targetLangName}):
 
 CRITICAL REQUIREMENTS:
 - ALL fields are required and must be complete
-- furiganaText MUST contain the COMPLETE original text WITH ${readingType} for EVERY applicable ${wordType}
+- readingsText MUST contain the COMPLETE original text WITH ${readingType} for EVERY applicable ${wordType}
 - Do NOT skip any readings - every ${isJapaneseWithCaching ? 'kanji' : isChineseWithCaching ? 'Chinese word' : 'Korean word'} must have its ${readingType} reading
 - Write translation and analysis in ${targetLangName}
 - Do not include any text outside the JSON object
@@ -6779,8 +6878,17 @@ CRITICAL REQUIREMENTS:
         logger.log(`🔄 [WordScope Cache] ⚠️ NONE - Prompt may be too small (need ${MIN_CACHEABLE_TOKENS_HAIKU_45}+ tokens for Haiku 4.5)`);
       }
     } else {
-      // NON-READING LANGUAGES: Use general system prompt, no reading annotations
-      dynamicUserMessage = `TEXT TO PROCESS: "${normalizedText}"
+      // NON-READING LANGUAGES (e.g. English→any): general system prompt, no reading annotations
+      if (USE_LITE_PROMPTS) {
+        // Lite user message for ENG→any WordScope: ~400 chars vs ~5000, cuts input from ~1400 to ~400 tokens
+        dynamicUserMessage = `TEXT: "${normalizedText}"
+SOURCE: ${sourceLangName}
+TARGET: ${targetLangName}
+Translate to ${targetLangName}. Grammar: ${scopeInstructions}
+All explanations in TARGET (${targetLangName}): grammar.explanation, note, translation (in examples/synonyms), reason, nuance must be in ${targetLangName}. Example sentences stay in SOURCE (${sourceLangName}). Double-check every scope field is in the correct language.
+JSON (camelCase): readingsText "", translatedText, scopeAnalysis: { word, reading, partOfSpeech (word1 [label]+...), baseForm?, grammar: { explanation, particles? }, examples [ { sentence, translation, note } ] x3, commonMistake { wrong, correct, reason }, synonyms [ { phrase, translation, nuance } ] x3 }. Labels in ${targetLangName}. Period-end sentence fields. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
+      } else {
+        dynamicUserMessage = `TEXT TO PROCESS: "${normalizedText}"
 SOURCE LANGUAGE: ${sourceLangName}
 TARGET LANGUAGE: ${targetLangName}
 
@@ -6795,7 +6903,7 @@ ${scopeInstructions}
 === RESPONSE FORMAT ===
 You MUST respond with valid JSON in this exact format:
 {
-  "furiganaText": "",
+  "readingsText": "",
   "translatedText": "Your ${targetLangName} translation here",
   "scopeAnalysis": {
     "word": "main word or key phrase from the source sentence",
@@ -6866,8 +6974,9 @@ EXAMPLE (if translating ${sourceLangName} to ${targetLangName}):
 
 CRITICAL REQUIREMENTS:
 - ALL fields are required and must be complete
-- furiganaText should be empty for languages that do not require readings (no transliteration/romanization needed)
+- readingsText should be empty for languages that do not require readings (no transliteration/romanization needed)
 - Write translation and analysis in ${targetLangName}
+- All explanations and learner-facing text (grammar.explanation, note, translation in examples/synonyms, reason, nuance) MUST be in ${targetLangName}. Example sentences (sentence field) and wrong/correct examples stay in ${sourceLangName}. Double-check that scope output is in target language, not source.
 - Example sentences MUST be in ${sourceLangName}
 - CRITICAL: The "examples" section MUST use the EXACT same words/phrase from "${normalizedText}" - create new sentences that contain the same phrase/words in different contexts, NOT synonyms or alternatives
 - The examples are to show how "${normalizedText}" works in different contexts, but must include the actual words/phrase from the scanned text
@@ -6886,6 +6995,7 @@ CRITICAL REQUIREMENTS:
   * "example" in particles array must end with a period
   * "commonContext" must end with a period if it's a complete sentence
   * "nuance" in synonyms array must end with a period`;
+      }
 
       logger.log(`🔄 [WordScope Prompt Caching] Sending ${languageDisplayName} request with caching enabled - system prompt: ${systemPrompt.length} chars, user message: ${dynamicUserMessage.length} chars`);
       
@@ -6970,9 +7080,9 @@ CRITICAL REQUIREMENTS:
     }
     
     // Log successful parsing
-    logger.log(`[WordScope Combined] Successfully parsed - furiganaText: ${parsedResult?.furiganaText?.length || 0} chars, translatedText: ${parsedResult?.translatedText?.length || 0} chars`);
-    if (parsedResult?.furiganaText) {
-      logger.log(`[WordScope Combined] furiganaText: "${parsedResult.furiganaText.substring(0, 100)}..."`);
+    logger.log(`[WordScope Combined] Successfully parsed - readingsText: ${parsedResult?.readingsText?.length || 0} chars, translatedText: ${parsedResult?.translatedText?.length || 0} chars`);
+    if (parsedResult?.readingsText) {
+      logger.log(`[WordScope Combined] readingsText: "${parsedResult.readingsText.substring(0, 100)}..."`);
     }
     if (parsedResult?.scopeAnalysis && typeof parsedResult.scopeAnalysis === 'object') {
       logger.log(`[WordScope Combined] scopeAnalysis is JSON object with word: ${parsedResult.scopeAnalysis.word}`);
@@ -7024,14 +7134,14 @@ CRITICAL REQUIREMENTS:
     
     logger.log('[WordScope Combined] Successfully completed combined translation + scope analysis');
     
-    // Return furiganaText if provided by Claude (for reading languages)
-    const furiganaResult = parsedResult.furiganaText || '';
+    // Return readingsText if provided by Claude (for reading languages)
+    const furiganaResult = parsedResult.readingsText || '';
     if (furiganaResult) {
-      logger.log(`[WordScope Combined] Returning furiganaText: "${furiganaResult.substring(0, 50)}..."`);
+      logger.log(`[WordScope Combined] Returning readingsText: "${furiganaResult.substring(0, 50)}..."`);
     }
     
     return {
-      furiganaText: furiganaResult,
+      readingsText: furiganaResult,
       translatedText: parsedResult.translatedText,
       scopeAnalysis: formattedScopeAnalysis,
       languageMismatch: undefined
@@ -7087,7 +7197,7 @@ async function processWithClaudeAndScopeFallback(
 
 Analyze the grammatical structure of this ${sourceLangName} text: "${normalizedText}"
 
-IMPORTANT: Output ONLY the grammar analysis JSON below. DO NOT include furiganaText or translatedText fields.
+IMPORTANT: Output ONLY the grammar analysis JSON below. DO NOT include readingsText or translatedText fields.
 
 Respond with this exact JSON structure:
 {
@@ -7198,7 +7308,7 @@ YOUR TASK: Analyze the grammatical structure of the given ${sourceLangName} text
 
 CRITICAL RULES:
 1. Output ONLY a single JSON object for grammar analysis
-2. DO NOT include any translation (furiganaText, translatedText fields)
+2. DO NOT include any translation (readingsText, translatedText fields)
 3. DO NOT output multiple JSON objects
 4. DO NOT include any text outside the JSON object
 5. Ensure all quotes inside JSON string values are properly escaped as \\"

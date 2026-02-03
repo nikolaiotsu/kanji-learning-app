@@ -67,7 +67,7 @@ const getUserId = async (): Promise<string | null> => {
 const transformFlashcard = (card: any): Flashcard => ({
   id: card.id,
   originalText: card.original_text,
-  furiganaText: card.furigana_text,
+  readingsText: card.furigana_text ?? (card as any).readings_text ?? '',
   translatedText: card.translated_text,
   targetLanguage: card.target_language || 'en', // Default to English for backward compatibility
   createdAt: new Date(card.created_at).getTime(),
@@ -646,7 +646,7 @@ export const saveFlashcard = async (flashcard: Flashcard, deckId: string): Promi
     const newFlashcard = {
       // Let Supabase generate the UUID automatically
       original_text: flashcard.originalText,
-      furigana_text: flashcard.furiganaText,
+      furigana_text: flashcard.readingsText,
       translated_text: flashcard.translatedText,
       target_language: flashcard.targetLanguage,
       created_at: new Date().toISOString(),
@@ -684,7 +684,7 @@ export const saveFlashcard = async (flashcard: Flashcard, deckId: string): Promi
       originalTextLength: flashcard.originalText.length,
       targetLanguage: flashcard.targetLanguage,
       hasImage: !!flashcard.imageUrl,
-      hasFurigana: !!flashcard.furiganaText
+      hasFurigana: !!flashcard.readingsText
     });
     
     // Import the flashcard counter hook dynamically to avoid circular dependencies
@@ -700,7 +700,7 @@ export const saveFlashcard = async (flashcard: Flashcard, deckId: string): Promi
       originalTextLength: flashcard.originalText.length,
       targetLanguage: flashcard.targetLanguage,
       hasImage: !!flashcard.imageUrl,
-      hasFurigana: !!flashcard.furiganaText,
+      hasFurigana: !!flashcard.readingsText,
       errorMessage: error instanceof Error ? error.message : String(error)
     });
     
@@ -1504,7 +1504,7 @@ export const updateFlashcard = async (flashcard: Flashcard): Promise<boolean> =>
     // Build update object with only defined fields
     const updateData: any = {
       original_text: flashcard.originalText,
-      furigana_text: flashcard.furiganaText,
+      furigana_text: flashcard.readingsText,
       translated_text: flashcard.translatedText,
       target_language: flashcard.targetLanguage,
       image_url: flashcard.imageUrl || null, // Include image URL in update

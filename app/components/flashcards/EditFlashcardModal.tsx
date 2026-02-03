@@ -46,7 +46,7 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
   const { targetLanguage, forcedDetectionLanguage } = useSettings();
   const { subscription } = useSubscription();
   const [originalText, setOriginalText] = useState('');
-  const [furiganaText, setFuriganaText] = useState('');
+  const [readingsText, setReadingsText] = useState('');
   const [translatedText, setTranslatedText] = useState('');
   const [isRetranslating, setIsRetranslating] = useState(false);
   const [needsRomanization, setNeedsRomanization] = useState(false);
@@ -60,24 +60,24 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
   useEffect(() => {
     if (flashcard) {
       setOriginalText(flashcard.originalText);
-      setFuriganaText(flashcard.furiganaText);
+      setReadingsText(flashcard.readingsText);
       setTranslatedText(flashcard.translatedText);
       
       // Determine pronunciation guide type based on content (no language detection needed)
-      const furiganaText = flashcard.furiganaText;
-      
-      if (!furiganaText) {
+const readingsText = flashcard.readingsText;
+
+      if (!readingsText) {
         setNeedsRomanization(false);
         setDetectedLanguage('English'); // Default for text without pronunciation guide
         return;
       }
 
-      // Check what type of pronunciation guide the furiganaText contains
-      const containsHiragana = /[\u3040-\u309F]/.test(furiganaText); // Japanese furigana
-      const containsHangul = /[\uAC00-\uD7AF]/.test(furiganaText); // Korean
-      const containsCyrillic = /[\u0400-\u04FF]/.test(furiganaText); // Russian
-      const containsArabicScript = /[\u0600-\u06FF]/.test(furiganaText); // Arabic
-      const containsLatinInParentheses = /\([a-zA-Zāēīōūǎěǐǒǔàèìòùáéíóúǘǜɑ\s]+\)/.test(furiganaText); // Chinese pinyin or other romanization
+      // Check what type of pronunciation guide the readingsText contains
+      const containsHiragana = /[\u3040-\u309F]/.test(readingsText); // Japanese furigana
+      const containsHangul = /[\uAC00-\uD7AF]/.test(readingsText); // Korean
+      const containsCyrillic = /[\u0400-\u04FF]/.test(readingsText); // Russian
+      const containsArabicScript = /[\u0600-\u06FF]/.test(readingsText); // Arabic
+      const containsLatinInParentheses = /\([a-zA-Zāēīōūǎěǐǒǔàèìòùáéíóúǘǜɑ\s]+\)/.test(readingsText); // Chinese pinyin or other romanization
 
       let language = 'unknown';
       if (containsHiragana) {
@@ -111,7 +111,7 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
       }
       
       setDetectedLanguage(language);
-      setNeedsRomanization(furiganaText.length > 0);
+      setNeedsRomanization(readingsText.length > 0);
     }
   }, [flashcard]);
 
@@ -124,7 +124,7 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
       return;
     }
     
-    if (needsRomanization && !furiganaText.trim()) {
+    if (needsRomanization && !readingsText.trim()) {
       Alert.alert(t('common.warning'), t('flashcard.edit.emptyRomanization'), [
         { 
           text: t('common.cancel'), 
@@ -162,7 +162,7 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
     const updatedFlashcard: Flashcard = {
       ...flashcard,
       originalText,
-      furiganaText,
+      readingsText,
       translatedText
     };
     
@@ -188,9 +188,9 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
         setTranslatedText(result.translatedText);
         
         if (needsRomanization) {
-          setFuriganaText(result.furiganaText);
-          
-          if (!result.furiganaText) {
+setReadingsText(result.readingsText);
+
+          if (!result.readingsText) {
             setError(t('flashcard.edit.romanizationFailed'));
           }
         }
@@ -268,8 +268,8 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
                     </Text>
                     <TextInput
                       style={styles.textInput}
-                      value={furiganaText}
-                      onChangeText={setFuriganaText}
+                      value={readingsText}
+                      onChangeText={setReadingsText}
                       multiline
                       placeholder="Enter romanized text"
                       placeholderTextColor={COLORS.darkGray}

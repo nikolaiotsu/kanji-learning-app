@@ -1,7 +1,7 @@
 export interface Flashcard {
   id: string;
   originalText: string;
-  furiganaText: string;
+  readingsText: string; // Source text with readings (furigana/pinyin/romanization) - universal across languages
   translatedText: string;
   targetLanguage: string; // Language code (e.g., 'en', 'ru', 'fr') this flashcard was created with
   createdAt: number;

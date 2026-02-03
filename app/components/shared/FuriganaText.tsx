@@ -67,13 +67,14 @@ const FuriganaText: React.FC<FuriganaTextProps> = ({
     return (
       <View 
         key={`ruby-${index}`} 
-        style={styles.rubyColumn}
+        style={[styles.rubyColumn, { height: rubyColumnHeight }]}
       >
         <Text
           style={[
             styles.rubyText,
             {
               fontSize: calcFuriganaFontSize,
+              lineHeight: calcFuriganaFontSize,
               color: calcFuriganaColor,
             }
           ]}
@@ -86,6 +87,7 @@ const FuriganaText: React.FC<FuriganaTextProps> = ({
             styles.baseText,
             {
               fontSize,
+              lineHeight: fontSize,
               color,
             }
           ]}
@@ -98,16 +100,27 @@ const FuriganaText: React.FC<FuriganaTextProps> = ({
   };
 
   /**
+   * Height of one ruby column (reading line + gap + base line). Used so plain text columns
+   * (e.g. brackets 【 】) match height and we can align base content on the same baseline.
+   */
+  const rubyColumnHeight = calcFuriganaFontSize + 1 + fontSize;
+
+  /**
    * Render plain text without ruby annotation.
-   * No artificial spacing - alignment is handled by flexbox baseline.
+   * Use same height as ruby columns and pin content to bottom so brackets align on the
+   * same baseline as base characters in ruby columns.
    */
   const renderPlainWord = (word: FuriganaWord, index: number) => (
-    <View key={`text-${index}`} style={styles.textColumn}>
+    <View
+      key={`text-${index}`}
+      style={[styles.textColumn, { height: rubyColumnHeight }]}
+    >
       <Text
         style={[
           styles.plainText,
           {
             fontSize,
+            lineHeight: fontSize,
             color,
           }
         ]}
@@ -159,18 +172,18 @@ const styles = StyleSheet.create({
   textContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    alignItems: 'flex-end', // Align all columns by their baseline (bottom text)
+    alignItems: 'flex-end', // Align columns by bottom so base text and brackets share same baseline
   },
   rubyColumn: {
     flexDirection: 'column',
     alignItems: 'center', // Center ruby text above base text
-    justifyContent: 'flex-end', // Align to baseline
+    justifyContent: 'space-between', // Ruby at top, base at bottom → baseline aligns with plain columns
     flexShrink: 0, // Prevent shrinking
   },
   textColumn: {
     flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'flex-end', // Align plain text with baseline of ruby columns
+    justifyContent: 'flex-end', // Pin bracket to bottom so baseline matches ruby base text
     flexShrink: 0, // Prevent shrinking
   },
   rubyText: {

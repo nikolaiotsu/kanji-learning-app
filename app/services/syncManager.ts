@@ -67,7 +67,7 @@ export const getIsSyncing = (): boolean => {
 const transformFlashcard = (card: any): Flashcard => ({
   id: card.id,
   originalText: card.original_text,
-  furiganaText: card.furigana_text,
+  readingsText: card.furigana_text ?? card.readings_text ?? '',
   translatedText: card.translated_text,
   targetLanguage: card.target_language || 'en',
   createdAt: new Date(card.created_at).getTime(),

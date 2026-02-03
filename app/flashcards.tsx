@@ -99,7 +99,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
 
   // State for Claude API response
   const [isLoading, setIsLoading] = useState(false);
-  const [furiganaText, setFuriganaText] = useState('');
+  const [readingsText, setReadingsText] = useState('');
   const [translatedText, setTranslatedText] = useState('');
   const [scopeAnalysis, setScopeAnalysis] = useState('');
   const [error, setError] = useState('');
@@ -829,10 +829,10 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
         
         // Set romanization text if provided for languages that need it
         if (needsRomanization) {
-          setFuriganaText(result.furiganaText);
+          setReadingsText(result.readingsText);
           // Show error if romanization is missing for languages that should have it
           // BUT skip this check if we're translating TO Japanese/Chinese (where furigana/pinyin is not needed)
-          if (!result.furiganaText && targetLanguage !== 'ja' && targetLanguage !== 'zh') {
+          if (!result.readingsText && targetLanguage !== 'ja' && targetLanguage !== 'zh') {
             // For Japanese text, provide more specific error message if kanji is present
             if (hasJapanese && containsKanji(text)) {
               setError('Failed to generate furigana for kanji characters. This may affect readability. The translation is still available.');
@@ -935,7 +935,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     }
     
     // Additional validation: if source needs romanization AND we're not translating TO ja/zh, require furigana
-    if (needsRomanization && !furiganaText && targetLanguage !== 'ja' && targetLanguage !== 'zh') {
+    if (needsRomanization && !readingsText && targetLanguage !== 'ja' && targetLanguage !== 'zh') {
       Alert.alert(t('flashcard.save.cannotSaveTitle'), t('flashcard.save.cannotSaveContent'));
       return;
     }
@@ -976,7 +976,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       // Create flashcard object
       const flashcard: Omit<Flashcard, 'id'> = {
         originalText: editedText,
-        furiganaText: needsRomanization ? furiganaText : "", // Store romanization in furiganaText field
+        readingsText: needsRomanization ? readingsText : "", // Store readings (furigana/pinyin/romanization) in readingsText field
         translatedText,
         targetLanguage, // Store the current target language with the flashcard
         createdAt: Date.now(),
@@ -1240,9 +1240,9 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
         setTranslatedText(result.translatedText);
         
         // WordScope Combined now returns furigana for reading languages in a single call
-        if (needsRomanization && result.furiganaText) {
-          setFuriganaText(result.furiganaText);
-          logger.log(`🔤 [Flashcards] Furigana from combined call: "${result.furiganaText.substring(0, 50)}..."`);
+        if (needsRomanization && result.readingsText) {
+          setReadingsText(result.readingsText);
+          logger.log(`🔤 [Flashcards] Readings from combined call: "${result.readingsText.substring(0, 50)}..."`);
         }
         
         setTextProcessed(true);
@@ -1276,7 +1276,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       // Clear any partial results to prevent showing broken output
       setTranslatedText('');
       setScopeAnalysis('');
-      setFuriganaText('');
+      setReadingsText('');
     }
   };
 
@@ -1309,12 +1309,12 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     
     // Store current translation state before clearing it
     setPreviousTranslatedText(translatedText);
-    setPreviousFuriganaText(furiganaText);
+    setPreviousFuriganaText(readingsText);
     setPreviousTextProcessed(textProcessed);
     
     // Reset the translation state
     setTextProcessed(false);
-    setFuriganaText('');
+    setReadingsText('');
     setTranslatedText('');
     setError('');
     
@@ -1332,7 +1332,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     
     // Restore the previous state if available
     if (previousTextProcessed) {
-      setFuriganaText(previousFuriganaText);
+      setReadingsText(previousFuriganaText);
       setTranslatedText(previousTranslatedText);
       setTextProcessed(previousTextProcessed);
     }
@@ -1680,7 +1680,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                 </View>
               ) : (
                 <>
-                  {furiganaText && needsRomanization && (
+                  {readingsText && needsRomanization && (
                     <View style={styles.resultContainer}>
                       <Text style={styles.sectionTitle}>
                         {detectedLanguage === 'Japanese' ? t('flashcard.sectionTitles.withFurigana') :
@@ -1696,7 +1696,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                       </Text>
                       {(detectedLanguage === 'Japanese' || detectedLanguage === 'Chinese' || detectedLanguage === 'Korean' || detectedLanguage === 'Russian' || detectedLanguage === 'Arabic' || detectedLanguage === 'Hindi' || detectedLanguage === 'Thai') ? (
                         <FuriganaText
-                          text={furiganaText}
+                          text={readingsText}
                           fontSize={20}
                           furiganaFontSize={12}
                           color={COLORS.text}
@@ -1704,7 +1704,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                           textAlign="left"
                         />
                       ) : (
-                        <Text style={styles.furiganaText} numberOfLines={0}>{furiganaText}</Text>
+                        <Text style={styles.readingsText} numberOfLines={0}>{readingsText}</Text>
                       )}
                     </View>
                   )}
@@ -2177,8 +2177,8 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                         </Text>
                         <TextInput
                           style={styles.textInput}
-                          value={furiganaText}
-                          onChangeText={setFuriganaText}
+                          value={readingsText}
+                          onChangeText={setReadingsText}
                           multiline
                           placeholder={t('flashcard.edit.editRomanizationPlaceholder')}
                           placeholderTextColor="#aaa"
@@ -2447,7 +2447,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     color: COLORS.darkGray,
   },
-  furiganaText: {
+  readingsText: {
     fontSize: 20,
     fontFamily: Platform.OS === 'ios' ? 'HiraginoSans-W3' : undefined,
     lineHeight: 28,

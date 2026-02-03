@@ -33,7 +33,7 @@ RULES:
 ```
 RESPOND WITH JSON:
 {
-  "furiganaText": "",
+  "readingsText": "",
   "translatedText": "Natural translation in target language"
 }
 ```
@@ -82,7 +82,7 @@ TRANSLATION GUIDELINES:
 ```
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "",
+  "readingsText": "",
   "translatedText": "Natural Japanese translation using appropriate kanji, hiragana, and katakana - NO furigana readings"
 }
 ```
@@ -133,7 +133,7 @@ TRANSLATION GUIDELINES:
 ```
 Format your response as valid JSON with these exact keys:
 {
-  "furiganaText": "",
+  "readingsText": "",
   "translatedText": "Natural Chinese translation using appropriate Chinese characters and Chinese quotation marks 「」- NO pinyin readings or Western quotes"
 }
 ```
@@ -339,7 +339,7 @@ Always respond with properly formatted JSON. Ensure:
 
 RESPOND WITH JSON:
 {
-  "furiganaText": "",
+  "readingsText": "",
   "translatedText": "Natural translation in target language"
 }
 ```
@@ -482,7 +482,7 @@ Translate the text from [SOURCE_LANGUAGE_NAME] to [TARGET_LANGUAGE_NAME].
 === RESPONSE FORMAT ===
 You MUST respond with valid JSON in this exact format:
 {
-  "furiganaText": "",
+  "readingsText": "",
   "translatedText": "Your [TARGET_LANGUAGE_NAME] translation here",
   "scopeAnalysis": {
     "word": "main word or key phrase from the source sentence",
@@ -553,7 +553,7 @@ EXAMPLE (if translating [SOURCE_LANGUAGE_NAME] to [TARGET_LANGUAGE_NAME]):
 
 CRITICAL REQUIREMENTS:
 - ALL fields are required and must be complete
-- furiganaText should be empty for languages that do not require readings (no transliteration/romanization needed)
+- readingsText should be empty for languages that do not require readings (no transliteration/romanization needed)
 - Write translation and analysis in [TARGET_LANGUAGE_NAME]
 - Example sentences MUST be in [SOURCE_LANGUAGE_NAME]
 - CRITICAL: The "examples" section MUST use the EXACT same words/phrase from "[NORMALIZED_TEXT]" - create new sentences that contain the same phrase/words in different contexts, NOT synonyms or alternatives
