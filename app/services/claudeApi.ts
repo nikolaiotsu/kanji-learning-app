@@ -11,187 +11,8 @@ import { fetchSubscriptionStatus, getSubscriptionPlan } from './receiptValidatio
 // See https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching#cache-limitations
 const MIN_CACHEABLE_TOKENS_HAIKU_45 = 4096;
 
-// STATIC SYSTEM PROMPT FOR CHINESE (CACHEABLE) - Shared across functions
-// Just above 2048 token minimum for Haiku 3.x caching (Haiku 4.5 requires 4096)
-const chineseSystemPrompt = `You are a Chinese language expert specializing in translation and pinyin annotation.
-
-TRANSLATION RULES:
-- Translate into natural, fluent target language
-- Preserve original meaning and tone
-- Use natural expressions appropriate for the target language
-- Do NOT add pinyin readings to the translation itself
-
-PINYIN REQUIREMENTS:
-1. Keep ALL original text exactly as is (English words, numbers, punctuation unchanged)
-2. For EVERY Chinese word/phrase, add pinyin in parentheses IMMEDIATELY AFTER the Chinese characters
-3. USE STANDARD Hanyu Pinyin with proper tone marks (ā é ǐ ò ū ǖ)
-4. For compound words, provide pinyin for the COMPLETE word unit, not individual characters
-5. Every single Chinese character must have pinyin - zero exceptions
-6. Non-Chinese content (English, numbers, symbols) remains unchanged
-
-READING PRIORITY (PROCESS IN THIS ORDER):
-- 1. COMPOUND WORDS: Multi-character words with established dictionary pronunciations
-- 2. PROPER NOUNS: Place names, institution names, organization names with specific readings
-- 3. COMMON PHRASES: Set phrases and idiomatic expressions with standard readings
-- 4. INDIVIDUAL CHARACTERS: Only when words cannot be read as compounds
-
-ESSENTIAL COMPOUND WORDS:
-普通话(pǔtōnghuà), 中华人民共和国(Zhōnghuá Rénmín Gònghéguó), 北京大学(Běijīng Dàxué), 第一次(dì-yī-cì), 电视机(diànshìjī), 计算机(jìsuànjī), 图书馆(túshūguǎn), 飞机场(fēijīchǎng), 火车站(huǒchēzhàn), 大学生(dàxuéshēng), 中国人(Zhōngguórén), 外国人(wàiguórén), 今天(jīntiān), 明天(míngtiān), 昨天(zuótiān), 现在(xiànzài), 以后(yǐhòu), 以前(yǐqián), 学校(xuéxiào), 医院(yīyuàn), 银行(yínháng), 商店(shāngdiàn), 饭店(fàndiàn), 超市(chāoshì), 公园(gōngyuán), 地铁(dìtiě), 公共汽车(gōnggòng qìchē), 出租车(chūzūchē), 自行车(zìxíngchē), 飞机(fēijī), 火车(huǒchē), 汽车(qìchē), 朋友(péngyǒu), 家人(jiārén), 孩子(háizi), 老师(lǎoshī), 学生(xuéshēng), 医生(yīshēng), 护士(hùshì), 警察(jǐngchá), 工作(gōngzuò), 学习(xuéxí), 生活(shēnghuó), 吃饭(chīfàn), 睡觉(shuìjiào), 运动(yùndòng), 旅行(lǚxíng), 购物(gòuwù), 看电影(kàn diànyǐng), 听音乐(tīng yīnyuè), 读书(dúshū), 写作业(xiě zuòyè), 做家务(zuò jiāwù), 天气(tiānqì), 春天(chūntiān), 夏天(xiàtiān), 秋天(qiūtiān), 冬天(dōngtiān), 新(xīn), 旧(jiù), 大(dà), 小(xiǎo), 高(gāo), 低(dī), 好(hǎo), 坏(huài), 难(nán), 容易(róngyì), 方便(fāngbiàn), 不方便(bù fāngbiàn), 有名(yǒumíng), 安全(ānquán), 危险(wēixiǎn), 健康(jiànkāng), 生病(shēngbìng), 快乐(kuàilè), 难过(nánguò), 电影(diànyǐng), 音乐(yīnyuè), 照片(zhàopiàn), 博物馆(bówùguǎn), 美术馆(měishùguǎn), 机场(jīchǎng), 火车站(huǒchēzhàn), 地铁站(dìtiězhàn), 每天(měitiān), 每周(měizhōu), 每月(měiyuè), 每年(měinián)
-
-TONE SANDHI RULES (MANDATORY):
-- 不 (bù) becomes (bú) before fourth tone: 不是(búshì), 不对(búduì), 不要(búyào)
-- 不 (bù) stays (bù) before first, second, third tones: 不好(bùhǎo), 不来(bùlái)
-- 一 changes tone based on following tone:
-  * 一 + first tone = yī: 一天(yītiān)
-  * 一 + second/third tone = yí: 一年(yínián), 一点(yìdiǎn)
-  * 一 + fourth tone = yí: 一个(yíge), 一样(yíyàng)
-- Third tone + third tone: first becomes second tone: 你好(níhǎo), 老老实(láolǎoshí)
-- Neutral tone particles (的, 了, 吗, 吧, 呢): mark without tone marks: de, le, ma, ba, ne
-
-CONTEXT-DEPENDENT READINGS:
-- 行: háng (bank, row, industry) vs xíng (walk, do, travel)
-- 长: cháng (long, length) vs zhǎng (grow, elder, leader)
-- 数: shù (number, amount) vs shǔ (count, enumerate)
-- 调: diào (tone, tune, melody) vs tiáo (adjust, regulate)
-- 当: dāng (when, should, ought) vs dàng (suitable, proper)
-- 好: hǎo (good, well) vs hào (like, fond of)
-- 中: zhōng (middle, center) vs zhòng (hit target)
-- 重: zhòng (heavy, serious) vs chóng (repeat, duplicate)
-
-SENTENCE EXAMPLES:
-今天天气很好 → 今天(jīntiān)天气(tiānqì)很(hěn)好(hǎo)
-我在北京大学学习中文 → 我(wǒ)在(zài)北京大学(Běijīng Dàxué)学习(xuéxí)中文(zhōngwén)
-这是一本很有意思的书 → 这(zhè)是(shì)一(yì)本(běn)很(hěn)有意思(yǒu yìsi)的(de)书(shū)
-不是我的错 → 不是(búshì)我(wǒ)的(de)错(cuò)
-一个苹果 → 一个(yíge)苹果(píngguǒ)
-你好吗 → 你好(níhǎo)吗(ma)
-
-FORMAT RULES:
-- NO spaces before parentheses: 中文(zhōngwén) ✓, 中文 (zhōngwén) ✗
-- Use standard Hanyu Pinyin with tone marks
-- Maintain original text structure exactly
-- Preserve all punctuation, line breaks, and formatting
-- Keep English words, Arabic numerals, and symbols unchanged
-- Compound words read as single units with standard pronunciations
-
-QUALITY CHECKLIST:
-- Every Chinese character has pinyin (no exceptions)
-- Compound words use standard dictionary pronunciations
-- Tone sandhi rules properly applied (不, 一, third tone combinations)
-- Context-dependent characters use appropriate readings
-- Original text structure preserved
-- No spaces before opening parentheses
-- All tone marks present and correct
-- Non-Chinese text unchanged
-
-EXTRA QUALITY NOTES:
-- Keep spacing around punctuation consistent with the source text
-- Confirm dictionary readings for multi-character compounds and proper nouns
-- Avoid adding new characters that were not in the original and never invent new phrases
-- Verify tone marks are complete including neutral tones (marked without tone marks)
-- Double check that your output meets all requirements.
-
-RESPOND WITH JSON:
-{
-  "readingsText": "Original Chinese text with complete pinyin annotations",
-  "translatedText": "Natural translation in target language"
-}
-Output only this JSON. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
-
-// STATIC SYSTEM PROMPT FOR JAPANESE (CACHEABLE) - Shared across functions
-// Just above 2048 token minimum for Haiku caching
-const japaneseSystemPrompt = `You are a Japanese language expert specializing in translation and furigana annotation.
-
-TRANSLATION RULES:
-- Translate into natural, fluent target language
-- Preserve original meaning and tone
-- Use natural expressions appropriate for the target language
-- Do NOT add readings or furigana to the translation itself
-
-FURIGANA REQUIREMENTS:
-1. Keep ALL original text exactly as is (English words, numbers, punctuation unchanged)
-2. For EVERY word containing kanji, add complete hiragana readings in parentheses immediately after
-3. USE STANDARD DICTIONARY READINGS for compound words - do NOT combine individual kanji sounds phonetically
-4. Every single kanji character must have a reading - zero exceptions
-5. CRITICAL: Pure hiragana/katakana words, foreign loanwords, and numerals remain COMPLETELY UNTOUCHED - NEVER add furigana to words that contain NO kanji
-   - WRONG: うそ(うそ), それは(それは), ない(ない) ❌
-   - CORRECT: うそ, それは, ない ✓ (no furigana needed - already in hiragana)
-6. NEVER CONVERT HIRAGANA TO KANJI: If the user wrote a word in hiragana, keep it in hiragana. Do NOT "correct" or convert it to kanji.
-   - Input: こくのある甘み → Output: こくのある甘(あま)み ✓ (keep こく as hiragana)
-   - WRONG: こく → 国(くに) ❌ (do NOT convert hiragana to kanji)
-   - This applies to words like コク (richness/body), うま味, etc. that are intentionally written in kana
-
-READING PRIORITY (PROCESS IN THIS ORDER):
-- 1. COMPOUND WORDS: Multi-kanji words with established dictionary pronunciations
-- 2. COUNTER WORDS: Numbers + counters with rendaku sound changes
-- 3. PROPER NOUNS: Place names, organization names with specific readings
-- 4. IDIOMATIC EXPRESSIONS: Set phrases with non-compositional readings
-- 5. INDIVIDUAL KANJI: Only for truly decomposable words
-
-ESSENTIAL COMPOUND WORDS:
-東京(とうきょう), 京都(きょうと), 大阪(おおさか), 日本(にほん), 日本語(にほんご), 勉強(べんきょう), 大学生(だいがくせい), 図書館(としょかん), 病院(びょういん), 銀行(ぎんこう), 食堂(しょくどう), 学校(がっこう), 会社(かいしゃ), 電車(でんしゃ), 自動車(じどうしゃ), 駅(えき), 新聞(しんぶん), 電話(でんわ), 時間(じかん), 仕事(しごと), 買い物(かいもの), 食事(しょくじ), 天気(てんき), 友達(ともだち), 家族(かぞく), 子供(こども), 今日(きょう), 明日(あした), 昨日(きのう), 大人(おとな), 先生(せんせい), 学生(がくせい), 料理(りょうり), 掃除(そうじ), 洗濯(せんたく), 運動(うんどう), 旅行(りょこう), 会議(かいぎ), 試験(しけん), 宿題(しゅくだい), 練習(れんしゅう), 自然(しぜん), 動物(どうぶつ), 植物(しょくぶつ), 季節(きせつ), 春(はる), 夏(なつ), 秋(あき), 冬(ふゆ), 新しい(あたらしい), 古い(ふるい), 大きい(おおきい), 小さい(ちいさい), 高い(たかい), 安い(やすい), 難しい(むずかしい), 簡単(かんたん), 便利(べんり), 不便(ふべん), 有名(ゆうめい), 無名(むめい), 安全(あんぜん), 危険(きけん), 元気(げんき), 病気(びょうき), 幸せ(しあわせ), 不幸(ふこう), 映画(えいが), 音楽(おんがく), 写真(しゃしん), 美術館(びじゅつかん), 博物館(はくぶつかん), 公園(こうえん), 空港(くうこう), 地下鉄(ちかてつ), 新幹線(しんかんせん), 飛行機(ひこうき), 交通(こうつう), 運転(うんてん), 毎朝(まいあさ), 今晩(こんばん), 毎日(まいにち), 毎週(まいしゅう), 毎月(まいつき), 毎年(まいとし),
-COUNTER WORD RULES (RENDAKU):
-一匹 = いっぴき, 三匹 = さんびき, 六匹 = ろっぴき, 八匹 = はっぴき, 十匹 = じゅっぴき
-一人 = ひとり, 二人 = ふたり (irregular forms for 1-2)
-一つ = ひとつ, 二つ = ふたつ, 三つ = みっつ (native Japanese counting)
-一本 = いっぽん, 三本 = さんぼん, 六本 = ろっぽん (cylindrical objects)
-一枚 = いちまい, 二枚 = にまい (flat objects - no rendaku)
-一冊 = いっさつ, 三冊 = さんさつ (books)
-一台 = いちだい, 二台 = にだい (machines, vehicles)
-
-SPECIAL READING PATTERNS:
-JUKUJIKUN (Whole-word readings): 今日(きょう), 明日(あした), 昨日(きのう), 大人(おとな), 果物(くだもの), 野菜(やさい), 眼鏡(めがね), 浴衣(ゆかた)
-
-RENDAKU PATTERNS: 手紙(てがみ), 物語(ものがたり), 言葉(ことば), 三杯(さんばい), 一杯(いっぱい)
-
-INDIVIDUAL READINGS: 食べ物 = 食(た)べ物(もの), 飲み物 = 飲(の)み物(もの), 読み書き = 読(よ)み書(か)き, 上下 = 上(うえ)下(した), 左右 = 左(ひだり)右(みぎ)
-
-SENTENCE EXAMPLES:
-今日は良い天気ですね → 今日(きょう)は良(よ)い天気(てんき)ですね
-新しい本を読みました → 新(あたら)しい本(ほん)を読(よ)みました
-駅まで歩いて行きます → 駅(えき)まで歩(ある)いて行(い)きます
-猫が三匹います → 猫(ねこ)が三匹(さんびき)います
-図書館で勉強しました → 図書館(としょかん)で勉強(べんきょう)しました
-友達と映画を見に行きます → 友達(ともだち)と映画(えいが)を見(み)に行(い)きます
-
-CRITICAL: Hiragana-only words NEVER get furigana:
-うそでしょ → うそでしょ ✓ (NOT うそ(うそ)でしょ ❌)
-それはない → それはない ✓ (NOT それは(それは)ない(ない) ❌)
-
-
-FORMAT RULES:
-NO spaces before parentheses: 東京(とうきょう) ✓, 東京 (とうきょう) ✗
-Use only hiragana in readings (never katakana or romaji)
-Maintain original text structure exactly
-Preserve all punctuation, line breaks, and formatting
-Keep English words, Arabic numerals, and symbols unchanged
-
-QUALITY CHECKLIST:
-- Every kanji has a reading (no exceptions)
-- Compound words use standard dictionary pronunciations
-- Counter words show proper rendaku changes
-- Original text structure preserved
-- No spaces before opening parentheses
-- Only hiragana used in readings
-- Non-Japanese text unchanged
-- Hiragana/katakana words preserved exactly as written (NOT converted to kanji)
-
-EXTRA QUALITY NOTES:
-- Keep spacing around punctuation consistent with the source text.
-- Confirm dictionary readings for multi-kanji compounds and proper nouns.
-- CRITICAL: Never add new kanji that were not in the original - if the user wrote こく, keep it as こく, not 国.
-- Culinary/technical terms often use kana intentionally: コク (richness), うま味 (umami), etc.
-- Double check that your output meets all requirements.
-
-RESPOND WITH JSON:
-{
-  "readingsText": "Original Japanese text with complete furigana annotations",
-  "translatedText": "Natural translation in target language"
-}
-Output only this JSON. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
-
 // Lite Japanese system prompt for WordScope (J→E etc.) - bare minimum
-const japaneseWordScopeSystemPromptLite = `Japanese expert: translation + furigana + grammar. Translate naturally; no readings in translation. Furigana: hiragana in ( ) after every kanji word. Be extra careful with compound words; double-check furigana against standard dictionary readings—do not combine individual kanji readings phonetically. Leave hiragana/katakana/numbers/English unchanged; never convert hiragana to kanji. Format: 東京(とうきょう), hiragana only. Respond with JSON: readingsText, translatedText, scopeAnalysis. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes.`;
+const japaneseWordScopeSystemPromptLite = `Japanese expert: translation + furigana + grammar. Translate naturally; no readings in translation. Furigana: hiragana in ( ) after every kanji word. Be extra careful with compound words; double-check furigana against standard dictionary readings—do not combine individual kanji readings phonetically. Leave hiragana/katakana/numbers/English unchanged; never convert hiragana to kanji. Format: 東京(とうきょう), hiragana only. Respond with JSON: readingsText, translatedText, scopeAnalysis. Do NOT add "This means...", "Here is...", or any explanation inside or outside the JSON. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes. No trailing commas.`;
 
 // Lite Japanese system prompt for translation-only (no scope). Haiku 4.5 can follow minimal instructions.
 const japaneseTranslationSystemPromptLite = `You are a Japanese translation and furigana expert.
@@ -204,7 +25,7 @@ Furigana: For every word containing kanji, add hiragana readings in parentheses 
 
 Double check that you have included the appropriate furigana for all the words in the text if appropriate.
 
-OUTPUT: Reply with ONLY the JSON object. No preamble, no explanation of the text, no commentary, no notes. translatedText must contain ONLY the translation—nothing else. Do NOT add phrases like "This means...", "Here is...", or any explanation inside or outside the JSON. Inside string values: escape double quotes as \\", newlines as \\n, backslashes as \\. No trailing commas. Example: {"readingsText":"...","translatedText":"..."}`;
+OUTPUT: Reply with ONLY the JSON object. No preamble, no explanation of the text, no commentary, no notes. translatedText must contain ONLY the translation—nothing else. Do NOT add phrases like "This means...", "Here is...", or any explanation inside or outside the JSON. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes. No trailing commas. Example: {"readingsText":"...","translatedText":"..."}`;
 
 // Lite Chinese system prompt for translation-only (no scope). Context-appropriate for pinyin/tone difficulties.
 const chineseTranslationSystemPromptLite = `You are a Chinese translation and pinyin expert.
@@ -215,143 +36,10 @@ Pinyin: Use Hanyu Pinyin with tone marks (ā é ǐ ò ū ǖ). readingsText MUST 
 
 Double-check: compound readings and tone sandhi correct; readingsText is inline 汉字(pinyin) for every part so pinyin displays on top of characters.
 
-OUTPUT: Reply with ONLY the JSON object. No preamble, no explanation of the text, no commentary, no notes. translatedText must contain ONLY the translation—nothing else. Do NOT add phrases like "This means...", "Here is...", or any explanation inside or outside the JSON. Escape \\", \\n, \\. No trailing commas. Example: {"readingsText":"※价(jià)格(gé)含(hán)服(fú)务(wù)费(fèi)","translatedText":"..."}`;
+OUTPUT: Reply with ONLY the JSON object. No preamble, no explanation of the text, no commentary, no notes. translatedText must contain ONLY the translation—nothing else. Do NOT add phrases like "This means...", "Here is...", or any explanation inside or outside the JSON. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes. No trailing commas. Example: {"readingsText":"※价(jià)格(gé)含(hán)服(fú)务(wù)费(fèi)","translatedText":"..."}`;
 
 // Lite Chinese system prompt for WordScope (translation + pinyin + grammar). Same principles as Japanese lite.
-const chineseWordScopeSystemPromptLite = `Chinese expert: translation + pinyin + grammar. Translate naturally; no readings in translation. readingsText MUST be original Chinese with pinyin in ( ) immediately after each word/character so the app shows pinyin on top. WRONG: pinyin only or on separate line (e.g. "jià gé hán fú wù fèi"). CORRECT: inline 价(jià)格(gé)含(hán)服(fú)务(wù)费(fèi)—no space before (. Format: 中文(zhōngwén) or 价格(jiàgé) for compounds. Tone sandhi: 不 bú, 一 yī/yí/yì, 3rd+3rd→2nd+3rd. Neutral: 的(de), 了(le), 吗(ma). Polyphonic by context. Leave English/numbers/symbols unchanged. Respond with JSON: readingsText, translatedText, scopeAnalysis. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes.`;
-
-// STATIC SYSTEM PROMPT FOR KOREAN (CACHEABLE) - Shared across functions
-// Just above 2048 token minimum for Haiku caching
-const koreanSystemPrompt = `You are a Korean language expert. Your task is to annotate Korean text with romanization and translate it.
-
-⚠️ CRITICAL RULE #1 - NEVER VIOLATE:
-The readingsText MUST contain the ORIGINAL KOREAN CHARACTERS (한글).
-WRONG: "munbeob poin-teu" ❌ (romanization only - NO Korean!)
-CORRECT: "문법(mun-beop) 포인트(po-in-teu)" ✓ (Korean + romanization)
-
-⚠️ CRITICAL RULE #2 - TRANSLATION:
-The translatedText must be PURE target language. NO romanization.
-WRONG: "eun/neun vs i/ga" ❌ (romanization in translation)
-CORRECT: "topic marker vs subject marker" ✓ (actual translation)
-
-FORMAT FOR readingsText:
-- Every Korean word: 한글(romanization) - Korean FIRST, then romanization in parentheses
-- Slashes: 은/는 → 은(eun)/는(neun) - annotate EACH word separately
-- Parentheses: (조사) → (조사(jo-sa)) - add romanization inside
-- English/numbers: keep unchanged
-
-EXAMPLES:
-Input: "문법 포인트"
-readingsText: "문법(mun-beop) 포인트(po-in-teu)"
-
-Input: "은/는 vs 이/가"
-readingsText: "은(eun)/는(neun) vs 이(i)/가(ga)"
-
-Input: "(목적격 조사)"
-readingsText: "(목적격(mog-jeog-gyeog) 조사(jo-sa))"
-
-ROMANIZATION RULES:
-- ㅓ = eo, ㅗ = o, ㅡ = eu, ㅜ = u
-- No spaces before parentheses
-- Use Revised Romanization only (not Japanese romaji)
-
-COMPLETE REVISED ROMANIZATION SYSTEM:
-
-CONSONANTS:
-- ㄱ = g/k (g before vowels, k before consonants or at end)
-- ㄷ = d/t (d before vowels, t before consonants or at end)
-- ㅂ = b/p (b before vowels, p before consonants or at end)
-- ㅈ = j/ch (j before vowels, ch before consonants or at end)
-- ㅅ = s (but ㅆ = ss, initial ㅅ before i/ㅣ = shi)
-- ㅊ = ch (always ch)
-- ㅋ = k (always k)
-- ㅌ = t (always t)
-- ㅍ = p (always p)
-- ㅎ = h (always h)
-- ㄹ = r/l (r before vowels, l at end of syllable)
-- ㅁ = m, ㄴ = n, ㅇ = ng (at syllable end)
-
-VOWELS:
-- ㅏ = a, ㅑ = ya, ㅓ = eo, ㅕ = yeo
-- ㅗ = o, ㅛ = yo, ㅜ = u, ㅠ = yu
-- ㅡ = eu, ㅣ = i, ㅐ = ae, ㅒ = yae
-- ㅔ = e, ㅖ = ye, ㅚ = oe, ㅟ = wi
-- ㅞ = we, ㅙ = wae
-
-COMPLEX SYLLABLES AND RULES:
-- Syllable-final consonant rules (받침):
-  - ㄱ/ㅋ/ㄲ + ㄱ = kk (읽 + 고 = il-kko)
-  - ㄷ/ㅌ/ㅅ/ㅆ/ㅈ/ㅊ/ㅎ + ㄷ = tt (받 + 다 = bat-ta)
-  - ㅂ/ㅍ/ㅃ + ㅂ = pp (줍 + 다 = jup-tta)
-  - ㄹ + ㄹ = ll (몰 + 라 = mol-la)
-  - Nasal assimilation: 받침 nasal + nasal = double nasal
-
-PARTICLES AND GRAMMAR MARKERS:
-- Subject particles: 이(i)/가(ga) - nominative case
-- Object particles: 을(eul)/를(reul) - accusative case
-- Topic particles: 은(eun)/는(neun) - topic marking
-- Location particles: 에(e)/에서(eseo) - location/instrumental
-- Honorific markers: 시(si), 세요(se-yo), 십니다(sim-ni-da)
-
-COMPOUND WORDS:
-- Sino-Korean: 서울(seoul), 학교(hak-gyo), 학생(hak-saeng)
-- Pure Korean: 사람(sa-ram), 물(mu), 밥(bap)
-- Loan words: 컴퓨터(keom-pyu-teo), 버스(beo-seu)
-
-VERIFICATION CHECKLIST:
-✓ Every Korean character preserved in readingsText
-✓ Romanization in (parentheses) with no space before (
-✓ Correct 받침 pronunciation changes
-✓ Proper particle romanization (i/ga, eun/neun, eul/reul)
-✓ No Korean characters in translatedText
-
-COMMON ERRORS TO AVOID:
-- "han-geul" instead of "han-geul" [space in compound word]
-- "i/ga" in translation instead of "subject markers"
-- Missing 받침 changes: "좋다" → "joh-da" not "jo-ta"
-- Wrong consonant assimilation: "읽다" → "ik-tta" not "il-kka"
-- Particle confusion: "은/는" → "eun/neun" not "un/nun"
-
-ADVANCED ROMANIZATION PATTERNS:
-
-HONORIFICS AND FORMAL SPEECH:
-- Polite speech: ㅂ니다(mnida), 세요(seyo), ㅂ까(mkka)
-- Honorific particles: 께(kke), 드리다(deu-ri-da)
-- Deferential speech: 십니다(simnida), 계시다(gyesida)
-
-IDIOMATIC EXPRESSIONS:
-- 안녕하세요(an-nyeong-ha-se-yo) - formal greeting
-- 감사합니다(gam-sa-ham-ni-da) - thank you
-- 실례합니다(sil-lye-ham-ni-da) - excuse me
-- 만나서 반갑습니다(man-na-seo ban-gap-seum-ni-da) - nice to meet you
-
-NUMBERS AND COUNTERS:
-- 하나(hana), 둘(dul), 셋(set), 넷(net), 다섯(da-seot)
-- Sino-Korean: 일(il), 이(i), 삼(sam), 사(sa), 오(o)
-- Counters: 명(myeong) for people, 개(gae) for objects, 마리(ma-ri) for animals
-
-REGIONAL VARIATIONS:
-- Seoul dialect (표준어): most common, used in education
-- Busan dialect: different particle usage
-- Jeju dialect: unique vocabulary and pronunciation
-- But Revised Romanization follows Seoul standard
-
-SELF-VERIFICATION CHECKLIST:
-Before submitting, verify each Korean element:
-✓ Original 한글 preserved in readingsText
-✓ 받침 pronunciation changes applied correctly
-✓ Particles romanized properly (eun/neun, i/ga, eul/reul)
-✓ No Korean in translatedText (only target language)
-✓ Proper spacing and parentheses formatting
-✓ Correct vowel combinations (ya, yeo, yu, etc.)
-✓ Double check that your output meets all requirements.
-
-RESPOND WITH JSON:
-{
-  "readingsText": "Korean text with romanization annotations",
-  "translatedText": "Pure translation in target language (NO romanization)"
-}
-Output only this JSON. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
+const chineseWordScopeSystemPromptLite = `Chinese expert: translation + pinyin + grammar. Translate naturally; no readings in translation. readingsText MUST be original Chinese with pinyin in ( ) immediately after each word/character so the app shows pinyin on top. WRONG: pinyin only or on separate line (e.g. "jià gé hán fú wù fèi"). CORRECT: inline 价(jià)格(gé)含(hán)服(fú)务(wù)费(fèi)—no space before (. Format: 中文(zhōngwén) or 价格(jiàgé) for compounds. Tone sandhi: 不 bú, 一 yī/yí/yì, 3rd+3rd→2nd+3rd. Neutral: 的(de), 了(le), 吗(ma). Polyphonic by context. Leave English/numbers/symbols unchanged. Respond with JSON: readingsText, translatedText, scopeAnalysis. Do NOT add "This means...", "Here is...", or any explanation inside or outside the JSON. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes. No trailing commas.`;
 
 // Lite Korean system prompt for translation-only (no scope). Same principles as Japanese/Chinese/Arabic/Hindi/Thai lite.
 const koreanTranslationSystemPromptLite = `You are a Korean translation and Revised Romanization expert.
@@ -360,123 +48,10 @@ Translate into natural, fluent target language. Preserve meaning and tone. Do no
 
 Romanization: readingsText MUST be original 한글 with romanization in parentheses immediately after each word. Format: 문법(mun-beop) 포인트(po-in-teu). No space before (. Revised Romanization: ㅓ=eo, ㅗ=o, ㅡ=eu, ㅜ=u; 받침 rules (e.g. ㄱ+ㄱ=kk, ㄷ+ㄷ=tt); particles 이(i)/가(ga), 은(eun)/는(neun), 을(eul)/를(reul). Leave English/numbers unchanged.
 
-OUTPUT: Reply with ONLY the JSON object. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation. Escape \\", \\n, \\. No trailing commas. Example: {"readingsText":"안녕하세요(an-nyeong-ha-se-yo)","translatedText":"..."}`;
+OUTPUT: Reply with ONLY the JSON object. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation—nothing else. Do NOT add phrases like "This means...", "Here is...", or any explanation inside or outside the JSON. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes. No trailing commas. Example: {"readingsText":"안녕하세요(an-nyeong-ha-se-yo)","translatedText":"..."}`;
 
 // Lite Korean system prompt for WordScope (translation + romanization + grammar).
-const koreanWordScopeSystemPromptLite = `Korean expert: translation + Revised Romanization + grammar. Translate naturally; no romanization in translation. readingsText MUST be original 한글 with (romanization) after each word. Format: 문법(mun-beop) 포인트(po-in-teu). 받침 rules; particles i/ga, eun/neun, eul/reul. Leave English/numbers unchanged. Respond with JSON: readingsText, translatedText, scopeAnalysis. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes.`;
-
-// STATIC SYSTEM PROMPT FOR ARABIC (CACHEABLE) - Shared across functions
-// Just above 2048 token minimum for Haiku caching
-const arabicSystemPrompt = `You are an Arabic language expert specializing in translation and transliteration annotation.
-
-TRANSLATION RULES:
-- Translate into natural, fluent target language
-- Preserve original meaning and tone
-- Use natural expressions appropriate for the target language
-- Do NOT add transliteration or pronunciation guides to the translation itself
-
-CRITICAL FORMATTING REQUIREMENTS FOR ARABIC TEXT:
-- Keep all original Arabic text exactly as is (including any English words, numbers, or punctuation)
-- For EVERY Arabic word, add the Enhanced Arabic Chat Alphabet transliteration in parentheses immediately after the Arabic text
-- Do NOT add transliteration to English words or numbers - leave them unchanged
-- Follow enhanced Arabic romanization standards with sun letter assimilation
-- The format should be: العربية(al-arabiya) NOT "al-arabiya (Arabic)" or any other format
-- Do NOT mix English translations in the transliteration - only provide pronunciation guide
-
-SUN LETTER ASSIMILATION RULES - MANDATORY:
-Before sun letters (ت، ث، د، ذ، ر، ز، س، ش، ص، ض، ط، ظ، ل، ن), the definite article 'al-' (الـ) must be assimilated:
-
-SUN LETTERS AND THEIR ASSIMILATION:
-- الت = at- (ت): التعليم = at-ta'lim (not al-ta'lim)
-- الث = ath- (ث): الثقافي = ath-thaqafi (not al-thaqafi)  
-- الد = ad- (د): الدرس = ad-dars (not al-dars)
-- الذ = adh- (ذ): الذهب = adh-dhahab (not al-dhahab)
-- الر = ar- (ر): الرحلة = ar-rihlah (not al-rihlah)
-- الز = az- (ز): الزمن = az-zaman (not al-zaman)
-- الس = as- (س): السابعة = as-saa'iba (not al-saa'iba)
-- الش = ash- (ش): الشمس = ash-shams (not al-shams)
-- الص = as- (ص): الصباح = as-sabah (not al-sabah)
-- الض = ad- (ض): الضوء = ad-daw' (not al-daw')
-- الط = at- (ط): الطعام = at-ta'am (not al-ta'am)
-- الظ = adh- (ظ): الظهر = adh-dhuhr (not al-dhuhr)
-- الل = al- (ل): الليل = al-layl (no change, but doubled: al-layl)
-- الن = an- (ن): النهار = an-nahar (not al-nahar)
-
-MOON LETTERS (NO ASSIMILATION):
-Moon letters (ا، ب، ج، ح، خ، ع، غ، ف، ق، ك، م، ه، و، ي) keep 'al-' unchanged:
-- الباب = al-bab (door)
-- الجامعة = al-jami'a (university)
-- الحياة = al-hayah (life)
-- الكتاب = al-kitab (book)
-- المدرسة = al-madrasa (school)
-
-ENHANCED ROMANIZATION STANDARDS:
-- ع = ' (ayn - glottal stop)
-- غ = gh (voiced velar fricative)
-- ح = h (voiceless pharyngeal fricative)  
-- خ = kh (voiceless velar fricative) - NEVER use k̲h̲ or other diacritics
-- ق = q (voiceless uvular stop)
-- ص = s (emphatic s) - NEVER use ṣ or underlined s
-- ض = d (emphatic d) - NEVER use ḍ or d̲ or underlined d
-- ط = t (emphatic t) - NEVER use ṭ or underlined t
-- ظ = dh (emphatic dh) - NEVER use d̲h̲ or underlined dh
-- ث = th (voiceless dental fricative)
-- ذ = dh (voiced dental fricative)
-- ش = sh (NOT s̲h̲ or underlined sh)
-
-CRITICAL: DO NOT USE DIACRITICAL MARKS OR COMBINING CHARACTERS!
-- NO underlines: k̲h̲, s̲h̲, d̲ are WRONG
-- NO dots below: ṣ, ḍ, ṭ are WRONG
-- NO special IPA symbols
-- Use ONLY simple ASCII letters: a-z, A-Z, and apostrophe (')
-- The romanization must be readable without special fonts
-
-LONG VOWEL CONSISTENCY - MANDATORY RULES:
-- ا = aa (ALWAYS long) - consistent representation of alif
-- و = uu/oo (context dependent) - long u sound or long o sound
-- ي = ii/ee (context dependent) - long i sound or long e sound
-- ى = aa (alif maqsura - always long aa sound)
-
-KEY EXAMPLES:
-- "مرحبا" → "مرحبا(marhabaa)" [long aa from alif]
-- "السلام عليكم" → "السلام(as-salaam) عليكم('alaykum)" [sun letter assimilation + long aa]
-- "الشمس" → "الشمس(ash-shams)" [sun letter assimilation]
-- "التعليم" → "التعليم(at-ta'liim)" [sun letter assimilation + long ii]
-- "الرحلة" → "الرحلة(ar-rihlah)" [sun letter assimilation]
-- "النهار" → "النهار(an-nahaar)" [sun letter assimilation + long aa]
-- "الكتاب" → "الكتاب(al-kitaab)" [moon letter - no assimilation + long aa]
-- "كتاب جميل" → "كتاب(kitaab) جميل(jamiil)" [long aa + long ii]
-- "أنا أتعلم العربية" → "أنا(anaa) أتعلم(ata'allam) العربية(al-'arabiyyah)" [initial hamza + long aa + long ii]
-- "سؤال" → "سؤال(su'aal)" [hamza on waw + long aa]
-- "رئيس" → "رئيس(ra'iis)" [hamza on ya + long ii]
-- "جزء" → "جزء(juz')" [hamza alone as glottal stop]
-- "ماء" → "ماء(maa')" [final hamza + long aa]
-- Mixed: "Hello عربي" → "Hello عربي('arabii)"
-
-VERIFICATION CHECKLIST:
-✓ Sun letter assimilation applied to definite articles (الـ) before ت، ث، د، ذ، ر، ز، س، ش، ص، ض، ط، ظ، ل، ن
-✓ Every alif (ا) represented as 'aa' (never single 'a')
-✓ Alif maqsura (ى) always 'aa'
-✓ Waw (و) as 'uu'/'oo' when long vowel, 'w' when consonant
-✓ Ya (ي) as 'ii'/'ee' when long vowel, 'y' when consonant
-✓ Hamzas correctly represented: initial (أ، إ), medial (ؤ، ئ، ء), final (ء، أ)
-✓ No diacritical marks (ṣ, ḍ, ṭ) or underlines - use simple ASCII only
-
-CRITICAL ERRORS TO AVOID:
-- "kitab" instead of "kitaab" [missing long vowel]
-- "al-shams" instead of "ash-shams" [missing sun letter assimilation]
-- "maa" instead of "maa'" [missing final hamza]
-- "su-al" instead of "su'aal" [missing hamza representation]
-- "ana" instead of "anaa" [missing initial hamza + long aa]
-- "al-arabiya (Arabic)" instead of "al-'arabiyyah"
-- Double check that your output meets all requirements.
-
-RESPOND WITH JSON:
-{
-  "readingsText": "Arabic text with enhanced transliteration in parentheses immediately after each Arabic word - following the sun letter assimilation rules, long vowel consistency rules, AND systematic hamza representation above",
-  "translatedText": "Accurate translation in target language reflecting the full meaning in context"
-}
-Output only this JSON. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
+const koreanWordScopeSystemPromptLite = `Korean expert: translation + Revised Romanization + grammar. Translate naturally; no romanization in translation. readingsText MUST be original 한글 with (romanization) after each word. Format: 문법(mun-beop) 포인트(po-in-teu). 받침 rules; particles i/ga, eun/neun, eul/reul. Leave English/numbers unchanged. Respond with JSON: readingsText, translatedText, scopeAnalysis. Do NOT add "This means...", "Here is...", or any explanation inside or outside the JSON. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes. No trailing commas.`;
 
 // Lite Arabic system prompt for translation-only (no scope). Same principles as Japanese/Chinese lite.
 const arabicTranslationSystemPromptLite = `You are an Arabic translation and transliteration expert.
@@ -485,10 +60,10 @@ Translate into natural, fluent target language. Preserve meaning and tone. Do no
 
 Transliteration: readingsText MUST be original Arabic with transliteration in parentheses immediately after each word. Format: العربية(al-'arabiyyah). No space before (. Sun letter assimilation: الـ before ت ث د ذ ر ز س ش ص ض ط ظ ل ن assimilates (e.g. الشمس = ash-shams not al-shams). Moon letters keep al-. Long vowels: ا/ى = aa, و = uu/oo, ي = ii/ee. Hamza = '. Use only ASCII (a-z, '); no diacritics (no ṣ, ḍ, ṭ). Leave English/numbers unchanged.
 
-OUTPUT: Reply with ONLY the JSON object. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation. Escape \\", \\n, \\. No trailing commas. Example: {"readingsText":"مرحبا(marhabaa)","translatedText":"..."}`;
+OUTPUT: Reply with ONLY the JSON object. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation—nothing else. Do NOT add phrases like "This means...", "Here is...", or any explanation inside or outside the JSON. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes. No trailing commas. Example: {"readingsText":"مرحبا(marhabaa)","translatedText":"..."}`;
 
 // Lite Arabic system prompt for WordScope (translation + transliteration + grammar).
-const arabicWordScopeSystemPromptLite = `Arabic expert: translation + transliteration + grammar. Translate naturally; no transliteration in translation. readingsText MUST be original Arabic with (transliteration) after each word. Format: العربية(al-'arabiyyah). Sun letter assimilation (الـ before sun letters → ash-shams not al-shams). Long vowels aa/ii/uu; hamza '. ASCII only, no diacritics. Leave English/numbers unchanged. Respond with JSON: readingsText, translatedText, scopeAnalysis. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes.`;
+const arabicWordScopeSystemPromptLite = `Arabic expert: translation + transliteration + grammar. Translate naturally; no transliteration in translation. readingsText MUST be original Arabic with (transliteration) after each word. Format: العربية(al-'arabiyyah). Sun letter assimilation (الـ before sun letters → ash-shams not al-shams). Long vowels aa/ii/uu; hamza '. ASCII only, no diacritics. Leave English/numbers unchanged. Respond with JSON: readingsText, translatedText, scopeAnalysis. Do NOT add "This means...", "Here is...", or any explanation inside or outside the JSON. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes. No trailing commas.`;
 
 // Lite Hindi system prompt for translation-only (no scope). Same principles as Japanese/Chinese/Arabic lite.
 const hindiTranslationSystemPromptLite = `You are a Hindi translation and IAST romanization expert.
@@ -497,10 +72,10 @@ Translate into natural, fluent target language. Preserve meaning and tone. Do no
 
 Romanization: readingsText MUST be original Devanagari with IAST in parentheses immediately after each word. Format: हिन्दी(hindī). No space before (. IAST: long vowels ā ī ū (आ ई ऊ); retroflex ṭ ṭh ḍ ḍh ṇ; sibilants ś (श) ṣ (ष) s (स); compound क्ष = kṣ, ज्ञ = jñ; anusvara ṃ. Leave English/numbers unchanged.
 
-OUTPUT: Reply with ONLY the JSON object. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation. Escape \\", \\n, \\. No trailing commas. Example: {"readingsText":"नमस्ते(namaste)","translatedText":"..."}`;
+OUTPUT: Reply with ONLY the JSON object. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation—nothing else. Do NOT add phrases like "This means...", "Here is...", or any explanation inside or outside the JSON. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes. No trailing commas. Example: {"readingsText":"नमस्ते(namaste)","translatedText":"..."}`;
 
 // Lite Hindi system prompt for WordScope (translation + romanization + grammar).
-const hindiWordScopeSystemPromptLite = `Hindi expert: translation + IAST romanization + grammar. Translate naturally; no romanization in translation. readingsText MUST be original Devanagari with (IAST) after each word. Format: हिन्दी(hindī). Long vowels ā ī ū; retroflex ṭ ḍ ṇ; sibilants ś ṣ s; compound kṣ, jñ. Leave English/numbers unchanged. Respond with JSON: readingsText, translatedText, scopeAnalysis. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes.`;
+const hindiWordScopeSystemPromptLite = `Hindi expert: translation + IAST romanization + grammar. Translate naturally; no romanization in translation. readingsText MUST be original Devanagari with (IAST) after each word. Format: हिन्दी(hindī). Long vowels ā ī ū; retroflex ṭ ḍ ṇ; sibilants ś ṣ s; compound kṣ, jñ. Leave English/numbers unchanged. Respond with JSON: readingsText, translatedText, scopeAnalysis. Do NOT add "This means...", "Here is...", or any explanation inside or outside the JSON. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes. No trailing commas.`;
 
 // Lite Thai system prompt for translation-only (no scope). Same principles as Japanese/Chinese/Arabic/Hindi lite.
 const thaiTranslationSystemPromptLite = `You are a Thai translation and RTGS romanization expert.
@@ -509,492 +84,34 @@ Translate into natural, fluent target language. Preserve meaning and tone. Do no
 
 Romanization: readingsText MUST be original Thai with RTGS in parentheses immediately after each word. Format: สวัสดี(sawatdee). No space before (. RTGS: no tone marks; aspirated ph, th, kh, ch; long vowels aa, ii, uu, ee, oo; diphthongs ai, ao, ue, oi; silent อ at syllable start; ng for ง. Leave English/numbers unchanged.
 
-OUTPUT: Reply with ONLY the JSON object. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation. Escape \\", \\n, \\. No trailing commas. Example: {"readingsText":"สวัสดี(sawatdee)","translatedText":"..."}`;
+OUTPUT: Reply with ONLY the JSON object. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation—nothing else. Do NOT add phrases like "This means...", "Here is...", or any explanation inside or outside the JSON. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes. No trailing commas. Example: {"readingsText":"สวัสดี(sawatdee)","translatedText":"..."}`;
 
 // Lite Thai system prompt for WordScope (translation + romanization + grammar).
-const thaiWordScopeSystemPromptLite = `Thai expert: translation + RTGS romanization + grammar. Translate naturally; no romanization in translation. readingsText MUST be original Thai with (RTGS) after each word. Format: สวัสดี(sawatdee). Aspirated ph/th/kh/ch; long vowels aa/ii/uu/ee/oo; no tone marks. Leave English/numbers unchanged. Respond with JSON: readingsText, translatedText, scopeAnalysis. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes.`;
+const thaiWordScopeSystemPromptLite = `Thai expert: translation + RTGS romanization + grammar. Translate naturally; no romanization in translation. readingsText MUST be original Thai with (RTGS) after each word. Format: สวัสดี(sawatdee). Aspirated ph/th/kh/ch; long vowels aa/ii/uu/ee/oo; no tone marks. Leave English/numbers unchanged. Respond with JSON: readingsText, translatedText, scopeAnalysis. Do NOT add "This means...", "Here is...", or any explanation inside or outside the JSON. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes. No trailing commas.`;
 
-// STATIC SYSTEM PROMPT FOR THAI (CACHEABLE) - Shared across functions
-// Just above 2048 token minimum for Haiku caching
-const thaiSystemPrompt = `You are a Thai language expert specializing in translation and RTGS romanization annotation.
+// Lite Russian system prompt for translation-only (no scope). Requests Cyrillic + Latin romanization.
+const russianTranslationSystemPromptLite = `You are a Russian translation and romanization expert.
 
-TRANSLATION RULES:
-- Translate into natural, fluent target language
-- Preserve original meaning and tone
-- Use natural expressions appropriate for the target language
-- Do NOT add romanization or pronunciation guides to the translation itself
+Translate into natural, fluent target language. Preserve meaning and tone. Do not add romanization to the translation itself.
 
-CRITICAL FORMATTING REQUIREMENTS FOR THAI TEXT:
-- Keep all original Thai text exactly as is (including any English words, numbers, or punctuation)
-- For EVERY Thai word or phrase, add RTGS romanization in parentheses DIRECTLY after the Thai text with NO SPACE before the opening parenthesis
-- CORRECT: สวัสดี(sawatdee) - parenthesis directly touches Thai text
-- WRONG: สวัสดี (sawatdee) - DO NOT put a space before the parenthesis
-- Do NOT add romanization to English words, numerals, or punctuation—leave them untouched
-- Follow standard RTGS conventions: no tone marks, use apostrophes only when part of loan words, and prefer digraphs like ph, th, kh, ch for aspirated consonants
+Romanization: readingsText MUST be original Cyrillic with Latin romanization in parentheses immediately after each word. Format: Привет(privet) Русский(russkiy). No space before (. Use standard ISO 9 or common Latin transliteration: ё=yo, й=y, ы=y, щ=shch, ч=ch, ш=sh, ж=zh, ц=ts, х=kh; soft sign ь = ' (apostrophe) or omit; hard sign ъ = " or omit. Leave English/numbers unchanged.
 
-RTGS ACCURACY GUIDELINES:
-- Aspirated consonants: use ph (พ, ผ), th (ท, ธ), kh (ค, ข, ฆ), ch (ช, ฌ, ซ) while unaspirated consonants stay as k, t, k, t, t, etc.
-- Vowels: long vowels double the vowel letters (aa, ii, uu, ee, oo) and diphthongs use Thai-specific combinations (ai, ao, ue, oi)
-- Clusters and final consonants should follow RTGS (e.g., กรุงเทพฯ = Krung Thep, สมุทร = Samut)
-- Use ng for ง/–ng, ny for ญ/ญา when applicable, and maintain the proper representation of silent /อ/ when it leads the syllable
-- Do not introduce diacritics; keep the romanization plain Latin letters with consistent spacing
+OUTPUT: Reply with ONLY the JSON object. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation—nothing else. Do NOT add phrases like "This means...", "Here is...", or any explanation inside or outside the JSON. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes. No trailing commas. Example: {"readingsText":"Привет(privet)","translatedText":"..."}`;
 
-CONSONANT ASPIRATION RULES - MANDATORY:
-- High class + high tone = aspirated: ข = kh, ฉ = ch, ถ = th, ผ = ph, ฝ = f, ศ = s, ษ = s, ส = s
-- Mid class + high tone = aspirated: จ = ch, ท = th, ธ = th, พ = ph, ภ = ph
-- Low class consonants never aspirated: ก = k, ด = d, ต = t, ป = p, บ = b
-- Always aspirated: ฟ = f, ฮ = h (exceptions to class rules)
+// Lite Russian system prompt for WordScope (translation + romanization + grammar).
+const russianWordScopeSystemPromptLite = `Russian expert: translation + Latin romanization + grammar. Translate naturally; no romanization in translation. readingsText MUST be original Cyrillic with (romanization) after each word. Format: Привет(privet) Русский(russkiy). Standard transliteration: ё=yo, щ=shch, ч=ch, ш=sh, ж=zh, ы=y. Leave English/numbers unchanged. Respond with JSON: readingsText, translatedText, scopeAnalysis. Do NOT add "This means...", "Here is...", or any explanation inside or outside the JSON. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes. No trailing commas.`;
 
-INITIAL CONSONANT CLUSTERS:
-- กร = kr, กล = kl, คว = kw, ปร = pr, พร = phr, ตร = tr, ตร = tr
-- ปล = pl, พล = phl, ผล = phon, ผล = phon, ฝล = fon, หร = hon
-- Complex clusters: วัน = wan (not wun), ด้วย = duay (not duey), สวย = suay (not suai)
+// Minimal prompt for English→any (no WordScope)
+const simpleTranslationPromptLite = `Translate to the requested target language. Natural, fluent output only. No readings/romanization in translation. Output ONLY the JSON object: {"readingsText": "", "translatedText": "translation"}. No preamble, no explanation, no commentary. translatedText must be ONLY the translation—nothing else. Do NOT add phrases like "This means...", "Here is...", or any explanation inside or outside the JSON. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes. No trailing commas.`;
 
-FINAL CONSONANT RULES:
-- Dead syllables end with p, t, k: รับ = rap, จบ = chop, มาก = mak
-- Live syllables end with m, n, ng, vowel: มา = maa, จน = chon, สิง = sing
-- Sonorant finals: ย = y, ว = w, อ = (silent at end)
-
-SILENT VOWEL CARRIER /อ/:
-- อ at start of syllable = silent: อา = aa, อี = ii, อุ = u, อร = on
-- อ before consonants = vowel carrier: เขา = khao, เรา = rao, เธอ = thoe
-- อ after consonants = silent: เกาะ = ko, เกิด = koet, เรา = rao
-
-TONE MARK RULES (NO TONE MARKS IN RTGS):
-- RTGS never uses tone marks (á, à, â, etc.)
-- Tone determined by consonant class + tone marker combinations
-- Academic transcription uses numbers, RTGS uses plain letters only
-
-VOWEL LENGTH RULES - CRITICAL ACCURACY:
-- Short vowels: a (ะ, ั), i (ิ), u (ุ), e (เ, แะ, เอะ), o (โะ, เาะ, อะ)
-- Long vowels: aa (า, ำ), ii (ี), uu (ู), ee (เอี, เอ), oo (โ, โอ)
-- Diphthongs: ai (ไ, ใ, ใ), ao (าว), ue (ื), oi (อย)
-
-SILENT /อ/ RULES:
-- อ at syllable start is silent: ออก(ok) not "aok", อ่าน(aan) not "aan"
-- อ after consonants becomes vowel carrier: เขา(khao), เธอ(thoe), เรา(rao)
-- อ before other vowels: ไป(pai), ใหม่(mai), ใช่(chai)
-
-COMPOUND WORD HANDLING:
-- Compound nouns as single units: นักเรียน(nak rian) not นัก(nak)เรียน(rian)
-- Place names: กรุงเทพฯ(Krung Thep) not กรุง(krung)เทพฯ(thep)
-- Honorifics: ครับ(khrab), ค่ะ(kha), คุณ(khun)
-
-KEY EXAMPLES:
-- "สวัสดีครับ" → "สวัสดีครับ(sawatdee khrab)"
-- "ขอบคุณ" → "ขอบคุณ(khop khun)"
-- "นักเรียน" → "นักเรียน(nak rian)" [compound word as unit]
-- "ประเทศไทย" → "ประเทศไทย(prathet thai)" [compound proper name]
-- "กรุงเทพฯ" → "กรุงเทพฯ(Krung Thep)" [place name]
-- "ไป" → "ไป(pai)" [diphthong ai]
-- "ใหม่" → "ใหม่(mai)" [long ai]
-- "เขา" → "เขา(khao)" [ao diphthong]
-- "เพื่อน" → "เพื่อน(phuean)" [ue diphthong]
-- "พูด" → "พูด(phut)" [aspirated ph]
-- "เธอ" → "เธอ(thoe)" [aspirated th]
-- "ข้าว" → "ข้าว(khao)" [aspirated kh]
-- "ช้าง" → "ช้าง(chang)" [aspirated ch]
-- "สวัสดีครับ คุณชื่ออะไร" → "สวัสดีครับ(sawatdee khrab) คุณชื่ออะไร(khun chue arai)"
-- "ฉันชอบกินข้าวมาก" → "ฉันชอบกินข้าวมาก(chan chop kin khao mak)"
-- "นี่คือหนังสือเล่มใหม่" → "นี่คือหนังสือเล่มใหม่(ni khue nang sue lem mai)"
-- "สามคน" → "สามคน(saam khon)" [number + classifier]
-- "ห้าตัว" → "ห้าตัว(ha tua)" [number + classifier]
-- "เชียงใหม่" → "เชียงใหม่(chiang mai)" [place name]
-- "ภูเก็ต" → "ภูเก็ต(phuket)" [place name]
-- "Hello คุณ" → "Hello คุณ(khun)" [mixed content]
-- "OK ครับ" → "OK ครับ(khrab)" [mixed content]
-
-VERIFICATION CHECKLIST - MANDATORY:
-✓ Every Thai word has romanization in parentheses with NO space before opening parenthesis
-✓ Aspirated consonants use ph, th, kh, ch (not p, t, k, c)
-✓ Long vowels double letters (aa, ii, uu, ee, oo) - no single letters for long sounds
-✓ Silent อ at start of syllables is ignored in romanization
-✓ Compound words and proper names treated as single units
-✓ Classifiers and measure words romanized correctly
-✓ Mixed language content preserves English words unchanged
-
-COMMON ERRORS TO AVOID:
-- "sawadee" instead of "sawatdee" [missing double vowel]
-- "khun (you)" instead of "khun" [no English translations in parentheses]
-- "phom" instead of "phom" [correct, but ensure no spaces before parentheses]
-- "nak(rian)" instead of "nak rian" [compound words need space between romanization parts]
-- "thai(land)" instead of "prathet thai" [wrong word boundaries]
-- "khao" instead of "khao" [correct, but verify aspiration]
-
-ADVANCED RTGS RULES:
-- RTGS does NOT use tone marks (no á, à, â, etc.)
-- Long vowels indicated by doubling: aa, ii, uu, ee, oo
-- Standard RTGS preferred over local pronunciations
-- Double check that your output meets all requirements.
-
-RESPOND WITH JSON:
-{
-  "readingsText": "Thai text with RTGS romanization in parentheses after each word following all rules above",
-  "translatedText": "Accurate translation in target language reflecting the full meaning in context"
-}
-Output only this JSON. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
-
-// STATIC SYSTEM PROMPT FOR HINDI (CACHEABLE) - Shared across functions
-// Just above 2048 token minimum for Haiku caching
-const hindiSystemPrompt = `You are a Hindi language expert specializing in translation and IAST romanization annotation.
-
-TRANSLATION RULES:
-- Translate into natural, fluent target language
-- Preserve original meaning and tone
-- Use natural expressions appropriate for the target language
-- Do NOT add romanization or pronunciation guides to the translation itself
-
-CRITICAL FORMATTING REQUIREMENTS FOR HINDI TEXT:
-- Keep all original Hindi Devanagari text exactly as is (including any English words, numbers, or punctuation)
-- For EVERY Hindi word, add the standard romanization in parentheses immediately after the Devanagari text
-- Do NOT add romanization to English words or numbers - leave them unchanged
-- Follow IAST (International Alphabet of Sanskrit Transliteration) with enhanced accuracy
-- The format should be: हिन्दी(hindī) NOT "hindī (Hindi)" or any other format
-- Do NOT mix English translations in the romanization - only provide pronunciation guide
-
-CRITICAL VOWEL LENGTH VERIFICATION - MANDATORY RULES:
-- आ MUST be ā (never a) - long vowel always marked with macron
-- ई MUST be ī (never i) - long vowel always marked with macron
-- ऊ MUST be ū (never u) - long vowel always marked with macron
-- ए MUST be e (inherently long, no macron needed)
-- ओ MUST be o (inherently long, no macron needed)
-- अ = a (short vowel, no macron)
-- इ = i (short vowel, no macron)
-- उ = u (short vowel, no macron)
-- Review every single vowel for correct length marking
-- Pay special attention to compound words where vowel length is crucial
-
-DIACRITICAL MARK REQUIREMENTS - MANDATORY ACCURACY:
-All retroflex consonants MUST have dots below:
-- ट = ṭ (retroflex unaspirated)
-- ठ = ṭh (retroflex aspirated)
-- ड = ḍ (retroflex unaspirated)
-- ढ = ḍh (retroflex aspirated)
-- ण = ṇ (retroflex nasal)
-
-All sibilants must be distinguished:
-- श = ś (palatal sibilant)
-- ष = ṣ (retroflex sibilant)
-- स = s (dental sibilant)
-
-Compound consonants verification:
-- क्ष = kṣ (never ksh or other variants)
-- त्र = tr (never tra)
-- ज्ञ = jñ (never gya or other variants)
-
-Other critical diacriticals:
-- र् = r (with dot below when appropriate)
-- ṃ for anusvara (ं) - when nasalization is phonemic
-- ñ for proper nasalization contexts
-
-ENHANCED ROMANIZATION STANDARDS - COMPREHENSIVE RULES:
-Consonants:
-- क = k, ख = kh, ग = g, घ = gh, ङ = ṅ
-- च = c, छ = ch, ज = j, झ = jh, ञ = ñ
-- ट = ṭ, ठ = ṭh, ड = ḍ, ढ = ḍh, ण = ṇ
-- त = t, थ = th, द = d, ध = dh, न = n
-- प = p, फ = ph, ब = b, भ = bh, म = m
-- य = y, र = r, ल = l, व = v/w
-- श = ś, ष = ṣ, स = s, ह = h
-
-Nasalization:
-- ं (anusvara) = ṃ when phonemic nasalization
-- ँ (chandrabindu) = ̃ (tilde over vowel) or ñ contextually
-
-Examples of ENHANCED Hindi romanization formatting:
-
-VOWEL LENGTH EXAMPLES - CRITICAL ACCURACY:
-- "आम" → "आम(ām)" [REQUIRED - long ā, never "am"]
-- "ईश्वर" → "ईश्वर(īśvar)" [REQUIRED - long ī + palatal ś, never "ishwar"]
-- "ऊपर" → "ऊपर(ūpar)" [REQUIRED - long ū, never "upar"]
-- "आशा" → "आशा(āśā)" [REQUIRED - both long ā + palatal ś]
-- "पीना" → "पीना(pīnā)" [REQUIRED - long ī + long ā]
-- "फूल" → "फूल(phūl)" [REQUIRED - long ū with aspiration]
-
-RETROFLEX CONSONANT EXAMPLES - MANDATORY DOTS:
-- "बाट" → "बाट(bāṭ)" [REQUIRED - retroflex ṭ with dot]
-- "ठंडा" → "ठंडा(ṭhaṇḍā)" [REQUIRED - aspirated retroflex ṭh + retroflex ṇ + retroflex ḍ]
-- "डाल" → "डाल(ḍāl)" [REQUIRED - retroflex ḍ with dot]
-- "ढोल" → "ढोल(ḍhol)" [REQUIRED - aspirated retroflex ḍh]
-- "गणेश" → "गणेश(gaṇeś)" [REQUIRED - retroflex ṇ + palatal ś]
-
-SIBILANT DISTINCTION EXAMPLES - CRITICAL ACCURACY:
-- "शिव" → "शिव(śiv)" [REQUIRED - palatal ś, never "shiv"]
-- "विष्णु" → "विष्णु(viṣṇu)" [REQUIRED - retroflex ṣ + retroflex ṇ, never "vishnu"]
-- "सूर्य" → "सूर्य(sūrya)" [REQUIRED - dental s + long ū]
-- "राष्ट्र" → "राष्ट्र(rāṣṭra)" [REQUIRED - retroflex ṣ + ṭ cluster]
-
-COMPOUND CONSONANT EXAMPLES - VERIFICATION REQUIRED:
-- "क्षमा" → "क्षमा(kṣamā)" [REQUIRED - kṣ cluster, never "kshama"]
-- "त्रिशूल" → "त्रिशूल(triśūl)" [REQUIRED - tr cluster + palatal ś + long ū]
-- "यज्ञ" → "यज्ञ(yajñ)" [REQUIRED - jñ cluster, never "yagya"]
-- "प्रकाश" → "प्रकाश(prakāś)" [REQUIRED - pr cluster + palatal ś]
-
-COMPLEX SENTENCE EXAMPLES - COMPLETE ACCURACY:
-- "मैं हिन्दी सीख रहा हूँ" → "मैं(maiṃ) हिन्दी(hindī) सीख(sīkh) रहा(rahā) हूँ(hūṃ)"
-- "आज अच्छा मौसम है" → "आज(āj) अच्छा(acchā) मौसम(mausam) है(hai)"
-- "यह बहुत सुन्दर है" → "यह(yah) बहुत(bahut) सुन्दर(sundar) है(hai)"
-- "गुरु की कृपा से सब कुछ संभव है" → "गुरु(guru) की(kī) कृपा(kr̥pā) से(se) सब(sab) कुछ(kuch) संभव(sambhav) है(hai)"
-- "रामायण और महाभारत" → "रामायण(rāmāyaṇ) और(aur) महाभारत(mahābhārat)"
-
-NASALIZATION EXAMPLES - CONTEXTUAL ACCURACY:
-- "गंगा" → "गंगा(gaṅgā)" [anusvara before velar]
-- "अंक" → "अंक(aṅk)" [anusvara before velar]
-- "चाँद" → "चाँद(cāṃd)" [chandrabindu nasalization]
-- "हाँ" → "हाँ(hāṃ)" [chandrabindu with long vowel]
-
-SELF-VERIFICATION CHECKLIST - MANDATORY FINAL CHECK:
-Before finalizing your romanization, systematically verify each element:
-
-✓ VOWEL LENGTH VERIFICATION:
-  - Are all long vowels properly marked with macrons? (ā, ī, ū)
-  - Are आ always ā (never a)?
-  - Are ई always ī (never i)?
-  - Are ऊ always ū (never u)?
-  - Are short vowels (अ, इ, उ) without macrons?
-
-✓ RETROFLEX CONSONANT VERIFICATION:
-  - Are all retroflex consonants marked with dots? (ṭ, ṭh, ḍ, ḍh, ṇ)
-  - Are ट, ठ, ड, ढ, ण all properly distinguished from dental counterparts?
-  - Is every retroflex marked consistently throughout?
-
-✓ SIBILANT DISTINCTION VERIFICATION:
-  - Are श = ś (palatal sibilant) properly marked?
-  - Are ष = ṣ (retroflex sibilant) with dot below?
-  - Are स = s (dental sibilant) unmarked?
-  - Are all three sibilants clearly distinguished?
-
-✓ COMPOUND CONSONANT VERIFICATION:
-  - Are क्ष = kṣ clusters properly marked?
-  - Are त्र = tr clusters correct?
-  - Are ज्ञ = jñ clusters properly represented?
-  - Are all conjunct consonants accurately represented?
-  - Double check that your output meets all requirements.
-
-RESPOND WITH JSON:
-{
-  "readingsText": "Hindi text with IAST romanization in parentheses immediately after each Hindi word - following the vowel length, retroflex, sibilant, and compound consonant rules above",
-  "translatedText": "Accurate translation in target language reflecting the full meaning in context"
-}
-Output only this JSON. No preamble, no explanation, no commentary. translatedText must contain ONLY the translation. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
-
-// SIMPLE TRANSLATION PROMPT - For basic translations without grammar analysis
-// This is a lightweight prompt for when users just want translations (no WordScope)
-// Kept intentionally short to minimize token usage - NO caching needed due to small size
-const simpleTranslationPrompt = `You are a professional translator. Translate text naturally and accurately.
-
-RULES:
-- Translate into natural, fluent target language
-- Preserve the original meaning and tone
-- Use natural expressions in the target language
-- Do NOT add any readings, romanization, or furigana to the TRANSLATION
-- Handle idioms appropriately - translate meaning, not word-for-word
-- Consider vulgarity level and match the emotional intensity of the original text
-- Double check that your output is a natural translation of the input text that matches its emotional intensity and context
-
-RESPOND WITH JSON:
-{
-  "readingsText": "",
-  "translatedText": "Natural translation in target language"
-}
-Output only this JSON. No preamble, no explanation of the text, no commentary. translatedText must contain ONLY the translation. Do NOT add "This means...", "Here is...", or any explanation. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
-
-// Minimal prompt for English→any when USE_LITE_PROMPTS (saves ~80 tokens vs simpleTranslationPrompt)
-const simpleTranslationPromptLite = `Translate to the requested target language. Natural, fluent output only. No readings/romanization in translation. Output ONLY the JSON object: {"readingsText": "", "translatedText": "translation"}. No preamble, no explanation, no commentary. translatedText must be ONLY the translation. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes.`;
-
-// STATIC SYSTEM PROMPT FOR GENERAL LANGUAGES (CACHEABLE) - For WordScope/grammar analysis
-// This covers: French, Spanish, Italian, German, Portuguese, Russian, Arabic, Hindi, Thai, Vietnamese, Tagalog, Esperanto, etc.
-// Expanded for Haiku caching (Haiku 4.5 requires 4096+ tokens; ~9000 chars ≈ ~2250 tokens, so not cacheable for 4.5)
-// NOTE: This prompt is ONLY used for WordScope analysis, NOT for basic translations
-const generalLanguageSystemPrompt = `You are a multilingual translation expert adept at correctly translating into natural, commonly used phrases by native speakers.
-
-=== TRANSLATION RULES ===
-- Translate into natural, commonly used by native speakers, target language
-- Preserve original meaning, tone, and register (formal/informal/casual)
-- Double check that you are using only natural expressions appropriate for the target language
-- Do NOT add any romanization, pronunciation guides, or annotations to the translation itself
-- The translation must be pure target language text only
-- Maintain the style: formal text stays formal, casual stays casual
-- Preserve cultural nuances where possible
-- Handle idiomatic expressions appropriately - translate meaning as close as naturally possible, not word-for-word
-
-=== GRAMMAR ANALYSIS RULES ===
-When analyzing grammar, you must provide comprehensive analysis that helps language learners understand:
-1. Part of Speech Breakdown - Identify the grammatical role of EACH word in the source sentence
-2. Sentence Structure - How words relate to each other grammatically
-3. Key Grammar Points - Important patterns for learners to understand
-4. Verb Conjugations - Tense, mood, aspect where applicable
-5. Case/Gender/Number - For languages that mark these grammatically
-6. Word Order - Note if different from target language typical order
-7. Agreement Patterns - Subject-verb, noun-adjective, etc.
-
-=== PART OF SPEECH CATEGORIES ===
-Use target language labels for all part of speech identifications:
-- Nouns: concrete nouns, abstract nouns, proper nouns, collective nouns, compound nouns
-- Verbs: main verbs, auxiliary verbs, modal verbs, linking verbs, phrasal verbs, reflexive verbs
-- Adjectives: descriptive, demonstrative, possessive, interrogative, comparative, superlative
-- Adverbs: manner, time, place, frequency, degree, interrogative, relative
-- Pronouns: personal, possessive, reflexive, relative, interrogative, demonstrative, indefinite
-- Prepositions: simple prepositions, compound prepositions, phrasal prepositions
-- Postpositions: for languages that use them (Hindi, Turkish, Japanese, Korean, etc.)
-- Conjunctions: coordinating, subordinating, correlative
-- Articles: definite, indefinite, partitive (for languages that have them)
-- Determiners: quantifiers, demonstratives, possessives, distributives
-- Particles: grammatical particles, discourse particles, focus particles
-- Interjections: exclamations, greetings, response words
-
-=== PART OF SPEECH BREAKDOWN FORMAT ===
-CRITICAL: Analyze the ORIGINAL SOURCE SENTENCE, not the translation.
-Format: word1 [label] + word2 [label] + word3 [label] + ...
-- Each word from the source sentence must appear in the source language
-- LABELS MUST BE IN THE TARGET LANGUAGE (the language the user is learning FROM)
-- Include ALL words from the source sentence
-- Connect words with " + " separator
-- NEVER provide just one word - ALWAYS break down the FULL sentence
-- For contractions, you may treat as single unit or expand as appropriate
-
-LABEL LANGUAGE RULE - THIS IS MANDATORY:
-When target language is English, use ENGLISH labels: [noun], [verb], [adjective], [adverb], [pronoun], [preposition], [article], [conjunction], [definite article], [past participle], [auxiliary verb], etc.
-NEVER use source language labels like [nom], [verbe], [adjectif], [article défini], [名詞], [動詞], [명사], etc.
-The labels describe grammar - they must be in the language the learner understands (target language).
-
-=== EXAMPLE SENTENCES RULES ===
-- Examples must be in the SOURCE language being analyzed
-- Translations of examples must be as natural as possibl in the TARGET language
-- Examples should demonstrate the same grammatical pattern as the analyzed sentence
-- Progress from simple → intermediate → natural/casual usage
-- Keep notes brief and practical (under 10 words)
-- Notes should highlight the grammar point being demonstrated and should be what native speakers say
-- Double check the naturalness of the translations of the examples please
-
-=== COMMON MISTAKE ANALYSIS ===
-- Identify errors learners commonly make with this structure
-- Show incorrect vs correct usage in the SOURCE language
-- Explain why the mistake happens (explanation in TARGET language)
-- Focus on mistakes relevant to learners of this language pair
-- Be specific about what makes the usage incorrect
-
-=== LANGUAGE-SPECIFIC GRAMMAR CONSIDERATIONS ===
-
-FOR ROMANCE LANGUAGES (French, Spanish, Italian, Portuguese, Romanian, Catalan):
-- Note gender agreement (masculine/feminine) on nouns, adjectives, articles
-- Note number agreement (singular/plural) throughout the sentence
-- Identify reflexive verbs and reflexive pronouns
-- Note mood (indicative, subjunctive, conditional, imperative)
-- Watch for verb-subject agreement patterns
-- Identify object pronouns and their placement (before/after verb)
-- Note prepositions and their required structures
-- Identify compound tenses and their formation
-- Note any partitive articles or constructions
-
-FOR GERMANIC LANGUAGES (German, Dutch, Swedish, Norwegian, Danish):
-- Note case (nominative, accusative, dative, genitive) for German
-- Identify verb position (V2 rule in main clauses, verb-final in subordinates)
-- Note gender (masculine, feminine, neuter) on nouns and related words
-- Identify separable and inseparable verb prefixes
-- Note adjective declension patterns based on article presence
-- Watch for word order changes in questions and subordinate clauses
-- Identify modal verbs and their infinitive constructions
-
-FOR SLAVIC LANGUAGES (Russian, Polish, Czech, Ukrainian, Bulgarian, Serbian):
-- Note case (6-7 cases depending on language)
-- Identify aspect (perfective/imperfective) on verbs
-- Note gender and number agreement patterns
-- Identify reflexive verbs and reflexive particles
-- Note animacy distinctions affecting accusative case
-- Watch for palatalization patterns in declensions
-- Note absence of articles (for most Slavic languages)
-
-FOR SEMITIC LANGUAGES (Arabic, Hebrew):
-- Note root system (typically 3-consonant roots)
-- Identify pattern/form (Form I-X in Arabic)
-- Note gender agreement on verbs, adjectives, pronouns
-- Note dual/plural distinctions
-- Identify definite article usage
-- Note word order variations (VSO, SVO)
-- Identify broken plurals vs sound plurals
-
-FOR SOUTH ASIAN LANGUAGES (Hindi, Urdu, Bengali, Tamil):
-- Note gender agreement on verbs and adjectives
-- Identify postpositions (not prepositions)
-- Note ergative-absolutive patterns in past tense
-- Identify compound verbs (light verb constructions)
-- Note honorific forms and verb conjugations
-- Watch for Sanskrit/Persian/Arabic loanwords and their patterns
-
-FOR SOUTHEAST ASIAN LANGUAGES (Thai, Vietnamese, Indonesian, Malay):
-- Note classifier usage with numbers and demonstratives
-- Identify particles (question, politeness, emphasis, aspect)
-- Note serial verb constructions
-- Note topic-comment structure
-- Identify tone patterns where relevant (Thai, Vietnamese)
-- Watch for compound words and reduplication patterns
-- Note lack of conjugation (tense indicated by context/particles)
-
-FOR TURKIC LANGUAGES (Turkish, Azerbaijani, Uzbek, Kazakh):
-- Note agglutinative structure (suffixes stacking)
-- Identify vowel harmony rules (front/back, rounded/unrounded)
-- Note case system (6 cases in Turkish)
-- Identify SOV word order
-- Watch for postpositions and their case requirements
-- Note lack of grammatical gender
-
-FOR CONSTRUCTED LANGUAGES (Esperanto, Interlingua):
-- Note regular grammar patterns
-- Identify word-building through affixes
-- Note consistent part of speech markers
-
-=== RESPONSE FORMAT ===
-Always respond with properly formatted JSON. Ensure:
-- All strings are properly escaped (use \\" for quotes inside strings)
-- Use \\n for newlines within strings
-- Use \\\\ for backslashes
-- No trailing commas in arrays or objects
-- Complete all fields - never truncate any response
-- Use proper Unicode encoding for all characters
-- Maintain consistent formatting throughout the response
-
-=== QUALITY CHECKLIST ===
-Before responding, verify:
-- Translation is natural and would be said by native speakers; grammar analysis covers the COMPLETE source sentence
-- Part of speech breakdown includes ALL words with labels in target language
-- Examples are in source language, translations in target language, and demonstrate the same pattern
-- Common mistakes are relevant; JSON is valid and properly escaped
-
-=== ERROR PREVENTION ===
-NEVER do these:
-- DO NOT analyze the translation instead of the source sentence
-- DO NOT skip words in the part of speech breakdown
-- DO NOT mix source and target language words in the breakdown
-- DO NOT provide incomplete examples
-- DO NOT truncate any field in the JSON response
-- DO NOT add pronunciation guides to the translation
-- DO NOT leave any required field empty or incomplete
-
-=== GRAMMATICAL ANALYSIS GUIDELINES ===
-When analyzing sentence structure, identify:
-- Main and subordinate clauses, coordination, modifiers, complements
-- Syntactic functions: subject, predicate, objects, complements, modifiers, adverbials
-- Grammatical categories: tense, aspect, mood, voice, person, number, gender, case, definiteness
-- Agreement patterns: subject-verb, noun-adjective, determiner-noun, pronoun-antecedent
-- Semantic roles: agent, patient, experiencer, theme, goal, source, location, instrument, beneficiary
-- When relevant: word formation (derivation, inflection, compounding), register, politeness, discourse functions
-
-RESPOND WITH JSON:
-{
-  "readingsText": "",
-  "translatedText": "Natural translation in target language"
-}
-Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
-
-// Feature flag: use lite prompts (Haiku 4.5 optimized, ~50%+ token reduction)
+// All flows use lite prompts (Haiku 4.5 optimized). Heavy prompts removed.
 const USE_LITE_PROMPTS = true;
 
 // Lite system prompt for WordScope - bare minimum; language rules injected at runtime
 function buildGeneralLanguageSystemPromptLite(sourceLanguage: string): string {
   const languageRules = getLanguageFamilyRules(sourceLanguage);
   const rulesBlock = languageRules ? `\n${languageRules}\n` : '';
-  return `Translation + grammar expert. Translate naturally; preserve meaning/tone; no romanization in translation. Grammar: analyze SOURCE only. Format: word1 [label] + word2 [label] + ... all words; labels in TARGET. Example sentences in SOURCE; translation, note, explanation, reason, nuance in TARGET. Mistake: wrong/correct in SOURCE, reason in TARGET. All WordScope explanations and learner-facing text (explanation, note, translation, reason, nuance) MUST be in the TARGET language. Double-check that scope output is in target language, not source.${rulesBlock}JSON: readingsText, translatedText, scopeAnalysis. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes.`;
+  return `Translation + grammar expert. Translate naturally; preserve meaning/tone; no romanization in translation. Grammar: analyze SOURCE only. Format: word1 [label] + word2 [label] + ... all words; labels in TARGET. Example sentences in SOURCE; translation, note, explanation, reason, nuance in TARGET. Mistake: wrong/correct in SOURCE, reason in TARGET. All WordScope explanations and learner-facing text (explanation, note, translation, reason, nuance) MUST be in the TARGET language. Double-check that scope output is in target language, not source.${rulesBlock}JSON: readingsText, translatedText, scopeAnalysis. Do NOT add "This means...", "Here is...", or any explanation inside or outside the JSON. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes. No trailing commas.`;
 }
 
 /** Lite scope instructions - bare minimum; schema in user message. */
@@ -2708,8 +1825,8 @@ Format your response as valid JSON with these exact keys:
       }
       // FAILSAFE: If Japanese is forced, use Japanese prompt with PROMPT CACHING
       else if (forcedLanguage === 'ja' && targetLanguage !== 'ja') {
-        const jaTranslatePrompt = USE_LITE_PROMPTS ? japaneseTranslationSystemPromptLite : japaneseSystemPrompt;
-        logger.log(`[DEBUG] FORCED JAPANESE: Using ${USE_LITE_PROMPTS ? 'lite' : 'full'} Japanese prompt with prompt caching`);
+        const jaTranslatePrompt = japaneseTranslationSystemPromptLite;
+        logger.log(`[DEBUG] FORCED JAPANESE: Using lite Japanese prompt with prompt caching`);
 
         // DYNAMIC USER MESSAGE (NOT CACHEABLE) - Only the text and target language
         const userMessage = `Translate to ${targetLangName}: "${text}"`;
@@ -3454,7 +2571,20 @@ Format your response as valid JSON with these exact keys:
   "translatedText": "Natural Russian translation using Cyrillic characters - NO romanization"
 }`;
         }
-      } else if (primaryLanguage === "Russian") {
+      } else if ((primaryLanguage === "Russian" || forcedLanguage === 'ru') && targetLanguage !== 'ru') {
+        // Russian as source: request romanization (Cyrillic + Latin) in readingsText, same as Thai/Arabic/Hindi
+        logger.log(`[DEBUG] RUSSIAN SOURCE TEXT: Adding Latin romanization and translating to ${targetLangName} (targetLanguage: ${targetLanguage})`);
+        if (USE_LITE_PROMPTS) {
+          userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+        } else {
+          userMessage = `
+${promptTopSection}
+Translate this Russian text and add Latin romanization: "${text}"
+Target language: ${targetLangName}`;
+        }
+      } else if (primaryLanguage === "Russian" && targetLanguage === 'ru') {
+        // Russian to Russian: no translation, no romanization needed
         if (USE_LITE_PROMPTS) {
           userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
 "${text}"`;
@@ -3463,14 +2593,11 @@ Format your response as valid JSON with these exact keys:
 ${promptTopSection}
 You are a Russian language expert. I need you to translate this Russian text: "${text}"
 
-IMPORTANT FORMATTING REQUIREMENTS FOR RUSSIAN TEXT:
-- Keep all original text as is (including any English words, numbers, or punctuation)
-- No romanization is needed for Russian text (Cyrillic is phonetic)
-- Translate into ${targetLangName} language, NOT English (unless English is specifically requested)
+IMPORTANT: Keep all original text as is. No romanization needed. Translate into ${targetLangName} if needed.
 
 Format your response as valid JSON with these exact keys:
 {
-  "readingsText": "", 
+  "readingsText": "",
   "translatedText": "Accurate translation in ${targetLangName} language reflecting the full meaning in context"
 }
 `;
@@ -3915,23 +3042,25 @@ Format your response as valid JSON with these exact keys:
       const isArabicWithRomanization = (primaryLanguage === "Arabic" || forcedLanguage === 'ar') && targetLanguage !== 'ar';
       const isHindiWithRomanization = (primaryLanguage === "Hindi" || forcedLanguage === 'hi') && targetLanguage !== 'hi';
       const isThaiWithRomanization = (primaryLanguage === "Thai" || forcedLanguage === 'th') && targetLanguage !== 'th';
+      const isRussianWithRomanization = (primaryLanguage === "Russian" || forcedLanguage === 'ru') && targetLanguage !== 'ru';
       
       // Languages that need caching: CJK (system prompt caching) OR romanization languages (system prompt caching)
       const isCJKLanguage = isChineseWithCaching || isJapaneseWithCaching || isKoreanWithCaching;
-      const isRomanizationLanguage = isArabicWithRomanization || isHindiWithRomanization || isThaiWithRomanization;
+      const isRomanizationLanguage = isArabicWithRomanization || isHindiWithRomanization || isThaiWithRomanization || isRussianWithRomanization;
       const needsCaching = isCJKLanguage || isRomanizationLanguage;
       
-      // Select the appropriate system prompt (Translate flow: no generalLanguageSystemPrompt; already minimal when USE_LITE_PROMPTS)
+      // Select the appropriate system prompt (Translate flow - lite prompts only)
       // - CJK languages use specialized prompts with reading annotations (cached due to size)
       // - Romanization languages (Arabic, Hindi, Thai) use specialized prompts with romanization rules (cached due to size)
       // - Other languages use simple translation prompt (small, no caching needed)
-      const systemPrompt = isChineseWithCaching ? (USE_LITE_PROMPTS ? chineseTranslationSystemPromptLite : chineseSystemPrompt) : 
-                           isJapaneseWithCaching ? (USE_LITE_PROMPTS ? japaneseTranslationSystemPromptLite : japaneseSystemPrompt) : 
-                           isKoreanWithCaching ? (USE_LITE_PROMPTS ? koreanTranslationSystemPromptLite : koreanSystemPrompt) :
-                           isArabicWithRomanization ? (USE_LITE_PROMPTS ? arabicTranslationSystemPromptLite : arabicSystemPrompt) :
-                           isHindiWithRomanization ? (USE_LITE_PROMPTS ? hindiTranslationSystemPromptLite : hindiSystemPrompt) :
-                           isThaiWithRomanization ? (USE_LITE_PROMPTS ? thaiTranslationSystemPromptLite : thaiSystemPrompt) :
-                           (USE_LITE_PROMPTS ? simpleTranslationPromptLite : simpleTranslationPrompt);
+      const systemPrompt = isChineseWithCaching ? chineseTranslationSystemPromptLite :
+                           isJapaneseWithCaching ? japaneseTranslationSystemPromptLite :
+                           isKoreanWithCaching ? koreanTranslationSystemPromptLite :
+                           isArabicWithRomanization ? arabicTranslationSystemPromptLite :
+                           isHindiWithRomanization ? hindiTranslationSystemPromptLite :
+                           isThaiWithRomanization ? thaiTranslationSystemPromptLite :
+                           isRussianWithRomanization ? russianTranslationSystemPromptLite :
+                           simpleTranslationPromptLite;
       
       // Determine language name for logging
       const languageDisplayNames: Record<string, string> = {
@@ -4975,9 +4104,8 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
               }
             }
 
-          // Russian no longer needs romanization (treated as standard Roman language)
-          // Removed Russian transliteration validation - Cyrillic is phonetic
-          if (false && (primaryLanguage === "Russian" || forcedLanguage === 'ru') && furiganaText) {
+          // Russian with readings: validate Cyrillic + romanization quality (re-enabled now that we request readings)
+          if ((primaryLanguage === "Russian" || forcedLanguage === 'ru') && furiganaText) {
             const validation = validateRussianTransliteration(text, furiganaText);
             logger.log(`Russian transliteration validation: ${validation.details}`);
             
@@ -6396,110 +5524,10 @@ export async function processWithClaudeAndScope(
     
     logger.log(`[WordScope Combined] Grammar analysis, needsReadings: ${needsReadings}`);
     
-    // Build scope instructions - lite version when USE_LITE_PROMPTS (Haiku 4.5 optimized)
-    const scopeInstructions = USE_LITE_PROMPTS
-      ? buildScopeInstructionsLite(normalizedText, sourceLangName, targetLangName)
-      : (() => {
-          const src = sourceLangName;
-          const tgt = targetLangName;
-          return `SCOPE ANALYSIS (Grammar):
-You are a ${src} language teacher helping a ${tgt} speaker.
+    // Build scope instructions (lite - Haiku 4.5 optimized)
+    const scopeInstructions = buildScopeInstructionsLite(normalizedText, sourceLangName, targetLangName);
 
-Analyze: "${normalizedText}"
-
-Respond in valid JSON:
-{
-  "word": "word in original script",
-  "reading": "pronunciation guide",
-  "partOfSpeech": "FULL sentence breakdown: word1 [label] + word2 [label] + word3 [label] + ... - analyze ALL words from '${normalizedText}' NOT the translation",
-  "baseForm": "dictionary form if different, otherwise omit this field",
-  "grammar": {
-    "explanation": "one clear sentence explaining the grammar pattern",
-    "particles": [
-      {"particle": "particle", "use": "what it marks", "example": "short example"}
-    ]
-  },
-  "examples": [
-    {
-      "sentence": "simple example sentence that uses the EXACT same words/phrase from '${normalizedText}' in a different context",
-      "translation": "translation",
-      "note": "brief grammar point (under 10 words)"
-    },
-    {
-      "sentence": "intermediate example sentence that uses the EXACT same words/phrase from '${normalizedText}' in a more complex context",
-      "translation": "translation",
-      "note": "different usage point"
-    },
-    {
-      "sentence": "intermediate example sentence that uses the EXACT same words/phrase from '${normalizedText}' in another context",
-      "translation": "translation",
-      "note": "additional usage point"
-    }
-  ],
-  "commonMistake": {
-    "wrong": "incorrect usage",
-    "correct": "correct usage",
-    "reason": "brief explanation (under 15 words)"
-  },
-  "synonyms": [
-    {
-      "phrase": "alternative way to express the same meaning in ${src}",
-      "translation": "translation in ${tgt}",
-      "nuance": "brief note on when to use this vs the original (under 15 words)"
-    },
-    {
-      "phrase": "second alternative expression",
-      "translation": "translation",
-      "nuance": "nuance difference"
-    },
-    {
-      "phrase": "third alternative expression",
-      "translation": "translation",
-      "nuance": "nuance difference"
-    }
-  ]
-}
-
-CRITICAL: ALL sentence fields MUST end with a period (.) unless ending with ! or ?:
-- "explanation" must end with a period
-- "translation" fields must end with periods for complete sentences
-- "note" fields must end with periods
-- "wrong" and "correct" must end with periods (unless questions/exclamations)
-- "reason" must end with a period
-- "use" in particles array must end with a period
-- "example" in particles array must end with a period
-- "nuance" in synonyms array must end with a period
-
-RULES:
-- Keep all explanations SHORT and practical
-- Example notes must be under 10 words
-- Examples should progress: simple → intermediate → intermediate
-- CRITICAL: The "examples" section MUST use the EXACT same words/phrase from "${normalizedText}" - create new sentences that contain the same phrase/words, NOT synonyms or alternatives
-- The examples are to show how "${normalizedText}" works in different contexts, but must include the actual words/phrase from the scanned text
-- The "synonyms" section is for alternative expressions - these should be DIFFERENT from what's used in examples
-- Particles array only needed for languages that use them (Japanese, Korean)
-- Focus only on what helps the learner USE the word correctly
-- If baseForm is the same as word, omit the baseForm field
-- Synonyms should provide 3 alternative ways to express the same meaning for advanced learners
-- CRITICAL for "partOfSpeech":
-  * YOU MUST ANALYZE THE SOURCE SENTENCE: "${normalizedText}"
-  * DO NOT analyze the translation - analyze the ORIGINAL SOURCE TEXT above
-  * FORMAT: word1 [label] + word2 [label] + word3 [label] + ...
-  * Use square brackets for labels, e.g.: I [pronom] + want [verbe] + to [préposition] + go [verbe]
-  * The words MUST come from "${normalizedText}" - the ${src} source
-  * The labels MUST be in ${tgt}
-  * Include ALL words from the source: nouns, verbs, pronouns, adverbs, adjectives, prepositions, particles, conjunctions
-  * WRONG: Analyzing the ${tgt} translation instead of the source
-  * CORRECT: Breaking down "${normalizedText}" word by word
-- LANGUAGE REQUIREMENTS:
-  * Example sentences ("sentence" field) must be in ${src} (the scanned language)
-  * Translations ("translation" field) must be in ${tgt}
-  * Notes, explanations, and all other text must be in ${tgt}
-  * Common mistake examples ("wrong" and "correct" fields) must be in ${src}
-  * Common mistake explanation ("reason" field) must be in ${tgt}`;
-        })();
-
-    // Build reading instructions. With USE_LITE_PROMPTS, system prompt already has full rules - use short reminder only.
+    // Build reading instructions. System prompt has full rules - use short reminder only.
     let readingTask = '';
     if (needsReadings && readingInfo) {
       if (USE_LITE_PROMPTS) {
@@ -6795,16 +5823,18 @@ CRITICAL REQUIREMENTS:
     const isArabicWithReadings = forcedLanguage === 'ar';
     const isHindiWithReadings = forcedLanguage === 'hi';
     const isThaiWithReadings = forcedLanguage === 'th';
-    const isOtherReadingLanguage = isArabicWithReadings || isHindiWithReadings || isThaiWithReadings;
+    const isRussianWithReadings = forcedLanguage === 'ru';
+    const isOtherReadingLanguage = isArabicWithReadings || isHindiWithReadings || isThaiWithReadings || isRussianWithReadings;
     
     // Select the appropriate system prompt - CJK and other reading languages get specialized prompts
-    const systemPrompt = isChineseWithCaching ? (USE_LITE_PROMPTS ? chineseWordScopeSystemPromptLite : chineseSystemPrompt) :
-                         isJapaneseWithCaching ? (USE_LITE_PROMPTS ? japaneseWordScopeSystemPromptLite : japaneseSystemPrompt) :
-                         isKoreanWithCaching ? (USE_LITE_PROMPTS ? koreanWordScopeSystemPromptLite : koreanSystemPrompt) :
-                         isArabicWithReadings ? (USE_LITE_PROMPTS ? arabicWordScopeSystemPromptLite : arabicSystemPrompt) :
-                         isHindiWithReadings ? (USE_LITE_PROMPTS ? hindiWordScopeSystemPromptLite : hindiSystemPrompt) :
-                         isThaiWithReadings ? (USE_LITE_PROMPTS ? thaiWordScopeSystemPromptLite : thaiSystemPrompt) :
-                         USE_LITE_PROMPTS ? buildGeneralLanguageSystemPromptLite(forcedLanguage) : generalLanguageSystemPrompt;
+    const systemPrompt = isChineseWithCaching ? chineseWordScopeSystemPromptLite :
+                         isJapaneseWithCaching ? japaneseWordScopeSystemPromptLite :
+                         isKoreanWithCaching ? koreanWordScopeSystemPromptLite :
+                         isArabicWithReadings ? arabicWordScopeSystemPromptLite :
+                         isHindiWithReadings ? hindiWordScopeSystemPromptLite :
+                         isThaiWithReadings ? thaiWordScopeSystemPromptLite :
+                         isRussianWithReadings ? russianWordScopeSystemPromptLite :
+                         buildGeneralLanguageSystemPromptLite(forcedLanguage);
     
     // Determine language name for logging
     const languageDisplayNames: Record<string, string> = {
@@ -6828,11 +5858,13 @@ CRITICAL REQUIREMENTS:
       if (USE_LITE_PROMPTS) {
         // Lite CJK user message: bare minimum; exact keys required for formatScopeAnalysis (camelCase: word, partOfSpeech).
         const jaFuriganaReminder = isJapaneseWithCaching ? '\nFurigana: Be extra careful with compound words; double-check against standard dictionary readings.\n' : '';
-        dynamicUserMessage = `TEXT: "${normalizedText}"${jaFuriganaReminder}
+        dynamicUserMessage = `TARGET LANGUAGE: ${targetLangName}. You MUST translate the text INTO ${targetLangName}. The translatedText must be in ${targetLangName} only (e.g. Korean if target is Korean, not English).
+
+TEXT: "${normalizedText}"${jaFuriganaReminder}
 
 GRAMMAR: ${scopeInstructions}
 
-JSON (camelCase keys): readingsText, translatedText, scopeAnalysis: { word (main phrase), reading, partOfSpeech (word1 [label]+...), baseForm?, grammar: { explanation, particles? }, examples: [ { sentence, translation, note } ] x3, commonMistake: { wrong, correct, reason }, commonContext?, synonyms: [ { phrase, translation, nuance } ] x3 }. Period-end sentence fields. Labels in ${targetLangName}. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
+JSON (camelCase keys): readingsText, translatedText, scopeAnalysis: { word (main phrase), reading, partOfSpeech (word1 [label]+...), baseForm?, grammar: { explanation, particles? }, examples: [ { sentence, translation, note } ] x3, commonMistake: { wrong, correct, reason }, commonContext?, synonyms: [ { phrase, translation, nuance } ] x3 }. Period-end sentence fields. Labels and translatedText in ${targetLangName}. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
       } else {
         dynamicUserMessage = `TEXT TO PROCESS: "${normalizedText}"
 
@@ -6957,14 +5989,16 @@ CRITICAL REQUIREMENTS:
         logger.log(`🔄 [WordScope Cache] ⚠️ NONE - Prompt may be too small (need ${MIN_CACHEABLE_TOKENS_HAIKU_45}+ tokens for Haiku 4.5)`);
       }
     } else if (needsReadings && (isOtherReadingLanguage || forcedLanguage === 'ru')) {
-      // READING LANGUAGES (Arabic, Hindi, Thai, Russian): Request readings via combinedPrompt (or lite user message for Arabic when USE_LITE_PROMPTS)
-      // ar/hi/th use language-specific system prompts with full transliteration rules; ru uses general prompt
+      // READING LANGUAGES (Arabic, Hindi, Thai, Russian): Request readings via combinedPrompt or lite user message
+      // ar/hi/th/ru use language-specific system prompts with full transliteration/romanization rules
       if (USE_LITE_PROMPTS && (isArabicWithReadings || isHindiWithReadings || isThaiWithReadings || forcedLanguage === 'ru')) {
-        dynamicUserMessage = `TEXT: "${normalizedText}"
+        dynamicUserMessage = `TARGET LANGUAGE: ${targetLangName}. You MUST translate the text INTO ${targetLangName}. The translatedText must be in ${targetLangName} only (e.g. Korean text if target is Korean, not English).
+
+TEXT: "${normalizedText}"
 
 GRAMMAR: ${scopeInstructions}
 
-JSON (camelCase keys): readingsText, translatedText, scopeAnalysis: { word (main phrase), reading, partOfSpeech (word1 [label]+...), baseForm?, grammar: { explanation, particles? }, examples: [ { sentence, translation, note } ] x3, commonMistake: { wrong, correct, reason }, commonContext?, synonyms: [ { phrase, translation, nuance } ] x3 }. Period-end sentence fields. Labels in ${targetLangName}. All explanations in ${targetLangName}. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
+JSON (camelCase keys): readingsText, translatedText, scopeAnalysis: { word (main phrase), reading, partOfSpeech (word1 [label]+...), baseForm?, grammar: { explanation, particles? }, examples: [ { sentence, translation, note } ] x3, commonMistake: { wrong, correct, reason }, commonContext?, synonyms: [ { phrase, translation, nuance } ] x3 }. Period-end sentence fields. Labels in ${targetLangName}. All explanations and translatedText in ${targetLangName}. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
       } else {
         dynamicUserMessage = combinedPrompt;
       }
@@ -7025,7 +6059,7 @@ SOURCE: ${sourceLangName}
 TARGET: ${targetLangName}
 Translate to ${targetLangName}. Grammar: ${scopeInstructions}
 All explanations in TARGET (${targetLangName}): grammar.explanation, note, translation (in examples/synonyms), reason, nuance must be in ${targetLangName}. Example sentences stay in SOURCE (${sourceLangName}). Double-check every scope field is in the correct language.
-JSON (camelCase): readingsText "", translatedText, scopeAnalysis: { word, reading, partOfSpeech (word1 [label]+...), baseForm?, grammar: { explanation, particles? }, examples [ { sentence, translation, note } ] x3, commonMistake { wrong, correct, reason }, synonyms [ { phrase, translation, nuance } ] x3 }. Labels in ${targetLangName}. Period-end sentence fields. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
+JSON (camelCase): readingsText "", translatedText, scopeAnalysis: { word, reading, partOfSpeech (word1 [label]+...), baseForm?, grammar: { explanation, particles? }, examples [ { sentence, translation, note } ] x3, commonMistake { wrong, correct, reason }, synonyms [ { phrase, translation, nuance } ] x3 }. Labels in ${targetLangName}. Period-end sentence fields. Do NOT add preamble or explanation outside the JSON. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes. No trailing commas.`;
       } else {
         dynamicUserMessage = `TEXT TO PROCESS: "${normalizedText}"
 SOURCE LANGUAGE: ${sourceLangName}
@@ -7438,10 +6472,9 @@ RULES:
       analysisType: 'grammar'
     });
     
-    // IMPORTANT: Use a simple, non-cached system prompt for fallback scope analysis
-    // The cached generalLanguageSystemPrompt includes translation instructions which
-    // confuses Claude when we only want scope analysis (we already have the translation)
-    // This dedicated scope-only prompt ensures Claude outputs ONLY the scope JSON
+    // IMPORTANT: Use a simple, non-cached system prompt for fallback scope analysis.
+    // The main WordScope prompt includes translation + readings; for retry we already have those.
+    // This dedicated scope-only prompt ensures Claude outputs ONLY the scope JSON.
     const scopeOnlySystemPrompt = `You are a ${sourceLangName} language expert helping ${targetLangName} speakers learn grammar.
 
 YOUR TASK: Analyze the grammatical structure of the given ${sourceLangName} text.
