@@ -1,5 +1,5 @@
 import { COLORS } from "../constants/colors";
-import { ViewStyle, TextStyle } from "react-native";
+import { ViewStyle, TextStyle, Platform } from "react-native";
 
 /**
  * Darkens a color by a specified percentage
@@ -223,4 +223,267 @@ export function interpolateColor(color1: string, color2: string, factor: number)
   const b = Math.round(b1 + (b2 - b1) * factor);
   
   return `#${[r, g, b].map(x => x.toString(16).padStart(2, '0')).join('')}`;
+}
+
+/**
+ * Creates an elevated surface style with layered shadows for depth
+ * @param elevation 0-4 elevation level
+ * @param borderRadius Optional border radius
+ * @returns ViewStyle with shadow properties
+ */
+export function createElevatedSurface(
+  elevation: 0 | 1 | 2 | 3 | 4 = 1,
+  borderRadius: number = 16
+): ViewStyle {
+  const elevationConfigs = {
+    0: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.08,
+      shadowRadius: 2,
+      elevation: 1,
+    },
+    1: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.12,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    2: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.18,
+      shadowRadius: 8,
+      elevation: 6,
+    },
+    3: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.24,
+      shadowRadius: 12,
+      elevation: 9,
+    },
+    4: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.30,
+      shadowRadius: 16,
+      elevation: 12,
+    },
+  };
+
+  return {
+    ...elevationConfigs[elevation],
+    borderRadius,
+    backgroundColor: COLORS.depth.surface1,
+  };
+}
+
+/**
+ * Creates a subtle dark border for depth
+ * @param intensity 'subtle' | 'medium' | 'strong'
+ * @param borderRadius Border radius of the element
+ * @returns ViewStyle for the border effect
+ */
+export function createDepthBorder(
+  intensity: 'subtle' | 'medium' | 'strong' = 'medium',
+  borderRadius: number = 16
+): ViewStyle {
+  const intensityMap = {
+    subtle: {
+      borderWidth: 1,
+      borderColor: COLORS.depth.shadowFaint,
+    },
+    medium: {
+      borderWidth: 1,
+      borderColor: COLORS.depth.shadowSubtle,
+    },
+    strong: {
+      borderWidth: 1.5,
+      borderColor: COLORS.depth.shadowMedium,
+    },
+  };
+
+  return {
+    ...intensityMap[intensity],
+    borderRadius,
+  };
+}
+
+/**
+ * Creates an inset/pressed appearance style
+ * @param depth 'shallow' | 'medium' | 'deep'
+ * @returns ViewStyle with inset shadow effect
+ */
+export function createInsetStyle(
+  depth: 'shallow' | 'medium' | 'deep' = 'medium'
+): ViewStyle {
+  const depthMap = {
+    shallow: {
+      borderWidth: 1,
+      borderColor: COLORS.depth.insetLight,
+    },
+    medium: {
+      borderWidth: 1.5,
+      borderColor: COLORS.depth.insetMedium,
+    },
+    deep: {
+      borderWidth: 2,
+      borderColor: COLORS.depth.insetDeep,
+    },
+  };
+
+  return depthMap[depth];
+}
+
+/**
+ * Creates a glowing ambient effect style
+ * @param color Base glow color ('blue' | 'purple' | 'amber' | string)
+ * @param intensity 'subtle' | 'medium' | 'strong'
+ * @returns ViewStyle with glow shadow effect
+ */
+export function createGlowEffect(
+  color: 'blue' | 'purple' | 'amber' | string = 'blue',
+  intensity: 'subtle' | 'medium' | 'strong' = 'medium'
+): ViewStyle {
+  const colorMap: Record<string, string> = {
+    blue: COLORS.primary,
+    purple: COLORS.accent,
+    amber: COLORS.pokedexAmber,
+  };
+
+  const glowColor = colorMap[color] || color;
+
+  const intensityMap = {
+    subtle: {
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+    },
+    medium: {
+      shadowOpacity: 0.35,
+      shadowRadius: 12,
+    },
+    strong: {
+      shadowOpacity: 0.5,
+      shadowRadius: 18,
+    },
+  };
+
+  return {
+    shadowColor: glowColor,
+    shadowOffset: { width: 0, height: 0 },
+    ...intensityMap[intensity],
+    elevation: Platform.OS === 'android' ? intensityMap[intensity].shadowRadius / 2 : undefined,
+  };
+}
+
+/**
+ * Creates an edge definition style for visual separation
+ * @param position 'top' | 'bottom' | 'all'
+ * @param intensity 'subtle' | 'medium' | 'strong'
+ * @returns ViewStyle for edge definition
+ */
+export function createEdgeDefinition(
+  position: 'top' | 'bottom' | 'all' = 'all',
+  intensity: 'subtle' | 'medium' | 'strong' = 'subtle'
+): ViewStyle {
+  const intensityColors = {
+    subtle: COLORS.depth.shadowFaint,
+    medium: COLORS.depth.shadowSubtle,
+    strong: COLORS.depth.shadowMedium,
+  };
+
+  const color = intensityColors[intensity];
+
+  switch (position) {
+    case 'top':
+      return {
+        borderTopWidth: 1,
+        borderTopColor: color,
+      };
+    case 'bottom':
+      return {
+        borderBottomWidth: 1,
+        borderBottomColor: color,
+      };
+    case 'all':
+    default:
+      return {
+        borderWidth: 1,
+        borderColor: color,
+      };
+  }
+}
+
+/**
+ * Creates gradient stops for a modern 3D button appearance
+ * @param baseColor Base color for the gradient
+ * @param variant 'raised' | 'flat' | 'inset'
+ * @returns Array of gradient color strings
+ */
+export function create3DGradientColors(
+  baseColor: string = COLORS.primary,
+  variant: 'raised' | 'flat' | 'inset' = 'raised'
+): string[] {
+  switch (variant) {
+    case 'raised':
+      return [
+        lightenColor(baseColor, 15),  // Top highlight
+        lightenColor(baseColor, 5),   // Upper mid
+        baseColor,                     // Center
+        darkenColor(baseColor, 8),    // Lower mid
+        darkenColor(baseColor, 18),   // Bottom shadow
+      ];
+    case 'flat':
+      return [
+        lightenColor(baseColor, 5),
+        baseColor,
+        darkenColor(baseColor, 5),
+      ];
+    case 'inset':
+      return [
+        darkenColor(baseColor, 15),   // Top shadow (inverted)
+        darkenColor(baseColor, 5),    // Upper mid
+        baseColor,                     // Center
+        lightenColor(baseColor, 5),   // Lower mid
+        lightenColor(baseColor, 10),  // Bottom highlight (inverted)
+      ];
+    default:
+      return [baseColor];
+  }
+}
+
+/**
+ * Creates a comprehensive modern card style with depth effects
+ * @param options Configuration options
+ * @returns Object with card styles
+ */
+export function createModernCardStyles(options: {
+  elevation?: 0 | 1 | 2 | 3 | 4;
+  borderRadius?: number;
+  glowColor?: 'blue' | 'purple' | 'amber' | 'none';
+  borderIntensity?: 'subtle' | 'medium' | 'strong';
+} = {}): {
+  container: ViewStyle;
+} {
+  const {
+    elevation = 2,
+    borderRadius = 16,
+    glowColor = 'none',
+    borderIntensity = 'subtle',
+  } = options;
+
+  const baseElevation = createElevatedSurface(elevation, borderRadius);
+  const border = createDepthBorder(borderIntensity, borderRadius);
+  const glow = glowColor !== 'none' ? createGlowEffect(glowColor, 'subtle') : {};
+
+  return {
+    container: {
+      ...baseElevation,
+      ...border,
+      ...glow,
+      overflow: 'hidden',
+    },
+  };
 }

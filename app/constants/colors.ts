@@ -5,7 +5,10 @@ export const COLORS = {
   accentLight: '#C4B5FD', // Light purple for highlights
   accentMedium: '#A78BFA', // Medium purple accent
   
-  background: '#0A1628', // Deep navy blue
+  background: '#0A1628', // Deep navy blue (canonical base for layout + textured background)
+  backgroundLift: '#0B1729',   // Slightly lighter for gradient steps
+  backgroundLift2: '#0D1A2F', // Gentle lift
+  backgroundLift3: '#0C182B',  // Soft return
   // Modern textured background alternatives
   backgroundGradient: 'linear-gradient(135deg, #1E3A5F 0%, #0F2847 50%, #0A1628 100%)', // Sophisticated blue gradient
   backgroundRadial: 'radial-gradient(circle at 30% 20%, #2563EB 0%, #1E40AF 40%, #1E3A8A 100%)', // Radial depth
@@ -50,6 +53,19 @@ export const COLORS = {
   pokedexAmberGlow: '#FBBF24',  // Lighter amber glow
   pokedexAmberPulse: '#FDE68A', // Pale amber pulse
   
+  // Shared blue tints for PokedexLayout + TexturedBackground (consistent blue)
+  blueTint: {
+    accent: 'rgba(59, 130, 246, 0.15)',   // Stronger for gradient variant
+    strong: 'rgba(59, 130, 246, 0.08)',
+    medium: 'rgba(59, 130, 246, 0.04)',
+    subtle: 'rgba(59, 130, 246, 0.025)',
+    faint: 'rgba(59, 130, 246, 0.02)',
+    veryFaint: 'rgba(59, 130, 246, 0.015)',
+  },
+  blueTintMid: 'rgba(37, 99, 235, 0.03)',       // blueMid
+  blueTintMidStrong: 'rgba(37, 99, 235, 0.1)', // for gradient variant
+  blueTintEnd: 'rgba(30, 64, 175, 0.02)',      // blueEnd
+
   // NEW: Gradient colors for modern buttons
   gradient: {
     // Primary blue gradient (vibrant)
@@ -73,6 +89,55 @@ export const COLORS = {
     purpleEnd: '#6D28D9',
     cyanStart: '#06B6D4',
     cyanEnd: '#0891B2',
+  },
+  
+  // Modern depth & shading system
+  depth: {
+    // Highlights (top/left edges for 3D effect)
+    highlightStrong: 'rgba(255, 255, 255, 0.18)',
+    highlightMedium: 'rgba(255, 255, 255, 0.12)',
+    highlightSubtle: 'rgba(255, 255, 255, 0.06)',
+    highlightFaint: 'rgba(255, 255, 255, 0.03)',
+    
+    // Shadows (bottom/right edges for 3D effect)
+    shadowStrong: 'rgba(0, 0, 0, 0.45)',
+    shadowMedium: 'rgba(0, 0, 0, 0.30)',
+    shadowSubtle: 'rgba(0, 0, 0, 0.18)',
+    shadowFaint: 'rgba(0, 0, 0, 0.08)',
+    
+    // Inset shadows for pressed/recessed look
+    insetLight: 'rgba(0, 0, 0, 0.25)',
+    insetMedium: 'rgba(0, 0, 0, 0.35)',
+    insetDeep: 'rgba(0, 0, 0, 0.50)',
+    
+    // Ambient glow effects
+    glowBlue: 'rgba(59, 130, 246, 0.25)',
+    glowBlueSoft: 'rgba(59, 130, 246, 0.12)',
+    glowPurple: 'rgba(139, 92, 246, 0.25)',
+    glowAmber: 'rgba(251, 191, 36, 0.25)',
+    
+    // Surface elevation levels
+    surface0: 'rgba(15, 23, 42, 0.95)',  // Base level
+    surface1: 'rgba(30, 41, 59, 0.90)',  // Slightly elevated
+    surface2: 'rgba(51, 65, 85, 0.85)',  // More elevated
+    surface3: 'rgba(71, 85, 105, 0.80)',  // Highest elevation
+    
+    // Rim lighting for edge highlights
+    rimLight: 'rgba(148, 163, 184, 0.20)',
+    rimLightStrong: 'rgba(148, 163, 184, 0.35)',
+    
+    // Bevel colors for 3D buttons
+    bevelTop: 'rgba(255, 255, 255, 0.15)',
+    bevelBottom: 'rgba(0, 0, 0, 0.35)',
+    bevelLeft: 'rgba(255, 255, 255, 0.08)',
+    bevelRight: 'rgba(0, 0, 0, 0.20)',
+  },
+  
+  // Noise/texture overlay
+  texture: {
+    noiseLight: 'rgba(255, 255, 255, 0.015)',
+    noiseDark: 'rgba(0, 0, 0, 0.02)',
+    grain: 'rgba(128, 128, 128, 0.03)',
   },
 };
 

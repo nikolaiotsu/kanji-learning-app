@@ -22,14 +22,14 @@ export default function TexturedBackground({
           <>
             {/* Deep navy base with gradient */}
             <LinearGradient
-              colors={['#0F172A', '#1E293B', '#0F172A']}
+              colors={[COLORS.screenBackground, COLORS.surface, COLORS.screenBackground]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.baseLayer}
             />
             {/* Blue accent gradient */}
             <LinearGradient
-              colors={['rgba(59, 130, 246, 0.15)', 'rgba(30, 64, 175, 0.1)', 'transparent']}
+              colors={[COLORS.blueTint.accent, COLORS.blueTintMidStrong, 'transparent']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.gradientLayer1}
@@ -43,14 +43,14 @@ export default function TexturedBackground({
         return (
           <>
             <LinearGradient
-              colors={['#0F172A', '#1E3A5F', '#0F172A']}
+              colors={[COLORS.screenBackground, COLORS.surface, COLORS.screenBackground]}
               start={{ x: 0, y: 0 }}
               end={{ x: 0, y: 1 }}
               style={styles.baseLayer}
             />
             {/* Subtle blue tint */}
             <LinearGradient
-              colors={['rgba(59, 130, 246, 0.08)', 'transparent', 'rgba(59, 130, 246, 0.05)']}
+              colors={[COLORS.blueTint.medium, 'transparent', COLORS.blueTint.subtle]}
               start={{ x: 0.5, y: 0 }}
               end={{ x: 0.5, y: 1 }}
               style={styles.subtlePattern1}
@@ -64,32 +64,46 @@ export default function TexturedBackground({
           <>
             {/* Rich deep blue base */}
             <LinearGradient
-              colors={['#0A1628', '#0F2847', '#0A1628']}
+              colors={[COLORS.background, COLORS.screenBackground, COLORS.background]}
               start={{ x: 0, y: 0 }}
               end={{ x: 0, y: 1 }}
               style={styles.baseLayer}
             />
             {/* Vibrant blue accent from top */}
             <LinearGradient
-              colors={['rgba(59, 130, 246, 0.2)', 'rgba(37, 99, 235, 0.1)', 'transparent']}
+              colors={[COLORS.blueTint.strong, COLORS.blueTintMid, 'transparent']}
               start={{ x: 0.3, y: 0 }}
               end={{ x: 0.7, y: 0.6 }}
               style={styles.modernLayer1}
             />
             {/* Bottom ambient glow */}
             <LinearGradient
-              colors={['transparent', 'rgba(30, 58, 138, 0.15)', 'rgba(15, 23, 42, 0.8)']}
+              colors={['transparent', COLORS.blueTintEnd, 'rgba(15, 23, 42, 0.8)']}
               start={{ x: 0.5, y: 0.5 }}
               end={{ x: 0.5, y: 1 }}
               style={styles.modernLayer2}
             />
             {/* Subtle center spotlight */}
             <LinearGradient
-              colors={['rgba(96, 165, 250, 0.08)', 'transparent']}
+              colors={[COLORS.blueTint.medium, 'transparent']}
               start={{ x: 0.5, y: 0.3 }}
               end={{ x: 0.5, y: 0.7 }}
               style={styles.modernGlow}
             />
+            {/* Vignette for depth */}
+            <LinearGradient
+              colors={[
+                'rgba(0, 0, 0, 0.12)',
+                'transparent',
+                'transparent',
+                'rgba(0, 0, 0, 0.15)',
+              ]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={styles.baseLayer}
+            />
+            {/* Subtle grain texture */}
+            <View style={styles.grainOverlay} />
           </>
         );
       
@@ -97,10 +111,10 @@ export default function TexturedBackground({
         return (
           <>
             {/* Dark base */}
-            <View style={[styles.baseLayer, { backgroundColor: '#0A1628' }]} />
+            <View style={[styles.baseLayer, { backgroundColor: COLORS.background }]} />
             {/* Radial blue center glow */}
             <LinearGradient
-              colors={['rgba(59, 130, 246, 0.25)', 'rgba(37, 99, 235, 0.15)', 'transparent']}
+              colors={[COLORS.depth.glowBlue, COLORS.depth.glowBlueSoft, 'transparent']}
               start={{ x: 0.5, y: 0.3 }}
               end={{ x: 0.5, y: 0.8 }}
               style={styles.radialCenter}
@@ -118,65 +132,65 @@ export default function TexturedBackground({
       case 'liquid':
         return (
           <>
-            {/* Base liquid gradient - ultra-smooth transitions with many color stops */}
+            {/* Base liquid gradient - same base as PokedexLayout for consistent blue/navy */}
             <LinearGradient
               colors={[
-                '#0A1628', // Deep navy base
-                '#0B1729', // Slightly lighter
-                '#0D1A2F', // Gentle lift
-                '#0C182B', // Subtle return
-                '#0A1628', // Back to base
-                '#0B1729', // Gentle wave
-                '#0D1A2F'  // Soft finish
+                COLORS.background,
+                COLORS.backgroundLift,
+                COLORS.backgroundLift2,
+                COLORS.backgroundLift3,
+                COLORS.background,
+                COLORS.backgroundLift,
+                COLORS.backgroundLift2,
               ]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.baseLayer}
             />
-            {/* Top-left very subtle blue pool - flows down and right */}
+            {/* Top-left very subtle blue pool - same blueTint as layout */}
             <LinearGradient
               colors={[
-                'rgba(59, 130, 246, 0.06)',  // Very subtle start
-                'rgba(59, 130, 246, 0.04)',  // Gentle fade
-                'rgba(37, 99, 235, 0.03)',   // Softer
-                'rgba(30, 64, 175, 0.02)',   // Even softer
-                'rgba(30, 64, 175, 0.01)',   // Barely visible
-                'transparent'                  // Fade out
+                COLORS.blueTint.medium,
+                COLORS.blueTint.medium,
+                COLORS.blueTintMid,
+                COLORS.blueTintEnd,
+                COLORS.blueTint.veryFaint,
+                'transparent',
               ]}
               start={{ x: 0, y: 0 }}
               end={{ x: 0.7, y: 0.6 }}
               style={styles.liquidPool1}
             />
-            {/* Bottom-right complementary blue accent - ultra-gradual transition */}
+            {/* Bottom-right complementary blue accent - same palette */}
             <LinearGradient
               colors={[
-                'transparent',                 // Start completely invisible
-                'transparent',                 // Stay invisible longer
-                'rgba(30, 64, 175, 0.002)',   // Barely perceptible
-                'rgba(30, 64, 175, 0.003)',   // Still very subtle
-                'rgba(30, 64, 175, 0.004)',   // Gentle increase
-                'rgba(37, 99, 235, 0.005)',   // Slightly more visible
-                'rgba(37, 99, 235, 0.006)',   // Continue gradual
-                'rgba(59, 130, 246, 0.007)',   // Gentle peak
-                'rgba(59, 130, 246, 0.008)',   // Slight increase
-                'rgba(37, 99, 235, 0.006)',   // Gentle decrease
-                'rgba(37, 99, 235, 0.005)',   // Continue fading
-                'rgba(30, 64, 175, 0.003)',   // Softer
-                'rgba(30, 64, 175, 0.002)',   // Very soft
-                'transparent'                  // Fade out completely
+                'transparent',
+                'transparent',
+                COLORS.blueTint.veryFaint,
+                COLORS.blueTint.veryFaint,
+                COLORS.blueTintEnd,
+                COLORS.blueTintMid,
+                COLORS.blueTintMid,
+                COLORS.blueTint.faint,
+                COLORS.blueTint.faint,
+                COLORS.blueTintMid,
+                COLORS.blueTintMid,
+                COLORS.blueTintEnd,
+                COLORS.blueTint.veryFaint,
+                'transparent',
               ]}
               start={{ x: 0.2, y: 0.3 }}
               end={{ x: 1, y: 1 }}
               style={styles.liquidPool2}
             />
-            {/* Center subtle ambient glow - very gentle */}
+            {/* Center subtle ambient glow - same blue tints */}
             <LinearGradient
               colors={[
                 'transparent',
-                'rgba(96, 165, 250, 0.03)',   // Very subtle
-                'rgba(59, 130, 246, 0.025)',  // Gentle
-                'rgba(37, 99, 235, 0.02)',    // Softer
-                'transparent'
+                COLORS.blueTint.subtle,
+                COLORS.blueTint.subtle,
+                COLORS.blueTint.faint,
+                'transparent',
               ]}
               start={{ x: 0.4, y: 0.3 }}
               end={{ x: 0.8, y: 0.7 }}
@@ -203,6 +217,31 @@ export default function TexturedBackground({
               end={{ x: 1, y: 1 }}
               style={styles.liquidOverlay}
             />
+            {/* Vignette effect for depth around edges */}
+            <LinearGradient
+              colors={[
+                'transparent',
+                'transparent',
+                'rgba(0, 0, 0, 0.08)',
+                'rgba(0, 0, 0, 0.15)',
+              ]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={styles.vignetteTop}
+            />
+            <LinearGradient
+              colors={[
+                'rgba(0, 0, 0, 0.18)',
+                'rgba(0, 0, 0, 0.10)',
+                'transparent',
+                'transparent',
+              ]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={styles.vignetteBottom}
+            />
+            {/* Subtle noise/grain texture overlay for tactile feel */}
+            <View style={styles.grainOverlay} />
           </>
         );
       
@@ -226,10 +265,9 @@ const styles = StyleSheet.create({
     flex: 1,
     position: 'relative',
   },
-  // Solid background matching splash screen color (#0A1628) ensures
-  // no flash/jitter when splash hides before gradients finish painting
+  // Solid background matching splash screen (same as COLORS.background)
   solidBackground: {
-    backgroundColor: '#0A1628',
+    backgroundColor: COLORS.background,
   },
   baseLayer: {
     position: 'absolute',
@@ -377,5 +415,30 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+  },
+  // Vignette effects for depth
+  vignetteTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '25%',
+  },
+  vignetteBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '30%',
+  },
+  // Grain texture overlay - increased for more tactile feel
+  grainOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(128, 128, 128, 0.04)',
+    opacity: 1,
   },
 });

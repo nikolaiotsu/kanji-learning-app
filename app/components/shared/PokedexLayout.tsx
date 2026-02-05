@@ -340,32 +340,7 @@ export default memo(function PokedexLayout({
           styles.topSection, 
           topSectionVariantStyle
         ]}>
-          {/* Liquid gradient overlay for top bar - flows down and right */}
-          <LinearGradient
-            colors={[
-              '#0A1628',  // Base
-              '#0B1729',  // Subtle lift
-              '#0D1A2F',  // Gentle increase
-              '#0C182B',  // Soft return
-              '#0A1628'   // Back to base
-            ]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-          {/* Very subtle blue accent in top bar - flows down and right */}
-          <LinearGradient
-            colors={[
-              'rgba(59, 130, 246, 0.04)',   // Very subtle start
-              'rgba(59, 130, 246, 0.025)',  // Gentle fade
-              'transparent',                 // Clear middle
-              'rgba(30, 64, 175, 0.02)',    // Subtle end
-              'rgba(30, 64, 175, 0.015)'     // Soft finish
-            ]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0.8 }}
-            style={styles.topBarAccent}
-          />
+          {/* Transparent - TexturedBackground shows through for consistent blue */}
           
           {variant === 'flashcards' ? (
             <>
@@ -440,35 +415,35 @@ export default memo(function PokedexLayout({
             colors={
               variant === 'flashcards'
                 ? [
-                    'rgba(15, 23, 42, 0.65)',  // Base dark
-                    'rgba(15, 23, 42, 0.68)',  // Slight lift
-                    'rgba(13, 26, 47, 0.70)',  // Gentle blue hint
-                    'rgba(10, 22, 40, 0.67)',  // Soft return
-                    'rgba(13, 26, 47, 0.69)',  // Blue hint again
-                    'rgba(15, 23, 42, 0.66)'   // Back to base
+                    'rgba(15, 23, 42, 0.65)',
+                    'rgba(15, 23, 42, 0.68)',
+                    'rgba(13, 26, 47, 0.70)',
+                    'rgba(10, 22, 40, 0.67)',
+                    'rgba(13, 26, 47, 0.69)',
+                    'rgba(15, 23, 42, 0.66)',
                   ]
                 : [
-                    'rgba(15, 23, 42, 0.55)',  // Base dark
-                    'rgba(15, 23, 42, 0.58)',  // Slight lift
-                    'rgba(13, 26, 47, 0.60)',  // Gentle blue hint
-                    'rgba(10, 22, 40, 0.57)',  // Soft return
-                    'rgba(13, 26, 47, 0.59)',  // Blue hint again
-                    'rgba(15, 23, 42, 0.56)'   // Back to base
+                    'rgba(15, 23, 42, 0.55)',
+                    'rgba(15, 23, 42, 0.58)',
+                    'rgba(13, 26, 47, 0.60)',
+                    'rgba(10, 22, 40, 0.57)',
+                    'rgba(13, 26, 47, 0.59)',
+                    'rgba(15, 23, 42, 0.56)',
                   ]
             }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={StyleSheet.absoluteFill}
           />
-          {/* Very subtle blue liquid glow - flows up and left (complementary to background) */}
+          {/* Very subtle blue liquid glow - same blue tints as background for consistency */}
           <LinearGradient
             colors={[
-              'rgba(59, 130, 246, 0.03)',   // Very subtle start
-              'rgba(59, 130, 246, 0.02)',   // Gentle fade
-              'transparent',                 // Clear middle
-              'rgba(37, 99, 235, 0.015)',   // Subtle return
-              'rgba(30, 64, 175, 0.02)',    // Soft finish
-              'rgba(30, 64, 175, 0.015)'    // Gentle end
+              COLORS.blueTint.subtle,
+              COLORS.blueTint.faint,
+              'transparent',
+              COLORS.blueTint.veryFaint,
+              COLORS.blueTintEnd,
+              COLORS.blueTint.veryFaint,
             ]}
             start={{ x: 0.3, y: 0.3 }}
             end={{ x: 0.9, y: 0.9 }}
@@ -501,12 +476,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 10,
+    backgroundColor: 'transparent',
+    // Bottom border for depth separation
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.25)',
     position: 'relative',
     zIndex: 100,
     elevation: 20,
     overflow: 'hidden',
+    // Shadow for depth separation
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
   topBarAccent: {
     position: 'absolute',
@@ -522,11 +504,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 16,
     paddingBottom: 8,
+    // Enhanced shadow for more depth
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 20,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 22,
     zIndex: 100,
   },
   // Main page - circular light with modern styling
@@ -534,11 +517,13 @@ const styles = StyleSheet.create({
     width: 45,
     height: 45,
     borderRadius: 22.5,
-    borderWidth: 0,
+    // Subtle dark border for depth
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 0, 0, 0.30)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
-    elevation: 5,
+    elevation: 6,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -566,10 +551,10 @@ const styles = StyleSheet.create({
     borderRadius: 22.5,
     borderWidth: 3,
     borderColor: 'transparent',
-    borderTopColor: 'rgba(0, 0, 0, 0.25)',
-    borderLeftColor: 'rgba(0, 0, 0, 0.15)',
-    borderRightColor: 'rgba(255, 255, 255, 0.05)',
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderTopColor: 'rgba(0, 0, 0, 0.35)',
+    borderLeftColor: 'rgba(0, 0, 0, 0.22)',
+    borderRightColor: 'rgba(255, 255, 255, 0.12)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.15)',
   },
   pulseIndicator: {
     position: 'absolute',
@@ -589,8 +574,10 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    borderWidth: 0,
-    elevation: 3,
+    // Subtle dark border for depth
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.25)',
+    elevation: 4,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -603,10 +590,10 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     borderWidth: 2,
     borderColor: 'transparent',
-    borderTopColor: 'rgba(0, 0, 0, 0.22)',
-    borderLeftColor: 'rgba(0, 0, 0, 0.12)',
-    borderRightColor: 'rgba(255, 255, 255, 0.04)',
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    borderTopColor: 'rgba(0, 0, 0, 0.32)',
+    borderLeftColor: 'rgba(0, 0, 0, 0.18)',
+    borderRightColor: 'rgba(255, 255, 255, 0.10)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.14)',
   },
   smallLightInnerShadowFlashcards: {
     position: 'absolute',
@@ -629,14 +616,21 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 6,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 10,
     zIndex: 0,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    // Grey bevel at top of review area; dark border elsewhere for depth
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderBottomWidth: 1,
+    borderRightWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.05)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.20)',
+    borderRightColor: 'rgba(0, 0, 0, 0.15)',
     overflow: 'hidden',
   },
   screenInnerGlow: {
@@ -741,7 +735,9 @@ const styles = StyleSheet.create({
     height: 20,
     width: 100,
     borderRadius: 6,
-    borderWidth: 0,
+    // Subtle dark border for depth
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.22)',
     justifyContent: 'center',
     position: 'relative',
     overflow: 'hidden',
@@ -778,7 +774,9 @@ const styles = StyleSheet.create({
     width: 26,
     height: 10,
     borderRadius: 5,
-    borderWidth: 0,
+    // Subtle dark border for depth
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.25)',
     elevation: 15,
     position: 'relative',
     overflow: 'hidden',

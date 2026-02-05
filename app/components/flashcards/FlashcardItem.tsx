@@ -458,13 +458,6 @@ const readingsText = flashcard.readingsText;
     })
   };
 
-  // Hide action buttons during flip animation to prevent grey dot artifact
-  const actionButtonsOpacity = flipAnim.interpolate({
-    inputRange: [0, 0.1, 0.9, 1],
-    outputRange: [1, 0, 0, 1],
-    extrapolate: 'clamp',
-  });
-
   // Enhanced image preloading with better error handling
   useEffect(() => {
     if (flashcard.imageUrl) {
@@ -621,6 +614,30 @@ const readingsText = flashcard.readingsText;
                 </Animated.View>
               )}
             </ScrollView>
+            {/* Bottom right actions - flip with front */}
+            <View style={styles.bottomRightActionsContainer}>
+              {flashcard.imageUrl && (
+                <TouchableOpacity style={styles.imageButton} onPress={toggleShowImage}>
+                  <FontAwesome6 name="image" size={24} color="black" />
+                </TouchableOpacity>
+              )}
+              {flashcard.imageUrl && showRefreshButton && showImage && (
+                <TouchableOpacity
+                  style={styles.bottomActionButton}
+                  onPress={handleImageRetry}
+                  disabled={imageRetryCount >= MAX_RETRY_COUNT}
+                >
+                  <Ionicons
+                    name="refresh"
+                    size={24}
+                    color={imageRetryCount >= MAX_RETRY_COUNT ? COLORS.darkGray : 'black'}
+                  />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={styles.flipButton} onPress={handleFlip}>
+                <MaterialIcons name="flip" size={24} color="black" />
+              </TouchableOpacity>
+            </View>
             </View>
           </View>
         </Animated.View>
@@ -788,13 +805,37 @@ const readingsText = flashcard.readingsText;
                 <Text style={styles.reviewDateText}>{reviewDateText}</Text>
               </View>
             )}
+            {/* Bottom right actions - flip with back */}
+            <View style={styles.bottomRightActionsContainer}>
+              {flashcard.imageUrl && (
+                <TouchableOpacity style={styles.imageButton} onPress={toggleShowImage}>
+                  <FontAwesome6 name="image" size={24} color="black" />
+                </TouchableOpacity>
+              )}
+              {flashcard.imageUrl && showRefreshButton && showImage && (
+                <TouchableOpacity
+                  style={styles.bottomActionButton}
+                  onPress={handleImageRetry}
+                  disabled={imageRetryCount >= MAX_RETRY_COUNT}
+                >
+                  <Ionicons
+                    name="refresh"
+                    size={24}
+                    color={imageRetryCount >= MAX_RETRY_COUNT ? COLORS.darkGray : 'black'}
+                  />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={styles.flipButton} onPress={handleFlip}>
+                <MaterialIcons name="flip" size={24} color="black" />
+              </TouchableOpacity>
+            </View>
             </View>
           </View>
         </Animated.View>
       </Animated.View>
       
       {/* Card Actions */}
-      <Animated.View style={[styles.actionButtonsContainer, { opacity: actionButtonsOpacity }]}>
+      <View style={styles.actionButtonsContainer}>
         {onDelete && (
           <TouchableOpacity 
             style={[styles.deleteButton, !isOnline && styles.disabledButton]} 
@@ -833,39 +874,6 @@ const readingsText = flashcard.readingsText;
             />
           </TouchableOpacity>
         )}
-      </Animated.View>
-      
-      {/* Bottom right actions for image and flip */}
-      <View style={styles.bottomRightActionsContainer}>
-        {/* Add image toggle button */}
-        {flashcard.imageUrl && (
-          <TouchableOpacity style={styles.imageButton} onPress={toggleShowImage}>
-            <FontAwesome6 
-              name="image" 
-              size={24} 
-              color="black" />
-          </TouchableOpacity>
-        )}
-        
-        {/* Refresh button (only in saved flashcards mode when image is showing) */}
-        {flashcard.imageUrl && showRefreshButton && showImage && (
-          <TouchableOpacity 
-            style={styles.bottomActionButton} 
-            onPress={handleImageRetry}
-            disabled={imageRetryCount >= MAX_RETRY_COUNT}
-          >
-            <Ionicons 
-              name="refresh" 
-              size={24} 
-              color={imageRetryCount >= MAX_RETRY_COUNT ? COLORS.darkGray : 'black'} 
-            />
-          </TouchableOpacity>
-        )}
-        
-        {/* Flip button */}
-        <TouchableOpacity style={styles.flipButton} onPress={handleFlip}>
-          <MaterialIcons name="flip" size={24} color="black" />
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -907,6 +915,12 @@ const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean
     overflow: 'hidden',
     backfaceVisibility: 'hidden',
     backgroundColor: COLORS.darkSurface,
+    // Enhanced shadow for depth
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   cardSide: {
     width: '100%',
@@ -1013,7 +1027,7 @@ const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean
     top: 12,
     right: 12,
     flexDirection: 'row',
-    backgroundColor: COLORS.darkSurface,
+    backgroundColor: 'transparent',
     borderRadius: 8,
     padding: 4,
     zIndex: 10,
@@ -1023,7 +1037,7 @@ const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean
     bottom: 12,
     right: 12,
     flexDirection: 'row',
-    backgroundColor: COLORS.darkSurface,
+    backgroundColor: 'transparent',
     borderRadius: 8,
     padding: 4,
     zIndex: 10,
@@ -1081,8 +1095,9 @@ const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean
     marginTop: 10,
     padding: 10,
     borderRadius: 8,
+    // Subtle dark border for depth
     borderWidth: 1,
-    borderColor: COLORS.darkGray,
+    borderColor: 'rgba(0, 0, 0, 0.15)',
     backgroundColor: COLORS.darkSurface,
   },
   deckLabel: {

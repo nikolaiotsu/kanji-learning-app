@@ -86,33 +86,48 @@ export default function PokedexButton({
   // Determine icon color based on state
   const iconColor = customIconColor || (darkDisabled ? COLORS.darkGray : COLORS.text);
 
-  // Gradient colors based on state
+  // Gradient colors based on state - enhanced with more depth
   const getGradientColors = (): readonly [string, string, ...string[]] => {
     if (darkDisabled) {
-      return ['rgba(51, 65, 85, 0.7)', 'rgba(30, 41, 59, 0.8)'] as const;
+      return [
+        'rgba(51, 65, 85, 0.65)',
+        'rgba(40, 53, 72, 0.72)',
+        'rgba(30, 41, 59, 0.78)',
+        'rgba(25, 35, 52, 0.82)',
+      ] as const;
     }
     if (disabled) {
-      return ['rgba(100, 116, 139, 0.5)', 'rgba(71, 85, 105, 0.6)'] as const;
+      return [
+        'rgba(100, 116, 139, 0.45)',
+        'rgba(85, 100, 120, 0.52)',
+        'rgba(71, 85, 105, 0.58)',
+      ] as const;
     }
     // Use grey gradient if color prop is provided (matching flip/image buttons)
     if (color && (color.includes('grey') || color.includes('gray') || color.includes('128'))) {
       return [
-        'rgba(140, 140, 140, 0.35)',  // Lighter grey top
-        'rgba(100, 100, 100, 0.45)',   // Darker grey bottom
+        'rgba(160, 160, 160, 0.30)',  // Brighter highlight top
+        'rgba(140, 140, 140, 0.35)',  // Lighter grey
+        'rgba(120, 120, 120, 0.40)',  // Mid grey
+        'rgba(100, 100, 100, 0.45)',  // Darker grey bottom
       ] as const;
     }
-    // Default glassmorphism gradient (blue)
+    // Default glassmorphism gradient (blue) - enhanced with more stops for depth
     return [
-      'rgba(59, 130, 246, 0.25)',  // Blue tint top
-      'rgba(30, 64, 175, 0.35)',   // Deeper blue bottom
+      'rgba(96, 165, 250, 0.22)',   // Brighter blue highlight
+      'rgba(59, 130, 246, 0.26)',   // Blue tint
+      'rgba(37, 99, 235, 0.32)',    // Mid blue
+      'rgba(30, 64, 175, 0.38)',    // Deeper blue bottom
     ] as const;
   };
 
-  // Glass overlay gradient for shine effect
+  // Glass overlay gradient for shine effect - enhanced with more subtle transitions
   const glassOverlayColors: readonly [string, string, ...string[]] = [
-    'rgba(255, 255, 255, 0.2)',
-    'rgba(255, 255, 255, 0.05)',
-    'rgba(255, 255, 255, 0.0)',
+    'rgba(255, 255, 255, 0.25)',   // Brighter top edge
+    'rgba(255, 255, 255, 0.15)',   // Strong highlight
+    'rgba(255, 255, 255, 0.08)',   // Mid transition
+    'rgba(255, 255, 255, 0.03)',   // Subtle fade
+    'rgba(255, 255, 255, 0.0)',    // Transparent
   ] as const;
   
   return (
@@ -212,17 +227,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
-    // Glassmorphism border
+    // Subtle dark border for depth
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    // Soft shadow for depth
+    borderColor: 'rgba(0, 0, 0, 0.22)',
+    // Enhanced shadow for depth
     shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 10,
     // Background blur simulation (via semi-transparent background)
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
   },
   glassOverlay: {
     position: 'absolute',
@@ -236,8 +251,9 @@ const styles = StyleSheet.create({
     left: 1,
     right: 1,
     bottom: 1,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    // Very subtle inner edge
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
     pointerEvents: 'none',
   },
   buttonContent: {
