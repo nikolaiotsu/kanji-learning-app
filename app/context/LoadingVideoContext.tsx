@@ -11,12 +11,14 @@ const LoadingVideoContext = createContext<LoadingVideoContextValue>({ player: nu
 
 /**
  * Inner component that creates the video player and stores it in context.
- * Mounts when the provider mounts (app ready) so the player buffers before API loading.
+ * Mounts at app root so the video preloads and is ready as soon as the loading screen is shown.
  */
 function LoadingVideoPlayerSource({ setPlayer }: { setPlayer: (p: VideoPlayer) => void }) {
   const player = useVideoPlayer(loadingVideoSource, (p) => {
     p.loop = true;
     p.muted = true;
+    // Start loading/playing immediately so the video is ready when the loading screen appears
+    p.play();
   });
   useEffect(() => {
     setPlayer(player);

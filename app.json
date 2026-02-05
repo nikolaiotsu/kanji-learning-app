@@ -5,12 +5,12 @@
     "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/worddexiconlogo.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/worddexiconlogo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0F172A"
+      "backgroundColor": "#0A1628"
     },
     "ios": {
       "supportsTablet": true,

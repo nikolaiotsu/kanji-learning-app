@@ -20,6 +20,7 @@ import { useFocusEffect } from 'expo-router';
 import { filterDueCards, calculateNextReviewDate, getNewBoxOnCorrect, getNewBoxOnIncorrect } from '../../constants/leitner';
 
 import { logger } from '../../utils/logger';
+import { getLocalDateString } from '../../utils/dateUtils';
 
 // Create AnimatedTouchableOpacity to support animated border colors without re-renders
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
@@ -30,9 +31,6 @@ const LEGACY_SELECTED_DECK_IDS_STORAGE_KEY = 'selectedDeckIds'; // For migration
 
 // Storage key generator for daily review stats (user-specific)
 const getDailyReviewStatsStorageKey = (userId: string) => `dailyReviewStats_${userId}`;
-
-// Get today's date string in YYYY-MM-DD format for comparison
-const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
 // Interface for daily review stats stored in AsyncStorage
 interface DailyReviewStats {
@@ -279,7 +277,15 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const completionPulseAnim = useRef(new Animated.Value(0)).current;
   const wasSessionFinishedRef = useRef(false);
   const [showCompletionPulse, setShowCompletionPulse] = useState(false);
-  
+
+  // Floating animation for streak congrats modal (fire + number)
+  const streakCongratsFloatAnim = useRef(new Animated.Value(0)).current;
+  const streakCongratsFloatLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+  const streakCongratsFloatTranslateY = streakCongratsFloatAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -10],
+  });
+
   // Create interpolated color value directly - no setState means no re-renders during animation
   const reviewButtonRainbowColor = reviewButtonRainbowAnim.interpolate({
     inputRange: [0, 0.166, 0.333, 0.5, 0.666, 0.833, 1],
@@ -518,6 +524,44 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     }
   }, [shouldShowRainbowBorder, reviewButtonRainbowAnim]);
 
+  // Floating animation for streak congrats modal (fire + number) - gentle up/down loop
+  useEffect(() => {
+    if (!showStreakCongratsOverlay) {
+      if (streakCongratsFloatLoopRef.current) {
+        streakCongratsFloatLoopRef.current.stop();
+        streakCongratsFloatLoopRef.current = null;
+      }
+      streakCongratsFloatAnim.setValue(0);
+      return;
+    }
+    streakCongratsFloatAnim.setValue(0);
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(streakCongratsFloatAnim, {
+          toValue: 1,
+          duration: 800,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(streakCongratsFloatAnim, {
+          toValue: 0,
+          duration: 800,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    streakCongratsFloatLoopRef.current = loop;
+    loop.start();
+    return () => {
+      if (streakCongratsFloatLoopRef.current) {
+        streakCongratsFloatLoopRef.current.stop();
+        streakCongratsFloatLoopRef.current = null;
+      }
+      streakCongratsFloatAnim.setValue(0);
+    };
+  }, [showStreakCongratsOverlay, streakCongratsFloatAnim]);
+
   // Completion pulse animation - triggers a single rainbow pulse when review session finishes
   // This provides positive feedback/dopamine boost when user completes their review
   // ONLY triggers in SRS mode (review mode), not in browse mode
@@ -612,7 +656,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
 
     try {
       const storageKey = getDailyReviewStatsStorageKey(user.id);
-      const today = getTodayDateString();
+      const today = getLocalDateString();
 
       // Reset daily stats
       const newStats: DailyReviewStats = { date: today, reviewedCardIds: [] };
@@ -789,7 +833,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       try {
         const storageKey = getDailyReviewStatsStorageKey(user.id);
         const storedStats = await AsyncStorage.getItem(storageKey);
-        const today = getTodayDateString();
+        const today = getLocalDateString();
         
         if (storedStats) {
           const stats: DailyReviewStats = JSON.parse(storedStats);
@@ -830,7 +874,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     
     try {
       const storageKey = getDailyReviewStatsStorageKey(user.id);
-      const today = getTodayDateString();
+      const today = getLocalDateString();
       
       // Update state first for immediate UI feedback
       setDailyReviewedCardIds((prevSet) => {
@@ -2193,7 +2237,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                     overflow: 'hidden',
                   }}
                   onLongPress={() => {
-                    const currentDate = getTodayDateString();
+                    const currentDate = getLocalDateString();
                     Alert.alert(
                       t('debug.dailyStatsTitle'),
                       t('debug.dailyStatsMessage', {
@@ -2464,7 +2508,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               }}
               onLongPress={() => {
                 // Test feature: Long press counter to show debug info and reset daily stats
-                const currentDate = getTodayDateString();
+                const currentDate = getLocalDateString();
                 Alert.alert(
                   t('debug.dailyStatsTitle'),
                   t('debug.dailyStatsMessage', {
@@ -2660,10 +2704,10 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
             <Text style={styles.streakCongratsBody}>
               {t('review.streak.congratsBody')}
             </Text>
-            <View style={styles.streakCongratsFireRow}>
+            <Animated.View style={[styles.streakCongratsFireRow, { transform: [{ translateY: streakCongratsFloatTranslateY }] }]}>
               <Ionicons name="flame" size={48} color="#F59E0B" style={styles.streakCongratsFireIcon} />
               <Text style={styles.streakCongratsFireNumber}>{streakCount}</Text>
-            </View>
+            </Animated.View>
             <TouchableOpacity
               style={styles.streakCongratsButton}
               onPress={() => setShowStreakCongratsOverlay(false)}

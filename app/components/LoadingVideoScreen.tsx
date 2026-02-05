@@ -19,12 +19,14 @@ type LoadingVideoScreenProps = {
   message?: string;
   /** Compact mode: no message, no flex — for embedding (e.g. onboarding) */
   compact?: boolean;
+  /** If false, do not show any text (e.g. for app startup — video only). Default true. */
+  showMessage?: boolean;
 };
 
 const FLOAT_DISTANCE = 6;
 const FLOAT_DURATION = 1200;
 
-export default function LoadingVideoScreen({ message, compact = false }: LoadingVideoScreenProps) {
+export default function LoadingVideoScreen({ message, compact = false, showMessage = true }: LoadingVideoScreenProps) {
   const [hasError, setHasError] = useState(false);
   const floatAnim = useRef(new Animated.Value(0)).current;
   const preloadedPlayer = useLoadingVideoPlayer();
@@ -74,7 +76,7 @@ export default function LoadingVideoScreen({ message, compact = false }: Loading
     if (status === 'error') setHasError(true);
   }, [status]);
 
-  const displayMessage = compact ? undefined : (message ?? 'Loading...');
+  const displayMessage = showMessage && !compact ? (message ?? 'Loading...') : undefined;
 
   // Same layout for both video and fallback: rounded clip, float, same size
   const videoOrSpinner = (hasError || status === 'error') ? (

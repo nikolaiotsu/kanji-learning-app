@@ -4,6 +4,7 @@ import { SUBSCRIPTION_PLANS } from '../constants/config';
 import { SubscriptionPlan } from '../../types';
 
 import { logger } from '../utils/logger';
+import { getLocalDateString } from '../utils/dateUtils';
 
 // Event listener type for API usage updates
 // Now includes the updated remaining API calls count for immediate UI updates
@@ -166,7 +167,7 @@ class APIUsageLogger {
    */
   public async getDailyUsage(date?: string): Promise<any> {
     try {
-      const targetDate = date || new Date().toISOString().split('T')[0];
+      const targetDate = date || getLocalDateString();
       
       const { data, error } = await supabase
         .from('user_daily_usage')

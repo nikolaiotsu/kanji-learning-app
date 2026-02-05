@@ -12,10 +12,10 @@ interface APIUsageEnergyBarProps {
   style?: any;
 }
 
-const FREE_MAX_BARS = 5; // Free users get 5 API calls per day
-const PREMIUM_MAX_BARS = 10; // Premium users get 10 bars, 12 API calls each
-const PREMIUM_CALLS_PER_BAR = 12; // 120 / 10 = 12
-const PREMIUM_DAILY_LIMIT = 120; // Premium users get 120 API calls per day
+const FREE_MAX_BARS = 3; // Free users get 3 API calls per day (3 segments)
+const PREMIUM_MAX_BARS = 10; // Premium users get 10 bars, 10 API calls each
+const PREMIUM_CALLS_PER_BAR = 10; // 100 / 10 = 10 (one bar per 10 calls)
+const PREMIUM_DAILY_LIMIT = 100; // Premium users get 100 API calls per day
 
 export default function APIUsageEnergyBar({ style }: APIUsageEnergyBarProps) {
   const { subscription } = useSubscription(); // Get subscription from context for real-time updates
@@ -45,14 +45,14 @@ export default function APIUsageEnergyBar({ style }: APIUsageEnergyBarProps) {
       let dailyLimit: number;
       
       if (isPremiumUser) {
-        // Premium: 10 bars, each represents 12 API calls (120 total)
+        // Premium: 10 bars, each represents 10 API calls (100 total)
         dailyLimit = PREMIUM_DAILY_LIMIT;
         maxBars = PREMIUM_MAX_BARS;
-        // Calculate remaining bars: ceil((120 - used) / 12)
+        // Calculate remaining bars: ceil((100 - used) / 10)
         const remainingCalls = Math.max(0, dailyLimit - apiCallsUsed);
         remaining = Math.ceil(remainingCalls / PREMIUM_CALLS_PER_BAR);
       } else {
-        // Free: 5 bars, each represents 1 API call (5 total)
+        // Free: 3 bars, each represents 1 API call (3 total)
         dailyLimit = FREE_MAX_BARS;
         maxBars = FREE_MAX_BARS;
         remaining = Math.max(0, maxBars - apiCallsUsed);
@@ -268,18 +268,20 @@ const styles = StyleSheet.create({
   },
   bar: {
     flex: 1,
-    height: 10,
+    height: 12,
     borderRadius: 2,
     minWidth: 10,
-    maxWidth: 16,
+    maxWidth: 36, // Allow bars to grow and fill the grey container (3 bars)
     overflow: 'visible',
     position: 'relative',
   },
   barPremium: {
-    flex: 0, // Don't flex for premium bars - use fixed width
-    minWidth: 8, // Narrower minimum for premium bars
-    maxWidth: 12, // Narrower maximum for premium bars to fit 10 bars
-    width: 12, // Fixed width for consistent centering
+    flex: 1, // Flex to fill container width
+    minWidth: 14,
+    maxWidth: 20,
+    height: 12,
+    overflow: 'visible',
+    position: 'relative',
   },
   glassOverlay: {
     position: 'absolute',

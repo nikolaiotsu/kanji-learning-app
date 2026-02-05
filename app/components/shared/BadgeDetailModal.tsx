@@ -1,15 +1,19 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
-  Modal,
   TouchableOpacity,
   StyleSheet,
   Pressable,
+  Animated,
+  Dimensions,
 } from 'react-native';
 import { COLORS } from '../../constants/colors';
 import FloatingBadgeImage from './FloatingBadgeImage';
 import type { Badge } from '../../services/badgeService';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const FADE_DURATION = 200;
 
 function getBadgeDisplayText(badge: Badge): { title: string; subtext: string } {
   return {
@@ -24,50 +28,87 @@ interface BadgeDetailModalProps {
   onDismiss: () => void;
 }
 
+/**
+ * Badge detail overlay using Animated.View instead of native Modal.
+ * This avoids the native Modal's flash-on-unmount issue (e.g. briefly
+ * showing the language selection modal or other content when dismissing).
+ */
 export default function BadgeDetailModal({
   visible,
   badge,
   onDismiss,
 }: BadgeDetailModalProps) {
-  if (!badge) return null;
+  const [shouldRender, setShouldRender] = useState(false);
+  const [displayedBadge, setDisplayedBadge] = useState<Badge | null>(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  const { title, subtext } = getBadgeDisplayText(badge);
+  useEffect(() => {
+    if (visible && badge) {
+      setDisplayedBadge(badge);
+      setShouldRender(true);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: FADE_DURATION,
+        useNativeDriver: true,
+      }).start();
+    } else if (shouldRender) {
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: FADE_DURATION,
+        useNativeDriver: true,
+      }).start(() => {
+        setShouldRender(false);
+        setDisplayedBadge(null);
+      });
+    }
+  }, [visible, badge]);
+
+  if (!shouldRender || !displayedBadge) return null;
+
+  const { title, subtext } = getBadgeDisplayText(displayedBadge);
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onDismiss}
+    <Animated.View
+      style={[
+        styles.overlay,
+        {
+          opacity: fadeAnim,
+          pointerEvents: visible ? 'auto' : 'none',
+        },
+      ]}
     >
-      <View style={styles.overlay}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
-        <View style={styles.modalCard} pointerEvents="box-only">
-          <View style={styles.badgeContainer}>
-            <FloatingBadgeImage badge={badge} size="large" withBackground />
-          </View>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtext}>{subtext}</Text>
-          <TouchableOpacity
-            style={styles.dismissButton}
-            onPress={onDismiss}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.dismissButtonText}>Got it</Text>
-          </TouchableOpacity>
+      <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
+      <View style={styles.modalCard} pointerEvents="box-only">
+        <View style={styles.badgeContainer}>
+          <FloatingBadgeImage badge={displayedBadge} size="large" withBackground />
         </View>
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.subtext}>{subtext}</Text>
+        <TouchableOpacity
+          style={styles.dismissButton}
+          onPress={onDismiss}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.dismissButtonText}>Got it</Text>
+        </TouchableOpacity>
       </View>
-    </Modal>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   overlay: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
+    zIndex: 9999,
+    elevation: 9999,
   },
   modalCard: {
     backgroundColor: COLORS.darkSurface,

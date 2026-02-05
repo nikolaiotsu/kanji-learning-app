@@ -11,7 +11,7 @@ import { useOCRCounter } from './context/OCRCounterContext';
 import { useSubscription } from './context/SubscriptionContext';
 import { useOnboarding } from './context/OnboardingContext';
 import { supabase } from './services/supabaseClient';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { COLORS } from './constants/colors';
 import { PRODUCT_IDS, PRODUCT_DETAILS } from './constants/config';
 import PokedexLayout from './components/shared/PokedexLayout';
@@ -22,6 +22,7 @@ import { resetWalkthrough } from './hooks/useWalkthrough';
 import { hasEnergyBarsRemaining } from './utils/walkthroughEnergyCheck';
 
 import { logger } from './utils/logger';
+import { getLocalDateString } from './utils/dateUtils';
 export default function SettingsScreen() {
   const { t } = useTranslation();
   const { user, signOut, deleteAccount } = useAuth();
@@ -60,6 +61,17 @@ export default function SettingsScreen() {
   const [isPurchasing, setIsPurchasing] = useState(false);
   const longPressProgress = useRef(new Animated.Value(0)).current;
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+
+  // Close picker modals when screen loses focus so they never flash when
+  // another screen's modal (e.g. badge detail) is dismissed
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        setShowLanguageSelector(false);
+        setShowDetectionSelector(false);
+      };
+    }, [])
+  );
 
   // Function to handle sign out
   const handleSignOut = async () => {
@@ -149,7 +161,7 @@ export default function SettingsScreen() {
               
               // Reset API usage in database (translate_api_calls and wordscope_api_calls)
               // Only update if row exists - if no row exists, there's nothing to reset anyway
-              const today = new Date().toISOString().split('T')[0];
+              const today = getLocalDateString();
               const { error } = await supabase
                 .from('user_daily_usage')
                 .update({

@@ -22,6 +22,7 @@ import { getUserIdOffline } from './offlineAuth';
 import { generatePrivacySafeImageId, sanitizeForLogging } from './privacyService';
 
 import { logger } from '../utils/logger';
+import { getLocalDateString } from '../utils/dateUtils';
 import { calculateNextReviewDate } from '../constants/leitner';
 // Simple UUID generator that doesn't rely on crypto.getRandomValues()
 const generateUUID = (): string => {
@@ -1564,7 +1565,7 @@ export const resetSRSProgress = async (deckIds: string[]): Promise<number> => {
       return 0;
     }
 
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    const today = getLocalDateString();
 
     // Update all cards in the specified decks
     const { data, error } = await supabase
@@ -1589,7 +1590,7 @@ export const resetSRSProgress = async (deckIds: string[]): Promise<number> => {
       const userId = await getUserIdOffline();
       if (userId) {
         const storageKey = `dailyReviewStats_${userId}`;
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateString();
         const newStats = { date: today, reviewedCardIds: [] };
         await AsyncStorage.setItem(storageKey, JSON.stringify(newStats));
         logger.log(`✅ [SRS Reset] Cleared daily review stats for user ${userId}`);

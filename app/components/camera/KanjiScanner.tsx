@@ -3,7 +3,7 @@ import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal, TextInput, Keyb
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { Ionicons, MaterialIcons, FontAwesome5, AntDesign, FontAwesome6, Feather } from '@expo/vector-icons';
+import { Ionicons, FontAwesome5, AntDesign, FontAwesome6, Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import CameraButton from './CameraButton';
@@ -72,7 +72,6 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
   const [cropModeActive, setCropModeActive] = useState(false);
   const [hasCropSelection, setHasCropSelection] = useState(false);
   const [localProcessing, setLocalProcessing] = useState(false);
-  const [settingsMenuVisible, setSettingsMenuVisible] = useState(false);
   const [showTextInputModal, setShowTextInputModal] = useState(false);
   const [inputText, setInputText] = useState('');
   const [hasHighlightSelection, setHasHighlightSelection] = useState(false);
@@ -142,7 +141,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
   const [currentRotationUIState, setCurrentRotationUIState] = useState<ImageHighlighterRotationState | null>(null);
   
   const router = useRouter();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { recognizeKanji, isProcessing, error } = useKanjiRecognition();
   const { incrementOCRCount, canPerformOCR, remainingScans } = useOCRCounter();
   const { canCreateFlashcard, remainingFlashcards } = useFlashcardCounter();
@@ -575,32 +574,6 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     }, [isImageProcessing, localProcessing, isNavigating])
   );
 
-  const handleLogout = async () => {
-    setSettingsMenuVisible(false);
-    try {
-      Alert.alert(
-        t('camera.logoutTitle'),
-        t('camera.logoutConfirm'),
-        [
-          {
-            text: t('common.cancel'),
-            style: "cancel"
-          },
-          {
-            text: t('camera.logoutTitle'),
-            onPress: async () => {
-              await signOut();
-              router.replace('/login');
-            }
-          }
-        ]
-      );
-    } catch (error) {
-      logger.error('Error logging out:', error);
-      Alert.alert(t('common.error'), t('camera.logoutError'));
-    }
-  };
-
   const handleResetCounter = () => {
     Alert.alert(
       t('settings.resetSwipeCounterTitle'),
@@ -620,13 +593,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   };
 
   const handleOpenSettings = () => {
-    setSettingsMenuVisible(false);
-    router.push('/settings');
-  };
-
-  const toggleSettingsMenu = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSettingsMenuVisible(!settingsMenuVisible);
+    router.push('/settings');
   };
 
   const handlePhotoCapture = (imageInfo: CapturedImage | null) => {
@@ -2355,7 +2323,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                       styles.settingsButtonTouchable,
                       (localProcessing || isImageProcessing) ? styles.disabledButton : null
                     ]} 
-                    onPress={toggleSettingsMenu}
+                    onPress={handleOpenSettings}
                     disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'settings')}
                   >
                     <Ionicons 
@@ -2382,31 +2350,6 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 </View>
               </View>
               
-              {settingsMenuVisible && (
-                <>
-                  <TouchableOpacity 
-                    style={styles.backdrop}
-                    onPress={() => setSettingsMenuVisible(false)}
-                  />
-                  <View style={styles.settingsMenu}>
-                    <TouchableOpacity 
-                      style={styles.settingsMenuItem} 
-                      onPress={handleOpenSettings}
-                    >
-                      <Ionicons name="settings-outline" size={20} color="white" />
-                      <Text style={styles.settingsMenuItemText}>Settings</Text>
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity 
-                      style={styles.settingsMenuItem} 
-                      onPress={handleLogout}
-                    >
-                      <MaterialIcons name="logout" size={20} color="white" />
-                      <Text style={styles.settingsMenuItemText}>Logout</Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
-              )}
             </>
           )}
           
@@ -3151,36 +3094,6 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
   dimmedToolbarButton: {
     opacity: 0.35,
   },
-  settingsMenu: {
-    position: 'absolute',
-    top: 50, // Adjusted to match the new button position
-    right: 10,
-    backgroundColor: COLORS.darkSurface,
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    width: 150,
-    zIndex: 1000, // High enough to appear above everything when opened
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  settingsMenuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-  },
-  settingsMenuItemText: {
-    color: 'white',
-    marginLeft: 8,
-    fontWeight: '500',
-  },
   swipeCounterContainer: {
     position: 'absolute',
     top: reviewerTopOffset + 10, // Align with header (50px + 10px containerPaddingTop)
@@ -3219,14 +3132,6 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     right: 0,
     zIndex: 900,
     maxHeight: reviewerMaxHeight, // Calculated to fit available space
-  },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 999, // Just below the settings menu
   },
   textInputButton: {
     backgroundColor: '#E53170',

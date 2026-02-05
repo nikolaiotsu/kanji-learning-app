@@ -214,7 +214,7 @@ export default function TexturedBackground({
   };
 
   return (
-    <View style={[styles.container, style]}>
+    <View style={[styles.container, styles.solidBackground, style]}>
       {getBackgroundLayers()}
       {children && <View style={styles.contentLayer}>{children}</View>}
     </View>
@@ -225,6 +225,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     position: 'relative',
+  },
+  // Solid background matching splash screen color (#0A1628) ensures
+  // no flash/jitter when splash hides before gradients finish painting
+  solidBackground: {
+    backgroundColor: '#0A1628',
   },
   baseLayer: {
     position: 'absolute',

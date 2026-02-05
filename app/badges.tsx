@@ -35,16 +35,12 @@ const FRAME_PADDING = 16;
 const INNER_BORDER_RADIUS = 16;
 const INNER_BORDER_WIDTH = 2;
 
-function BadgeDisplayArea() {
+function BadgeDisplayArea({
+  onBadgePress,
+}: {
+  onBadgePress: (badge: Badge) => void;
+}) {
   const { earnedBadges, pendingBadge } = useBadge();
-  const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
-  const [detailModalVisible, setDetailModalVisible] = useState(false);
-
-  const handleBadgePress = (badge: Badge) => {
-    setSelectedBadge(badge);
-    setDetailModalVisible(true);
-  };
-
   const badgesToShow = useMemo(() => {
     const earned = earnedBadges
       .map((ub) => ub.badge)
@@ -82,7 +78,7 @@ function BadgeDisplayArea() {
           renderItem={({ item }) => (
             <View style={styles.badgeCell}>
               <TouchableOpacity
-                onPress={() => handleBadgePress(item)}
+                onPress={() => onBadgePress(item)}
                 activeOpacity={0.8}
                 style={styles.badgeTouchable}
               >
@@ -91,6 +87,32 @@ function BadgeDisplayArea() {
             </View>
           )}
         />
+      </View>
+    </View>
+  );
+}
+
+export default function BadgesScreen() {
+  const navigation = useNavigation();
+  const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerTitle: () => <BadgeHeaderIcon />,
+    });
+  }, [navigation]);
+
+  const handleBadgePress = (badge: Badge) => {
+    setSelectedBadge(badge);
+    setDetailModalVisible(true);
+  };
+
+  return (
+    <SafeAreaView style={styles.container} edges={[]}>
+      <View style={styles.content}>
+        <BadgeDisplayArea onBadgePress={handleBadgePress} />
+        {/* Rendered outside overflow:hidden so overlay can cover full screen */}
         <BadgeDetailModal
           visible={detailModalVisible}
           badge={selectedBadge}
@@ -99,24 +121,6 @@ function BadgeDisplayArea() {
             setSelectedBadge(null);
           }}
         />
-      </View>
-    </View>
-  );
-}
-
-export default function BadgesScreen() {
-  const navigation = useNavigation();
-
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerTitle: () => <BadgeHeaderIcon />,
-    });
-  }, [navigation]);
-
-  return (
-    <SafeAreaView style={styles.container} edges={[]}>
-      <View style={styles.content}>
-        <BadgeDisplayArea />
       </View>
     </SafeAreaView>
   );

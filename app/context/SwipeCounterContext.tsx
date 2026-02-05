@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { logger } from '../utils/logger';
+import { getLocalDateString } from '../utils/dateUtils';
 
 interface SwipeCounterData {
   rightSwipeCount: number;
@@ -29,11 +30,8 @@ const SwipeCounterContext = createContext<SwipeCounterContextType | undefined>(u
 // Storage key for swipe counter
 const SWIPE_COUNTER_STORAGE_KEY = 'swipe_counter_daily';
 
-// Helper function to get current date in YYYY-MM-DD format
-const getCurrentDate = (): string => {
-  const now = new Date();
-  return now.toISOString().split('T')[0];
-};
+// Use local date so daily reset happens at user's midnight, not UTC
+const getCurrentDate = (): string => getLocalDateString();
 
 export const SwipeCounterProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [rightSwipeCount, setRightSwipeCount] = useState<number>(0);

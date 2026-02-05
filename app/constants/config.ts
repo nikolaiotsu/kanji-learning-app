@@ -18,10 +18,10 @@ export const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanConfig> = {
     showAds: true,
     features: ['basic_scanning', 'flashcards', 'basic_ocr'],
     // Legacy separate limits (deprecated)
-    translateApiCallsPerDay: 5,
-    wordscopeApiCallsPerDay: 5,
-    // Unified API limit: 5 API calls of any type per 24 hours
-    apiCallsPerDay: 5
+    translateApiCallsPerDay: 3,
+    wordscopeApiCallsPerDay: 3,
+    // Unified API limit: 3 API calls of any type per 24 hours
+    apiCallsPerDay: 3
   },
   PREMIUM: {
     ocrScansPerDay: 300, // Legacy field - use apiCallsPerDay instead
@@ -39,11 +39,11 @@ export const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanConfig> = {
       'priority_support'
     ],
     // Legacy separate limits (deprecated)
-    translateApiCallsPerDay: 120,
-    wordscopeApiCallsPerDay: 120,
-    // Unified API limits: 120 API calls per day, 1200 per month
-    apiCallsPerDay: 120,
-    apiCallsPerMonth: 1200
+    translateApiCallsPerDay: 100,
+    wordscopeApiCallsPerDay: 100,
+    // Unified API limits: 100 API calls per day, 1000 per month
+    apiCallsPerDay: 100,
+    apiCallsPerMonth: 1000
   }
 };
 

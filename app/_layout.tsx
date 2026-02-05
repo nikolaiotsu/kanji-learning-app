@@ -15,17 +15,28 @@ import { OnboardingProvider } from './context/OnboardingContext';
 import LoadingVideoScreen from './components/LoadingVideoScreen';
 import { LoadingVideoProvider } from './context/LoadingVideoContext';
 import { OnboardingVideosProvider } from './context/OnboardingVideosContext';
-import { StyleSheet, View, LogBox } from 'react-native';
+import { StyleSheet, View, LogBox, Animated } from 'react-native';
 import { COLORS } from './constants/colors';
 import TexturedBackground from './components/shared/TexturedBackground';
 import * as WebBrowser from 'expo-web-browser';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from './context/AuthContext';
+import { useOnboarding } from './context/OnboardingContext';
 import { initializeSyncManager } from './services/syncManager';
 import * as SplashScreen from 'expo-splash-screen';
 
 import { logger } from './utils/logger';
+
+// Duration for the fade-in when the loading video first appears (ms)
+const LOADING_FADE_IN_DURATION = 350;
+// Duration for the fade-out animation of the loading overlay (ms)
+const LOADING_FADE_DURATION = 400;
+// Delay after content mounts before starting fade (allows content to fully render)
+const CONTENT_RENDER_DELAY = 100;
+// Minimum time to show the loading animation for a premium intro feel (ms)
+const MIN_LOADING_DISPLAY_MS = 2500;
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -58,28 +69,30 @@ console.error = (...args) => {
   originalConsoleError(...args);
 };
 
-export default function RootLayout() {
+// Inner layout: waits for auth + onboarding so we never show AuthGuard's spinner.
+// One loading screen (video) then one clean fade to the app.
+function RootLayoutContent() {
   const [isAppReady, setIsAppReady] = useState(false);
+  const [isLoadingVisible, setIsLoadingVisible] = useState(true);
+  const [hasContentMounted, setHasContentMounted] = useState(false);
+  const loadingOpacity = useRef(new Animated.Value(1)).current;
+  const fadeInOpacity = useRef(new Animated.Value(0)).current;
+  const loadingStartTimeRef = useRef(Date.now());
   const { i18n } = useTranslation();
 
-  // Initialize WebBrowser to handle OAuth redirects
+  // Fade in the loading overlay as soon as it's shown
   useEffect(() => {
-    // This enables redirect handling for Google and Apple auth
-    WebBrowser.maybeCompleteAuthSession();
-  }, []);
+    Animated.timing(fadeInOpacity, {
+      toValue: 1,
+      duration: LOADING_FADE_IN_DURATION,
+      useNativeDriver: true,
+    }).start();
+  }, [fadeInOpacity]);
+  const { user, isLoading: authLoading } = useAuth();
+  const { hasCompletedOnboarding } = useOnboarding();
 
-  // Lock orientation to portrait on app start
-  useEffect(() => {
-    const lockOrientation = async () => {
-      try {
-        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
-      } catch (error) {
-        logger.warn('Failed to lock orientation:', error);
-      }
-    };
-    
-    lockOrientation();
-  }, []);
+  // Auth/onboarding ready = we can safely reveal the app (AuthGuard won't show its own spinner)
+  const isAuthReady = !authLoading && (user != null || hasCompletedOnboarding != null);
 
   // Ensure i18n is ready before rendering the app
   useEffect(() => {
@@ -88,51 +101,42 @@ export default function RootLayout() {
         logger.log('[RootLayout] i18n is ready, language:', i18n.language);
         setIsAppReady(true);
       } else {
-        logger.log('[RootLayout] i18n not ready, waiting...');
-        // Retry after a short delay
         setTimeout(checkI18nReady, 100);
       }
     };
-    
     checkI18nReady();
   }, [i18n]);
 
-  // Initialize sync manager for offline support
+  // When content is ready AND we've shown the loading screen for at least MIN_LOADING_DISPLAY_MS, fade out
   useEffect(() => {
-    const unsubscribe = initializeSyncManager();
-    
-    return () => {
-      unsubscribe();
-    };
-  }, []);
+    if (!hasContentMounted || !isAppReady || !isAuthReady) return;
 
-  // Hide splash screen once the app is ready and layout is complete
-  const onLayoutRootView = useCallback(async () => {
-    if (isAppReady) {
-      // Add a small delay to ensure layout is stable before hiding splash
-      await new Promise(resolve => setTimeout(resolve, 50));
-      await SplashScreen.hideAsync();
-    }
-  }, [isAppReady]);
+    const elapsed = Date.now() - loadingStartTimeRef.current;
+    const remaining = Math.max(0, MIN_LOADING_DISPLAY_MS - elapsed);
 
-  // Keep SafeAreaProvider and GestureHandlerRootView always mounted
-  // to prevent layout shifts when safe area insets are calculated
+    const timer = setTimeout(() => {
+      Animated.timing(loadingOpacity, {
+        toValue: 0,
+        duration: LOADING_FADE_DURATION,
+        useNativeDriver: true,
+      }).start(() => {
+        setIsLoadingVisible(false);
+      });
+    }, CONTENT_RENDER_DELAY + remaining);
+
+    return () => clearTimeout(timer);
+  }, [hasContentMounted, isAppReady, isAuthReady, loadingOpacity]);
+
+  const onContentLayout = useCallback(() => {
+    if (!hasContentMounted) setHasContentMounted(true);
+  }, [hasContentMounted]);
+
   return (
-    <GestureHandlerRootView style={styles.gestureContainer}>
-      <SafeAreaProvider>
-        <TexturedBackground variant="default" style={styles.container}>
-          {!isAppReady ? (
-            // Custom loading video (assets/loading.mp4) or fallback spinner
-            <View style={styles.loadingContainer}>
-              <LoadingVideoScreen />
-            </View>
-          ) : (
-            <View style={styles.container} onLayout={onLayoutRootView}>
-              <LoadingVideoProvider>
-                <OnboardingVideosProvider>
-                <AuthProvider>
-                  <OnboardingProvider>
-                    <SettingsProvider>
+    <TexturedBackground variant="default" style={styles.container}>
+      {isAppReady && (
+        <View style={styles.container} onLayout={onContentLayout}>
+          <OnboardingVideosProvider>
+          <SettingsProvider>
                       <SubscriptionProvider>
                         <OCRCounterProvider>
                           <FlashcardCounterProvider>
@@ -226,13 +230,61 @@ export default function RootLayout() {
                     </OCRCounterProvider>
                   </SubscriptionProvider>
                 </SettingsProvider>
-              </OnboardingProvider>
-            </AuthProvider>
                 </OnboardingVideosProvider>
-              </LoadingVideoProvider>
             </View>
           )}
-        </TexturedBackground>
+      {isLoadingVisible && (
+        <Animated.View
+          style={[styles.loadingOverlay, { opacity: loadingOpacity }]}
+          pointerEvents={hasContentMounted ? 'none' : 'auto'}
+        >
+          {/* Fade in the video content only - overlay background stays solid */}
+          <Animated.View style={{ opacity: fadeInOpacity }}>
+            <LoadingVideoScreen compact />
+          </Animated.View>
+        </Animated.View>
+      )}
+    </TexturedBackground>
+  );
+}
+
+export default function RootLayout() {
+  // Initialize WebBrowser to handle OAuth redirects
+  useEffect(() => {
+    WebBrowser.maybeCompleteAuthSession();
+  }, []);
+
+  useEffect(() => {
+    const lockOrientation = async () => {
+      try {
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+      } catch (error) {
+        logger.warn('Failed to lock orientation:', error);
+      }
+    };
+    lockOrientation();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = initializeSyncManager();
+    return () => unsubscribe();
+  }, []);
+
+  // Hide native splash immediately — React has already committed; our loading overlay is in the tree
+  useEffect(() => {
+    SplashScreen.hideAsync();
+  }, []);
+
+  return (
+    <GestureHandlerRootView style={styles.gestureContainer}>
+      <SafeAreaProvider>
+        <LoadingVideoProvider>
+          <AuthProvider>
+            <OnboardingProvider>
+              <RootLayoutContent />
+            </OnboardingProvider>
+          </AuthProvider>
+        </LoadingVideoProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
@@ -245,10 +297,13 @@ const styles = StyleSheet.create({
   gestureContainer: {
     flex: 1,
   },
-  loadingContainer: {
-    flex: 1,
+  // Loading overlay covers the entire screen and sits on top of content
+  // Uses absolute positioning so content can render behind it
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    // No background color - let TexturedBackground show through
+    backgroundColor: '#0A1628', // Match splash screen color exactly
+    zIndex: 100,
   },
 });
