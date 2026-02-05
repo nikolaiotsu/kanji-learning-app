@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import * as Haptics from 'expo-haptics';
 import { View, Text, StyleSheet, FlatList, Alert, TouchableOpacity, ActivityIndicator, TextInput, Dimensions, Platform, SafeAreaView } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -24,7 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from './context/AuthContext';
 import { supabase } from './services/supabaseClient';
 import { COLORS } from './constants/colors';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import PokedexLayout from './components/shared/PokedexLayout';
 import { useNetworkState, isOnline } from './services/networkManager';
 import OfflineBanner from './components/shared/OfflineBanner';
@@ -163,14 +163,12 @@ export default function SavedFlashcardsScreen() {
     // If a deck is already selected and no param requested (or already applied), don't override
     if (selectedDeckId) return;
     
-    // Otherwise default to newest deck by createdAt
-    const newestIdx = decks.reduce((bestIdx, deck, i) => 
-      deck.createdAt > decks[bestIdx].createdAt ? i : bestIdx
-    , 0);
-    setSelectedDeckId(decks[newestIdx].id);
-    setSelectedDeckIndex(newestIdx);
-    const viewPosition = getViewPosition(newestIdx, decks.length);
-    scrollToDeck(newestIdx, viewPosition);
+    // Default to the rightmost deck in the deck collection row (last in list)
+    const rightmostIdx = decks.length - 1;
+    setSelectedDeckId(decks[rightmostIdx].id);
+    setSelectedDeckIndex(rightmostIdx);
+    const viewPosition = getViewPosition(rightmostIdx, decks.length);
+    scrollToDeck(rightmostIdx, viewPosition);
     setHasAppliedRequestedDeck(true);
   }, [decks.length, requestedDeckId, hasAppliedRequestedDeck, selectedDeckId]);
   
@@ -190,6 +188,16 @@ export default function SavedFlashcardsScreen() {
       loadDecks();
     }
   }, [user]);
+
+  // When the screen loses focus (back, home, or swipe-down to dismiss), refresh deck list
+  // so deck order is updated everywhere (e.g. deck rows on the previous screen).
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        refreshDecksFromServer().catch(() => {});
+      };
+    }, [])
+  );
   
   // Reload cache if state is empty on navigation back
   // This fixes the issue where navigation home clears state
@@ -651,8 +659,14 @@ export default function SavedFlashcardsScreen() {
   };
 
   // Function to handle going back to the previous screen
-  const handleGoBack = () => {
-    // Always try to go back first
+  const handleGoBack = async () => {
+    // Refresh deck list from server so the previous screen's deck rows show the latest order
+    // (e.g. after reordering here). Otherwise the update would only appear after pressing home.
+    try {
+      await refreshDecksFromServer();
+    } catch {
+      // Non-blocking: still go back even if refresh fails (e.g. offline)
+    }
     router.back();
   };
 
