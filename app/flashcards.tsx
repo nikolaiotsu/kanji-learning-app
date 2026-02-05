@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Constants from 'expo-constants';
-import { View, Text, StyleSheet, Platform, ActivityIndicator, ScrollView, TouchableOpacity, Alert, TextInput, Modal, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, Platform, ActivityIndicator, ScrollView, TouchableOpacity, Alert, TextInput, Modal, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Animated } from 'react-native';
 import WalkthroughTarget from './components/shared/WalkthroughTarget';
 import WalkthroughOverlay from './components/shared/WalkthroughOverlay';
 import { useWalkthrough, WalkthroughStep } from './hooks/useWalkthrough';
@@ -119,6 +119,14 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
   const [showEditModal, setShowEditModal] = useState(false);
   const [textProcessed, setTextProcessed] = useState(false);
   const [showEditTranslationModal, setShowEditTranslationModal] = useState(false);
+
+  // Fade-out animation for edit/wordscope/translate buttons when pressed
+  const actionButtonsOpacity = useRef(new Animated.Value(1)).current;
+  const [actionButtonsFadingOut, setActionButtonsFadingOut] = useState(false);
+  // Fade-in for loading so it appears from behind the buttons (no jitter)
+  const loadingOpacity = useRef(new Animated.Value(0)).current;
+  // Fade-in for post-translation output (results + Save/Edit/View buttons)
+  const resultContentOpacity = useRef(new Animated.Value(0)).current;
   
   // Temporary state to store previous translation results when editing
   const [previousTranslatedText, setPreviousTranslatedText] = useState('');
@@ -408,6 +416,54 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       setTimeout(() => measureAllPostTranslationButtons(), 100);
     }
   }, [textProcessed, isWalkthroughActive, currentStep?.id]);
+
+  // Fade-out animation when user presses Translate or Wordscope
+  useEffect(() => {
+    if (actionButtonsFadingOut) {
+      Animated.timing(actionButtonsOpacity, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }).start(() => {
+        setActionButtonsFadingOut(false);
+      });
+    }
+  }, [actionButtonsFadingOut]);
+
+  // Reset buttons opacity when they become visible again (e.g. after retry or new input)
+  useEffect(() => {
+    if (!isLoading && !textProcessed && !actionButtonsFadingOut) {
+      actionButtonsOpacity.setValue(1);
+    }
+  }, [isLoading, textProcessed, actionButtonsFadingOut]);
+
+  // Fade in loading when it appears (from behind the buttons)
+  useEffect(() => {
+    if (isLoading) {
+      loadingOpacity.setValue(0);
+      Animated.timing(loadingOpacity, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      loadingOpacity.setValue(0);
+    }
+  }, [isLoading]);
+
+  // Fade in result content when it actually mounts (after loading hides). Running on textProcessed alone would finish the animation before the content is in the tree.
+  useEffect(() => {
+    if (!isLoading && textProcessed) {
+      resultContentOpacity.setValue(0);
+      Animated.timing(resultContentOpacity, {
+        toValue: 1,
+        duration: 280,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      resultContentOpacity.setValue(0);
+    }
+  }, [isLoading, textProcessed]);
 
   // Debug: Log state changes
   useEffect(() => {
@@ -849,10 +905,12 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
         
         // Mark as processed if we have what we need
         setTextProcessed(true);
-        // Beta: show token usage modal
         if (result.tokenUsage) {
           setLastTokenUsage(result.tokenUsage);
-          setShowTokenUsageModal(true);
+          // Show token modal after loading hides and result content has faded in (avoid covering the fade)
+          const fadeInDuration = 280;
+          const delayBeforeModal = 1500 + fadeInDuration + 50;
+          setTimeout(() => setShowTokenUsageModal(true), delayBeforeModal);
         }
         // Add a delay to show the 4th (green) light prominently before fade-out
         logger.log('✅ [Flashcards] Processing successful - showing final light for adequate time');
@@ -1123,6 +1181,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       return;
     }
     
+    setActionButtonsFadingOut(true);
     processTextWithClaude(editedText);
     
     // If walkthrough is active, hide overlay while processing (will advance to save-button when textProcessed becomes true)
@@ -1154,6 +1213,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     }
     
     logger.log('🌟 [Flashcards] Starting Scope and Translate with Claude API');
+    setActionButtonsFadingOut(true);
     setIsLoading(true);
     setError('');
     setTextProcessed(false);
@@ -1255,10 +1315,12 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
         }
         
         setTextProcessed(true);
-        // Beta: show token usage modal
         if (result.tokenUsage) {
           setLastTokenUsage(result.tokenUsage);
-          setShowTokenUsageModal(true);
+          // Show token modal after loading hides and result content has faded in (avoid covering the fade)
+          const fadeInDuration = 280;
+          const delayBeforeModal = 1500 + fadeInDuration + 50;
+          setTimeout(() => setShowTokenUsageModal(true), delayBeforeModal);
         }
         // Delay before hiding loading
         setTimeout(() => {
@@ -1455,9 +1517,33 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
             )}
           </View>
 
-          {/* Edit, Scope and Translate, and Translate buttons */}
-          {!isLoading && !textProcessed && (
-            <View style={styles.actionButtonsContainer}>
+          {/* Slot: buttons on top, loading behind — both can fade in/out without layout jitter */}
+          {((!isLoading && !textProcessed) || actionButtonsFadingOut || isLoading) && (
+            <View style={styles.buttonsAndLoadingSlot}>
+              {/* Loading fades in from behind when isLoading */}
+              {isLoading && (
+                <Animated.View
+                  style={[
+                    styles.loadingContainerBehind,
+                    { opacity: loadingOpacity },
+                  ]}
+                  pointerEvents="auto"
+                >
+                  <LoadingVideoScreen
+                    message={
+                      processingProgress === 0 ? t('flashcard.processing.analyzing') :
+                      processingProgress === 1 ? t('flashcard.processing.analyzing') :
+                      processingProgress === 2 ? t('flashcard.processing.detecting') :
+                      processingProgress === 3 ? t('flashcard.processing.cultural') :
+                      processingProgress === 4 ? t('flashcard.processing.translating') :
+                      t('flashcard.processing.analyzing')
+                    }
+                  />
+                </Animated.View>
+              )}
+              {/* Buttons on top, fade out when Translate/Wordscope pressed */}
+              {((!isLoading && !textProcessed) || actionButtonsFadingOut) && (
+            <Animated.View style={[styles.actionButtonsContainer, { opacity: actionButtonsOpacity }]} pointerEvents={actionButtonsFadingOut ? 'none' : 'auto'}>
               <WalkthroughTarget
                 targetRef={editTextButtonRef}
                 stepId="edit-text-button"
@@ -1635,23 +1721,12 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                   </View>
                 </TouchableOpacity>
               </WalkthroughTarget>
+            </Animated.View>
+              )}
             </View>
           )}
 
-          {isLoading ? (
-            <View style={styles.loadingContainer}>
-              <LoadingVideoScreen
-                message={
-                  processingProgress === 0 ? t('flashcard.processing.analyzing') :
-                  processingProgress === 1 ? t('flashcard.processing.analyzing') :
-                  processingProgress === 2 ? t('flashcard.processing.detecting') :
-                  processingProgress === 3 ? t('flashcard.processing.cultural') :
-                  processingProgress === 4 ? t('flashcard.processing.translating') :
-                  t('flashcard.processing.analyzing')
-                }
-              />
-            </View>
-          ) : (
+          {!isLoading && (
             <>
               {error ? (
                 <View style={styles.errorContainer}>
@@ -1692,7 +1767,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                   </TouchableOpacity>
                 </View>
               ) : (
-                <>
+                <Animated.View style={{ opacity: resultContentOpacity }}>
                   {readingsText && needsRomanization && (
                     <View style={styles.resultContainer}>
                       <Text style={styles.sectionTitle}>
@@ -2020,7 +2095,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                       />
                     </View>
                   )}
-                </>
+                </Animated.View>
               )}
             </>
           )}
@@ -2341,6 +2416,16 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     flexWrap: 'wrap',
     color: COLORS.text,
+  },
+  buttonsAndLoadingSlot: {
+    position: 'relative',
+    minHeight: 120,
+    marginBottom: 20,
+  },
+  loadingContainerBehind: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionButtonsContainer: {
     flexDirection: 'row',
