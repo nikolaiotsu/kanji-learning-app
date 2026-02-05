@@ -12,12 +12,6 @@ import FloatingBadgeImage from './FloatingBadgeImage';
 import type { Badge } from '../../services/badgeService';
 
 function getBadgeDisplayText(badge: Badge): { title: string; subtext: string } {
-  if (badge.badgeType === 'cards_created' && badge.threshold === 1) {
-    return {
-      title: 'Flashcard Creation Badge 1',
-      subtext: 'Given to the collector who has collected one flashcard.',
-    };
-  }
   return {
     title: badge.name,
     subtext: badge.description,

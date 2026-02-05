@@ -22,9 +22,23 @@
   },
   "badgeCelebration": {
     "title": "تهانينا!",
-    "description": "لقد حصلت على شارة لحفظ بطاقتك الأولى!",
     "badgeName": {
-      "cards_created": "البطاقة الأولى"
+      "cards_created_1": "البطاقة الأولى",
+      "cards_created_3": "3 بطاقات",
+      "cards_created_10": "10 بطاقات",
+      "cards_created_25": "25 بطاقة",
+      "cards_created_50": "50 بطاقة",
+      "cards_created_100": "100 بطاقة",
+      "cards_created_250": "250 بطاقة"
+    },
+    "description": {
+      "cards_created_1": "لقد حصلت على شارة لحفظ بطاقتك الأولى!",
+      "cards_created_3": "لقد حصلت على شارة لإنشاء 3 بطاقات!",
+      "cards_created_10": "لقد حصلت على شارة لإنشاء 10 بطاقات!",
+      "cards_created_25": "لقد حصلت على شارة لإنشاء 25 بطاقة!",
+      "cards_created_50": "لقد حصلت على شارة لإنشاء 50 بطاقة!",
+      "cards_created_100": "لقد حصلت على شارة لإنشاء 100 بطاقة!",
+      "cards_created_250": "لقد حصلت على شارة لإنشاء 250 بطاقة!"
     }
   },
   "auth": {

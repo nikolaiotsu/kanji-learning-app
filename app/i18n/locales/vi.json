@@ -22,9 +22,23 @@
   },
   "badgeCelebration": {
     "title": "Chúc mừng!",
-    "description": "Bạn đã nhận được huy hiệu vì đã lưu thẻ đầu tiên!",
     "badgeName": {
-      "cards_created": "Thẻ đầu tiên"
+      "cards_created_1": "Thẻ đầu tiên",
+      "cards_created_3": "3 thẻ",
+      "cards_created_10": "10 thẻ",
+      "cards_created_25": "25 thẻ",
+      "cards_created_50": "50 thẻ",
+      "cards_created_100": "100 thẻ",
+      "cards_created_250": "250 thẻ"
+    },
+    "description": {
+      "cards_created_1": "Bạn đã nhận được huy hiệu vì đã lưu thẻ đầu tiên!",
+      "cards_created_3": "Bạn đã nhận được huy hiệu vì đã tạo 3 thẻ!",
+      "cards_created_10": "Bạn đã nhận được huy hiệu vì đã tạo 10 thẻ!",
+      "cards_created_25": "Bạn đã nhận được huy hiệu vì đã tạo 25 thẻ!",
+      "cards_created_50": "Bạn đã nhận được huy hiệu vì đã tạo 50 thẻ!",
+      "cards_created_100": "Bạn đã nhận được huy hiệu vì đã tạo 100 thẻ!",
+      "cards_created_250": "Bạn đã nhận được huy hiệu vì đã tạo 250 thẻ!"
     }
   },
   "auth": {

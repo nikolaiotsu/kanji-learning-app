@@ -22,9 +22,23 @@
   },
   "badgeCelebration": {
     "title": "恭喜！",
-    "description": "您已获得收藏第一张闪卡纪念徽章！",
     "badgeName": {
-      "cards_created": "第一张闪卡"
+      "cards_created_1": "第一张闪卡",
+      "cards_created_3": "3张闪卡",
+      "cards_created_10": "10张闪卡",
+      "cards_created_25": "25张闪卡",
+      "cards_created_50": "50张闪卡",
+      "cards_created_100": "100张闪卡",
+      "cards_created_250": "250张闪卡"
+    },
+    "description": {
+      "cards_created_1": "您已获得收藏第一张闪卡纪念徽章！",
+      "cards_created_3": "您已获得创建3张闪卡的徽章！",
+      "cards_created_10": "您已获得创建10张闪卡的徽章！",
+      "cards_created_25": "您已获得创建25张闪卡的徽章！",
+      "cards_created_50": "您已获得创建50张闪卡的徽章！",
+      "cards_created_100": "您已获得创建100张闪卡的徽章！",
+      "cards_created_250": "您已获得创建250张闪卡的徽章！"
     }
   },
   "auth": {

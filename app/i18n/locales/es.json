@@ -22,9 +22,23 @@
   },
   "badgeCelebration": {
     "title": "¡Felicitaciones!",
-    "description": "¡Has recibido una insignia por guardar tu primera tarjeta!",
     "badgeName": {
-      "cards_created": "Primera tarjeta"
+      "cards_created_1": "Primera tarjeta",
+      "cards_created_3": "3 tarjetas",
+      "cards_created_10": "10 tarjetas",
+      "cards_created_25": "25 tarjetas",
+      "cards_created_50": "50 tarjetas",
+      "cards_created_100": "100 tarjetas",
+      "cards_created_250": "250 tarjetas"
+    },
+    "description": {
+      "cards_created_1": "¡Has recibido una insignia por guardar tu primera tarjeta!",
+      "cards_created_3": "¡Has recibido una insignia por crear 3 tarjetas!",
+      "cards_created_10": "¡Has recibido una insignia por crear 10 tarjetas!",
+      "cards_created_25": "¡Has recibido una insignia por crear 25 tarjetas!",
+      "cards_created_50": "¡Has recibido una insignia por crear 50 tarjetas!",
+      "cards_created_100": "¡Has recibido una insignia por crear 100 tarjetas!",
+      "cards_created_250": "¡Has recibido una insignia por crear 250 tarjetas!"
     }
   },
   "auth": {

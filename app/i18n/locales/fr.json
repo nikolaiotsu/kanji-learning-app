@@ -22,9 +22,23 @@
   },
   "badgeCelebration": {
     "title": "Félicitations !",
-    "description": "Vous avez reçu un badge pour avoir sauvegardé votre première carte !",
     "badgeName": {
-      "cards_created": "Première carte"
+      "cards_created_1": "Première carte",
+      "cards_created_3": "3 cartes",
+      "cards_created_10": "10 cartes",
+      "cards_created_25": "25 cartes",
+      "cards_created_50": "50 cartes",
+      "cards_created_100": "100 cartes",
+      "cards_created_250": "250 cartes"
+    },
+    "description": {
+      "cards_created_1": "Vous avez reçu un badge pour avoir sauvegardé votre première carte !",
+      "cards_created_3": "Vous avez reçu un badge pour avoir créé 3 cartes !",
+      "cards_created_10": "Vous avez reçu un badge pour avoir créé 10 cartes !",
+      "cards_created_25": "Vous avez reçu un badge pour avoir créé 25 cartes !",
+      "cards_created_50": "Vous avez reçu un badge pour avoir créé 50 cartes !",
+      "cards_created_100": "Vous avez reçu un badge pour avoir créé 100 cartes !",
+      "cards_created_250": "Vous avez reçu un badge pour avoir créé 250 cartes !"
     }
   },
   "auth": {

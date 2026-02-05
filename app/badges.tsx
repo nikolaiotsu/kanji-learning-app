@@ -31,6 +31,9 @@ const TOP_STRIP_HEIGHT = 0;
 const BOTTOM_STRIP_HEIGHT = 32;
 const CORNER_ACCENT_INSET = 16;
 const CORNER_ACCENT_SIZE = 12;
+const FRAME_PADDING = 16;
+const INNER_BORDER_RADIUS = 16;
+const INNER_BORDER_WIDTH = 2;
 
 function BadgeDisplayArea() {
   const { earnedBadges, pendingBadge } = useBadge();
@@ -46,10 +49,11 @@ function BadgeDisplayArea() {
     const earned = earnedBadges
       .map((ub) => ub.badge)
       .filter((b): b is NonNullable<typeof b> => !!b);
-    if (pendingBadge && !earned.some((b) => b.id === pendingBadge.id)) {
-      return [pendingBadge, ...earned];
-    }
-    return earned;
+    const list = pendingBadge && !earned.some((b) => b.id === pendingBadge.id)
+      ? [pendingBadge, ...earned]
+      : earned;
+    // Sort by threshold ascending so grid shows: row1 = 1, 3, 10; row2 = 25, 50, 100; row3 = 250
+    return [...list].sort((a, b) => a.threshold - b.threshold);
   }, [earnedBadges, pendingBadge]);
 
   return (
@@ -146,17 +150,20 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingTop: TOP_STRIP_HEIGHT,
-    paddingBottom: BOTTOM_STRIP_HEIGHT,
-    paddingHorizontal: 0,
+    paddingTop: TOP_STRIP_HEIGHT + FRAME_PADDING,
+    paddingBottom: BOTTOM_STRIP_HEIGHT + FRAME_PADDING,
+    paddingHorizontal: FRAME_PADDING,
   },
   badgeDisplayOuter: {
     flex: 1,
     position: 'relative',
   },
   badgeDisplayInner: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
     backgroundColor: '#000000',
+    borderRadius: INNER_BORDER_RADIUS,
+    borderWidth: INNER_BORDER_WIDTH,
+    borderColor: COLORS.appleLiquidGrey,
     overflow: 'hidden',
   },
   badgeGridContent: {

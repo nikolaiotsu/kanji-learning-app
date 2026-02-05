@@ -79,9 +79,11 @@ export default function BadgeCelebrationModal({
         </View>
 
         <Text style={styles.badgeName}>
-          {t(`badgeCelebration.badgeName.${displayedBadge.badgeType}`, { defaultValue: displayedBadge.name })}
+          {t(`badgeCelebration.badgeName.${displayedBadge.badgeType}_${displayedBadge.threshold}`, { defaultValue: displayedBadge.name })}
         </Text>
-        <Text style={styles.description}>{t('badgeCelebration.description')}</Text>
+        <Text style={styles.description}>
+          {t(`badgeCelebration.description.${displayedBadge.badgeType}_${displayedBadge.threshold}`, { defaultValue: displayedBadge.description })}
+        </Text>
 
         <TouchableOpacity
           style={styles.dismissButton}

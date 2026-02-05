@@ -2690,7 +2690,8 @@ const createStyles = (
 ) => StyleSheet.create({
   container: {
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    borderRadius: 0,
+    borderRadius: 16,
+    overflow: 'hidden',
     paddingTop: containerPaddingTop,
     paddingHorizontal: 0,
     paddingBottom: containerPaddingBottom,

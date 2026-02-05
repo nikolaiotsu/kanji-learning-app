@@ -22,9 +22,23 @@
   },
   "badgeCelebration": {
     "title": "축하합니다!",
-    "description": "첫 번째 플래시카드를 저장한 기념으로 배지를 획득했습니다!",
     "badgeName": {
-      "cards_created": "첫 번째 플래시카드"
+      "cards_created_1": "첫 번째 플래시카드",
+      "cards_created_3": "플래시카드 3장",
+      "cards_created_10": "플래시카드 10장",
+      "cards_created_25": "플래시카드 25장",
+      "cards_created_50": "플래시카드 50장",
+      "cards_created_100": "플래시카드 100장",
+      "cards_created_250": "플래시카드 250장"
+    },
+    "description": {
+      "cards_created_1": "첫 번째 플래시카드를 저장한 기념으로 배지를 획득했습니다!",
+      "cards_created_3": "플래시카드 3장을 만든 기념으로 배지를 획득했습니다!",
+      "cards_created_10": "플래시카드 10장을 만든 기념으로 배지를 획득했습니다!",
+      "cards_created_25": "플래시카드 25장을 만든 기념으로 배지를 획득했습니다!",
+      "cards_created_50": "플래시카드 50장을 만든 기념으로 배지를 획득했습니다!",
+      "cards_created_100": "플래시카드 100장을 만든 기념으로 배지를 획득했습니다!",
+      "cards_created_250": "플래시카드 250장을 만든 기념으로 배지를 획득했습니다!"
     }
   },
   "auth": {

@@ -22,9 +22,23 @@
   },
   "badgeCelebration": {
     "title": "Congratulations!",
-    "description": "You've received a badge for collecting your first flashcard!",
     "badgeName": {
-      "cards_created": "First Flashcard"
+      "cards_created_1": "First Flashcard",
+      "cards_created_3": "3 Flashcards",
+      "cards_created_10": "10 Flashcards",
+      "cards_created_25": "25 Flashcards",
+      "cards_created_50": "50 Flashcards",
+      "cards_created_100": "100 Flashcards",
+      "cards_created_250": "250 Flashcards"
+    },
+    "description": {
+      "cards_created_1": "You've received a badge for creating your first flashcard!",
+      "cards_created_3": "You've received a badge for creating 3 flashcards!",
+      "cards_created_10": "You've received a badge for creating 10 flashcards!",
+      "cards_created_25": "You've received a badge for creating 25 flashcards!",
+      "cards_created_50": "You've received a badge for creating 50 flashcards!",
+      "cards_created_100": "You've received a badge for creating 100 flashcards!",
+      "cards_created_250": "You've received a badge for creating 250 flashcards!"
     }
   },
   "auth": {

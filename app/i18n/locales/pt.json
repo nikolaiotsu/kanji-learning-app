@@ -22,9 +22,23 @@
   },
   "badgeCelebration": {
     "title": "Parabéns!",
-    "description": "Você recebeu um distintivo por salvar seu primeiro cartão!",
     "badgeName": {
-      "cards_created": "Primeiro cartão"
+      "cards_created_1": "Primeiro cartão",
+      "cards_created_3": "3 cartões",
+      "cards_created_10": "10 cartões",
+      "cards_created_25": "25 cartões",
+      "cards_created_50": "50 cartões",
+      "cards_created_100": "100 cartões",
+      "cards_created_250": "250 cartões"
+    },
+    "description": {
+      "cards_created_1": "Você recebeu um distintivo por salvar seu primeiro cartão!",
+      "cards_created_3": "Você recebeu um distintivo por criar 3 cartões!",
+      "cards_created_10": "Você recebeu um distintivo por criar 10 cartões!",
+      "cards_created_25": "Você recebeu um distintivo por criar 25 cartões!",
+      "cards_created_50": "Você recebeu um distintivo por criar 50 cartões!",
+      "cards_created_100": "Você recebeu um distintivo por criar 100 cartões!",
+      "cards_created_250": "Você recebeu um distintivo por criar 250 cartões!"
     }
   },
   "auth": {
