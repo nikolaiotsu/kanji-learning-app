@@ -83,7 +83,7 @@ export default memo(function PokedexLayout({
 
   const smallLightColors = variant === 'flashcards' ?
     [COLORS.lightGray, COLORS.pokedexPurple, COLORS.pokedexYellow, COLORS.pokedexGreen] :
-    ['#DDAD43', '#01A84F', '#4FC3F7'];
+    ['#D4A34A', '#16A34A', '#38BDF8']; // Refined yellow, green, light blue
   
   const flashcardsControlIconSize = 18;
 
@@ -210,20 +210,20 @@ export default memo(function PokedexLayout({
     }
   }, [isProcessing, loadingProgress, mainLightAnim, smallLightsAnim]);
 
-  // Pre-compute animated styles
+  // Pre-compute animated styles (pronounced on flashcards only; subtle on main/collections)
   const mainLightAnimatedStyle = {
     shadowColor: mainLightBaseColor,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: Animated.multiply(mainLightAnim, variant === 'flashcards' ? 0.9 : 0.8),
+    shadowOpacity: Animated.multiply(mainLightAnim, variant === 'flashcards' ? 0.85 : 0.5),
     shadowRadius: mainLightAnim.interpolate({
       inputRange: [0, 1],
-      outputRange: [0, variant === 'flashcards' ? 25 : 20]
+      outputRange: [0, variant === 'flashcards' ? 26 : 14]
     }),
     elevation: mainLightAnim.interpolate({
       inputRange: [0, 1],
-      outputRange: [0, variant === 'flashcards' ? 20 : 15]
+      outputRange: [0, variant === 'flashcards' ? 20 : 10]
     }),
-    opacity: Animated.add(0.6, Animated.multiply(mainLightAnim, variant === 'flashcards' ? 0.4 : 0.3))
+    opacity: Animated.add(variant === 'flashcards' ? 0.5 : 0.6, Animated.multiply(mainLightAnim, variant === 'flashcards' ? 0.5 : 0.3))
   };
   
   logger.log('🎨 [PokedexLayout] Animation values:', {
@@ -245,21 +245,24 @@ export default memo(function PokedexLayout({
     const animStyle = {
       shadowColor: glowColor,
       shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: Animated.multiply(smallLightsAnim[index], variant === 'flashcards' ? 0.9 : 0.8),
+      shadowOpacity: Animated.multiply(smallLightsAnim[index], variant === 'flashcards' ? 0.85 : 0.5),
       shadowRadius: smallLightsAnim[index].interpolate({
         inputRange: [0, 1],
-        outputRange: [0, variant === 'flashcards' ? 15 : 12]
+        outputRange: [0, variant === 'flashcards' ? 18 : 10]
       }),
       elevation: smallLightsAnim[index].interpolate({
         inputRange: [0, 1],
-        outputRange: [0, variant === 'flashcards' ? 15 : 10]
+        outputRange: [0, variant === 'flashcards' ? 16 : 8]
       }),
-      opacity: Animated.add(0.7, Animated.multiply(smallLightsAnim[index], 0.3))
+      opacity: Animated.add(variant === 'flashcards' ? 0.5 : 0.7, Animated.multiply(smallLightsAnim[index], variant === 'flashcards' ? 0.5 : 0.3))
     };
+
+    const glowOuterOpacity = Animated.multiply(smallLightsAnim[index], (variant === 'flashcards' ? 0.07 : 0.03) * opacityMultiplier);
+    const glowInnerOpacity = Animated.multiply(smallLightsAnim[index], (variant === 'flashcards' ? 0.18 : 0.08) * opacityMultiplier);
     
     return (
       <View key={index} style={styles.smallLightContainer}>
-        {/* Outer glow */}
+        {/* Outer glow (premium: single soft layer) */}
         <Animated.View 
           style={[
             {
@@ -268,26 +271,10 @@ export default memo(function PokedexLayout({
               height: variant === 'flashcards' ? 25 : 40, 
               borderRadius: variant === 'flashcards' ? 12 : 20,
               backgroundColor: glowColor,
-              opacity: Animated.multiply(smallLightsAnim[index], 0.06 * opacityMultiplier),
+              opacity: glowOuterOpacity,
               top: variant === 'flashcards' ? -8 : -10,
               left: variant === 'flashcards' ? -13 : -11,
               zIndex: 3,
-            }
-          ]}
-        />
-        {/* Middle glow */}
-        <Animated.View 
-          style={[
-            {
-              position: 'absolute',
-              width: variant === 'flashcards' ? 40 : 32,
-              height: variant === 'flashcards' ? 18 : 32, 
-              borderRadius: variant === 'flashcards' ? 9 : 16,
-              backgroundColor: glowColor,
-              opacity: Animated.multiply(smallLightsAnim[index], 0.10 * opacityMultiplier),
-              top: variant === 'flashcards' ? -5 : -7,
-              left: variant === 'flashcards' ? -8 : -7,
-              zIndex: 4,
             }
           ]}
         />
@@ -300,25 +287,21 @@ export default memo(function PokedexLayout({
               height: variant === 'flashcards' ? 14 : 26, 
               borderRadius: variant === 'flashcards' ? 7 : 13,
               backgroundColor: glowColor,
-              opacity: Animated.multiply(smallLightsAnim[index], 0.15 * opacityMultiplier),
+              opacity: glowInnerOpacity,
               top: variant === 'flashcards' ? -3 : -4,
               left: variant === 'flashcards' ? -4 : -4,
               zIndex: 5,
             }
           ]}
         />
-        {/* Main light */}
         <Animated.View 
           style={[
             variant === 'flashcards' ? styles.flashcardsSmallLight : styles.smallLight,
             { backgroundColor: lightColor },
             animStyle,
-            { zIndex: 10 }
           ]}
         >
-          {variant !== 'flashcards' && (
-            <View style={styles.smallLightReflection} />
-          )}
+          <View style={variant === 'flashcards' ? styles.smallLightInnerShadowFlashcards : styles.smallLightInnerShadow} />
         </Animated.View>
       </View>
     );
@@ -367,7 +350,7 @@ export default memo(function PokedexLayout({
             <>
               {/* Flashcards Variant: Main light with outer glow */}
               <View style={{ position: 'relative', marginRight: 10 }}>
-                {/* Glow layers */}
+                {/* Glow layers (premium: 2 layers, softer) */}
                 <Animated.View 
                   style={[
                     {
@@ -376,25 +359,10 @@ export default memo(function PokedexLayout({
                       height: 50,
                       borderRadius: 25,
                       backgroundColor: mainLightBaseColor,
-                      opacity: Animated.multiply(mainLightAnim, 0.08),
+                      opacity: Animated.multiply(mainLightAnim, 0.10),
                       top: -15,
                       left: -20,
                       zIndex: 3,
-                    }
-                  ]}
-                />
-                <Animated.View 
-                  style={[
-                    {
-                      position: 'absolute',
-                      width: 120,
-                      height: 35,
-                      borderRadius: 17,
-                      backgroundColor: mainLightBaseColor,
-                      opacity: Animated.multiply(mainLightAnim, 0.12),
-                      top: -7,
-                      left: -10,
-                      zIndex: 4,
                     }
                   ]}
                 />
@@ -406,7 +374,7 @@ export default memo(function PokedexLayout({
                       height: 25,
                       borderRadius: 12,
                       backgroundColor: mainLightBaseColor,
-                      opacity: Animated.multiply(mainLightAnim, 0.15),
+                      opacity: Animated.multiply(mainLightAnim, 0.18),
                       top: -2,
                       left: -5,
                       zIndex: 5,
@@ -437,22 +405,21 @@ export default memo(function PokedexLayout({
           ) : (
             <>
               {/* Main Variant: Circular light with gradient */}
-              <View style={{ position: 'relative' }}>
-                <Animated.View 
-                  style={[
-                    styles.mainLight, 
-                    mainLightAnimatedStyle
-                  ]}
-                >
-                  <LinearGradient
-                    colors={['#F87171', '#EF4444', '#DC2626']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={[StyleSheet.absoluteFill, { borderRadius: 22.5 }]}
-                  />
-                  <View style={styles.mainLightReflection} />
-                </Animated.View>
-              </View>
+              <Animated.View 
+                style={[
+                  styles.mainLight, 
+                  mainLightAnimatedStyle,
+                ]}
+              >
+                <LinearGradient
+                  colors={['#EF4444', '#DC2626', '#B91C1C', '#7F1D1D']}
+                  locations={[0, 0.3, 0.6, 1]}
+                  start={{ x: 0.2, y: 0 }}
+                  end={{ x: 0.8, y: 1 }}
+                  style={[StyleSheet.absoluteFill, { borderRadius: 22.5 }]}
+                />
+                <View style={styles.mainLightInnerShadow} />
+              </Animated.View>
               <View style={styles.smallLights}>
                 {smallLightColors.map((color, index) => (
                   <View key={index} style={styles.smallLightContainer}>
@@ -577,18 +544,13 @@ const styles = StyleSheet.create({
     width: 45,
     height: 45,
     borderRadius: 22.5,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderWidth: 0,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
     elevation: 5,
     position: 'relative',
     overflow: 'hidden',
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
   },
   mainLightRing: {
     position: 'absolute',
@@ -605,15 +567,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     elevation: 3,
   },
-  mainLightReflection: {
+  mainLightInnerShadow: {
     position: 'absolute',
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
-    top: 6,
-    left: 6,
-    opacity: 0.8,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 22.5,
+    borderWidth: 3,
+    borderColor: 'transparent',
+    borderTopColor: 'rgba(0, 0, 0, 0.25)',
+    borderLeftColor: 'rgba(0, 0, 0, 0.15)',
+    borderRightColor: 'rgba(255, 255, 255, 0.05)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
   pulseIndicator: {
     position: 'absolute',
@@ -633,14 +599,38 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderWidth: 0,
     elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  smallLightInnerShadow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    borderTopColor: 'rgba(0, 0, 0, 0.22)',
+    borderLeftColor: 'rgba(0, 0, 0, 0.12)',
+    borderRightColor: 'rgba(255, 255, 255, 0.04)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  smallLightInnerShadowFlashcards: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    borderTopColor: 'rgba(0, 0, 0, 0.18)',
+    borderLeftColor: 'rgba(0, 0, 0, 0.10)',
+    borderRightColor: 'rgba(255, 255, 255, 0.04)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
   },
   screen: {
     flex: 1,
@@ -691,7 +681,7 @@ const styles = StyleSheet.create({
     height: 15,
     borderLeftWidth: 2,
     borderTopWidth: 2,
-    borderColor: 'rgba(59, 130, 246, 0.4)',
+    borderColor: COLORS.appleLiquidGrey,
     zIndex: 5,
     borderRadius: 2,
   },
@@ -778,11 +768,11 @@ const styles = StyleSheet.create({
   flashcardsMainStatusBar_Reflection: {
     position: 'absolute',
     width: '80%',
-    height: 4,
-    borderRadius: 2,
+    height: 3,
+    borderRadius: 1.5,
     top: 3,
     left: '10%',
-    opacity: 0.7,
+    opacity: 0.35,
   },
   flashcardsSmallLightContainer: {
     flexDirection: 'row',
@@ -792,11 +782,10 @@ const styles = StyleSheet.create({
     width: 24,
     height: 8,
     borderRadius: 4,
-    marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderWidth: 0,
     elevation: 15,
-    zIndex: 15,
+    position: 'relative',
+    overflow: 'hidden',
   },
   logoImage: {
     position: 'absolute',
@@ -814,15 +803,5 @@ const styles = StyleSheet.create({
     top: 4,
     left: 4,
     opacity: 0.6,
-  },
-  smallLightReflection: {
-    position: 'absolute',
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
-    top: 2,
-    left: 2,
-    opacity: 0.8,
   },
 });
