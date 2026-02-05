@@ -408,47 +408,8 @@ export default memo(function PokedexLayout({
           )}
         </View>
         )}
-        {/* Main screen area */}
+        {/* Main screen area - transparent so TexturedBackground shows through consistently */}
         <View style={[styles.screen, screenStyle, screenVariantStyle]}>
-          {/* Liquid gradient background for screen - smooth transitions with blue hints */}
-          <LinearGradient
-            colors={
-              variant === 'flashcards'
-                ? [
-                    'rgba(15, 23, 42, 0.65)',
-                    'rgba(15, 23, 42, 0.68)',
-                    'rgba(13, 26, 47, 0.70)',
-                    'rgba(10, 22, 40, 0.67)',
-                    'rgba(13, 26, 47, 0.69)',
-                    'rgba(15, 23, 42, 0.66)',
-                  ]
-                : [
-                    'rgba(15, 23, 42, 0.55)',
-                    'rgba(15, 23, 42, 0.58)',
-                    'rgba(13, 26, 47, 0.60)',
-                    'rgba(10, 22, 40, 0.57)',
-                    'rgba(13, 26, 47, 0.59)',
-                    'rgba(15, 23, 42, 0.56)',
-                  ]
-            }
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-          {/* Very subtle blue liquid glow - same blue tints as background for consistency */}
-          <LinearGradient
-            colors={[
-              COLORS.blueTint.subtle,
-              COLORS.blueTint.faint,
-              'transparent',
-              COLORS.blueTint.veryFaint,
-              COLORS.blueTintEnd,
-              COLORS.blueTint.veryFaint,
-            ]}
-            start={{ x: 0.3, y: 0.3 }}
-            end={{ x: 0.9, y: 0.9 }}
-            style={styles.screenInnerGlow}
-          />
           {/* Modern corner accents */}
           <View style={styles.screenCorner} />
           <View style={[styles.screenCorner, styles.screenCornerTopRight]} />
@@ -613,6 +574,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 10,
     borderRadius: 16,
+    backgroundColor: 'transparent',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -622,13 +584,13 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 10,
     zIndex: 0,
-    // Grey bevel at top of review area; dark border elsewhere for depth
+    // Grey bevel at top of review area; uniform border for consistent edges
     borderTopWidth: 1,
     borderLeftWidth: 1,
     borderBottomWidth: 1,
     borderRightWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.08)',
-    borderLeftColor: 'rgba(255, 255, 255, 0.05)',
+    borderLeftColor: 'rgba(0, 0, 0, 0.15)',
     borderBottomColor: 'rgba(0, 0, 0, 0.20)',
     borderRightColor: 'rgba(0, 0, 0, 0.15)',
     overflow: 'hidden',
