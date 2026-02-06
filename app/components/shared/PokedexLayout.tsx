@@ -31,7 +31,7 @@ interface PokedexLayoutProps {
   lightPeakScale?: number;
   textureVariant?: 'gradient' | 'subtle' | 'modern' | 'radial' | 'liquid' | 'default';
   // Progressive loading props
-  loadingProgress?: number; // 0-4 indicating how many lights should be on
+  loadingProgress?: number; // 0-4 indicating checkpoint (3 small lights for flashcards)
   isProcessing?: boolean; // Whether processing is currently active
   processingFailed?: boolean; // Whether processing failed (for red lights)
 }
@@ -63,7 +63,6 @@ export default memo(function PokedexLayout({
       smallLightsAnim: [
         new Animated.Value(0),
         new Animated.Value(0),
-        new Animated.Value(0),
         new Animated.Value(0)
       ]
     };
@@ -86,7 +85,7 @@ export default memo(function PokedexLayout({
   const mainLightPulseColor = variant === 'flashcards' ? COLORS.pokedexAmberPulse : '#FCA5A5';
 
   const smallLightColors = variant === 'flashcards' ?
-    [COLORS.lightGray, COLORS.pokedexPurple, COLORS.pokedexYellow, COLORS.pokedexGreen] :
+    [COLORS.lightGray, COLORS.pokedexPurple, COLORS.pokedexGreen] : // No yellow light
     ['#D4A34A', '#16A34A', '#38BDF8']; // Refined yellow, green, light blue
   
   const flashcardsControlIconSize = 18;
@@ -170,9 +169,9 @@ export default memo(function PokedexLayout({
         logger.log('🟠 [PokedexLayout] Main light animation completed');
       });
 
-      const currentLightIndex = loadingProgress - 1;
+      const currentLightIndex = Math.min(loadingProgress - 1, smallLightsAnim.length - 1);
       
-      if (currentLightIndex >= 0 && currentLightIndex < smallLightsAnim.length) {
+      if (currentLightIndex >= 0) {
         logger.log(`💡 [PokedexLayout] Checkpoint ${loadingProgress}: Animating light ${currentLightIndex}`);
         
         Animated.timing(smallLightsAnim[currentLightIndex], {
@@ -221,10 +220,10 @@ export default memo(function PokedexLayout({
 
   // Pre-compute animated styles (pronounced on flashcards only; subtle on main/collections)
   const flashPeak = lightPeakScale;
-  const mainShadowOpacity = variant === 'flashcards' ? 0.85 * flashPeak : 0.5;
-  const mainShadowRadius = variant === 'flashcards' ? 26 * flashPeak : 14;
-  const mainElevation = variant === 'flashcards' ? 20 * flashPeak : 10;
-  const mainOpacityAdd = variant === 'flashcards' ? 0.5 * flashPeak : 0.3;
+  const mainShadowOpacity = variant === 'flashcards' ? 0.4 * flashPeak : 0.5;
+  const mainShadowRadius = variant === 'flashcards' ? 12 * flashPeak : 14;
+  const mainElevation = variant === 'flashcards' ? 10 * flashPeak : 10;
+  const mainOpacityAdd = variant === 'flashcards' ? 0.2 * flashPeak : 0.3;
   const mainLightAnimatedStyle = {
     shadowColor: mainLightBaseColor,
     shadowOffset: { width: 0, height: 0 },
@@ -249,12 +248,12 @@ export default memo(function PokedexLayout({
   });
 
   // Render small lights with modern styling
-  const smallShadowOpacity = variant === 'flashcards' ? 0.85 * flashPeak : 0.5;
-  const smallShadowRadius = variant === 'flashcards' ? 18 * flashPeak : 10;
-  const smallElevation = variant === 'flashcards' ? 16 * flashPeak : 8;
-  const smallOpacityAdd = variant === 'flashcards' ? 0.5 * flashPeak : 0.3;
-  const glowOuterMult = variant === 'flashcards' ? 0.07 * flashPeak : 0.03;
-  const glowInnerMult = variant === 'flashcards' ? 0.18 * flashPeak : 0.08;
+  const smallShadowOpacity = variant === 'flashcards' ? 0.4 * flashPeak : 0.5;
+  const smallShadowRadius = variant === 'flashcards' ? 10 * flashPeak : 10;
+  const smallElevation = variant === 'flashcards' ? 8 * flashPeak : 8;
+  const smallOpacityAdd = variant === 'flashcards' ? 0.2 * flashPeak : 0.3;
+  const glowOuterMult = variant === 'flashcards' ? 0.03 * flashPeak : 0.03;
+  const glowInnerMult = variant === 'flashcards' ? 0.06 * flashPeak : 0.08;
 
   const renderSmallLight = (color: string, index: number) => {
     const lightColor = processingFailed ? '#EF4444' : color;

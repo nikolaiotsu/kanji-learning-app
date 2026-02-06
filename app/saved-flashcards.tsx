@@ -962,7 +962,7 @@ export default function SavedFlashcardsScreen() {
     <PokedexLayout 
       variant="flashcards"
       triggerLightAnimation={triggerLightAnimation}
-      lightPeakScale={0.28}
+      lightPeakScale={0.55}
     >
       <SafeAreaView style={styles.container}>
         {/* Custom Header */}

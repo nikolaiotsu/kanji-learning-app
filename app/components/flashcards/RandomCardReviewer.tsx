@@ -323,7 +323,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   // Reusable rainbow border style object - prevents duplication across 4 button instances
   const rainbowBorderStyle = useMemo(() => {
     return shouldShowRainbowBorder 
-      ? { borderColor: reviewButtonRainbowColor, borderWidth: 2 }
+      ? { borderColor: reviewButtonRainbowColor, borderWidth: 1 }
       : undefined;
   }, [shouldShowRainbowBorder, reviewButtonRainbowColor]);
   

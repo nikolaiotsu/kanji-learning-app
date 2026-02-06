@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, AppState, AppStateStatus } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, StyleSheet, AppState, AppStateStatus, Animated, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
 import { apiLogger, APIUsageUpdateEvent } from '../../services/apiUsageLogger';
@@ -191,12 +191,52 @@ export default function APIUsageEnergyBar({ style }: APIUsageEnergyBarProps) {
   // Determine number of bars and color scheme based on subscription
   const maxBars = isPremiumUser ? PREMIUM_MAX_BARS : FREE_MAX_BARS;
   const isGold = isPremiumUser;
+  const isEmpty = !isLoading && activeBars === 0;
+
+  // Animated border for empty state - cycles black → red → black (like review button rainbow)
+  const emptyBorderAnim = useRef(new Animated.Value(0)).current;
+  const emptyBorderLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+  const emptyBorderColor = emptyBorderAnim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: ['#000000', '#FF0000', '#000000'],
+  });
+
+  useEffect(() => {
+    if (emptyBorderLoopRef.current) {
+      emptyBorderLoopRef.current.stop();
+      emptyBorderLoopRef.current = null;
+    }
+    emptyBorderAnim.stopAnimation();
+    emptyBorderAnim.setValue(0);
+
+    if (isEmpty) {
+      const loop = Animated.loop(
+        Animated.timing(emptyBorderAnim, {
+          toValue: 1,
+          duration: 1500,
+          easing: Easing.linear,
+          useNativeDriver: false,
+        })
+      );
+      emptyBorderLoopRef.current = loop;
+      loop.start();
+      return () => {
+        if (emptyBorderLoopRef.current) {
+          emptyBorderLoopRef.current.stop();
+          emptyBorderLoopRef.current = null;
+        }
+        emptyBorderAnim.stopAnimation();
+        emptyBorderAnim.setValue(0);
+      };
+    }
+  }, [isEmpty, emptyBorderAnim]);
 
   return (
     <View style={[styles.container, style]}>
-      <View style={[
+      <Animated.View style={[
         styles.barContainer,
-        isPremiumUser && styles.barContainerPremium
+        isPremiumUser && styles.barContainerPremium,
+        isEmpty && { borderColor: emptyBorderColor, borderWidth: 1 },
       ]}>
         {Array.from({ length: maxBars }).map((_, index) => {
           const isActive = index < activeBars;
@@ -235,7 +275,7 @@ export default function APIUsageEnergyBar({ style }: APIUsageEnergyBarProps) {
             </View>
           );
         })}
-      </View>
+      </Animated.View>
     </View>
   );
 }
