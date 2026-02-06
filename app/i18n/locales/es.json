@@ -280,6 +280,9 @@
   },
   "review": {
     "remaining": "{{count}} restantes - desliza ← para revisar de nuevo - desliza → para descartar",
+    "swipeInstructionsTitle": "Instrucciones de deslizamiento",
+    "swipeInstructionsBody": "Desliza a la izquierda ← para verla otra vez, a la derecha → si recordaste la respuesta. ¡Toca Repaso para empezar a seguir tu aprendizaje con repetición espaciada!",
+    "dontShowAgain": "No mostrar de nuevo",
     "srsCounter": "{{reviewed}}/{{due}}({{total}})",
     "reviewMode": "Revisar",
     "noCardsDue": "No hay tarjetas para revisar hoy",

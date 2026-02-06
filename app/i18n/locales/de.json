@@ -280,6 +280,9 @@
   },
   "review": {
     "remaining": "{{count}} verbleibend - nach links wischen, um erneut zu wiederholen - nach rechts wischen, um zu verwerfen",
+    "swipeInstructionsTitle": "Wisch-Anleitungen",
+    "swipeInstructionsBody": "Wisch nach links ← für erneutes Anzeigen, nach rechts → wenn du die Rückseite gewusst hast. Tippe auf Wiederholung, um deinen Lernfortschritt mit Karteikarten zu verfolgen!",
+    "dontShowAgain": "Nicht wieder anzeigen",
     "srsCounter": "{{reviewed}}/{{due}}({{total}})",
     "reviewMode": "Wiederholung",
     "noCardsDue": "Sie haben Ihre Wiederholungen für heute abgeschlossen! Fahren Sie fort und sammeln Sie weitere Wörter.",

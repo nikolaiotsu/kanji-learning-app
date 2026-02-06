@@ -36,6 +36,7 @@ import { useSubscription } from '../../context/SubscriptionContext';
 import MemoryManager from '../../services/memoryManager';
 import * as FileSystem from 'expo-file-system';
 import WalkthroughOverlay from '../shared/WalkthroughOverlay';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useWalkthrough, WalkthroughStep } from '../../hooks/useWalkthrough';
 import { ensureMeasuredThenAdvance, measureButton } from '../../utils/walkthroughUtils';
 import APIUsageEnergyBar from '../shared/APIUsageEnergyBar';
@@ -61,8 +62,9 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
   const BUTTON_ROW_HEIGHT = BUTTON_HEIGHT + BUTTON_BOTTOM_POSITION + insets.bottom;
   const BOTTOM_CLEARANCE = 50;
   const REVIEWER_TOP_OFFSET = 50;
+  const REVIEWER_TO_BUTTON_GAP = 20; // Clear space between card reviewer and main buttons
   const ESTIMATED_TOP_SECTION = insets.top + 55;
-  const REVIEWER_MAX_HEIGHT = SCREEN_HEIGHT - ESTIMATED_TOP_SECTION - REVIEWER_TOP_OFFSET - BUTTON_ROW_HEIGHT - BOTTOM_CLEARANCE;
+  const REVIEWER_MAX_HEIGHT = SCREEN_HEIGHT - ESTIMATED_TOP_SECTION - REVIEWER_TOP_OFFSET - BUTTON_ROW_HEIGHT - BOTTOM_CLEARANCE - REVIEWER_TO_BUTTON_GAP;
   
   const [capturedImage, setCapturedImage] = useState<CapturedImage | null>(null);
   const [imageHistory, setImageHistory] = useState<CapturedImage[]>([]);
@@ -261,6 +263,13 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     registerStep,
     updateStepLayout,
   } = useWalkthrough(walkthroughSteps);
+
+  // Track when user completes walkthrough via Done button (to show swipe instructions modal)
+  const [walkthroughJustCompleted, setWalkthroughJustCompleted] = useState(false);
+  const handleWalkthroughDone = useCallback(() => {
+    setWalkthroughJustCompleted(true);
+    completeWalkthrough();
+  }, [completeWalkthrough]);
 
   // Register steps with the walkthrough hook
   useEffect(() => {
@@ -1267,6 +1276,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           if (isWalkthroughActive) {
             params.walkthroughActive = 'true';
             completeWalkthrough();
+            // User will return to home after flashcards flow; show swipe instructions modal then
+            AsyncStorage.setItem('@swipe_instructions_pending', 'true').catch(() => {});
           }
           router.push({ pathname: '/flashcards', params });
         } else {
@@ -1514,8 +1525,13 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       setHideWalkthroughOverlay(true);
       return;
     }
-    nextStep();
-  }, [currentStep?.id, capturedImage, canCreateFlashcard, isConnected, localProcessing, isImageProcessing, pickImage, nextStep, completeWalkthrough]);
+    // On last step, use handleWalkthroughDone to set flag for swipe instructions modal
+    if (currentStepIndex === walkthroughSteps.length - 1) {
+      handleWalkthroughDone();
+    } else {
+      nextStep();
+    }
+  }, [currentStep?.id, currentStepIndex, capturedImage, canCreateFlashcard, isConnected, localProcessing, isImageProcessing, pickImage, nextStep, handleWalkthroughDone, walkthroughSteps.length]);
 
   // Helper function to actually skip the walkthrough (extracted for reuse)
   const skipWalkthroughFromHighlight = async () => {
@@ -2358,10 +2374,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           <View 
             ref={reviewerContainerRef} 
             collapsable={false} 
-            style={[
-              styles.reviewerContainer,
-              isWalkthroughActive && currentStep?.id === 'review-cards' && styles.highlightedReviewerContainer
-            ]}
+            style={styles.reviewerContainer}
           >
             <RandomCardReviewer
               onCardSwipe={onCardSwipe}
@@ -2370,6 +2383,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
               reviewButtonRef={reviewButtonRef}
               isWalkthroughActive={isWalkthroughActive}
               currentWalkthroughStepId={currentStep?.id}
+              walkthroughJustCompleted={walkthroughJustCompleted}
+              onSwipeInstructionsDismissed={() => setWalkthroughJustCompleted(false)}
             />
           </View>
           
@@ -2965,7 +2980,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           onNext={handleWalkthroughNext}
           onPrevious={handleWalkthroughPrevious}
           onSkip={skipWalkthrough}
-          onDone={completeWalkthrough}
+          onDone={handleWalkthroughDone}
           customNextLabel={
             currentStep?.id === 'crop' ? t('walkthrough.crop.cta') :
             currentStep?.id === 'highlight' ? t('walkthrough.highlight.cta') :
@@ -3373,21 +3388,6 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     shadowOpacity: 0.4,
     shadowRadius: 3,
     elevation: 3,
-  },
-  highlightedReviewerContainer: {
-    borderRadius: 12,
-    borderWidth: 3,
-    borderColor: '#FFFF00', // Bright yellow border
-    shadowColor: '#FFFF00',
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
-    shadowOpacity: 0.9,
-    shadowRadius: 20, // Increased for larger glow
-    elevation: 20, // Increased to match shadowRadius
-    marginBottom: -10, // Extend glow below the container
-    paddingBottom: 10, // Compensate for negative margin to maintain layout
   },
   gridButton: {
     marginHorizontal: 0,

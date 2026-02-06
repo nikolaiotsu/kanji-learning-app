@@ -280,6 +280,9 @@
   },
   "review": {
     "remaining": "{{count}}개 남음 - ← 스와이프하여 다시 복습 - → 스와이프하여 진행",
+    "swipeInstructionsTitle": "스와이프 안내",
+    "swipeInstructionsBody": "다시 보려면 ← 왼쪽으로, 기억했으면 → 오른쪽으로 스와이프하세요. 복습을 탭하면 간격 반복으로 학습을 추적할 수 있어요!",
+    "dontShowAgain": "다시 표시하지 않기",
     "srsCounter": "{{reviewed}}/{{due}}({{total}})",
     "reviewMode": "복습",
     "noCardsDue": "오늘 복습할 카드가 없습니다",

@@ -280,6 +280,9 @@
   },
   "review": {
     "remaining": "{{count}} متبقية - اسحب ← للمراجعة مرة أخرى - اسحب → للمتابعة",
+    "swipeInstructionsTitle": "تعليمات السحب",
+    "swipeInstructionsBody": "اسحب يساراً ← لمعاودته، ويميناً → إن تذكرت الجواب. اضغط على مراجعة لبدء تتبع تعلمك بالتكرار المتباعد!",
+    "dontShowAgain": "لا تعرض مرة أخرى",
     "srsCounter": "{{reviewed}}/{{due}}({{total}})",
     "reviewMode": "مراجعة",
     "noCardsDue": "لا توجد بطاقات للمراجعة اليوم",

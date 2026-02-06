@@ -280,6 +280,9 @@
   },
   "review": {
     "remaining": "{{count}} restantes - deslize ← para revisar novamente - deslize → para dispensar",
+    "swipeInstructionsTitle": "Instruções de deslize",
+    "swipeInstructionsBody": "Deslize para a esquerda ← para ver de novo, para a direita → se lembrou da resposta. Toque em Revisar para começar a acompanhar seu aprendizado com repetição espaçada!",
+    "dontShowAgain": "Não mostrar novamente",
     "srsCounter": "{{reviewed}}/{{due}}({{total}})",
     "reviewMode": "Revisar",
     "noCardsDue": "Você terminou suas revisões de hoje! Continue e colete mais palavras.",

@@ -280,6 +280,9 @@
   },
   "review": {
     "remaining": "{{count}} restantes - balayez ← pour réviser à nouveau - balayez → pour ignorer",
+    "swipeInstructionsTitle": "Instructions de balayage",
+    "swipeInstructionsBody": "Balayez vers la gauche ← pour la revoir, vers la droite → si vous avez su la réponse. Appuyez sur Réviser pour suivre votre progression avec la répétition espacée !",
+    "dontShowAgain": "Ne plus afficher",
     "srsCounter": "{{reviewed}}/{{due}}({{total}})",
     "reviewMode": "Révision",
     "noCardsDue": "Vous avez terminé vos révisions pour aujourd'hui ! Allez-y et collectionnez plus de mots.",

@@ -300,6 +300,9 @@
   },
   "review": {
     "remaining": "残り{{count}}枚 - 左スワイプでもう一度復習 - 右スワイプで進む",
+    "swipeInstructionsTitle": "スワイプの説明",
+    "swipeInstructionsBody": "もう一度見るには左←、覚えていたら右→にスワイプ。復習をタップして、間隔反復で学習を記録しよう！",
+    "dontShowAgain": "今後表示しない",
     "srsCounter": "{{reviewed}}/{{due}}({{total}})",
     "reviewMode": "復習",
     "noCardsDue": "今日復習するカードはありません",

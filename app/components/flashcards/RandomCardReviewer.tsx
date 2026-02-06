@@ -13,6 +13,7 @@ import { FONTS } from '../../constants/typography';
 import MultiDeckSelector from './MultiDeckSelector';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../context/AuthContext';
+import { useBadge } from '../../context/BadgeContext';
 import { useSwipeCounter } from '../../context/SwipeCounterContext';
 import { useNetworkState } from '../../services/networkManager';
 import OfflineBanner from '../shared/OfflineBanner';
@@ -33,6 +34,11 @@ const LEGACY_SELECTED_DECK_IDS_STORAGE_KEY = 'selectedDeckIds'; // For migration
 // Storage key generator for daily review stats (user-specific)
 const getDailyReviewStatsStorageKey = (userId: string) => `dailyReviewStats_${userId}`;
 
+// Storage key for "don't show again" preference on swipe instructions modal
+const SWIPE_INSTRUCTIONS_DISMISSED_KEY = '@swipe_instructions_dismissed';
+// Storage key for showing swipe instructions when user returns to home (e.g. after completing walkthrough via flashcards flow)
+const SWIPE_INSTRUCTIONS_PENDING_KEY = '@swipe_instructions_pending';
+
 // Interface for daily review stats stored in AsyncStorage
 interface DailyReviewStats {
   date: string; // YYYY-MM-DD format
@@ -51,12 +57,17 @@ interface RandomCardReviewerProps {
   // Walkthrough state
   isWalkthroughActive?: boolean;
   currentWalkthroughStepId?: string;
+  // Show swipe instructions modal when walkthrough just completed
+  walkthroughJustCompleted?: boolean;
+  // Callback when swipe instructions modal is dismissed (to reset walkthroughJustCompleted in parent)
+  onSwipeInstructionsDismissed?: () => void;
 }
 
-const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, onContentReady, collectionsButtonRef, reviewButtonRef, isWalkthroughActive = false, currentWalkthroughStepId }) => {
+const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, onContentReady, collectionsButtonRef, reviewButtonRef, isWalkthroughActive = false, currentWalkthroughStepId, walkthroughJustCompleted = false, onSwipeInstructionsDismissed }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { pendingBadge } = useBadge();
   const { incrementRightSwipe, incrementLeftSwipe, streakCount, setDeckCardIds, resetSwipeCounts } = useSwipeCounter();
   const { isConnected } = useNetworkState();
   
@@ -64,6 +75,9 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const [delaySessionFinish, setDelaySessionFinish] = useState(false);
   const [isTransitionLoading, setIsTransitionLoading] = useState(false);
   const [showStreakCongratsOverlay, setShowStreakCongratsOverlay] = useState(false);
+  // Swipe instructions modal (shown after walkthrough completes)
+  const [showSwipeInstructionsModal, setShowSwipeInstructionsModal] = useState(false);
+  const [dontShowSwipeInstructionsAgain, setDontShowSwipeInstructionsAgain] = useState(false);
   
   // Callback to prepare for session finish - must be stable reference
   const handleSessionFinishing = useCallback(() => {
@@ -98,14 +112,11 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   // Internal spacing constants for card layout
   const HEADER_HEIGHT = 45;
   const HEADER_TO_CARD_SPACING = 16;
-  const CARD_TO_CONTROLS_SPACING = 12;
-  const CONTROLS_HEIGHT = 36; // Increased to ensure vertical stability
   const CONTAINER_PADDING_TOP = 10;
   const CONTAINER_PADDING_BOTTOM = 10;
   
-  // Calculate total spacing overhead
-  const TOTAL_SPACING_OVERHEAD = CONTAINER_PADDING_TOP + HEADER_HEIGHT + HEADER_TO_CARD_SPACING + 
-                                  CARD_TO_CONTROLS_SPACING + CONTROLS_HEIGHT + CONTAINER_PADDING_BOTTOM;
+  // Calculate total spacing overhead (controls area removed - that space goes to card)
+  const TOTAL_SPACING_OVERHEAD = CONTAINER_PADDING_TOP + HEADER_HEIGHT + HEADER_TO_CARD_SPACING + CONTAINER_PADDING_BOTTOM;
   
   // Calculate available space from parent (KanjiScanner provides maxHeight constraint)
   // Parent calculation: SCREEN_HEIGHT - ESTIMATED_TOP_SECTION - REVIEWER_TOP_OFFSET - BUTTON_ROW_HEIGHT - BOTTOM_CLEARANCE
@@ -116,9 +127,10 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const BUTTON_BOTTOM_POSITION = 25;
   const BUTTON_ROW_HEIGHT = BUTTON_HEIGHT + BUTTON_BOTTOM_POSITION + insets.bottom;
   const BOTTOM_CLEARANCE = 50;
+  const REVIEWER_TO_BUTTON_GAP = 20; // Clear space between card reviewer and main buttons
   
-  // Calculate the actual available height that parent provides
-  const AVAILABLE_HEIGHT = SCREEN_HEIGHT - ESTIMATED_TOP_SECTION - REVIEWER_TOP_OFFSET - BUTTON_ROW_HEIGHT - BOTTOM_CLEARANCE;
+  // Calculate the actual available height that parent provides (must not overlap buttons)
+  const AVAILABLE_HEIGHT = SCREEN_HEIGHT - ESTIMATED_TOP_SECTION - REVIEWER_TOP_OFFSET - BUTTON_ROW_HEIGHT - BOTTOM_CLEARANCE - REVIEWER_TO_BUTTON_GAP;
   
   // Calculate card height by subtracting spacing overhead
   const CALCULATED_CARD_HEIGHT = AVAILABLE_HEIGHT - TOTAL_SPACING_OVERHEAD;
@@ -186,6 +198,70 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const [isProcessing, setIsProcessing] = useState(false);
   // State for showing the deck selector modal
   const [showDeckSelector, setShowDeckSelector] = useState(false);
+
+  // Track if we're waiting to show swipe instructions (after badge modal dismisses)
+  const shouldShowSwipeInstructionsRef = useRef(false);
+
+  // Show swipe instructions modal after walkthrough completes (if user hasn't dismissed it)
+  // Waits for badge modal to be dismissed first if one is showing
+  useEffect(() => {
+    const trigger = walkthroughJustCompleted;
+    if (!trigger) return;
+    const checkAndScheduleSwipeInstructions = async () => {
+      try {
+        const dismissed = await AsyncStorage.getItem(SWIPE_INSTRUCTIONS_DISMISSED_KEY);
+        if (!dismissed || dismissed !== 'true') {
+          shouldShowSwipeInstructionsRef.current = true;
+          // If no badge modal showing, show immediately; otherwise wait for it to dismiss
+          if (!pendingBadge) {
+            setShowSwipeInstructionsModal(true);
+          }
+        }
+      } catch {
+        shouldShowSwipeInstructionsRef.current = true;
+        if (!pendingBadge) {
+          setShowSwipeInstructionsModal(true);
+        }
+      }
+    };
+    checkAndScheduleSwipeInstructions();
+  }, [walkthroughJustCompleted, pendingBadge]);
+
+  // When badge modal is dismissed, show swipe instructions if we were waiting
+  useEffect(() => {
+    if (!pendingBadge && shouldShowSwipeInstructionsRef.current) {
+      shouldShowSwipeInstructionsRef.current = false;
+      setShowSwipeInstructionsModal(true);
+    }
+  }, [pendingBadge]);
+
+  // Check for pending swipe instructions on mount/focus (user completed via flashcards flow)
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      const checkPending = async () => {
+        try {
+          const pending = await AsyncStorage.getItem(SWIPE_INSTRUCTIONS_PENDING_KEY);
+          if (cancelled || pending !== 'true') return;
+          const dismissed = await AsyncStorage.getItem(SWIPE_INSTRUCTIONS_DISMISSED_KEY);
+          if (cancelled || (dismissed && dismissed === 'true')) return;
+          await AsyncStorage.removeItem(SWIPE_INSTRUCTIONS_PENDING_KEY);
+          if (cancelled) return;
+          shouldShowSwipeInstructionsRef.current = true;
+          if (!pendingBadge) {
+            setShowSwipeInstructionsModal(true);
+          }
+        } catch {
+          if (!cancelled) {
+            AsyncStorage.removeItem(SWIPE_INSTRUCTIONS_PENDING_KEY).catch(() => {});
+          }
+        }
+      };
+      checkPending();
+      return () => { cancelled = true; };
+    }, [pendingBadge])
+  );
+
   // State to track if image is expanded (to hide controls)
   const [isImageExpanded, setIsImageExpanded] = useState(false);
   // Track the last card ID to prevent duplicate transitions
@@ -1747,16 +1823,14 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     CONTAINER_PADDING_BOTTOM,
     HEADER_HEIGHT,
     HEADER_TO_CARD_SPACING,
-    CARD_STAGE_HEIGHT,
-    CARD_TO_CONTROLS_SPACING,
-    CONTROLS_HEIGHT
+    CARD_STAGE_HEIGHT
   ), [CONTAINER_PADDING_TOP, CONTAINER_PADDING_BOTTOM, HEADER_HEIGHT, 
-      HEADER_TO_CARD_SPACING, CARD_STAGE_HEIGHT, CARD_TO_CONTROLS_SPACING, CONTROLS_HEIGHT]);
+      HEADER_TO_CARD_SPACING, CARD_STAGE_HEIGHT]);
 
   // Industry standard: Only show hook loading for initial data fetch
   if (loadingState === LoadingState.SKELETON_LOADING && isInitializing) {
       return (
-        <View style={styles.container}>
+        <View style={[styles.container, isWalkthroughActive && currentWalkthroughStepId === 'review-cards' && styles.containerHighlighted]}>
           <View style={styles.header}>
           <View 
             ref={collectionsButtonRef} 
@@ -1824,16 +1898,6 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         <View style={styles.cardStage}>
           <LoadingCard />
         </View>
-        <View style={styles.controlsContainer}>
-          <Text 
-            style={[styles.countText, { opacity: 0.5 }]}
-            numberOfLines={1}
-            adjustsFontSizeToFit={true}
-            minimumFontScale={0.7}
-          >
-            •••
-          </Text>
-        </View>
       </View>
     );
   }
@@ -1841,7 +1905,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   // Fallback loading spinner for other loading states
   if (isLoading && loadingState !== LoadingState.CONTENT_READY) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, isWalkthroughActive && currentWalkthroughStepId === 'review-cards' && styles.containerHighlighted]}>
         <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
@@ -1849,7 +1913,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
 
   if (error) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, isWalkthroughActive && currentWalkthroughStepId === 'review-cards' && styles.containerHighlighted]}>
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={resetReviewSession}>
           <Text style={styles.retryText}>Retry</Text>
@@ -1875,7 +1939,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     if (reviewSessionCards.length === 0 && filteredCards.length === 0 && !isSessionFinished) {
       logger.log('🎯 [RENDER DEBUG] Showing "No cards in selection" guide (NOT session finished)');
       return (
-        <View style={styles.container}>
+        <View style={[styles.container, isWalkthroughActive && currentWalkthroughStepId === 'review-cards' && styles.containerHighlighted]}>
           <View style={styles.header}>
             <View 
               ref={collectionsButtonRef} 
@@ -2046,16 +2110,6 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               </View>
             </View>
           </View>
-          <View style={styles.controlsContainer}>
-            <Text 
-              style={styles.countText}
-              numberOfLines={1}
-              adjustsFontSizeToFit={true}
-              minimumFontScale={0.7}
-            >
-              {t('review.remaining', { count: 0 })}
-            </Text>
-          </View>
           {deckSelector}
         </View>
       );
@@ -2100,7 +2154,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
      });
       
       return (
-        <View style={styles.container}>
+        <View style={[styles.container, isWalkthroughActive && currentWalkthroughStepId === 'review-cards' && styles.containerHighlighted]}>
           <View style={styles.header}>
             <View 
               ref={collectionsButtonRef} 
@@ -2334,16 +2388,6 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               )}
             </Animated.View>
           </View>
-          <View style={styles.controlsContainer}>
-            <Text 
-              style={styles.countText}
-              numberOfLines={1}
-              adjustsFontSizeToFit={true}
-              minimumFontScale={0.7}
-            >
-              {t('review.remaining', { count: 0 })}
-            </Text>
-          </View>
           {deckSelector}
         </View>
       );
@@ -2352,7 +2396,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
 
   return (
     <>
-    <View style={styles.container}>
+    <View style={[styles.container, isWalkthroughActive && currentWalkthroughStepId === 'review-cards' && styles.containerHighlighted]}>
       <View style={styles.header}>
         <View 
           ref={collectionsButtonRef} 
@@ -2668,24 +2712,71 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         </Animated.View>
       </View>
 
-      <View style={[
-        styles.controlsContainer,
-        isImageExpanded && styles.controlsContainerExpanded
-      ]}>
-        <Text 
-          style={styles.countText}
-          numberOfLines={1}
-          adjustsFontSizeToFit={true}
-          minimumFontScale={0.7}
-        >
-          {!isInitializing && !isCardTransitioning 
-            ? t('review.remaining', { count: remainingCount })
-            : '•••'}
-        </Text>
-      </View>
-      
       {deckSelector}
     </View>
+
+    {/* Swipe instructions modal - shown after walkthrough completes */}
+    <Modal
+      visible={showSwipeInstructionsModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => {
+        setShowSwipeInstructionsModal(false);
+        if (dontShowSwipeInstructionsAgain) {
+          AsyncStorage.setItem(SWIPE_INSTRUCTIONS_DISMISSED_KEY, 'true').catch(() => {});
+        }
+        onSwipeInstructionsDismissed?.();
+      }}
+    >
+      <TouchableOpacity
+        style={styles.streakCongratsOverlay}
+        activeOpacity={1}
+        onPress={() => {
+          setShowSwipeInstructionsModal(false);
+          if (dontShowSwipeInstructionsAgain) {
+            AsyncStorage.setItem(SWIPE_INSTRUCTIONS_DISMISSED_KEY, 'true').catch(() => {});
+          }
+          onSwipeInstructionsDismissed?.();
+        }}
+      >
+        <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+          <View style={styles.streakCongratsCard}>
+            <Text style={styles.streakCongratsTitle}>{t('review.swipeInstructionsTitle')}</Text>
+            <Text style={styles.streakCongratsBody}>
+              {t('review.swipeInstructionsBody')}
+            </Text>
+            <TouchableOpacity
+              style={styles.swipeInstructionsCheckboxRow}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setDontShowSwipeInstructionsAgain((prev) => !prev);
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={dontShowSwipeInstructionsAgain ? 'checkbox' : 'square-outline'}
+                size={22}
+                color={dontShowSwipeInstructionsAgain ? COLORS.primary : COLORS.lightGray}
+              />
+              <Text style={styles.swipeInstructionsCheckboxLabel}>{t('review.dontShowAgain')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.streakCongratsButton}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowSwipeInstructionsModal(false);
+                if (dontShowSwipeInstructionsAgain) {
+                  AsyncStorage.setItem(SWIPE_INSTRUCTIONS_DISMISSED_KEY, 'true').catch(() => {});
+                }
+                onSwipeInstructionsDismissed?.();
+              }}
+            >
+              <Text style={styles.streakCongratsButtonText}>{t('common.ok')}</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
 
     {/* Streak congratulations overlay - shown when user reaches 3 right swipes in a review session */}
     <Modal
@@ -2729,9 +2820,7 @@ const createStyles = (
   containerPaddingBottom: number,
   headerHeight: number,
   headerToCardSpacing: number,
-  cardStageHeight: number,
-  cardToControlsSpacing: number,
-  controlsHeight: number
+  cardStageHeight: number
 ) => StyleSheet.create({
   container: {
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -2754,6 +2843,14 @@ const createStyles = (
     // Fill all available space provided by parent's maxHeight constraint
     flex: 1,
     flexDirection: 'column',
+  },
+  containerHighlighted: {
+    borderWidth: 3,
+    borderColor: '#FFFF00',
+    shadowColor: '#FFFF00',
+    shadowOpacity: 0.9,
+    shadowRadius: 20,
+    elevation: 20,
   },
   header: {
     width: '100%',
@@ -2855,7 +2952,7 @@ const createStyles = (
     flex: 1, // Expand to fill available space
     position: 'relative',
     justifyContent: 'center',
-    marginBottom: cardToControlsSpacing, // Proper spacing between card and controls
+    marginBottom: 12, // Spacing between card and deck selector
     overflow: 'hidden',
   },
   cardContainer: {
@@ -2868,31 +2965,6 @@ const createStyles = (
   cardWithOverlayWrapper: {
     width: '100%',
     position: 'relative',
-  },
-  controlsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
-    height: controlsHeight,
-    paddingTop: 0, // Spacing handled by cardStage marginBottom (12pt)
-    paddingHorizontal: 16, // Add horizontal padding to prevent edge overflow
-  },
-  controlsContainerExpanded: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    borderRadius: 12,
-    // Keep full width so the text does not wrap unexpectedly
-    width: '100%',
-  },
-  countText: {
-    fontFamily: FONTS.sans,
-    color: '#b3b3b3',
-    fontSize: 12,
-    textAlign: 'center',
-    width: '100%',
-    // Fixed height relative to CONTROLS_HEIGHT to prevent vertical jumping
-    height: 16,
-    lineHeight: 16,
   },
   errorText: {
     fontFamily: FONTS.sans,
@@ -3051,6 +3123,18 @@ const createStyles = (
     lineHeight: 24,
     textAlign: 'center',
     marginBottom: 16,
+  },
+  swipeInstructionsCheckboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginBottom: 20,
+    gap: 10,
+  },
+  swipeInstructionsCheckboxLabel: {
+    fontFamily: FONTS.sans,
+    fontSize: 14,
+    color: COLORS.lightGray,
   },
   streakCongratsFireRow: {
     flexDirection: 'row',

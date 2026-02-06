@@ -280,6 +280,9 @@
   },
   "review": {
     "remaining": "{{count}} còn lại - vuốt ← để ôn lại - vuốt → để bỏ qua",
+    "swipeInstructionsTitle": "Hướng dẫn vuốt",
+    "swipeInstructionsBody": "Vuốt trái ← để xem lại, phải → nếu bạn đã nhớ đáp án. Nhấn Ôn tập để bắt đầu theo dõi tiến độ học với lặp lại ngắt quãng!",
+    "dontShowAgain": "Không hiển thị lại",
     "srsCounter": "{{reviewed}}/{{due}}({{total}})",
     "reviewMode": "Ôn tập",
     "noCardsDue": "Bạn đã hoàn thành ôn tập cho hôm nay! Hãy tiếp tục sưu tập thêm từ.",

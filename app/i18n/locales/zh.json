@@ -277,6 +277,9 @@
   },
   "review": {
     "remaining": "剩余{{count}}张 - ← 滑动再次复习 - → 滑动继续",
+    "swipeInstructionsTitle": "滑动说明",
+    "swipeInstructionsBody": "左滑 ← 再看一次，右滑 → 表示记住了。点击复习，用间隔重复来追踪学习进度！",
+    "dontShowAgain": "不再显示",
     "srsCounter": "{{reviewed}}/{{due}}({{total}})",
     "reviewMode": "复习",
     "noCardsDue": "今天没有需要复习的卡片",

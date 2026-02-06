@@ -280,6 +280,9 @@
   },
   "review": {
     "remaining": "{{count}} rimanenti - scorri ← per rivedere di nuovo - scorri → per scartare",
+    "swipeInstructionsTitle": "Istruzioni per lo scorrimento",
+    "swipeInstructionsBody": "Scorri a sinistra ← per rivederlo, a destra → se hai ricordato la risposta. Tocca Revisione per iniziare a tracciare il tuo apprendimento con la ripetizione dilazionata!",
+    "dontShowAgain": "Non mostrare più",
     "srsCounter": "{{reviewed}}/{{due}}({{total}})",
     "reviewMode": "Revisione",
     "noCardsDue": "Hai finito le tue revisioni per oggi! Vai avanti e colleziona più parole.",

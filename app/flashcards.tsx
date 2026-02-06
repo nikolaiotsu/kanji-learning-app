@@ -134,10 +134,6 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
   const [previousFuriganaText, setPreviousFuriganaText] = useState('');
   const [previousTextProcessed, setPreviousTextProcessed] = useState(false);
 
-  // Beta: show API token usage after translate/WordScope
-  const [showTokenUsageModal, setShowTokenUsageModal] = useState(false);
-  const [lastTokenUsage, setLastTokenUsage] = useState<{ input: number; output: number; total: number } | null>(null);
-
   // State for language detection
   const [detectedLanguage, setDetectedLanguage] = useState('');
   const [needsRomanization, setNeedsRomanization] = useState(true);
@@ -906,13 +902,6 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
         
         // Mark as processed if we have what we need
         setTextProcessed(true);
-        if (result.tokenUsage) {
-          setLastTokenUsage(result.tokenUsage);
-          // Show token modal after loading hides and result content has faded in (avoid covering the fade)
-          const fadeInDuration = 280;
-          const delayBeforeModal = 1500 + fadeInDuration + 50;
-          setTimeout(() => setShowTokenUsageModal(true), delayBeforeModal);
-        }
         // Add a delay to show the 4th (green) light prominently before fade-out
         logger.log('✅ [Flashcards] Processing successful - showing final light for adequate time');
         setTimeout(() => {
@@ -1316,13 +1305,6 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
         }
         
         setTextProcessed(true);
-        if (result.tokenUsage) {
-          setLastTokenUsage(result.tokenUsage);
-          // Show token modal after loading hides and result content has faded in (avoid covering the fade)
-          const fadeInDuration = 280;
-          const delayBeforeModal = 1500 + fadeInDuration + 50;
-          setTimeout(() => setShowTokenUsageModal(true), delayBeforeModal);
-        }
         // Delay before hiding loading
         setTimeout(() => {
           setIsLoading(false);
@@ -2308,37 +2290,6 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
           onClose={() => setShowReviewPrompt(false)}
         />
 
-        {/* Beta: API token usage modal */}
-        <Modal
-          visible={showTokenUsageModal}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowTokenUsageModal(false)}
-        >
-          <TouchableOpacity
-            activeOpacity={1}
-            style={styles.tokenUsageModalOverlay}
-            onPress={() => setShowTokenUsageModal(false)}
-          >
-            <View style={styles.tokenUsageModalContent} onStartShouldSetResponder={() => true}>
-              <Text style={styles.tokenUsageModalTitle}>API tokens used</Text>
-              {lastTokenUsage && (
-                <>
-                  <Text style={styles.tokenUsageModalRow}>Input: {lastTokenUsage.input}</Text>
-                  <Text style={styles.tokenUsageModalRow}>Output: {lastTokenUsage.output}</Text>
-                  <Text style={styles.tokenUsageModalTotal}>Total: {lastTokenUsage.total}</Text>
-                </>
-              )}
-              <TouchableOpacity
-                style={styles.tokenUsageModalButton}
-                onPress={() => setShowTokenUsageModal(false)}
-              >
-                <Text style={styles.tokenUsageModalButtonText}>Dismiss</Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </Modal>
-
         {/* Walkthrough Overlay */}
         <WalkthroughOverlay
           visible={isWalkthroughActive && !hideWalkthroughOverlay}
@@ -2762,50 +2713,6 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 10,
     alignItems: 'center',
-  },
-  tokenUsageModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  tokenUsageModalContent: {
-    backgroundColor: COLORS.darkSurface,
-    borderRadius: 12,
-    padding: 20,
-    minWidth: 260,
-    borderWidth: 1,
-    borderColor: COLORS.darkGray,
-  },
-  tokenUsageModalTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  tokenUsageModalRow: {
-    fontSize: 14,
-    color: COLORS.text,
-    marginBottom: 4,
-  },
-  tokenUsageModalTotal: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  tokenUsageModalButton: {
-    backgroundColor: COLORS.mediumSurface,
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  tokenUsageModalButtonText: {
-    color: 'white',
-    fontSize: 14,
   },
   modalButtonText: {
     color: 'white',
