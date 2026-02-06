@@ -22,6 +22,7 @@ import { getDecks, deleteDeck, getFlashcardsByDecks } from '../../services/supab
 import { supabase } from '../../services/supabaseClient';
 import { isOnline } from '../../services/networkManager';
 import { COLORS } from '../../constants/colors';
+import { FONTS } from '../../constants/typography';
 import { filterDueCards } from '../../constants/leitner';
 
 import { logger } from '../../utils/logger';
@@ -583,6 +584,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   title: {
+    fontFamily: FONTS.sansBold,
     fontSize: 18,
     fontWeight: 'bold',
     color: COLORS.text,
@@ -596,6 +598,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   loadingText: {
+    fontFamily: FONTS.sans,
     marginTop: 10,
     color: COLORS.text,
   },
@@ -642,6 +645,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   deckName: {
+    fontFamily: FONTS.sansSemiBold,
     fontSize: 16,
     fontWeight: '600',
     color: COLORS.text,
@@ -651,6 +655,7 @@ const styles = StyleSheet.create({
     color: COLORS.lightGray,
   },
   deckDate: {
+    fontFamily: FONTS.sans,
     fontSize: 12,
     color: COLORS.lightGray,
   },
@@ -664,6 +669,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyText: {
+    fontFamily: FONTS.sans,
     color: COLORS.lightGray,
     textAlign: 'center',
   },
@@ -675,6 +681,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   saveButtonText: {
+    fontFamily: FONTS.sansBold,
     color: COLORS.text,
     fontWeight: 'bold',
     fontSize: 16,
@@ -685,6 +692,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   selectAllText: {
+    fontFamily: FONTS.sansSemiBold,
     color: COLORS.primary,
     fontWeight: '600',
   },

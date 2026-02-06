@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useSubscription } from '../../context/SubscriptionContext';
 import { useOCRCounter } from '../../context/OCRCounterContext';
 import { COLORS } from '../../constants/colors';
+import { FONTS } from '../../constants/typography';
 import { Ionicons } from '@expo/vector-icons';
 import { PRODUCT_IDS } from '../../constants/config';
 
@@ -128,6 +129,7 @@ const styles = StyleSheet.create({
     margin: 16,
   },
   title: {
+    fontFamily: FONTS.sansBold,
     fontSize: 18,
     fontWeight: 'bold',
     color: COLORS.text,
@@ -147,6 +149,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   statusText: {
+    fontFamily: FONTS.sans,
     color: COLORS.text,
     fontSize: 14,
   },
@@ -179,25 +182,30 @@ const styles = StyleSheet.create({
     borderColor: COLORS.premium,
   },
   buttonText: {
+    fontFamily: FONTS.sansBold,
     color: 'white',
     fontSize: 14,
     fontWeight: 'bold',
   },
   restoreText: {
+    fontFamily: FONTS.sansBold,
     color: COLORS.primary,
     fontSize: 14,
     fontWeight: 'bold',
   },
   premiumText: {
+    fontFamily: FONTS.sans,
     color: COLORS.premium,
   },
   errorText: {
+    fontFamily: FONTS.sans,
     color: COLORS.error,
     textAlign: 'center',
     fontSize: 12,
     marginBottom: 8,
   },
   devNote: {
+    fontFamily: FONTS.sans,
     color: COLORS.muted,
     fontSize: 12,
     textAlign: 'center',

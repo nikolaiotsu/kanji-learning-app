@@ -19,6 +19,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { detectJapaneseText } from '../../services/visionApi';
 import { router } from 'expo-router';
 import { COLORS } from '../../constants/colors';
+import { FONTS } from '../../constants/typography';
 import { Ionicons, FontAwesome6 } from '@expo/vector-icons';
 import { processImage } from '../../services/ProcessImage';
 import { captureRef } from 'react-native-view-shot';
@@ -2250,6 +2251,7 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   instructionText: {
+    fontFamily: FONTS.sans,
     color: 'white',
     fontSize: 14,
     textAlign: 'center',
@@ -2289,6 +2291,7 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   buttonText: {
+    fontFamily: FONTS.sansBold,
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',

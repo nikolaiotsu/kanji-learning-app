@@ -3,6 +3,7 @@ import { View, StyleSheet, TouchableOpacity, Text, Alert, ActivityIndicator, Pla
 import { useTranslation } from 'react-i18next';
 import { signInWithGoogle, signInWithApple, signUpWithGoogle } from '../services/authService';
 import { COLORS } from '../constants/colors';
+import { FONTS } from '../constants/typography';
 import { AntDesign, FontAwesome } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import appleAuth from '@invertase/react-native-apple-authentication';
@@ -207,6 +208,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.darkGray,
   },
   googleButtonText: {
+    fontFamily: FONTS.sansMedium,
     color: COLORS.text,
     fontWeight: '500',
     fontSize: 16,
@@ -217,6 +219,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.darkGray,
   },
   appleButtonText: {
+    fontFamily: FONTS.sansMedium,
     color: COLORS.text,
     fontWeight: '500',
     fontSize: 16,

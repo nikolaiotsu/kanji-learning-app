@@ -24,6 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from './context/AuthContext';
 import { supabase } from './services/supabaseClient';
 import { COLORS } from './constants/colors';
+import { FONTS } from './constants/typography';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import PokedexLayout from './components/shared/PokedexLayout';
 import { useNetworkState, isOnline } from './services/networkManager';
@@ -1262,6 +1263,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.royalBlue50,
   },
   deckName: {
+    fontFamily: FONTS.sansMedium,
     fontSize: 14,
     fontWeight: '500',
     color: COLORS.text,
@@ -1278,6 +1280,7 @@ const styles = StyleSheet.create({
     minHeight: 40,
   },
   noDecksText: {
+    fontFamily: FONTS.sans,
     fontSize: 14,
     color: COLORS.darkGray,
   },
@@ -1294,6 +1297,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.flashcardScreenBackground,
   },
   loadingText: {
+    fontFamily: FONTS.sans,
     marginTop: 10,
     fontSize: 16,
     color: COLORS.text,
@@ -1306,12 +1310,14 @@ const styles = StyleSheet.create({
     marginTop: 50,
   },
   emptyTitle: {
+    fontFamily: FONTS.sansBold,
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 8,
     color: COLORS.text,
   },
   emptyText: {
+    fontFamily: FONTS.sans,
     fontSize: 16,
     color: COLORS.darkGray,
     textAlign: 'center',
@@ -1345,6 +1351,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   renameTitle: {
+    fontFamily: FONTS.sansBold,
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 16,
@@ -1352,6 +1359,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   renameInput: {
+    fontFamily: FONTS.sans,
     backgroundColor: COLORS.mediumSurface,
     padding: 12,
     borderRadius: 8,
@@ -1379,11 +1387,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
   renameButtonText: {
+    fontFamily: FONTS.sansMedium,
     fontSize: 16,
     fontWeight: '500',
     color: COLORS.text,
   },
   saveButtonText: {
+    fontFamily: FONTS.sans,
     color: COLORS.text,
   },
   deckPager: {
@@ -1407,6 +1417,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   title: {
+    fontFamily: FONTS.sansBold,
     fontSize: 20,
     fontWeight: 'bold',
     color: COLORS.text,

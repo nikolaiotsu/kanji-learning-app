@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { router } from 'expo-router';
 import { useOnboarding } from './context/OnboardingContext';
 import { COLORS } from './constants/colors';
+import { FONTS } from './constants/typography';
 import LoadingVideoScreen from './components/LoadingVideoScreen';
 
 /**
@@ -95,6 +96,7 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   title: {
+    fontFamily: FONTS.sansBold,
     fontSize: 34,
     fontWeight: '700',
     color: COLORS.text,
@@ -116,6 +118,7 @@ const styles = StyleSheet.create({
     marginRight: 14,
   },
   subtitle: {
+    fontFamily: FONTS.sans,
     flex: 1,
     fontSize: 22,
     color: COLORS.text,
@@ -136,6 +139,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   buttonText: {
+    fontFamily: FONTS.sansSemiBold,
     color: COLORS.text,
     fontSize: 17,
     fontWeight: '600',
@@ -145,11 +149,13 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
   footerText: {
+    fontFamily: FONTS.sans,
     fontSize: 15,
     color: COLORS.textSecondary,
     textAlign: 'left',
   },
   signInLink: {
+    fontFamily: FONTS.sansSemiBold,
     color: COLORS.primary,
     fontWeight: '600',
   },

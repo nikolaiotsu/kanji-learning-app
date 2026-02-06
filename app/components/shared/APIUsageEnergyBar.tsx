@@ -262,9 +262,11 @@ const styles = StyleSheet.create({
     maxWidth: 120,
   },
   barContainerPremium: {
+    minWidth: 170, // 10 bars × 14min + 9 gaps × 2 + 12 padding
     maxWidth: 200, // Wider container for 10 bars
     gap: 2, // Smaller gap for premium bars to fit better
-    alignSelf: 'center', // Center the container itself
+    paddingHorizontal: 4, // Tighter padding for premium (10 bars)
+    alignSelf: 'center',
   },
   bar: {
     flex: 1,
@@ -276,7 +278,8 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   barPremium: {
-    flex: 1, // Flex to fill container width
+    flex: 1,
+    flexBasis: 0, // Equal distribution for all 10 bars
     minWidth: 14,
     maxWidth: 20,
     height: 12,

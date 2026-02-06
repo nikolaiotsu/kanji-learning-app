@@ -25,6 +25,7 @@ import { useSettings, AVAILABLE_LANGUAGES } from '../../context/SettingsContext'
 import { useSubscription } from '../../context/SubscriptionContext';
 import { getCurrentSubscriptionPlan } from '../../services/receiptValidationService';
 import { COLORS } from '../../constants/colors';
+import { FONTS } from '../../constants/typography';
 
 import { logger } from '../../utils/logger';
 const { height: screenHeight } = Dimensions.get('window');
@@ -362,6 +363,7 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.mediumSurface,
   },
   modalTitle: {
+    fontFamily: FONTS.sansBold,
     fontSize: 20,
     fontWeight: 'bold',
     color: COLORS.text,
@@ -376,6 +378,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   closeButtonText: {
+    fontFamily: FONTS.sansBold,
     fontSize: 18,
     color: COLORS.text,
     fontWeight: 'bold',
@@ -389,6 +392,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   inputLabel: {
+    fontFamily: FONTS.sansSemiBold,
     fontSize: 16,
     fontWeight: '600',
     marginTop: 16,
@@ -396,6 +400,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   textInput: {
+    fontFamily: FONTS.sans,
     borderWidth: 1,
     borderColor: COLORS.mediumSurface,
     borderRadius: 8,
@@ -408,6 +413,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   errorText: {
+    fontFamily: FONTS.sansMedium,
     color: COLORS.danger,
     fontSize: 14,
     marginBottom: 12,
@@ -455,11 +461,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: {
+    fontFamily: FONTS.sansSemiBold,
     color: COLORS.text,
     fontWeight: '600',
     fontSize: 16,
   },
   cancelButtonText: {
+    fontFamily: FONTS.sansSemiBold,
     color: COLORS.text,
     fontWeight: '600',
     fontSize: 16,

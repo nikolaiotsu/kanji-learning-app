@@ -48,6 +48,7 @@ const LANGUAGE_NAME_TO_CODE: Record<string, string> = Object.entries(AVAILABLE_L
   {}
 );
 import { COLORS } from './constants/colors';
+import { FONTS } from './constants/typography';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import PokedexLayout from './components/shared/PokedexLayout';
@@ -2397,6 +2398,7 @@ const styles = StyleSheet.create({
     paddingBottom: 60, // Add extra padding at the bottom for better scrolling experience
   },
   title: {
+    fontFamily: FONTS.sansBold,
     fontSize: 20,
     fontWeight: 'bold',
     color: COLORS.text,
@@ -2527,6 +2529,7 @@ const styles = StyleSheet.create({
     minHeight: 120,
   },
   loadingText: {
+    fontFamily: FONTS.sans,
     marginTop: 10,
     fontSize: 16,
     color: COLORS.darkGray,
@@ -2541,6 +2544,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.danger,
   },
   errorText: {
+    fontFamily: FONTS.sans,
     color: COLORS.danger,
     fontSize: 16,
     marginBottom: 16,
@@ -2556,6 +2560,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   retryButtonText: {
+    fontFamily: FONTS.sansBold,
     color: COLORS.text,
     fontWeight: 'bold',
     fontSize: 16,
@@ -2571,6 +2576,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(59, 130, 246, 0.5)', // More transparent blue
   },
   sectionTitle: {
+    fontFamily: FONTS.sansBold,
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 8,
@@ -2584,12 +2590,14 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   translatedText: {
+    fontFamily: FONTS.sans,
     fontSize: 18,
     lineHeight: 24,
     flexWrap: 'wrap',
     color: COLORS.text,
   },
   scopeAnalysisText: {
+    fontFamily: FONTS.sans,
     fontSize: 16,
     lineHeight: 22,
     flexWrap: 'wrap',
@@ -2608,6 +2616,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   appendAnalysisButtonText: {
+    fontFamily: FONTS.sansSemiBold,
     color: '#ffffff',
     fontSize: 14,
     fontWeight: '600',
@@ -2648,6 +2657,7 @@ const styles = StyleSheet.create({
     width: '90%',
   },
   buttonText: {
+    fontFamily: FONTS.sansBold,
     color: COLORS.text,
     fontWeight: 'bold',
     fontSize: 14,
@@ -2699,6 +2709,7 @@ const styles = StyleSheet.create({
     maxHeight: Platform.OS === 'ios' ? '70%' : '75%', // Added maxHeight to ensure scroll area is large enough
   },
   modalTitle: {
+    fontFamily: FONTS.sansBold,
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 16,
@@ -2706,6 +2717,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   modalSubtitle: {
+    fontFamily: FONTS.sansSemiBold,
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 12,

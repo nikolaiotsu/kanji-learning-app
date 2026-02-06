@@ -17,7 +17,9 @@ import { LoadingVideoProvider } from './context/LoadingVideoContext';
 import { OnboardingVideosProvider } from './context/OnboardingVideosContext';
 import { StyleSheet, View, LogBox, Animated } from 'react-native';
 import { COLORS } from './constants/colors';
+import { FONTS } from './constants/typography';
 import TexturedBackground from './components/shared/TexturedBackground';
+import HeaderTexturedBackground from './components/shared/HeaderTexturedBackground';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -26,6 +28,13 @@ import { useAuth } from './context/AuthContext';
 import { useOnboarding } from './context/OnboardingContext';
 import { initializeSyncManager } from './services/syncManager';
 import * as SplashScreen from 'expo-splash-screen';
+import {
+  useFonts,
+  DMSans_400Regular,
+  DMSans_500Medium,
+  DMSans_600SemiBold,
+  DMSans_700Bold,
+} from '@expo-google-fonts/dm-sans';
 
 import { logger } from './utils/logger';
 
@@ -80,6 +89,14 @@ function RootLayoutContent() {
   const loadingStartTimeRef = useRef(Date.now());
   const { i18n } = useTranslation();
 
+  const [fontsLoaded] = useFonts({
+    DMSans_400Regular,
+    DMSans_500Medium,
+    DMSans_600SemiBold,
+    DMSans_700Bold,
+  });
+
+
   // Fade in the loading overlay as soon as it's shown
   useEffect(() => {
     Animated.timing(fadeInOpacity, {
@@ -107,9 +124,9 @@ function RootLayoutContent() {
     checkI18nReady();
   }, [i18n]);
 
-  // When content is ready AND we've shown the loading screen for at least MIN_LOADING_DISPLAY_MS, fade out
+  // When content is ready, fonts loaded, and we've shown the loading screen for at least MIN_LOADING_DISPLAY_MS, fade out
   useEffect(() => {
-    if (!hasContentMounted || !isAppReady || !isAuthReady) return;
+    if (!hasContentMounted || !isAppReady || !isAuthReady || !fontsLoaded) return;
 
     const elapsed = Date.now() - loadingStartTimeRef.current;
     const remaining = Math.max(0, MIN_LOADING_DISPLAY_MS - elapsed);
@@ -125,7 +142,7 @@ function RootLayoutContent() {
     }, CONTENT_RENDER_DELAY + remaining);
 
     return () => clearTimeout(timer);
-  }, [hasContentMounted, isAppReady, isAuthReady, loadingOpacity]);
+  }, [hasContentMounted, isAppReady, isAuthReady, fontsLoaded, loadingOpacity]);
 
   const onContentLayout = useCallback(() => {
     if (!hasContentMounted) setHasContentMounted(true);
@@ -133,7 +150,7 @@ function RootLayoutContent() {
 
   return (
     <TexturedBackground variant="default" style={styles.container}>
-      {isAppReady && (
+      {isAppReady && fontsLoaded && (
         <View style={styles.container} onLayout={onContentLayout}>
           <OnboardingVideosProvider>
           <SettingsProvider>
@@ -152,6 +169,7 @@ function RootLayoutContent() {
                                 },
                                 headerTintColor: COLORS.text,
                                 headerTitleStyle: {
+                                  fontFamily: FONTS.sansBold,
                                   fontWeight: 'bold',
                                 },
                                 headerBackTitle: 'Back',
@@ -191,6 +209,7 @@ function RootLayoutContent() {
                                   },
                                   headerTintColor: '#FFFFFF',
                                   headerTitleStyle: {
+                                    fontFamily: FONTS.sansBold,
                                     fontWeight: 'bold',
                                   },
                                 }} 
@@ -202,11 +221,10 @@ function RootLayoutContent() {
                                   gestureEnabled: true,
                                   presentation: 'modal',
                                   headerBackVisible: false,
-                                  headerStyle: {
-                                    backgroundColor: COLORS.background,
-                                  },
+                                  headerBackground: () => <HeaderTexturedBackground />,
                                   headerTintColor: '#FFFFFF',
                                   headerTitleStyle: {
+                                    fontFamily: FONTS.sansBold,
                                     fontWeight: 'bold',
                                   },
                                 }}

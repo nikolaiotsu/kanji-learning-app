@@ -17,6 +17,7 @@ import { useEvent } from 'expo';
 import { useOnboarding } from './context/OnboardingContext';
 import { resetWalkthrough } from './hooks/useWalkthrough';
 import { COLORS } from './constants/colors';
+import { FONTS } from './constants/typography';
 import LoadingVideoScreen from './components/LoadingVideoScreen';
 
 const guyflyingVideoSource = require('../assets/guyflying.mp4');
@@ -143,6 +144,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   titleText: {
+    fontFamily: FONTS.sansBold,
     fontSize: 24,
     fontWeight: '700',
     color: COLORS.text,
@@ -162,6 +164,7 @@ const styles = StyleSheet.create({
     marginRight: 14,
   },
   subtitle: {
+    fontFamily: FONTS.sans,
     flex: 1,
     fontSize: 18,
     color: COLORS.text,
@@ -230,6 +233,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   buttonText: {
+    fontFamily: FONTS.sansSemiBold,
     color: COLORS.text,
     fontSize: 16,
     fontWeight: '600',

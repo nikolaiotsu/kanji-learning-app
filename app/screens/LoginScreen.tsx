@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { router } from 'expo-router';
 import SocialAuth from '../components/SocialAuth';
 import { COLORS } from '../constants/colors';
+import { FONTS } from '../constants/typography';
 import PokedexLayout from '../components/shared/PokedexLayout';
 
 import { logger } from '../utils/logger';
@@ -133,6 +134,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
+    fontFamily: FONTS.sansBold,
     fontSize: 28,
     fontWeight: 'bold',
     marginBottom: 20,
@@ -149,6 +151,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   newUserText: {
+    fontFamily: FONTS.sans,
     fontSize: 16,
     marginRight: 10,
     color: COLORS.text,
@@ -160,10 +163,12 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   signUpButtonText: {
+    fontFamily: FONTS.sansBold,
     color: COLORS.text,
     fontWeight: 'bold',
   },
   input: {
+    fontFamily: FONTS.sans,
     borderWidth: 1,
     borderColor: COLORS.darkGray,
     borderRadius: 8,
@@ -181,6 +186,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   buttonText: {
+    fontFamily: FONTS.sansBold,
     color: COLORS.text,
     fontSize: 16,
     fontWeight: 'bold',
@@ -190,6 +196,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   link: {
+    fontFamily: FONTS.sans,
     color: COLORS.lightGray,
     fontSize: 14,
     marginVertical: 5,
@@ -205,6 +212,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.darkGray,
   },
   dividerText: {
+    fontFamily: FONTS.sans,
     marginHorizontal: 10,
     color: COLORS.text,
   },

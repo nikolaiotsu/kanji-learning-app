@@ -1,4 +1,5 @@
 import { COLORS } from "../constants/colors";
+import { FONTS } from "../constants/typography";
 import { ViewStyle, TextStyle, Platform } from "react-native";
 
 /**
@@ -154,6 +155,7 @@ export function createPokedexTextStyle(
   };
 
   return {
+    fontFamily: weight === "bold" ? FONTS.sansBold : FONTS.sans,
     color,
     fontSize: fontSizes[size],
     fontWeight: weight,

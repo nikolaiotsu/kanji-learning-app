@@ -38,6 +38,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as StoreReview from 'expo-store-review';
 import { useTranslation } from 'react-i18next';
 import { COLORS } from '../../constants/colors';
+import { FONTS } from '../../constants/typography';
 import { recordReviewAction, getReviewPromptState } from '../../services/reviewPromptService';
 import { logger } from '../../utils/logger';
 
@@ -254,6 +255,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   title: {
+    fontFamily: FONTS.sansBold,
     fontSize: 24,
     fontWeight: 'bold',
     color: COLORS.text,
@@ -271,6 +273,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   message: {
+    fontFamily: FONTS.sans,
     fontSize: 16,
     color: COLORS.textSecondary,
     textAlign: 'center',
@@ -292,6 +295,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   primaryButtonText: {
+    fontFamily: FONTS.sansBold,
     color: COLORS.text,
     fontSize: 16,
     fontWeight: 'bold',
@@ -306,6 +310,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   secondaryButtonText: {
+    fontFamily: FONTS.sansSemiBold,
     color: COLORS.textSecondary,
     fontSize: 14,
     fontWeight: '600',

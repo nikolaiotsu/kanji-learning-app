@@ -3,6 +3,7 @@ import { View, StyleSheet, ActivityIndicator, Text, Animated, Easing } from 'rea
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEvent } from 'expo';
 import { COLORS } from '../constants/colors';
+import { FONTS } from '../constants/typography';
 import { useLoadingVideoPlayer } from '../context/LoadingVideoContext';
 
 /**
@@ -138,6 +139,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
+    fontFamily: FONTS.sans,
     marginTop: 10,
     fontSize: 16,
     color: COLORS.text,

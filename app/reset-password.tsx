@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from './context/AuthContext';
 import { router } from 'expo-router';
 import { COLORS } from './constants/colors';
+import { FONTS } from './constants/typography';
 
 const ResetPasswordScreen = () => {
   const [email, setEmail] = useState('');
@@ -87,6 +88,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
+    fontFamily: FONTS.sansBold,
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 16,
@@ -94,12 +96,14 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   description: {
+    fontFamily: FONTS.sans,
     fontSize: 16,
     color: COLORS.accentLight,
     marginBottom: 24,
     textAlign: 'center',
   },
   input: {
+    fontFamily: FONTS.sans,
     borderWidth: 1,
     borderColor: COLORS.lightGray,
     borderRadius: 8,
@@ -117,6 +121,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   buttonText: {
+    fontFamily: FONTS.sansBold,
     color: COLORS.text,
     fontSize: 16,
     fontWeight: 'bold',
@@ -126,6 +131,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   link: {
+    fontFamily: FONTS.sans,
     color: COLORS.accentMedium,
     fontSize: 14,
     marginVertical: 5,

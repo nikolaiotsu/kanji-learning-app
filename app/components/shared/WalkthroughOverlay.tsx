@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { COLORS } from '../../constants/colors';
+import { FONTS } from '../../constants/typography';
 import { Ionicons } from '@expo/vector-icons';
 
 interface WalkthroughStep {
@@ -342,6 +343,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   skipButtonText: {
+    fontFamily: FONTS.sansMedium,
     color: COLORS.textSecondary,
     fontSize: 14,
     fontWeight: '500',
@@ -350,12 +352,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tooltipTitle: {
+    fontFamily: FONTS.sansBold,
     fontSize: 18,
     fontWeight: '700',
     color: COLORS.text,
     marginBottom: 8,
   },
   tooltipDescription: {
+    fontFamily: FONTS.sans,
     fontSize: 14,
     color: COLORS.textSecondary,
     lineHeight: 20,
@@ -382,6 +386,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.darkGray,
   },
   backButtonText: {
+    fontFamily: FONTS.sansSemiBold,
     color: COLORS.primary,
     fontSize: 16,
     fontWeight: '600',
@@ -399,6 +404,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   nextButtonText: {
+    fontFamily: FONTS.sansSemiBold,
     color: '#000',
     fontSize: 16,
     fontWeight: '600',
@@ -410,6 +416,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   doneButtonText: {
+    fontFamily: FONTS.sansSemiBold,
     color: '#000',
     fontSize: 16,
     fontWeight: '600',

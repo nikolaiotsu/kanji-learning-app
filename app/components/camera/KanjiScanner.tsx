@@ -18,6 +18,7 @@ import { useNetworkState } from '../../services/networkManager';
 import { apiLogger } from '../../services/apiUsageLogger';
 import { getCurrentSubscriptionPlan } from '../../services/receiptValidationService';
 import { COLORS } from '../../constants/colors';
+import { FONTS } from '../../constants/typography';
 import { PRODUCT_IDS } from '../../constants/config';
 import { CapturedImage, TextAnnotation, VisionApiResponse } from '../../../types';
 import { captureRef } from 'react-native-view-shot';
@@ -3008,6 +3009,7 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     zIndex: 999,
   },
   errorText: {
+    fontFamily: FONTS.sansBold,
     color: 'white',
     fontSize: 14,
     fontWeight: 'bold',
@@ -3019,7 +3021,7 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     left: 15,
     flexDirection: 'row',
     alignItems: 'center',
-    zIndex: 800,
+    zIndex: 950, // Above reviewer (900) so energy bar is not obscured
   },
   energyBarFireIndicator: {
     minWidth: 26,
@@ -3040,6 +3042,7 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     marginTop: 0,
   },
   energyBarStreakCount: {
+    fontFamily: FONTS.sansSemiBold,
     fontSize: 10,
     fontWeight: '600',
     color: COLORS.text,
@@ -3048,6 +3051,7 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
   },
   energyBarInRow: {
     marginLeft: 0,
+    flexShrink: 0, // Prevent energy bar from shrinking in row
   },
   topRightButtonRow: {
     position: 'absolute',
@@ -3115,6 +3119,7 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     backgroundColor: 'rgba(52, 199, 89, 1.0)', // Fully opaque green
   },
   swipeCounterText: {
+    fontFamily: FONTS.sansBold,
     color: '#FFFFFF', // Pure white
     fontSize: 18, // Slightly larger for better visibility
     fontWeight: '900', // Extra bold
@@ -3186,6 +3191,7 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     paddingBottom: 20,
   },
   modalTitle: {
+    fontFamily: FONTS.sansBold,
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 16,
@@ -3193,6 +3199,7 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     color: COLORS.text,
   },
   textInput: {
+    fontFamily: FONTS.sans,
     borderWidth: 1,
     borderColor: COLORS.lightGray,
     borderRadius: 8,
@@ -3248,6 +3255,7 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     marginBottom: 4,
   },
   modalButtonText: {
+    fontFamily: FONTS.sansBold,
     color: 'white',
     fontWeight: 'bold',
     fontSize: 13,
@@ -3258,6 +3266,7 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     textShadowRadius: 2,
   },
   modalWordScopeButtonText: {
+    fontFamily: FONTS.sansBold,
     color: 'white',
     fontWeight: 'bold',
     fontSize: 11,
@@ -3278,11 +3287,13 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     zIndex: 100,
   },
   instructionText: {
+    fontFamily: FONTS.sans,
     color: 'white',
     fontSize: 14,
     textAlign: 'center',
   },
   buttonText: {
+    fontFamily: FONTS.sansBold,
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',

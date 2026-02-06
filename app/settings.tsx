@@ -13,6 +13,7 @@ import { useOnboarding } from './context/OnboardingContext';
 import { supabase } from './services/supabaseClient';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { COLORS } from './constants/colors';
+import { FONTS } from './constants/typography';
 import { PRODUCT_IDS, PRODUCT_DETAILS } from './constants/config';
 import PokedexLayout from './components/shared/PokedexLayout';
 import { resetReviewPromptState, resetLifetimeCount, getReviewStatus } from './services/reviewPromptService';
@@ -1112,6 +1113,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   sectionTitle: {
+    fontFamily: FONTS.sansSemiBold,
     fontSize: 16,
     fontWeight: '600',
     color: COLORS.text,
@@ -1133,11 +1135,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   settingLabel: {
+    fontFamily: FONTS.sansMedium,
     fontSize: 16,
     fontWeight: '500',
     color: COLORS.text,
   },
   settingDescription: {
+    fontFamily: FONTS.sans,
     fontSize: 14,
     color: COLORS.darkGray,
   },
@@ -1145,6 +1149,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   emailText: {
+    fontFamily: FONTS.sans,
     fontSize: 16,
     color: COLORS.text,
   },
@@ -1168,11 +1173,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalTitle: {
+    fontFamily: FONTS.sansBold,
     fontSize: 18,
     fontWeight: 'bold',
     color: COLORS.text,
   },
   modalDescription: {
+    fontFamily: FONTS.sans,
     fontSize: 14,
     color: COLORS.darkGray,
     marginBottom: 16,
@@ -1191,10 +1198,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary + '33', // Semi-transparent primary color
   },
   languageText: {
+    fontFamily: FONTS.sans,
     fontSize: 16,
     color: COLORS.text,
   },
   selectedLanguageText: {
+    fontFamily: FONTS.sansBold,
     fontWeight: 'bold',
     color: COLORS.primary,
   },
@@ -1206,6 +1215,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   closeButtonText: {
+    fontFamily: FONTS.sansMedium,
     color: COLORS.text,
     fontWeight: '500',
   },
@@ -1232,6 +1242,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
   },
   swapButtonText: {
+    fontFamily: FONTS.sansMedium,
     color: '#000',
     fontSize: 14,
     fontWeight: '500',
@@ -1247,6 +1258,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   counterText: {
+    fontFamily: FONTS.sansBold,
     color: 'white',
     fontSize: 14,
     fontWeight: 'bold',
@@ -1275,6 +1287,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.darkGray,
   },
   testingButtonText: {
+    fontFamily: FONTS.sansSemiBold,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -1299,11 +1312,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   resetCountButtonText: {
+    fontFamily: FONTS.sansSemiBold,
     color: 'white',
     fontSize: 14,
     fontWeight: '600',
   },
   testingInstructions: {
+    fontFamily: FONTS.sans,
     fontSize: 14,
     color: COLORS.muted,
     marginBottom: 12,
@@ -1327,6 +1342,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   deleteModalTitle: {
+    fontFamily: FONTS.sansBold,
     fontSize: 22,
     fontWeight: 'bold',
     color: COLORS.text,
@@ -1334,6 +1350,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   deleteModalWarning: {
+    fontFamily: FONTS.sans,
     fontSize: 16,
     color: COLORS.text,
     marginBottom: 16,
@@ -1341,6 +1358,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   deleteModalItems: {
+    fontFamily: FONTS.sans,
     fontSize: 14,
     color: COLORS.darkGray,
     marginBottom: 24,
@@ -1348,12 +1366,14 @@ const styles = StyleSheet.create({
     paddingLeft: 8,
   },
   deleteModalTypeText: {
+    fontFamily: FONTS.sansSemiBold,
     fontSize: 14,
     color: COLORS.text,
     marginBottom: 8,
     fontWeight: '600',
   },
   deleteConfirmInput: {
+    fontFamily: FONTS.sans,
     backgroundColor: COLORS.background,
     borderRadius: 8,
     padding: 12,
@@ -1377,6 +1397,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.darkGray,
   },
   deleteCancelButtonText: {
+    fontFamily: FONTS.sansSemiBold,
     color: COLORS.text,
     fontSize: 16,
     fontWeight: '600',
@@ -1389,6 +1410,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   deleteConfirmButtonText: {
+    fontFamily: FONTS.sansSemiBold,
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
@@ -1403,6 +1425,7 @@ const styles = StyleSheet.create({
     minHeight: 48,
   },
   deleteFinalButtonText: {
+    fontFamily: FONTS.sansBold,
     color: 'white',
     fontSize: 16,
     fontWeight: '700',
@@ -1412,6 +1435,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   longPressHint: {
+    fontFamily: FONTS.sans,
     fontSize: 12,
     color: COLORS.darkGray,
     marginTop: 2,
@@ -1441,6 +1465,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   signOutButtonText: {
+    fontFamily: FONTS.sansSemiBold,
     fontSize: 16,
     fontWeight: '600',
     color: 'white',
@@ -1456,12 +1481,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   upgradeTitle: {
+    fontFamily: FONTS.sansBold,
     fontSize: 18,
     fontWeight: '700',
     color: COLORS.text,
     marginBottom: 2,
   },
   upgradeSubtitle: {
+    fontFamily: FONTS.sans,
     fontSize: 14,
     color: COLORS.darkGray,
   },
@@ -1497,11 +1524,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   purchaseButtonTitle: {
+    fontFamily: FONTS.sansBold,
     fontSize: 16,
     fontWeight: '700',
     color: 'white',
   },
   purchaseButtonSavings: {
+    fontFamily: FONTS.sansSemiBold,
     fontSize: 12,
     fontWeight: '600',
     color: 'white',
@@ -1509,6 +1538,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   purchaseButtonPrice: {
+    fontFamily: FONTS.sansBold,
     fontSize: 16,
     fontWeight: '700',
     color: 'white',
@@ -1519,6 +1549,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   restoreButtonText: {
+    fontFamily: FONTS.sansMedium,
     fontSize: 14,
     fontWeight: '500',
     color: COLORS.primary,

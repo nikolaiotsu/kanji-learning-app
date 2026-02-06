@@ -9,6 +9,7 @@ export default {
     // ... other existing config
     scheme: "kanjiapp",
     plugins: [
+      'expo-font',
       // ... other plugins
     ],
     android: {

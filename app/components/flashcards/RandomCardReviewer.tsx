@@ -9,6 +9,7 @@ import { useRandomCardReview, LoadingState } from '../../hooks/useRandomCardRevi
 import { getDecks, updateFlashcard, resetSRSProgress, refreshDecksFromServer } from '../../services/supabaseStorage';
 import { Flashcard } from '../../types/Flashcard';
 import { COLORS } from '../../constants/colors';
+import { FONTS } from '../../constants/typography';
 import MultiDeckSelector from './MultiDeckSelector';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../context/AuthContext';
@@ -2777,6 +2778,7 @@ const createStyles = (
     opacity: 0.5,
   },
   deckButtonText: {
+    fontFamily: FONTS.sansMedium,
     color: 'rgba(59, 130, 246, 0.5)', // More transparent blue
     marginLeft: 4,
     fontWeight: '500',
@@ -2802,6 +2804,7 @@ const createStyles = (
     opacity: 0.5,
   },
   reviewModeButtonText: {
+    fontFamily: FONTS.sansMedium,
     color: 'rgba(59, 130, 246, 0.5)', // More transparent blue
     marginLeft: 4,
     fontWeight: '500',
@@ -2882,6 +2885,7 @@ const createStyles = (
     width: '100%',
   },
   countText: {
+    fontFamily: FONTS.sans,
     color: '#b3b3b3',
     fontSize: 12,
     textAlign: 'center',
@@ -2891,6 +2895,7 @@ const createStyles = (
     lineHeight: 16,
   },
   errorText: {
+    fontFamily: FONTS.sans,
     color: COLORS.danger,
     textAlign: 'center',
     marginBottom: 10,
@@ -2902,6 +2907,7 @@ const createStyles = (
     borderRadius: 8,
   },
   retryText: {
+    fontFamily: FONTS.sansBold,
     color: COLORS.text,
     fontWeight: 'bold',
   },
@@ -2924,6 +2930,7 @@ const createStyles = (
     shadowRadius: 3.84,
   },
   noCardsText: {
+    fontFamily: FONTS.sansBold,
     fontSize: 18,
     fontWeight: 'bold',
     color: COLORS.text,
@@ -2931,6 +2938,7 @@ const createStyles = (
     marginBottom: 10,
   },
   guidanceText: {
+    fontFamily: FONTS.sans,
     fontSize: 14,
     color: COLORS.lightGray,
     textAlign: 'center',
@@ -2948,10 +2956,12 @@ const createStyles = (
     shadowRadius: 2,
   },
   reviewAgainText: {
+    fontFamily: FONTS.sansBold,
     color: COLORS.text,
     fontWeight: 'bold',
   },
   gettingStartedTitle: {
+    fontFamily: FONTS.sansBold,
     fontSize: 22,
     fontWeight: 'bold',
     color: COLORS.text,
@@ -2959,6 +2969,7 @@ const createStyles = (
     marginBottom: 8,
   },
   gettingStartedSubtitle: {
+    fontFamily: FONTS.sans,
     fontSize: 16,
     color: COLORS.lightGray,
     textAlign: 'center',
@@ -2980,6 +2991,7 @@ const createStyles = (
     borderLeftColor: COLORS.primary,
   },
   guideItemText: {
+    fontFamily: FONTS.sans,
     fontSize: 15,
     color: COLORS.text,
     marginLeft: 16,
@@ -3025,6 +3037,7 @@ const createStyles = (
     alignItems: 'center',
   },
   streakCongratsTitle: {
+    fontFamily: FONTS.sansBold,
     fontSize: 22,
     fontWeight: 'bold',
     color: COLORS.text,
@@ -3032,6 +3045,7 @@ const createStyles = (
     textAlign: 'center',
   },
   streakCongratsBody: {
+    fontFamily: FONTS.sans,
     fontSize: 16,
     color: COLORS.lightGray,
     lineHeight: 24,
@@ -3049,6 +3063,7 @@ const createStyles = (
     marginTop: 0,
   },
   streakCongratsFireNumber: {
+    fontFamily: FONTS.sansBold,
     fontSize: 36,
     fontWeight: '700',
     color: COLORS.text,
@@ -3060,6 +3075,7 @@ const createStyles = (
     borderRadius: 10,
   },
   streakCongratsButtonText: {
+    fontFamily: FONTS.sansSemiBold,
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',

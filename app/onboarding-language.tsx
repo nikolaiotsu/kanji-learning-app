@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { useOnboarding } from './context/OnboardingContext';
 import { useSettings, AVAILABLE_LANGUAGES, DETECTABLE_LANGUAGES } from './context/SettingsContext';
 import { COLORS } from './constants/colors';
+import { FONTS } from './constants/typography';
 import { Ionicons } from '@expo/vector-icons';
 import LoadingVideoScreen from './components/LoadingVideoScreen';
 
@@ -203,6 +204,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   title: {
+    fontFamily: FONTS.sansBold,
     fontSize: 24,
     fontWeight: '700',
     color: COLORS.text,
@@ -225,6 +227,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   languageButtonText: {
+    fontFamily: FONTS.sansMedium,
     fontSize: 15,
     color: COLORS.text,
     fontWeight: '500',
@@ -243,6 +246,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   buttonText: {
+    fontFamily: FONTS.sansSemiBold,
     color: COLORS.text,
     fontSize: 16,
     fontWeight: '600',
@@ -266,6 +270,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalTitle: {
+    fontFamily: FONTS.sansBold,
     fontSize: 17,
     fontWeight: 'bold',
     color: COLORS.text,
@@ -283,10 +288,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary + '33',
   },
   languageText: {
+    fontFamily: FONTS.sans,
     fontSize: 15,
     color: COLORS.text,
   },
   selectedLanguageText: {
+    fontFamily: FONTS.sansSemiBold,
     fontWeight: '600',
     color: COLORS.primary,
   },

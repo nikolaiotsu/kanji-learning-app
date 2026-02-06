@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import { FONTS } from '../../constants/typography';
 
 import { logger } from '../../utils/logger';
 interface ImageOverlayProps {
@@ -212,6 +213,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
+    fontFamily: FONTS.sans,
     color: COLORS.text,
     marginTop: 10,
     fontSize: 16,
@@ -222,6 +224,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   errorText: {
+    fontFamily: FONTS.sans,
     color: COLORS.darkGray,
     marginTop: 10,
     fontSize: 16,

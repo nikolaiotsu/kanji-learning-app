@@ -6,6 +6,7 @@ import { Flashcard } from '../../types/Flashcard';
 import { localizeScopeAnalysisHeadings } from '../../utils/textFormatting';
 import { Ionicons, MaterialIcons, FontAwesome5, FontAwesome6 } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import { FONTS } from '../../constants/typography';
 import { useSettings, AVAILABLE_LANGUAGES } from '../../context/SettingsContext';
 import FuriganaText from '../shared/FuriganaText';
 import { logger } from '../../utils/logger';
@@ -968,8 +969,10 @@ const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean
     textAlign: 'center',
     color: COLORS.text,
     lineHeight: 42, // Increased proportionally
+    // Japanese/kanji: system font (e.g. Hiragino on iOS) for best CJK rendering
   },
   sectionTitle: {
+    fontFamily: FONTS.sansBold,
     fontSize: 16,
     fontWeight: 'bold',
     color: COLORS.darkGray,
@@ -978,6 +981,7 @@ const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean
     textAlign: 'center', // Center the title
   },
   readingsText: {
+    fontFamily: FONTS.sans,
     fontSize: 20, // Increased from 18 for better visibility on larger cards
     textAlign: 'center', // Center the text
     color: COLORS.text,
@@ -989,12 +993,14 @@ const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean
     alignSelf: 'center',
   },
   translatedText: {
+    fontFamily: FONTS.sans,
     fontSize: 20, // Increased from 18 for better visibility on larger cards
     textAlign: 'center', // Center the text
     color: COLORS.text,
     lineHeight: 30, // Increased proportionally
   },
   scopeAnalysisText: {
+    fontFamily: FONTS.sans,
     fontSize: 16,
     textAlign: 'center',
     color: COLORS.text,
@@ -1014,6 +1020,7 @@ const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean
     gap: 8,
   },
   appendAnalysisButtonText: {
+    fontFamily: FONTS.sansSemiBold,
     color: '#ffffff',
     fontSize: 14,
     fontWeight: '600',
@@ -1101,11 +1108,13 @@ const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean
     backgroundColor: COLORS.darkSurface,
   },
   deckLabel: {
+    fontFamily: FONTS.sansBold,
     fontSize: 16,
     fontWeight: 'bold',
     color: COLORS.darkGray,
   },
   deckName: {
+    fontFamily: FONTS.sans,
     fontSize: 16,
     color: COLORS.darkGray,
   },
@@ -1146,6 +1155,7 @@ const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean
     zIndex: 10,
   },
   reviewDateText: {
+    fontFamily: FONTS.sans,
     fontSize: 11,
     color: COLORS.darkGray,
     opacity: 0.7,

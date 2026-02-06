@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS } from '../../constants/colors';
+import { FONTS } from '../../constants/typography';
 import FuriganaText from './FuriganaText';
 
 const FuriganaTextDemo: React.FC = () => {
@@ -56,6 +57,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   title: {
+    fontFamily: FONTS.sansBold,
     fontSize: 24,
     fontWeight: 'bold',
     color: COLORS.text,
@@ -71,6 +73,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.royalBlue,
   },
   exampleLabel: {
+    fontFamily: FONTS.sansBold,
     fontSize: 16,
     fontWeight: 'bold',
     color: COLORS.darkGray,

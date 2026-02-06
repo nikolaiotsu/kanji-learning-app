@@ -4,6 +4,7 @@ import { supabase } from './services/supabaseClient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { COLORS } from './constants/colors';
+import { FONTS } from './constants/typography';
 import { useAuth } from './context/AuthContext';
 
 import { logger } from './utils/logger';
@@ -79,6 +80,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   loadingText: {
+    fontFamily: FONTS.sans,
     marginTop: 20,
     fontSize: 16,
     color: COLORS.text,

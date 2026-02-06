@@ -7,6 +7,7 @@ import { router } from 'expo-router';
 import SocialAuth from '../components/SocialAuth';
 import PokedexLayout from '../components/shared/PokedexLayout';
 import { COLORS } from '../constants/colors';
+import { FONTS } from '../constants/typography';
 
 import { logger } from '../utils/logger';
 const SignupScreen = () => {
@@ -190,6 +191,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
+    fontFamily: FONTS.sansBold,
     fontSize: 28,
     fontWeight: 'bold',
     marginBottom: 10,
@@ -197,12 +199,14 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   subtitle: {
+    fontFamily: FONTS.sans,
     textAlign: 'center',
     marginBottom: 30,
     color: '#666',
     fontSize: 16,
   },
   input: {
+    fontFamily: FONTS.sans,
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
@@ -212,6 +216,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f9f9',
   },
   passwordHint: {
+    fontFamily: FONTS.sans,
     color: '#666',
     fontSize: 12,
     marginBottom: 20,
@@ -225,6 +230,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   buttonText: {
+    fontFamily: FONTS.sansBold,
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
@@ -240,6 +246,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ddd',
   },
   dividerText: {
+    fontFamily: FONTS.sans,
     marginHorizontal: 10,
     color: '#666',
   },
@@ -251,6 +258,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loginButtonText: {
+    fontFamily: FONTS.sansMedium,
     color: '#007BFF',
     fontSize: 16,
     fontWeight: '500',
@@ -260,6 +268,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   link: {
+    fontFamily: FONTS.sans,
     color: '#007BFF',
     fontSize: 14,
     marginVertical: 5,

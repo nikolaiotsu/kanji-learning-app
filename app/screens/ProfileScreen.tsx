@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { COLORS } from '../constants/colors';
+import { FONTS } from '../constants/typography';
 import { router } from 'expo-router';
 
 const ProfileScreen = () => {
@@ -83,12 +84,14 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   title: {
+    fontFamily: FONTS.sansBold,
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 20,
     color: COLORS.text,
   },
   sectionTitle: {
+    fontFamily: FONTS.sansBold,
     fontSize: 18,
     fontWeight: 'bold',
     marginTop: 20,
@@ -102,11 +105,13 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   label: {
+    fontFamily: FONTS.sans,
     fontSize: 14,
     color: COLORS.accentMedium,
     marginBottom: 4,
   },
   value: {
+    fontFamily: FONTS.sansMedium,
     fontSize: 16,
     color: COLORS.text,
     marginBottom: 16,
@@ -131,6 +136,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   buttonText: {
+    fontFamily: FONTS.sansBold,
     color: COLORS.text,
     fontSize: 16,
     fontWeight: 'bold',

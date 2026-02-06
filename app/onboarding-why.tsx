@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { COLORS } from './constants/colors';
+import { FONTS } from './constants/typography';
 import LoadingVideoScreen from './components/LoadingVideoScreen';
 
 const REASON_OPTIONS = [
@@ -109,6 +110,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   title: {
+    fontFamily: FONTS.sansBold,
     fontSize: 24,
     fontWeight: '700',
     color: COLORS.text,
@@ -136,11 +138,13 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   optionLabel: {
+    fontFamily: FONTS.sansMedium,
     fontSize: 15,
     color: COLORS.text,
     fontWeight: '500',
   },
   optionLabelSelected: {
+    fontFamily: FONTS.sansSemiBold,
     color: COLORS.primary,
     fontWeight: '600',
   },
@@ -158,6 +162,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   buttonText: {
+    fontFamily: FONTS.sansSemiBold,
     color: COLORS.text,
     fontSize: 16,
     fontWeight: '600',

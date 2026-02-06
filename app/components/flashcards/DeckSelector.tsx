@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { Deck } from '../../types/Deck';
 import { getDecks, createDeck } from '../../services/supabaseStorage';
 import { COLORS } from '../../constants/colors';
+import { FONTS } from '../../constants/typography';
 import { supabase } from '../../services/supabaseClient';
 import { useNetworkState } from '../../services/networkManager';
 import { useSubscription } from '../../context/SubscriptionContext';
@@ -446,6 +447,7 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.lightGray,
   },
   title: {
+    fontFamily: FONTS.sansBold,
     fontSize: 18,
     fontWeight: 'bold',
     color: COLORS.text,
@@ -459,6 +461,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   loadingText: {
+    fontFamily: FONTS.sans,
     fontSize: 16,
     marginTop: 12,
     color: COLORS.darkGray,
@@ -480,12 +483,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   deckName: {
+    fontFamily: FONTS.sansMedium,
     fontSize: 16,
     fontWeight: '500',
     marginBottom: 4,
     color: COLORS.text,
   },
   deckDate: {
+    fontFamily: FONTS.sans,
     fontSize: 12,
     color: COLORS.darkGray,
   },
@@ -495,6 +500,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyText: {
+    fontFamily: FONTS.sans,
     fontSize: 16,
     color: COLORS.darkGray,
     textAlign: 'center',
@@ -510,6 +516,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   addDeckButtonText: {
+    fontFamily: FONTS.sansBold,
     fontSize: 16,
     fontWeight: 'bold',
     color: COLORS.text,
@@ -522,6 +529,7 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   newDeckInput: {
+    fontFamily: FONTS.sans,
     borderWidth: 1,
     borderColor: COLORS.lightGray,
     borderRadius: 8,
@@ -551,10 +559,12 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   cancelButtonText: {
+    fontFamily: FONTS.sansBold,
     color: COLORS.text,
     fontWeight: 'bold',
   },
   createButtonText: {
+    fontFamily: FONTS.sansBold,
     color: COLORS.text,
     fontWeight: 'bold',
   },
@@ -573,10 +583,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.mediumSurface,
   },
   reorderText: {
+    fontFamily: FONTS.sans,
     color: COLORS.text,
     fontSize: 14,
   },
   doneText: {
+    fontFamily: FONTS.sansBold,
     color: COLORS.primary,
     fontWeight: 'bold',
   },

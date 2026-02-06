@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { Deck } from '../../types/Deck';
 import { COLORS } from '../../constants/colors';
+import { FONTS } from '../../constants/typography';
 import { supabase } from '../../services/supabaseClient';
 
 import { logger } from '../../utils/logger';
@@ -266,15 +267,18 @@ const styles = StyleSheet.create({
     minWidth: 60,
   },
   title: {
+    fontFamily: FONTS.sansBold,
     fontSize: 18,
     fontWeight: 'bold',
     color: COLORS.text,
   },
   cancelText: {
+    fontFamily: FONTS.sans,
     fontSize: 16,
     color: COLORS.darkGray,
   },
   saveText: {
+    fontFamily: FONTS.sansSemiBold,
     fontSize: 16,
     color: COLORS.primary,
     fontWeight: '600',
@@ -288,6 +292,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.mediumSurface,
   },
   instructionText: {
+    fontFamily: FONTS.sans,
     fontSize: 14,
     color: COLORS.darkGray,
     textAlign: 'center',
@@ -324,12 +329,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   deckName: {
+    fontFamily: FONTS.sansMedium,
     fontSize: 16,
     fontWeight: '500',
     color: COLORS.text,
     marginBottom: 4,
   },
   deckDate: {
+    fontFamily: FONTS.sans,
     fontSize: 12,
     color: COLORS.darkGray,
   },

@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { COLORS } from '../../constants/colors';
+import { FONTS } from '../../constants/typography';
 import FloatingBadgeImage from './FloatingBadgeImage';
 import type { Badge } from '../../services/badgeService';
 
@@ -125,6 +126,7 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   title: {
+    fontFamily: FONTS.sansBold,
     fontSize: 24,
     fontWeight: 'bold',
     color: COLORS.text,
@@ -135,6 +137,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   badgeName: {
+    fontFamily: FONTS.sansSemiBold,
     fontSize: 18,
     fontWeight: '600',
     color: COLORS.text,
@@ -142,6 +145,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   description: {
+    fontFamily: FONTS.sans,
     fontSize: 16,
     color: COLORS.textSecondary,
     textAlign: 'center',
@@ -162,6 +166,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   dismissButtonText: {
+    fontFamily: FONTS.sansBold,
     color: COLORS.text,
     fontSize: 16,
     fontWeight: 'bold',

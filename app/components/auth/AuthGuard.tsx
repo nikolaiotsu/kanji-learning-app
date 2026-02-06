@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useOnboarding } from '../../context/OnboardingContext';
 import { useNetworkState } from '../../services/networkManager';
 import { COLORS } from '../../constants/colors';
+import { FONTS } from '../../constants/typography';
 
 import { logger } from '../../utils/logger';
 // Protected routes (require authentication)
@@ -137,6 +138,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   messageTitle: {
+    fontFamily: FONTS.sansSemiBold,
     fontSize: 16,
     fontWeight: '600',
     color: COLORS.text,
@@ -144,6 +146,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   messageText: {
+    fontFamily: FONTS.sans,
     fontSize: 14,
     color: COLORS.textSecondary,
     textAlign: 'center',

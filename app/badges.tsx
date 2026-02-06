@@ -7,6 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useBadge } from './context/BadgeContext';
 import FloatingBadgeImage from './components/shared/FloatingBadgeImage';
 import BadgeDetailModal from './components/shared/BadgeDetailModal';
+import TexturedBackground from './components/shared/TexturedBackground';
 import type { Badge } from './services/badgeService';
 import { COLORS } from './constants/colors';
 
@@ -109,20 +110,22 @@ export default function BadgesScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={[]}>
-      <View style={styles.content}>
-        <BadgeDisplayArea onBadgePress={handleBadgePress} />
-        {/* Rendered outside overflow:hidden so overlay can cover full screen */}
-        <BadgeDetailModal
-          visible={detailModalVisible}
-          badge={selectedBadge}
-          onDismiss={() => {
-            setDetailModalVisible(false);
-            setSelectedBadge(null);
-          }}
-        />
-      </View>
-    </SafeAreaView>
+    <TexturedBackground variant="liquid" style={styles.container}>
+      <SafeAreaView style={styles.safeArea} edges={[]}>
+        <View style={styles.content}>
+          <BadgeDisplayArea onBadgePress={handleBadgePress} />
+          {/* Rendered outside overflow:hidden so overlay can cover full screen */}
+          <BadgeDetailModal
+            visible={detailModalVisible}
+            badge={selectedBadge}
+            onDismiss={() => {
+              setDetailModalVisible(false);
+              setSelectedBadge(null);
+            }}
+          />
+        </View>
+      </SafeAreaView>
+    </TexturedBackground>
   );
 }
 
@@ -150,7 +153,10 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: 'transparent',
   },
   content: {
     flex: 1,
