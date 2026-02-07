@@ -18,12 +18,12 @@ const PREMIUM_CALLS_PER_BAR = 10; // 100 / 10 = 10 (one bar per 10 calls)
 const PREMIUM_DAILY_LIMIT = 100; // Premium users get 100 API calls per day
 
 export default function APIUsageEnergyBar({ style }: APIUsageEnergyBarProps) {
-  const { subscription } = useSubscription(); // Get subscription from context for real-time updates
+  const { subscription, isSubscriptionReady } = useSubscription();
   const [remainingBars, setRemainingBars] = useState<number | null>(null); // null = not yet loaded (first mount only)
   const [hasLoadedOnce, setHasLoadedOnce] = useState<boolean>(false); // Track if we've ever loaded data
 
-  // Derive premium status from subscription context
-  const isPremiumUser = subscription.plan === 'PREMIUM';
+  // Only treat as premium after subscription has loaded; before that, avoid showing free-tier (3 bars) for premium users
+  const isPremiumUser = isSubscriptionReady && subscription.plan === 'PREMIUM';
 
   const fetchUsage = useCallback(async (isInitialLoad: boolean = false) => {
     try {
@@ -70,36 +70,37 @@ export default function APIUsageEnergyBar({ style }: APIUsageEnergyBarProps) {
       setHasLoadedOnce(true);
     } catch (error) {
       logger.error('[APIUsageEnergyBar] Error fetching usage:', error);
-      // Default to showing all bars on error (use free as default)
-      setRemainingBars(FREE_MAX_BARS);
+      // Never default to free-tier (3 bars) for premium users; keep previous value or wait for subscription
+      setRemainingBars((prev) => {
+        if (prev !== null) return prev;
+        if (!isSubscriptionReady) return null; // Don't assume free while subscription still loading
+        return isPremiumUser ? PREMIUM_MAX_BARS : FREE_MAX_BARS;
+      });
     }
-  }, [subscription.plan, isPremiumUser]); // Re-fetch when subscription plan changes
+  }, [subscription.plan, isPremiumUser, isSubscriptionReady]);
 
-  // Initialize on mount - check cache first for immediate display
+  // Initialize only after subscription is ready so we never show free-tier (3 bars) for premium users
   useEffect(() => {
+    if (!isSubscriptionReady) return;
+
     const initializeFromCache = async () => {
-      // Check if we have a cached value for immediate display
       const cachedRemaining = apiLogger.getCachedRemainingApiCalls();
       if (cachedRemaining !== null) {
-        // Use subscription from context
         let remaining: number;
         if (isPremiumUser) {
           remaining = Math.ceil(cachedRemaining / PREMIUM_CALLS_PER_BAR);
         } else {
           remaining = cachedRemaining;
         }
-        
         logger.log(`[APIUsageEnergyBar] Using cached remaining API calls: ${cachedRemaining}, bars: ${remaining}`);
         setRemainingBars(remaining);
         setHasLoadedOnce(true);
       }
     };
-    
+
     initializeFromCache();
-    
-    // Still fetch to ensure we have the latest data
     fetchUsage(true);
-  }, [fetchUsage, isPremiumUser]); // Re-initialize when subscription changes
+  }, [isSubscriptionReady, fetchUsage, isPremiumUser]);
 
   // Subscribe to API usage events for immediate updates
   useEffect(() => {
@@ -132,64 +133,53 @@ export default function APIUsageEnergyBar({ style }: APIUsageEnergyBarProps) {
   }, [isPremiumUser]); // Re-subscribe when subscription changes
 
   // Refresh when screen comes into focus (user navigates back to screen)
-  // Use cached value if available for immediate display, then verify in background
   useFocusEffect(
     useCallback(() => {
+      if (!isSubscriptionReady) return;
+
       const updateFromCache = () => {
-        // Check cache first for immediate display
         const cachedRemaining = apiLogger.getCachedRemainingApiCalls();
         if (cachedRemaining !== null && remainingBars === null) {
-          // Use subscription from context
           let remaining: number;
           if (isPremiumUser) {
             remaining = Math.ceil(cachedRemaining / PREMIUM_CALLS_PER_BAR);
           } else {
             remaining = cachedRemaining;
           }
-          
           logger.log(`[APIUsageEnergyBar] Using cached value on focus: ${cachedRemaining}, bars: ${remaining}`);
           setRemainingBars(remaining);
           setHasLoadedOnce(true);
         }
       };
-      
+
       updateFromCache();
-      
-      // Verify in background (non-blocking)
       fetchUsage(false);
-    }, [fetchUsage, remainingBars, isPremiumUser]) // Include isPremiumUser in dependencies
+    }, [isSubscriptionReady, fetchUsage, remainingBars, isPremiumUser])
   );
 
-  // Refresh when app comes to foreground
+  // Refresh when app comes to foreground (only when subscription is ready)
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-      if (nextAppState === 'active') {
-        // App came to foreground, refresh usage
-        fetchUsage(false);
-      }
+    if (!isSubscriptionReady) return;
+    const sub = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') fetchUsage(false);
     });
+    return () => sub.remove();
+  }, [isSubscriptionReady, fetchUsage]);
 
-    return () => {
-      subscription.remove();
-    };
-  }, [fetchUsage]);
-
-  // Watch for subscription plan changes and refresh immediately
+  // Watch for subscription plan changes (once ready) and refresh immediately
   useEffect(() => {
+    if (!isSubscriptionReady) return;
     logger.log(`[APIUsageEnergyBar] Subscription plan changed to: ${subscription.plan}`);
-    // Refresh usage when subscription changes (e.g., beta switch to premium)
     fetchUsage(false);
-  }, [subscription.plan, fetchUsage]);
+  }, [isSubscriptionReady, subscription.plan, fetchUsage]);
 
   // Always render the component to maintain stable layout
-  // On first mount (remainingBars === null), show all bars as inactive (grey) as loading state
-  // After first load, always show the current value (even while refetching) to prevent flashing
-  // This ensures smooth transitions when navigating back - shows last known value immediately
-  const isLoading = remainingBars === null && !hasLoadedOnce;
+  // Wait for subscription to be ready before showing bar count so we never show free-tier (3) for premium users
+  const isLoading = !isSubscriptionReady || (remainingBars === null && !hasLoadedOnce);
   const activeBars = isLoading ? 0 : (remainingBars ?? 0);
-  
-  // Determine number of bars and color scheme based on subscription
-  const maxBars = isPremiumUser ? PREMIUM_MAX_BARS : FREE_MAX_BARS;
+
+  // Until subscription is known, show premium layout (10 slots) so we never flash 3 bars for premium users
+  const maxBars = !isSubscriptionReady ? PREMIUM_MAX_BARS : (isPremiumUser ? PREMIUM_MAX_BARS : FREE_MAX_BARS);
   const isGold = isPremiumUser;
   const isEmpty = !isLoading && activeBars === 0;
 

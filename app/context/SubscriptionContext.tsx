@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import * as InAppPurchases from 'expo-in-app-purchases';
 import Constants from 'expo-constants';
-import { SubscriptionContextType, SubscriptionState, SubscriptionPlan, IAPProduct, IAPPurchaseResult } from '../../types';
+import { SubscriptionContextType, SubscriptionState, SubscriptionPlan, IAPProduct } from '../../types';
 import { SUBSCRIPTION_PLANS, PRODUCT_IDS } from '../constants/config';
 import { 
   validateReceipt, 
@@ -28,6 +28,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     plan: 'FREE',
     isActive: false,
   });
+  const [isSubscriptionReady, setIsSubscriptionReady] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [availableProducts, setAvailableProducts] = useState<IAPProduct[]>([]);
@@ -98,14 +99,14 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
   
-  // Handle purchase updates from the App Store
-  const handlePurchaseUpdate = (result: IAPPurchaseResult) => {
+  // Handle purchase updates from the App Store (uses expo-in-app-purchases IAPQueryResponse<InAppPurchase>)
+  const handlePurchaseUpdate = (result: InAppPurchases.IAPQueryResponse<InAppPurchases.InAppPurchase>) => {
     const { responseCode, results, errorCode } = result;
     
     logger.log('Purchase update received:', { responseCode, errorCode });
     
     if (responseCode === InAppPurchases.IAPResponseCode.OK && results) {
-      results.forEach(async (purchase) => {
+      results.forEach(async (purchase: InAppPurchases.InAppPurchase) => {
         if (!purchase.acknowledged) {
           logger.log('Processing new purchase:', purchase.productId);
           
@@ -160,9 +161,10 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     } else if (responseCode === InAppPurchases.IAPResponseCode.USER_CANCELED) {
       logger.log('User canceled the purchase');
       setError('Purchase was canceled');
-    } else if (errorCode) {
-      logger.error('Purchase error:', errorCode);
-      setError(`Purchase failed: ${errorCode}`);
+    } else if (errorCode !== undefined) {
+      const errorMessage = typeof errorCode === 'number' ? InAppPurchases.IAPErrorCode[errorCode] ?? String(errorCode) : String(errorCode);
+      logger.error('Purchase error:', errorMessage);
+      setError(`Purchase failed: ${errorMessage}`);
     }
   };
 
@@ -185,10 +187,12 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
           setSubscription(subscriptionState);
           await saveSubscriptionData(subscriptionState);
           logger.log('Loaded active subscription from server');
+          setIsSubscriptionReady(true);
           return;
         } else {
           logger.log('No active subscription found on server');
           await resetToFreeSubscription();
+          setIsSubscriptionReady(true);
           return;
         }
       }
@@ -210,9 +214,11 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
           await resetToFreeSubscription();
         }
       }
+      setIsSubscriptionReady(true);
     } catch (error) {
       logger.error('Error loading subscription data:', error);
       await resetToFreeSubscription();
+      setIsSubscriptionReady(true);
     }
   };
 
@@ -441,6 +447,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     <SubscriptionContext.Provider
       value={{
         subscription,
+        isSubscriptionReady,
         isLoading,
         error,
         availableProducts,

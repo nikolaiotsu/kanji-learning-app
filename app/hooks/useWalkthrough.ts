@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from '../utils/logger';
 
 const WALKTHROUGH_COMPLETED_KEY = '@walkthrough_completed';
 const WALKTHROUGH_SKIPPED_KEY = '@walkthrough_skipped';
+const WALKTHROUGH_STARTED_KEY = '@walkthrough_started';
 
 // Global flag to track if walkthrough status has been checked in this app session
 // This prevents re-checking every time the component remounts
@@ -59,10 +61,19 @@ export function useWalkthrough(steps: WalkthroughStep[]): UseWalkthroughReturn {
 
     const checkWalkthroughStatus = async () => {
       try {
-        const [completed, skipped] = await Promise.all([
+        const [completed, skipped, started] = await Promise.all([
           AsyncStorage.getItem(WALKTHROUGH_COMPLETED_KEY),
           AsyncStorage.getItem(WALKTHROUGH_SKIPPED_KEY),
+          AsyncStorage.getItem(WALKTHROUGH_STARTED_KEY),
         ]);
+
+        // If walkthrough was started in a previous session but user closed/restarted without completing or skipping,
+        // treat it as implicitly skipped (don't show again)
+        if (started && !completed && !skipped) {
+          logger.log('Walkthrough was in progress when app closed; treating as skipped');
+          await AsyncStorage.setItem(WALKTHROUGH_SKIPPED_KEY, 'true');
+          await AsyncStorage.removeItem(WALKTHROUGH_STARTED_KEY);
+        }
 
         // If user hasn't completed or skipped, show walkthrough on first launch
         const shouldShow = !completed && !skipped;
@@ -112,10 +123,15 @@ export function useWalkthrough(steps: WalkthroughStep[]): UseWalkthroughReturn {
     : null;
 
   // Start the walkthrough
-  const startWalkthrough = useCallback(() => {
+  const startWalkthrough = useCallback(async () => {
     setIsActive(true);
     setCurrentStepIndex(0);
     setShouldShowWalkthrough(false);
+    try {
+      await AsyncStorage.setItem(WALKTHROUGH_STARTED_KEY, 'true');
+    } catch (error) {
+      logger.error('Error persisting walkthrough started:', error);
+    }
   }, []);
 
   // Complete walkthrough
@@ -133,6 +149,7 @@ export function useWalkthrough(steps: WalkthroughStep[]): UseWalkthroughReturn {
     // Persist to storage (non-blocking)
     try {
       await AsyncStorage.setItem(WALKTHROUGH_COMPLETED_KEY, 'true');
+      await AsyncStorage.removeItem(WALKTHROUGH_STARTED_KEY);
     } catch (error) {
       logger.error('Error persisting walkthrough completion:', error);
     }
@@ -169,9 +186,30 @@ export function useWalkthrough(steps: WalkthroughStep[]): UseWalkthroughReturn {
     // Persist to storage (non-blocking)
     try {
       await AsyncStorage.setItem(WALKTHROUGH_SKIPPED_KEY, 'true');
+      await AsyncStorage.removeItem(WALKTHROUGH_STARTED_KEY);
     } catch (error) {
       logger.error('Error persisting walkthrough skip:', error);
     }
+  }, []);
+
+  // When app goes to background or is closed while walkthrough is active, persist skip
+  const isActiveRef = useRef(isActive);
+  isActiveRef.current = isActive;
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'background' && isActiveRef.current) {
+        logger.log('App backgrounded during walkthrough; treating as skipped');
+        isActiveRef.current = false;
+        setIsActive(false);
+        setShouldShowWalkthrough(false);
+        globalShouldShowWalkthrough = false;
+        AsyncStorage.setItem(WALKTHROUGH_SKIPPED_KEY, 'true').catch((err) =>
+          logger.error('Error persisting walkthrough skip on background:', err)
+        );
+        AsyncStorage.removeItem(WALKTHROUGH_STARTED_KEY).catch(() => {});
+      }
+    });
+    return () => subscription.remove();
   }, []);
 
   return {
@@ -196,6 +234,7 @@ export async function resetWalkthrough(): Promise<void> {
     await Promise.all([
       AsyncStorage.removeItem(WALKTHROUGH_COMPLETED_KEY),
       AsyncStorage.removeItem(WALKTHROUGH_SKIPPED_KEY),
+      AsyncStorage.removeItem(WALKTHROUGH_STARTED_KEY),
     ]);
     
     // Reset global flags so walkthrough will show on next mount

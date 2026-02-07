@@ -38,6 +38,7 @@ import * as FileSystem from 'expo-file-system';
 import WalkthroughOverlay from '../shared/WalkthroughOverlay';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useWalkthrough, WalkthroughStep } from '../../hooks/useWalkthrough';
+import { useAppReady } from '../../context/AppReadyContext';
 import { ensureMeasuredThenAdvance, measureButton } from '../../utils/walkthroughUtils';
 import APIUsageEnergyBar from '../shared/APIUsageEnergyBar';
 import { hasEnergyBarsRemaining } from '../../utils/walkthroughEnergyCheck';
@@ -54,6 +55,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScann
   
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const { isSplashVisible } = useAppReady();
   
   // Calculate responsive dimensions based on actual device safe areas
   const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -295,9 +297,9 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     });
   }, []);
 
-  // Start walkthrough on first launch or after reset
+  // Start walkthrough on first launch or after reset (only after splash screen is dismissed)
   useEffect(() => {
-    if (shouldShowWalkthroughPrompt && !capturedImage && !isWalkthroughActive) {
+    if (shouldShowWalkthroughPrompt && !capturedImage && !isWalkthroughActive && !isSplashVisible) {
       // Delay to ensure buttons are rendered and measured
       const timer = setTimeout(async () => {
         // Check if user has energy bars before starting walkthrough
@@ -326,7 +328,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       }, 800);
       return () => clearTimeout(timer);
     }
-  }, [shouldShowWalkthroughPrompt, capturedImage, isWalkthroughActive, subscription.plan, t]);
+  }, [shouldShowWalkthroughPrompt, capturedImage, isWalkthroughActive, isSplashVisible, subscription.plan, t]);
 
   // Track if initial measurements have been done
   const hasMeasuredRef = useRef<boolean>(false);

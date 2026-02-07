@@ -15,6 +15,7 @@ import { OnboardingProvider } from './context/OnboardingContext';
 import LoadingVideoScreen from './components/LoadingVideoScreen';
 import { LoadingVideoProvider } from './context/LoadingVideoContext';
 import { OnboardingVideosProvider } from './context/OnboardingVideosContext';
+import { AppReadyProvider } from './context/AppReadyContext';
 import { StyleSheet, View, LogBox, Animated } from 'react-native';
 import { COLORS } from './constants/colors';
 import { FONTS } from './constants/typography';
@@ -150,6 +151,7 @@ function RootLayoutContent() {
 
   return (
     <TexturedBackground variant="default" style={styles.container}>
+      <AppReadyProvider isSplashVisible={isLoadingVisible}>
       {isAppReady && fontsLoaded && (
         <View style={styles.container} onLayout={onContentLayout}>
           <OnboardingVideosProvider>
@@ -251,6 +253,7 @@ function RootLayoutContent() {
                 </OnboardingVideosProvider>
             </View>
           )}
+      </AppReadyProvider>
       {isLoadingVisible && (
         <Animated.View
           style={[styles.loadingOverlay, { opacity: loadingOpacity }]}

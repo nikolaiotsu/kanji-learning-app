@@ -110,6 +110,8 @@ export interface ValidateReceiptResponse {
 
 export interface SubscriptionContextType {
   subscription: SubscriptionState;
+  /** True after initial subscription load has completed (plan is reliable, not default FREE) */
+  isSubscriptionReady: boolean;
   isLoading: boolean;
   error: string | null;
   availableProducts: IAPProduct[];
