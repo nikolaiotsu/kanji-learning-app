@@ -546,6 +546,20 @@ class APIUsageLogger {
   }
 
   /**
+   * Reset guest daily usage (AsyncStorage). Use when user taps "Reset Daily Limits" in guest mode.
+   * Also invalidates cached remaining count so UI refetches. Safe to call when signed-in (no-op for their data).
+   */
+  public async resetGuestDailyUsage(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(GUEST_DAILY_USAGE_KEY);
+      this.cachedRemainingApiCalls = null;
+      logger.log('[APILogger] Guest daily usage reset');
+    } catch (error) {
+      logger.error('[APILogger] Error resetting guest daily usage:', error);
+    }
+  }
+
+  /**
    * Subscribe to API usage updates
    * @param listener - Callback to be called when API usage is updated
    * @returns Unsubscribe function

@@ -61,6 +61,8 @@ export default function WalkthroughOverlay({
   const fadeAnim = useRef(new Animated.Value(1)).current;
   // Separate animated value to track if layout is ready (prevents flicker on initial render)
   const layoutReadyAnim = useRef(new Animated.Value(0)).current;
+  // Float animation for congratulations step (gentle up-down)
+  const floatAnim = useRef(new Animated.Value(0)).current;
   // Track if we're currently closing (for fade-out animation)
   const [isClosing, setIsClosing] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
@@ -156,6 +158,30 @@ export default function WalkthroughOverlay({
     }).start();
   }, [currentStepIndex, isClosing]);
 
+  // Float animation for congratulations step only
+  useEffect(() => {
+    if (currentStep?.id !== 'congratulations' || !visible) {
+      floatAnim.setValue(0);
+      return;
+    }
+    const floatLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(floatAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    floatLoop.start();
+    return () => floatLoop.stop();
+  }, [currentStep?.id, visible, floatAnim]);
+
   // Don't render if not visible and not in the process of closing
   if (!shouldRender || !currentStep) {
     return null;
@@ -172,6 +198,11 @@ export default function WalkthroughOverlay({
 
   // Combine both animations: layoutReadyAnim prevents flicker, fadeAnim handles step transitions
   const combinedOpacity = Animated.multiply(layoutReadyAnim, fadeAnim);
+  // Float: gentle vertical oscillation for congratulations step only
+  const floatTranslateY = floatAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -10],
+  });
 
   // Calculate position for the tooltip box - position it above the button
   const TOOLTIP_PADDING = 16;
@@ -262,6 +293,7 @@ export default function WalkthroughOverlay({
               top: tooltipTop,
               width: TOOLTIP_WIDTH,
               opacity: combinedOpacity,
+              transform: isCongratulationsStep ? [{ translateY: floatTranslateY }] : [],
             },
           ]}
         >

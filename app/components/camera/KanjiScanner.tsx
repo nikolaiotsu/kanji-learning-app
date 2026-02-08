@@ -273,11 +273,19 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
 
   // Track when user completes walkthrough via Done button (to show swipe instructions modal)
   const [walkthroughJustCompleted, setWalkthroughJustCompleted] = useState(false);
+  // Once walkthrough has ended (completed or skipped), never show the pre-walkthrough touch block again
+  const walkthroughEverEndedRef = useRef(false);
   const handleWalkthroughDone = useCallback(() => {
     setWalkthroughJustCompleted(true);
+    walkthroughEverEndedRef.current = true;
     completeWalkthrough();
     onWalkthroughComplete?.();
   }, [completeWalkthrough, onWalkthroughComplete]);
+
+  const handleSkipWalkthrough = useCallback(() => {
+    walkthroughEverEndedRef.current = true;
+    skipWalkthrough();
+  }, [skipWalkthrough]);
 
   // Register steps with the walkthrough hook
   useEffect(() => {
@@ -1283,6 +1291,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           const params: any = { text: detectedText, imageUri: uri };
           if (isWalkthroughActive) {
             params.walkthrough = 'true';
+            walkthroughEverEndedRef.current = true;
             completeWalkthrough();
             onWalkthroughComplete?.();
             AsyncStorage.setItem('@swipe_instructions_pending', 'true').catch(() => {});
@@ -1544,7 +1553,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   // Helper function to actually skip the walkthrough (extracted for reuse)
   const skipWalkthroughFromHighlight = async () => {
     logger.log('[KanjiScanner] User confirmed walkthrough cancellation during highlight phase');
-    
+    walkthroughEverEndedRef.current = true;
     // Reset walkthrough-related states first
     setHideWalkthroughOverlay(false);
     setHighlightModeActive(false);
@@ -1552,10 +1561,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     setHighlightRegion(null);
     hasRegisteredCheckmarkRef.current = false;
     imageHighlighterRef.current?.clearHighlightBox?.();
-    
     // Then skip the walkthrough (this sets isActive to false)
     await skipWalkthrough();
-    
     logger.log('[KanjiScanner] Walkthrough skip completed via cancelActiveMode');
   };
 
@@ -2269,7 +2276,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     REVIEWER_MAX_HEIGHT
   ), [REVIEWER_TOP_OFFSET, REVIEWER_MAX_HEIGHT]);
 
-  const showTouchBlock = blockTouchesBeforeWalkthrough && !isWalkthroughActive;
+  const showTouchBlock = blockTouchesBeforeWalkthrough && !isWalkthroughActive && !walkthroughEverEndedRef.current;
 
   return (
     <View
@@ -2985,7 +2992,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           totalSteps={totalSteps}
           onNext={handleWalkthroughNext}
           onPrevious={handleWalkthroughPrevious}
-          onSkip={skipWalkthrough}
+          onSkip={handleSkipWalkthrough}
           onDone={handleWalkthroughDone}
           customNextLabel={
             currentStep?.id === 'crop' ? t('walkthrough.crop.cta') :

@@ -174,6 +174,31 @@ export const deleteLocalDeck = async (id: string): Promise<boolean> => {
 };
 
 /**
+ * Reset SRS progress for guest flashcards in the given decks.
+ * Sets box=1 and nextReviewDate=today for all cards in deckIds (local only).
+ * @param deckIds Deck IDs to reset cards for
+ * @returns Number of cards reset
+ */
+export const resetLocalSRSProgress = async (deckIds: string[]): Promise<number> => {
+  if (!deckIds?.length) return 0;
+  const deckSet = new Set(deckIds);
+  const cards = await getLocalFlashcards();
+  const today = new Date();
+  let count = 0;
+  for (let i = 0; i < cards.length; i++) {
+    if (deckSet.has(cards[i].deckId)) {
+      cards[i] = { ...cards[i], box: 1, nextReviewDate: today };
+      count++;
+    }
+  }
+  if (count > 0) {
+    await AsyncStorage.setItem(GUEST_FLASHCARDS_KEY, JSON.stringify(cards));
+    logger.log('[LocalFlashcardStorage] Reset SRS for', count, 'guest cards in decks:', deckIds);
+  }
+  return count;
+};
+
+/**
  * Clear all guest data (after migration or logout)
  */
 export const clearAllLocalData = async (): Promise<void> => {

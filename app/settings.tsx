@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Modal, FlatList, TextInput, ActivityIndicator, Animated, Pressable, KeyboardAvoidingView, Platform, Linking } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -24,6 +25,7 @@ import { hasEnergyBarsRemaining } from './utils/walkthroughEnergyCheck';
 
 import { logger } from './utils/logger';
 import { getLocalDateString } from './utils/dateUtils';
+import { apiLogger } from './services/apiUsageLogger';
 export default function SettingsScreen() {
   const { t } = useTranslation();
   const { user, signOut, deleteAccount } = useAuth();
@@ -152,16 +154,18 @@ export default function SettingsScreen() {
         { 
           text: 'Reset', 
           style: 'destructive',
-          onPress: async () => {
+            onPress: async () => {
             try {
-              // Reset flashcard count
+              // Reset flashcard count (shared key for guest and signed-in)
               await resetFlashcardCount();
               
-              // Reset OCR count
+              // Reset OCR count (shared key for guest and signed-in)
               await resetOCRCount();
               
-              // Reset API usage in database (translate_api_calls and wordscope_api_calls)
-              // Only update if row exists - if no row exists, there's nothing to reset anyway
+              // Reset guest daily API usage (translate/wordscope) - stored in AsyncStorage when in guest mode
+              await apiLogger.resetGuestDailyUsage();
+              
+              // Reset API usage in database for signed-in users (translate_api_calls and wordscope_api_calls)
               const today = getLocalDateString();
               const { error } = await supabase
                 .from('user_daily_usage')
@@ -849,6 +853,28 @@ export default function SettingsScreen() {
               <Ionicons name="sparkles" size={16} color="white" style={{ marginRight: 8 }} />
               <Text style={styles.resetCountButtonText}>
                 Test Badge Modal
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.resetCountButton, { backgroundColor: COLORS.mediumSurface }]}
+              onPress={async () => {
+                try {
+                  await AsyncStorage.removeItem('@swipe_instructions_dismissed');
+                  await AsyncStorage.setItem('@swipe_instructions_pending', 'true');
+                  Alert.alert(
+                    t('common.success') ?? 'Done',
+                    "Swipe instructions reset. Go to Home and the \"Swipe left/right\" modal will appear."
+                  );
+                } catch (e) {
+                  logger.error('Error resetting swipe instructions:', e);
+                  Alert.alert(t('common.error') ?? 'Error', 'Could not reset swipe instructions.');
+                }
+              }}
+            >
+              <Ionicons name="swap-horizontal-outline" size={16} color="white" style={{ marginRight: 8 }} />
+              <Text style={styles.resetCountButtonText}>
+                Reset Swipe Instructions Modal
               </Text>
             </TouchableOpacity>
 

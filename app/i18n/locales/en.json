@@ -311,7 +311,7 @@
   "review": {
     "remaining": "{{count}} remaining - swipe ← to review again - swipe → to dismiss",
     "swipeInstructionsTitle": "Swipe Instructions",
-    "swipeInstructionsBody": "Swipe left ← to see it again, right → if you remembered the back. Tap Review to start tracking your learning with spaced repetition!",
+    "swipeInstructionsBody": "Swipe left ← to see your card again, right → if you remembered the back of your card. Tap Review to start tracking your learning with spaced repetition!",
     "dontShowAgain": "Don't show again",
     "srsCounter": "{{reviewed}}/{{due}}({{total}})",
     "reviewMode": "Review",

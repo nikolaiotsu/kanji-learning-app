@@ -7,13 +7,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import FlashcardItem from './FlashcardItem';
 import { useRandomCardReview, LoadingState } from '../../hooks/useRandomCardReview';
 import { getDecks, updateFlashcard, resetSRSProgress, refreshDecksFromServer } from '../../services/supabaseStorage';
-import { getLocalDecks } from '../../services/localFlashcardStorage';
+import { getLocalDecks, updateLocalFlashcard, resetLocalSRSProgress } from '../../services/localFlashcardStorage';
 import { Flashcard } from '../../types/Flashcard';
 import { COLORS } from '../../constants/colors';
 import { FONTS } from '../../constants/typography';
 import MultiDeckSelector from './MultiDeckSelector';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../context/AuthContext';
+import { useAppReady } from '../../context/AppReadyContext';
 import { useBadge } from '../../context/BadgeContext';
 import { useSwipeCounter } from '../../context/SwipeCounterContext';
 import { useNetworkState } from '../../services/networkManager';
@@ -39,6 +40,8 @@ const getDailyReviewStatsStorageKey = (userId: string) => `dailyReviewStats_${us
 const SWIPE_INSTRUCTIONS_DISMISSED_KEY = '@swipe_instructions_dismissed';
 // Storage key for showing swipe instructions when user returns to home (e.g. after completing walkthrough via flashcards flow)
 const SWIPE_INSTRUCTIONS_PENDING_KEY = '@swipe_instructions_pending';
+// Delay before showing swipe instructions so initial loading screen can dismiss first
+const SWIPE_INSTRUCTIONS_DELAY_MS = 600;
 
 // Interface for daily review stats stored in AsyncStorage
 interface DailyReviewStats {
@@ -70,6 +73,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { user, isGuest } = useAuth();
+  const { isSplashVisible } = useAppReady();
   const { pendingBadge } = useBadge();
   const { incrementRightSwipe, incrementLeftSwipe, streakCount, setDeckCardIds, resetSwipeCounts } = useSwipeCounter();
   const { isConnected } = useNetworkState();
@@ -238,14 +242,13 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     }
   }, [pendingBadge]);
 
-  // Check for pending swipe instructions on mount/focus (user completed via flashcards flow)
+  // Show swipe instructions every time user lands on Home (after initial loading is gone), unless they chose "Don't show again"
   useFocusEffect(
     useCallback(() => {
+      if (isSplashVisible) return; // Don't show while initial loading screen is visible
       let cancelled = false;
-      const checkPending = async () => {
+      const checkAndShow = async () => {
         try {
-          const pending = await AsyncStorage.getItem(SWIPE_INSTRUCTIONS_PENDING_KEY);
-          if (cancelled || pending !== 'true') return;
           const dismissed = await AsyncStorage.getItem(SWIPE_INSTRUCTIONS_DISMISSED_KEY);
           if (cancelled || (dismissed && dismissed === 'true')) return;
           await AsyncStorage.removeItem(SWIPE_INSTRUCTIONS_PENDING_KEY);
@@ -255,14 +258,17 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
             setShowSwipeInstructionsModal(true);
           }
         } catch {
-          if (!cancelled) {
-            AsyncStorage.removeItem(SWIPE_INSTRUCTIONS_PENDING_KEY).catch(() => {});
-          }
+          if (!cancelled) AsyncStorage.removeItem(SWIPE_INSTRUCTIONS_PENDING_KEY).catch(() => {});
         }
       };
-      checkPending();
-      return () => { cancelled = true; };
-    }, [pendingBadge])
+      const timer = setTimeout(() => {
+        checkAndShow();
+      }, SWIPE_INSTRUCTIONS_DELAY_MS);
+      return () => {
+        cancelled = true;
+        clearTimeout(timer);
+      };
+    }, [pendingBadge, isSplashVisible])
   );
 
   // State to track if image is expanded (to hide controls)
@@ -713,17 +719,26 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       logger.log('🎯 [SRS] Updating card:', card.id, 'Box:', currentBox, '->', newBox, 'Next review:', newNextReviewDate.toISOString().split('T')[0]);
       logger.log('🎯 [SRS] Card details - ID:', card.id.substring(0, 8), 'Current box:', currentBox, 'Is correct:', isCorrect, 'New box:', newBox, 'New review date:', newNextReviewDate.toISOString().split('T')[0]);
       
-      // Update database immediately
-      const updateResult = await updateFlashcard({
-        ...card,
-        box: newBox,
-        nextReviewDate: newNextReviewDate,
-      });
-      
-      if (updateResult) {
-        logger.log('✅ [SRS] Card updated successfully in database');
+      if (isGuest) {
+        // Guest: persist SRS progress locally on device
+        const updated = await updateLocalFlashcard(card.id, { box: newBox, nextReviewDate: newNextReviewDate });
+        if (updated) {
+          logger.log('✅ [SRS] Card updated successfully (local)');
+        } else {
+          logger.error('❌ [SRS] Local card update returned null');
+        }
       } else {
-        logger.error('❌ [SRS] Card update returned false');
+        // Signed-in: update database
+        const updateResult = await updateFlashcard({
+          ...card,
+          box: newBox,
+          nextReviewDate: newNextReviewDate,
+        });
+        if (updateResult) {
+          logger.log('✅ [SRS] Card updated successfully in database');
+        } else {
+          logger.error('❌ [SRS] Card update returned false');
+        }
       }
     } catch (error) {
       logger.error('❌ [SRS] Error updating card:', error);
@@ -732,10 +747,10 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
 
   // Reset Daily Review Stats - For testing the daily count reset (long press)
   const handleResetDailyStats = async () => {
-    if (!user?.id) return;
+    if (!dailyStatsUserId) return;
 
     try {
-      const storageKey = getDailyReviewStatsStorageKey(user.id);
+      const storageKey = getDailyReviewStatsStorageKey(dailyStatsUserId);
       const today = getLocalDateString();
 
       // Reset daily stats
@@ -777,7 +792,9 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               
               logger.log('🔄 [SRS Reset] Resetting SRS progress for decks:', selectedDeckIds);
               
-              const resetCount = await resetSRSProgress(selectedDeckIds);
+              const resetCount = isGuest
+                ? await resetLocalSRSProgress(selectedDeckIds)
+                : await resetSRSProgress(selectedDeckIds);
               
               if (resetCount >= 0) {
                 logger.log(`✅ [SRS Reset] Successfully reset ${resetCount} cards`);
@@ -875,17 +892,20 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   );
 
   // Load daily review stats from AsyncStorage on initialization (user-specific)
+  // Stable ID for guest daily stats (local device only)
+  const dailyStatsUserId = user?.id ?? (isGuest ? 'guest' : null);
+
   // Resets stats if it's a new day (midnight reset)
   useEffect(() => {
     const loadDailyReviewStats = async () => {
-      if (!user?.id) {
-        logger.log('📊 [DailyStats] No user, skipping daily stats load');
+      if (!dailyStatsUserId) {
+        logger.log('📊 [DailyStats] No user/guest, skipping daily stats load');
         setDailyStatsLoaded(true);
         return;
       }
 
       try {
-        const storageKey = getDailyReviewStatsStorageKey(user.id);
+        const storageKey = getDailyReviewStatsStorageKey(dailyStatsUserId);
         const storedStats = await AsyncStorage.getItem(storageKey);
         const today = getLocalDateString();
         
@@ -920,14 +940,14 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     };
 
     loadDailyReviewStats();
-  }, [user?.id]);
+  }, [dailyStatsUserId]);
 
   // Helper function to persist daily review stats
   const persistDailyReviewStats = useCallback(async (cardId: string) => {
-    if (!user?.id) return;
+    if (!dailyStatsUserId) return;
     
     try {
-      const storageKey = getDailyReviewStatsStorageKey(user.id);
+      const storageKey = getDailyReviewStatsStorageKey(dailyStatsUserId);
       const today = getLocalDateString();
       
       // Update state first for immediate UI feedback
@@ -950,7 +970,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     } catch (error) {
       logger.error('Error persisting daily review stats:', error);
     }
-  }, [user?.id]);
+  }, [dailyStatsUserId]);
 
   // NOTE: Filtering is now handled synchronously by useMemo (filteredCards above)
   // This eliminates the race condition where async filtering completed after
