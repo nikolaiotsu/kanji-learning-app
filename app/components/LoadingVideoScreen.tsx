@@ -34,16 +34,21 @@ export default function LoadingVideoScreen({ message, compact = false, showMessa
   const localPlayer = useVideoPlayer(loadingVideoSource, (p) => {
     p.loop = true;
     p.muted = true;
-    p.play();
+    // Playback started in useEffect below so we can pause on unmount
   });
   const player = preloadedPlayer ?? localPlayer;
 
-  // When using preloaded player, start playback on mount (it was only created, not played)
+  // Start playback when this screen is visible; pause when unmounted to save battery
   useEffect(() => {
-    if (preloadedPlayer) {
-      preloadedPlayer.play();
-    }
-  }, [preloadedPlayer]);
+    player.play();
+    return () => {
+      try {
+        player.pause();
+      } catch {
+        // Native player may already be disposed (e.g. after route change); ignore
+      }
+    };
+  }, [player]);
 
   useEffect(() => {
     const loop = Animated.loop(

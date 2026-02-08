@@ -5,6 +5,7 @@ import {
   UserBadge,
   incrementBadgeProgress,
   getUserBadges,
+  getGuestEarnedBadges,
 } from '../services/badgeService';
 import { getCurrentUser } from '../services/supabaseClient';
 import { getUserIdOffline } from '../services/offlineAuth';
@@ -16,6 +17,7 @@ interface BadgeContextType {
   setPendingBadge: (badge: Badge) => void;
   clearPendingBadge: () => void;
   checkAndUnlockBadges: (badgeType: string) => Promise<void>;
+  refreshEarnedBadges: () => Promise<void>;
 }
 
 const BadgeContext = createContext<BadgeContextType | undefined>(undefined);
@@ -43,26 +45,28 @@ export const BadgeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     loadPendingBadge();
   }, []);
 
-  // Load earned badges when user is available
-  useEffect(() => {
-    const loadEarnedBadges = async () => {
-      try {
-        let userId: string | null = null;
-        const user = await getCurrentUser();
-        if (user) userId = user.id;
-        if (!userId) userId = await getUserIdOffline();
+  const loadEarnedBadges = useCallback(async () => {
+    try {
+      let userId: string | null = null;
+      const user = await getCurrentUser();
+      if (user) userId = user.id;
+      if (!userId) userId = await getUserIdOffline();
 
-        if (userId) {
-          const badges = await getUserBadges(userId);
-          setEarnedBadges(badges);
-        }
-      } catch (error) {
-        logger.error('[BadgeContext] Error loading earned badges:', error);
+      if (userId) {
+        const badges = await getUserBadges(userId);
+        setEarnedBadges(badges);
+      } else {
+        const guestBadges = await getGuestEarnedBadges();
+        setEarnedBadges(guestBadges);
       }
-    };
+    } catch (error) {
+      logger.error('[BadgeContext] Error loading earned badges:', error);
+    }
+  }, []);
 
+  useEffect(() => {
     loadEarnedBadges();
-  }, [pendingBadge]); // Reload when pending badge changes (e.g., after unlock)
+  }, [pendingBadge, loadEarnedBadges]);
 
   const setPendingBadge = useCallback((badge: Badge) => {
     setPendingBadgeState(badge);
@@ -98,6 +102,7 @@ export const BadgeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setPendingBadge,
         clearPendingBadge,
         checkAndUnlockBadges,
+        refreshEarnedBadges: loadEarnedBadges,
       }}
     >
       {children}

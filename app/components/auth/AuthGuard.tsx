@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View, StyleSheet, Text } from 'react-native';
-import { useSegments, useRouter } from 'expo-router';
+import { useSegments, useRouter, useGlobalSearchParams } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useOnboarding } from '../../context/OnboardingContext';
 import { useNetworkState } from '../../services/networkManager';
@@ -18,17 +18,22 @@ const AUTH_SEGMENTS = ['login', 'signup', 'reset-password', 'onboarding'];
 const AUTH_ONLY_REDIRECT_SEGMENTS = ['login', 'signup', 'reset-password'];
 
 export const AuthGuard = ({ children }: { children: React.ReactNode }) => {
-  const { user, isLoading, isOfflineMode } = useAuth();
+  const { user, isLoading, isOfflineMode, isGuest } = useAuth();
   const { hasCompletedOnboarding } = useOnboarding();
   const { isConnected } = useNetworkState();
   const segments = useSegments();
   const router = useRouter();
-  
+  const globalParams = useGlobalSearchParams<{ walkthrough?: string }>();
+
   // Track if loading has taken too long (show helpful message)
   const [showSlowLoadingMessage, setShowSlowLoadingMessage] = useState(false);
 
   // Current route segment (first part of the path)
   const currentSegment = segments[0];
+  const hasWalkthroughParam = globalParams.walkthrough === 'true';
+  const isFlashcardsWalkthrough = currentSegment === 'flashcards' && hasWalkthroughParam;
+  const isHomeWalkthrough = (currentSegment === undefined || currentSegment === 'index') && hasWalkthroughParam;
+  const isWalkthroughMode = isFlashcardsWalkthrough || isHomeWalkthrough;
 
   // Show message if loading takes more than 5 seconds
   useEffect(() => {
@@ -82,22 +87,22 @@ export const AuthGuard = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
-    // User is not authenticated but tries to access protected routes → login
-    if (!user && PROTECTED_SEGMENTS.includes(currentSegment)) {
+    // User is not authenticated and not guest → protected routes require login (unless walkthrough mode)
+    if (!user && !isGuest && PROTECTED_SEGMENTS.includes(currentSegment) && !isWalkthroughMode) {
       logger.log('🔐 [AuthGuard] User not authenticated, redirecting to /login');
       router.replace('/login');
       return;
     }
 
-    // No segment (root) and not authenticated → login (onboarding already completed)
-    if (!user && !currentSegment) {
+    // No segment (root), not authenticated, and not guest → login (onboarding already completed), unless walkthrough
+    if (!user && !isGuest && (currentSegment === undefined || currentSegment === 'index') && !isHomeWalkthrough) {
       logger.log('🔐 [AuthGuard] No segment and no user, redirecting to /login');
       router.replace('/login');
       return;
     }
 
     logger.log('🔐 [AuthGuard] No navigation needed');
-  }, [user, isLoading, hasCompletedOnboarding, currentSegment, isOfflineMode]);
+  }, [user, isLoading, isGuest, hasCompletedOnboarding, currentSegment, isWalkthroughMode, isOfflineMode]);
 
   // Show loading while auth or onboarding state is resolving (avoids flashing wrong screen)
   const resolvingFirstTime = !user && hasCompletedOnboarding === null;

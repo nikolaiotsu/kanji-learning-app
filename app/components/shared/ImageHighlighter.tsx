@@ -26,6 +26,7 @@ import { captureRef } from 'react-native-view-shot';
 
 import { logger } from '../../utils/logger';
 import { imageUriToBase64DataUri } from '../../services/imageMaskUtils';
+import * as Haptics from 'expo-haptics';
 
 // Create animated SVG components
 const AnimatedPath = Animated.createAnimatedComponent(Path);
@@ -128,6 +129,8 @@ const ROW_HORIZONTAL_PADDING = 28;
  * ~30px works well for typical text sizes while avoiding adjacent lines. */
 const ROW_VERTICAL_PADDING = 30;
 const POINT_THROTTLE_MS = 16; // ~60fps for point collection
+/** Interval (ms) between haptic ticks during highlight/crop drag for "vibrating" feedback */
+const HAPTIC_DRAG_INTERVAL_MS = 80;
 
 // Ref for the PanResponder View - MOVED INSIDE COMPONENT
 // const panResponderViewRef = React.useRef<View>(null); // REMOVE FROM HERE
@@ -170,7 +173,8 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   const [strokes, setStrokes] = useState<Point[][]>([]);
   const [currentStroke, setCurrentStroke] = useState<Point[]>([]);
   const lastPointTimeRef = useRef<number>(0);
-  
+  const lastHapticDragTimeRef = useRef<number>(0);
+
   const [isDrawing, setIsDrawing] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [detectedRegions, setDetectedRegions] = useState<Array<{
@@ -1228,6 +1232,11 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         lastVisuallyAppliedRotationRef.current = newSmoothedRotation; 
       }
       else if (cropModeRef.current && isCropDrawingRef.current) {
+        const now = Date.now();
+        if (now - lastHapticDragTimeRef.current >= HAPTIC_DRAG_INTERVAL_MS) {
+          lastHapticDragTimeRef.current = now;
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
         const clampedX = Math.max(-EDGE_TOLERANCE, Math.min((layout?.width || 0) + EDGE_TOLERANCE, currentX));
         const clampedY = Math.max(-EDGE_TOLERANCE, Math.min((layout?.height || 0) + EDGE_TOLERANCE, currentY));
 
@@ -1238,6 +1247,11 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         }));
       }
       else if (cropModeRef.current && activeCropHandleRef.current) {
+        const now = Date.now();
+        if (now - lastHapticDragTimeRef.current >= HAPTIC_DRAG_INTERVAL_MS) {
+          lastHapticDragTimeRef.current = now;
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
         const { dx, dy } = gestureState;
         const { x, y, width, height } = cropBoxRef.current; 
         const currentHandle = activeCropHandleRef.current;
@@ -1295,7 +1309,10 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           return;
         }
         lastPointTimeRef.current = now;
-        
+        if (now - lastHapticDragTimeRef.current >= HAPTIC_DRAG_INTERVAL_MS) {
+          lastHapticDragTimeRef.current = now;
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
         const preciseX = pageX - offset.x;
         const preciseY = pageY - offset.y;
         

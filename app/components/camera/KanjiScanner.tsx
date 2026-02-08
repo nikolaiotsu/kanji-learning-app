@@ -48,9 +48,14 @@ import * as Haptics from 'expo-haptics';
 interface KanjiScannerProps {
   onCardSwipe?: () => void;
   onContentReady?: (isReady: boolean) => void;
+  onWalkthroughComplete?: () => void;
+  /** When false, walkthrough will not auto-start (e.g. until post-onboarding loading overlay is dismissed). */
+  canStartWalkthrough?: boolean;
+  /** When true, block touches until the walkthrough modal appears (prevents tapping buttons in the brief window). */
+  blockTouchesBeforeWalkthrough?: boolean;
 }
 
-export default function KanjiScanner({ onCardSwipe, onContentReady }: KanjiScannerProps) {
+export default function KanjiScanner({ onCardSwipe, onContentReady, onWalkthroughComplete, canStartWalkthrough = true, blockTouchesBeforeWalkthrough = false }: KanjiScannerProps) {
   logger.log('🎬 [KanjiScanner] Component render, onContentReady callback:', !!onContentReady);
   
   const { t } = useTranslation();
@@ -271,7 +276,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   const handleWalkthroughDone = useCallback(() => {
     setWalkthroughJustCompleted(true);
     completeWalkthrough();
-  }, [completeWalkthrough]);
+    onWalkthroughComplete?.();
+  }, [completeWalkthrough, onWalkthroughComplete]);
 
   // Register steps with the walkthrough hook
   useEffect(() => {
@@ -297,9 +303,9 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     });
   }, []);
 
-  // Start walkthrough on first launch or after reset (only after splash screen is dismissed)
+  // Start walkthrough on first launch or after reset (only after splash and post-onboarding loading are dismissed)
   useEffect(() => {
-    if (shouldShowWalkthroughPrompt && !capturedImage && !isWalkthroughActive && !isSplashVisible) {
+    if (shouldShowWalkthroughPrompt && canStartWalkthrough && !capturedImage && !isWalkthroughActive && !isSplashVisible) {
       // Delay to ensure buttons are rendered and measured
       const timer = setTimeout(async () => {
         // Check if user has energy bars before starting walkthrough
@@ -325,10 +331,10 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
             t('walkthrough.noEnergyMessage')
           );
         }
-      }, 800);
+      }, 400);
       return () => clearTimeout(timer);
     }
-  }, [shouldShowWalkthroughPrompt, capturedImage, isWalkthroughActive, isSplashVisible, subscription.plan, t]);
+  }, [shouldShowWalkthroughPrompt, canStartWalkthrough, capturedImage, isWalkthroughActive, isSplashVisible, subscription.plan, t]);
 
   // Track if initial measurements have been done
   const hasMeasuredRef = useRef<boolean>(false);
@@ -1276,9 +1282,9 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           imageHighlighterRef.current?.clearHighlightBox?.();
           const params: any = { text: detectedText, imageUri: uri };
           if (isWalkthroughActive) {
-            params.walkthroughActive = 'true';
+            params.walkthrough = 'true';
             completeWalkthrough();
-            // User will return to home after flashcards flow; show swipe instructions modal then
+            onWalkthroughComplete?.();
             AsyncStorage.setItem('@swipe_instructions_pending', 'true').catch(() => {});
           }
           router.push({ pathname: '/flashcards', params });
@@ -2263,6 +2269,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     REVIEWER_MAX_HEIGHT
   ), [REVIEWER_TOP_OFFSET, REVIEWER_MAX_HEIGHT]);
 
+  const showTouchBlock = blockTouchesBeforeWalkthrough && !isWalkthroughActive;
+
   return (
     <View
       style={styles.container}
@@ -2271,6 +2279,13 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
         // logger.log(`[KanjiScannerRootView] onLayout: x:${x}, y:${y}, width:${width}, height:${height}`);
       }}
     >
+      {/* Block touches in the brief window after loading overlay is gone but before walkthrough modal appears */}
+      {showTouchBlock && (
+        <View
+          style={[StyleSheet.absoluteFill, { zIndex: 1700 }]}
+          pointerEvents="auto"
+        />
+      )}
       {/* Off-screen masked image capture for stroke-based OCR (rendered when maskCaptureParams is set) */}
       {maskCaptureParams && (
         <View
@@ -2320,7 +2335,10 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                     styles.badgeButtonTouchable,
                     (localProcessing || isImageProcessing) ? styles.disabledButton : null
                   ]}
-                  onPress={() => router.push('/badges')}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    router.push('/badges');
+                  }}
                   disabled={localProcessing || isImageProcessing}
                 >
                   <Ionicons
@@ -2544,8 +2562,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
         <PokedexButton
           onPress={handleCancel}
           icon="arrow-back"
-          iconColor="black" // Black icon color to match other buttons
-          color="grey" // Grey gradient to match card reviewer page
+          iconColor="#FFFFFF"
           size="medium"
           shape="square"
           style={styles.toolbarFarButton}
@@ -2565,8 +2582,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                   <PokedexButton
                     onPress={handleBackToPreviousImage}
                     icon="arrow-undo"
-                    iconColor={(imageHistory.length === 0 || localProcessing || isImageProcessing) ? '#888888' : 'black'}
-                    color="grey" // Grey gradient to match card reviewer page
+                    iconColor={(imageHistory.length === 0 || localProcessing || isImageProcessing) ? '#888888' : '#FFFFFF'}
                     size="medium"
                     shape="square"
                     disabled={imageHistory.length === 0 || localProcessing || isImageProcessing}
@@ -2575,8 +2591,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                   <PokedexButton
                     onPress={handleForwardToNextImage}
                     icon="arrow-redo"
-                    iconColor={(forwardHistory.length === 0 || localProcessing || isImageProcessing) ? '#888888' : 'black'}
-                    color="grey" // Grey gradient to match card reviewer page
+                    iconColor={(forwardHistory.length === 0 || localProcessing || isImageProcessing) ? '#888888' : '#FFFFFF'}
                     size="medium"
                     shape="square"
                     disabled={forwardHistory.length === 0 || localProcessing || isImageProcessing}
@@ -2604,9 +2619,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                         iconColor={
                           isWalkthroughActive
                             ? (currentStep?.id === 'rotate' ? '#FFFF00' : '#CCCCCC')
-                            : 'black' // Black icon color
+                            : '#FFFFFF'
                         }
-                        color="grey" // Grey gradient to match card reviewer page
                         size="medium"
                         shape="square"
                         disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'rotate')}
@@ -2626,9 +2640,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                         iconColor={
                           isWalkthroughActive
                             ? (currentStep?.id === 'crop' ? '#FFFF00' : '#CCCCCC')
-                            : 'black' // Black icon color
+                            : '#FFFFFF'
                         }
-                        color="grey" // Grey gradient to match card reviewer page
                         size="medium"
                         shape="square"
                         disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'crop')}
@@ -2648,9 +2661,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                         iconColor={
                           isWalkthroughActive
                             ? (currentStep?.id === 'highlight' ? '#FFFF00' : '#CCCCCC')
-                            : 'black' // Black icon color
+                            : '#FFFFFF'
                         }
-                        color="grey" // Grey gradient to match card reviewer page
                         size="medium"
                         shape="square"
                         disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'highlight')}
@@ -2665,8 +2677,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                     <PokedexButton
                       onPress={cancelActiveMode} 
                       icon="close"
-                      iconColor="black"
-                      color="grey" // Grey gradient to match card reviewer page
+                      iconColor="#FFFFFF"
                       size="medium"
                       shape="square"
                       disabled={localProcessing || isImageProcessing}
@@ -2677,8 +2688,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                         <PokedexButton
                           onPress={discardHighlightSelection} 
                           icon="refresh-outline" 
-                          iconColor="black"
-                          color="grey" // Grey gradient to match card reviewer page
+                          iconColor="#FFFFFF"
                           size="medium"
                           shape="square"
                           disabled={localProcessing || isImageProcessing}
@@ -2697,9 +2707,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                             iconColor={
                               isWalkthroughActive
                                 ? (currentStep?.id === 'confirm-highlight' ? '#FFFF00' : '#CCCCCC')
-                                : 'black'
+                                : '#FFFFFF'
                             }
-                            color="grey" // Grey gradient to match card reviewer page
                             size="medium"
                             shape="square"
                             disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'confirm-highlight')}
@@ -2713,8 +2722,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                         <PokedexButton
                           onPress={discardCropSelection}
                           icon="refresh-outline" 
-                          iconColor="black"
-                          color="grey" // Grey gradient to match card reviewer page
+                          iconColor="#FFFFFF"
                           size="medium"
                           shape="square"
                           disabled={localProcessing || isImageProcessing}
@@ -2722,8 +2730,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                         <PokedexButton
                           onPress={confirmCrop}
                           icon="checkmark"
-                          iconColor="black"
-                          color="grey" // Grey gradient to match card reviewer page
+                          iconColor="#FFFFFF"
                           size="medium"
                           shape="square"
                           disabled={localProcessing || isImageProcessing}
@@ -2738,8 +2745,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                           <PokedexButton
                             onPress={handleUndoRotation}
                             icon="arrow-undo"
-                            iconColor="black"
-                            color="grey" // Grey gradient to match card reviewer page
+                            iconColor="#FFFFFF"
                             size="medium"
                             shape="square"
                           disabled={localProcessing || isImageProcessing}
@@ -2749,8 +2755,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                           <PokedexButton
                             onPress={handleRedoRotation}
                             icon="arrow-redo"
-                            iconColor="black"
-                            color="grey" // Grey gradient to match card reviewer page
+                            iconColor="#FFFFFF"
                             size="medium"
                             shape="square"
                           disabled={localProcessing || isImageProcessing}
@@ -2760,8 +2765,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                           <PokedexButton
                             onPress={handleConfirmRotation}
                             icon="checkmark"
-                            iconColor="black"
-                            color="grey" // Grey gradient to match card reviewer page
+                            iconColor="#FFFFFF"
                             size="medium"
                             shape="square"
                             disabled={localProcessing || isImageProcessing}
@@ -3095,21 +3099,21 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
   highlightedSettingsButtonWrapper: {
     padding: 4,
     borderRadius: 14,
-    backgroundColor: '#FFFF00',
+    backgroundColor: 'rgba(255, 255, 0, 0.22)',
     shadowColor: '#FFFF00',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
+    shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 12,
   },
   highlightedToolbarButtonWrapper: {
     borderRadius: 10,
     padding: 0.5,
-    backgroundColor: '#FFFF00',
+    backgroundColor: 'rgba(255, 255, 0, 0.22)',
     shadowColor: '#FFFF00',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 3,
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
     elevation: 3,
   },
   dimmedToolbarButton: {
@@ -3381,14 +3385,14 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
   highlightedButtonWrapper: {
     borderRadius: 8,
     padding: 0.5,
-    backgroundColor: '#FFFF00', // Bright yellow glow
+    backgroundColor: 'rgba(255, 255, 0, 0.22)', // Subtle yellow tint so button stays visible
     shadowColor: '#FFFF00',
     shadowOffset: {
       width: 0,
       height: 0,
     },
-    shadowOpacity: 0.4,
-    shadowRadius: 3,
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
     elevation: 3,
   },
   gridButton: {

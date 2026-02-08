@@ -30,13 +30,19 @@ export default function OnboardingRelevantScreen() {
   const localPlayer = useVideoPlayer(guygettingburiedVideoSource, (p) => {
     p.loop = true;
     p.muted = true;
-    p.play();
   });
   const player = preloadedPlayer ?? localPlayer;
 
   useEffect(() => {
-    if (preloadedPlayer) preloadedPlayer.play();
-  }, [preloadedPlayer]);
+    player.play();
+    return () => {
+      try {
+        player.pause();
+      } catch {
+        // Native player may already be disposed when leaving onboarding; ignore
+      }
+    };
+  }, [player]);
 
   const { status } = useEvent(player, 'statusChange', { status: player.status });
 

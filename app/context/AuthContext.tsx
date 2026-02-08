@@ -1,4 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import { Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Session, User } from '@supabase/supabase-js';
 import * as authService from '../services/authService';
 import { supabase } from '../services/supabaseClient';
@@ -7,14 +9,20 @@ import { storeUserIdOffline, clearUserIdOffline, getUserIdOffline } from '../ser
 import { requestAccountDeletion } from '../services/userDataControlService';
 import { clearCache } from '../services/offlineStorage';
 import { isOnline } from '../services/networkManager';
+import { hasLocalDataToMigrate, migrateLocalDataToSupabase } from '../services/localFlashcardStorage';
 
 import { logger } from '../utils/logger';
+
+const GUEST_MODE_STORAGE_KEY = '@worddex_guest_mode';
+
 // Define the shape of our Auth context
 type AuthContextType = {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
   isOfflineMode: boolean;
+  isGuest: boolean;
+  setGuestMode: (value: boolean) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<{ user: User | null; session: Session | null } | null>;
   signOut: () => Promise<void>;
@@ -36,6 +44,40 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isOfflineMode, setIsOfflineMode] = useState(false);
+  const [isGuest, setIsGuestState] = useState(false);
+
+  // Load guest mode from storage on mount
+  useEffect(() => {
+    const loadGuestMode = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(GUEST_MODE_STORAGE_KEY);
+        setIsGuestState(stored === 'true');
+      } catch (e) {
+        logger.error('Failed to load guest mode:', e);
+      }
+    };
+    loadGuestMode();
+  }, []);
+
+  const setGuestMode = async (value: boolean) => {
+    try {
+      await AsyncStorage.setItem(GUEST_MODE_STORAGE_KEY, value ? 'true' : 'false');
+      setIsGuestState(value);
+    } catch (e) {
+      logger.error('Failed to persist guest mode:', e);
+      setIsGuestState(value);
+    }
+  };
+
+  const clearGuestMode = async () => {
+    try {
+      await AsyncStorage.removeItem(GUEST_MODE_STORAGE_KEY);
+      setIsGuestState(false);
+    } catch (e) {
+      logger.error('Failed to clear guest mode:', e);
+      setIsGuestState(false);
+    }
+  };
 
   // Check for session on mount
   useEffect(() => {
@@ -68,12 +110,29 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         logger.log('🌐 [AuthContext] Online - checking Supabase session...');
         const { data: { session } } = await supabase.auth.getSession();
         setSession(session);
-        setUser(session?.user ?? null);
         setIsOfflineMode(false);
         
-        // Store user ID offline for cache access when offline
         if (session?.user) {
+          // Complete migration BEFORE setting user state so UI fetches cards after migration
+          await clearGuestMode();
           await storeUserIdOffline(session.user.id);
+          const hadLocal = await hasLocalDataToMigrate();
+          if (hadLocal) {
+            try {
+              logger.log('🔄 [AuthContext] Migrating guest data on app start...');
+              await migrateLocalDataToSupabase(session.user.id);
+              Alert.alert('Synced', 'Your cards have been synced to your account.');
+            } catch (migErr) {
+              const msg = migErr instanceof Error ? migErr.message : String(migErr);
+              logger.error('Migration on app start failed:', msg, migErr);
+              Alert.alert(
+                'Sync issue',
+                'Guest cards could not be synced to your account. You can try again later or use your existing cards. ' + (msg ? `(${msg})` : '')
+              );
+            }
+          }
+          // NOW set user state - UI will fetch cards (even if migration failed, so user can still use the app)
+          setUser(session.user);
           logger.log('🔄 [AuthContext] User already authenticated on app start, syncing cache...');
           syncAllUserData().catch(err => {
             // Silent error - don't log network errors during sync
@@ -82,6 +141,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
               logger.error('❌ [AuthContext] Failed to sync user data on app start:', err);
             }
           });
+        } else {
+          setUser(null);
         }
       } catch (error) {
         // On error (likely network), try offline fallback
@@ -112,26 +173,59 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         logger.log('🔐 [AuthContext] Auth state change event:', event);
         logger.log('🔐 [AuthContext] Session exists:', !!session);
         logger.log('🔐 [AuthContext] User email:', session?.user?.email || 'No user');
-        logger.log('🔐 [AuthContext] Setting session and user state...');
-        setSession(session);
-        setUser(session?.user ?? null);
-        setIsOfflineMode(false); // We're online if we got an auth state change
-        setIsLoading(false);
-        logger.log('✅ [AuthContext] Auth state updated');
         
-        // Store or clear user ID for offline access
-        if (session?.user) {
-          await storeUserIdOffline(session.user.id);
-        } else if (event === 'SIGNED_OUT') {
-          await clearUserIdOffline();
-        }
-        
-        // Trigger cache sync when user signs in via auth state change
+        // For SIGNED_IN events, we need to complete migration BEFORE setting user state.
+        // Otherwise UI components will fetch cards before migration finishes.
         if (event === 'SIGNED_IN' && session?.user) {
+          logger.log('🔐 [AuthContext] SIGNED_IN - checking for guest data migration first...');
+          setSession(session);
+          setIsOfflineMode(false);
+          // Keep isLoading true until migration completes
+          
+          await clearGuestMode();
+          await storeUserIdOffline(session.user.id);
+          
+          const hadLocal = await hasLocalDataToMigrate();
+          if (hadLocal) {
+            try {
+              logger.log('🔄 [AuthContext] Migrating guest data before setting user state...');
+              await migrateLocalDataToSupabase(session.user.id);
+              Alert.alert('Synced', 'Your cards have been synced to your account.');
+            } catch (migErr) {
+              const msg = migErr instanceof Error ? migErr.message : String(migErr);
+              logger.error('Migration on sign-in failed:', msg, migErr);
+              Alert.alert(
+                'Sync issue',
+                'Guest cards could not be synced to your account. You can try again later or use your existing cards. ' + (msg ? `(${msg})` : '')
+              );
+            }
+          }
+          
+          // NOW set user state - UI will fetch cards after migration is done
+          logger.log('🔐 [AuthContext] Migration complete, setting user state...');
+          setUser(session.user);
+          setIsLoading(false);
+          logger.log('✅ [AuthContext] Auth state updated (after migration)');
+          
           logger.log('🔄 [AuthContext] User signed in via auth state change, syncing cache...');
           syncAllUserData().catch(err => {
             logger.error('❌ [AuthContext] Failed to sync user data after auth state change:', err);
           });
+        } else {
+          // For all other events (SIGNED_OUT, TOKEN_REFRESHED, etc.), set state immediately
+          logger.log('🔐 [AuthContext] Setting session and user state...');
+          setSession(session);
+          setUser(session?.user ?? null);
+          setIsOfflineMode(false);
+          setIsLoading(false);
+          logger.log('✅ [AuthContext] Auth state updated');
+          
+          if (session?.user) {
+            await clearGuestMode();
+            await storeUserIdOffline(session.user.id);
+          } else if (event === 'SIGNED_OUT') {
+            await clearUserIdOffline();
+          }
         }
       }
     );
@@ -203,7 +297,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setIsLoading(true);
     try {
       await authService.signOut();
-      await clearUserIdOffline(); // Clear offline user ID
+      await clearUserIdOffline();
+      await clearGuestMode();
       setSession(null);
       setUser(null);
     } catch (error) {
@@ -265,6 +360,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     session,
     isLoading,
     isOfflineMode,
+    isGuest,
+    setGuestMode,
     signIn,
     signUp,
     signOut,

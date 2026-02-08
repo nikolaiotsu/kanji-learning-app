@@ -15,6 +15,8 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { useOnboardingVideo } from './context/OnboardingVideosContext';
 import { useEvent } from 'expo';
 import { useOnboarding } from './context/OnboardingContext';
+import { useAuth } from './context/AuthContext';
+import { useTransitionLoading } from './context/TransitionLoadingContext';
 import { resetWalkthrough } from './hooks/useWalkthrough';
 import { COLORS } from './constants/colors';
 import { FONTS } from './constants/typography';
@@ -25,19 +27,26 @@ const guyflyingVideoSource = require('../assets/guyflying.mp4');
 export default function OnboardingEducationalScreen() {
   const { t } = useTranslation();
   const { setHasCompletedOnboarding } = useOnboarding();
+  const { setGuestMode } = useAuth();
   const [hasError, setHasError] = useState(false);
 
   const preloadedPlayer = useOnboardingVideo('guyflying');
   const localPlayer = useVideoPlayer(guyflyingVideoSource, (p) => {
     p.loop = true;
     p.muted = true;
-    p.play();
   });
   const player = preloadedPlayer ?? localPlayer;
 
   useEffect(() => {
-    if (preloadedPlayer) preloadedPlayer.play();
-  }, [preloadedPlayer]);
+    player.play();
+    return () => {
+      try {
+        player.pause();
+      } catch {
+        // Native player may already be disposed when leaving onboarding; ignore
+      }
+    };
+  }, [player]);
 
   const { status } = useEvent(player, 'statusChange', { status: player.status });
 
@@ -51,10 +60,16 @@ export default function OnboardingEducationalScreen() {
     }
   }, []);
 
+  const { setShowTransitionLoading } = useTransitionLoading();
+
   const handleCTA = async () => {
+    setShowTransitionLoading(true);
     await resetWalkthrough();
     await setHasCompletedOnboarding(true);
-    router.replace('/login');
+    // Set guest mode so user can save cards locally during walkthrough
+    // Must await to ensure state is updated before navigation
+    await setGuestMode(true);
+    router.replace('/?walkthrough=true');
   };
 
   return (

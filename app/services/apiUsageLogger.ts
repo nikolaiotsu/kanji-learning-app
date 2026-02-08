@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabaseClient';
 import Constants from 'expo-constants';
 import { SUBSCRIPTION_PLANS } from '../constants/config';
@@ -5,6 +6,9 @@ import { SubscriptionPlan } from '../../types';
 
 import { logger } from '../utils/logger';
 import { getLocalDateString } from '../utils/dateUtils';
+
+/** AsyncStorage key for guest daily API usage (translate + wordscope). Resets by date. */
+const GUEST_DAILY_USAGE_KEY = '@guest_api_daily_usage';
 
 // Event listener type for API usage updates
 // Now includes the updated remaining API calls count for immediate UI updates
@@ -81,6 +85,10 @@ class APIUsageLogger {
       return;
     }
 
+    // Check if user is authenticated - skip Supabase logging for guests
+    const { data: { user } } = await supabase.auth.getUser();
+    const isGuest = !user;
+
     try {
       // Calculate processing time if metrics provided
       const processingTimeMs = metrics ? Date.now() - metrics.startTime : entry.processingTimeMs;
@@ -99,15 +107,38 @@ class APIUsageLogger {
         created_at: new Date().toISOString()
       };
 
-      // Insert into database (async, don't wait)
-      this.insertLogEntry(logEntry);
+      // Insert into database (async, don't wait) - skip for guests
+      if (!isGuest) {
+        this.insertLogEntry(logEntry);
+      }
 
-      // Update daily usage counters
+      // Update daily usage counters - Supabase for signed-in users, AsyncStorage + emit for guests
       if (entry.success) {
-        // Don't await - fire and forget, but log if it fails
-        this.updateDailyUsage(entry.operationType, entry.metadata?.tokens || 0).catch((error) => {
-          logger.error('[APILogger] updateDailyUsage promise rejected:', error);
-        });
+        if (!isGuest) {
+          this.updateDailyUsage(entry.operationType, entry.metadata?.tokens || 0).catch((error) => {
+            logger.error('[APILogger] updateDailyUsage promise rejected:', error);
+          });
+        } else if (
+          entry.operationType === 'translate_api' ||
+          entry.operationType === 'wordscope_api'
+        ) {
+          const targetDate = getLocalDateString();
+          this.incrementGuestDailyUsage(entry.operationType, targetDate)
+            .then((usage) => {
+              const apiCallsUsedToday = usage.translate_api_calls + usage.wordscope_api_calls;
+              const plan = this.cachedSubscriptionPlan || 'FREE';
+              const dailyLimit = SUBSCRIPTION_PLANS[plan]?.apiCallsPerDay ?? 3;
+              const remainingApiCalls = Math.max(0, dailyLimit - apiCallsUsedToday);
+              this.cachedRemainingApiCalls = remainingApiCalls;
+              this.emitUsageUpdate({
+                operationType: entry.operationType,
+                remainingApiCalls,
+                apiCallsUsedToday,
+                dailyLimit
+              });
+            })
+            .catch((err) => logger.error('[APILogger] Guest usage update failed:', err));
+        }
       }
 
       // Console log for development
@@ -163,12 +194,70 @@ class APIUsageLogger {
   }
 
   /**
-   * Get user's daily usage statistics
+   * Get guest daily usage from AsyncStorage (same shape as DB row for rate limit calc).
+   */
+  private async getGuestDailyUsage(targetDate: string): Promise<{
+    translate_api_calls: number;
+    wordscope_api_calls: number;
+    [key: string]: number | undefined;
+  }> {
+    try {
+      const raw = await AsyncStorage.getItem(GUEST_DAILY_USAGE_KEY);
+      if (!raw) {
+        return { translate_api_calls: 0, wordscope_api_calls: 0 };
+      }
+      const stored = JSON.parse(raw) as { date: string; translate_api_calls: number; wordscope_api_calls: number };
+      if (stored.date !== targetDate) {
+        return { translate_api_calls: 0, wordscope_api_calls: 0 };
+      }
+      return {
+        translate_api_calls: stored.translate_api_calls ?? 0,
+        wordscope_api_calls: stored.wordscope_api_calls ?? 0
+      };
+    } catch {
+      return { translate_api_calls: 0, wordscope_api_calls: 0 };
+    }
+  }
+
+  /**
+   * Increment guest daily usage for one operation and persist. Returns new usage counts.
+   */
+  private async incrementGuestDailyUsage(
+    operationType: 'translate_api' | 'wordscope_api',
+    targetDate: string
+  ): Promise<{ translate_api_calls: number; wordscope_api_calls: number }> {
+    const current = await this.getGuestDailyUsage(targetDate);
+    const translate = current.translate_api_calls + (operationType === 'translate_api' ? 1 : 0);
+    const wordscope = current.wordscope_api_calls + (operationType === 'wordscope_api' ? 1 : 0);
+    await AsyncStorage.setItem(
+      GUEST_DAILY_USAGE_KEY,
+      JSON.stringify({ date: targetDate, translate_api_calls: translate, wordscope_api_calls: wordscope })
+    );
+    return { translate_api_calls: translate, wordscope_api_calls: wordscope };
+  }
+
+  /**
+   * Get user's daily usage statistics. For guests, returns usage from AsyncStorage.
    */
   public async getDailyUsage(date?: string): Promise<any> {
     try {
       const targetDate = date || getLocalDateString();
-      
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        const guestUsage = await this.getGuestDailyUsage(targetDate);
+        return {
+          claude_api_calls: 0,
+          vision_api_calls: 0,
+          flashcards_created: 0,
+          ocr_scans_performed: 0,
+          total_claude_tokens: 0,
+          total_vision_requests: 0,
+          translate_api_calls: guestUsage.translate_api_calls,
+          wordscope_api_calls: guestUsage.wordscope_api_calls
+        };
+      }
+
       const { data, error } = await supabase
         .from('user_daily_usage')
         .select('*')

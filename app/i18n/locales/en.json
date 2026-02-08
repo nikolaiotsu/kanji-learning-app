@@ -81,6 +81,15 @@
       "registrationFailed": "Registration Failed"
     }
   },
+  "signInPrompt": {
+    "title": "Create an Account",
+    "subtitle": "Sign up to sync your cards across devices and never lose your progress.",
+    "benefit1": "• Sync cards across all your devices",
+    "benefit2": "• Backup your collection in the cloud",
+    "benefit3": "• Pick up where you left off anytime",
+    "signUp": "Sign Up",
+    "continueAsGuest": "Continue as Guest"
+  },
   "onboarding": {
     "welcomeTitle": "Welcome to Worddex",
     "welcomeSubtitle1": "Turn the world into your classroom.",

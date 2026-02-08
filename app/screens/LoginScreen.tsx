@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TextInput, TouchableOpacity, Text, Alert, ActivityIndicator, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, StyleSheet, TextInput, TouchableOpacity, Text, Alert, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
+import { useOnboarding } from '../context/OnboardingContext';
 import { router } from 'expo-router';
 import SocialAuth from '../components/SocialAuth';
 import { COLORS } from '../constants/colors';
@@ -19,6 +20,7 @@ const LoginScreen = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
+  const { setHasCompletedOnboarding } = useOnboarding();
 
   const handleLogin = async () => {
     logger.log('🔐 [LoginScreen] Starting email login process...');
@@ -53,6 +55,22 @@ const LoginScreen = () => {
 
   const navigateToResetPassword = () => {
     router.push('/reset-password');
+  };
+
+  const resetOnboardingForTesting = async () => {
+    try {
+      await AsyncStorage.setItem('@worddex_onboarding_completed', 'false');
+      await AsyncStorage.removeItem('@signin_prompt_dismissed');
+      await AsyncStorage.removeItem('@walkthrough_completed');
+      await AsyncStorage.removeItem('@walkthrough_skipped');
+      await AsyncStorage.removeItem('@walkthrough_started');
+      await AsyncStorage.removeItem('@worddex_guest_mode');
+      await setHasCompletedOnboarding(false);
+      router.replace('/onboarding');
+    } catch (e) {
+      logger.error('Reset onboarding failed:', e);
+      Alert.alert('Error', 'Could not reset. Try again.');
+    }
   };
 
   return (
@@ -121,6 +139,11 @@ const LoginScreen = () => {
           <TouchableOpacity onPress={navigateToResetPassword}>
             <Text style={styles.link}>{t('auth.login.forgotPassword')}</Text>
           </TouchableOpacity>
+          {__DEV__ && (
+            <TouchableOpacity onPress={resetOnboardingForTesting} style={styles.testLink}>
+              <Text style={styles.testLinkText}>Test: New user flow (onboarding → guest)</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </PokedexLayout>
@@ -200,6 +223,15 @@ const styles = StyleSheet.create({
     color: COLORS.lightGray,
     fontSize: 14,
     marginVertical: 5,
+  },
+  testLink: {
+    marginTop: 16,
+    paddingVertical: 8,
+  },
+  testLinkText: {
+    fontFamily: FONTS.sans,
+    color: COLORS.textSecondary,
+    fontSize: 12,
   },
   divider: {
     flexDirection: 'row',

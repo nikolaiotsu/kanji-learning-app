@@ -3,12 +3,13 @@ import { View, Text, StyleSheet, TouchableOpacity, Platform, Dimensions, Animate
 import { useTranslation } from 'react-i18next';
 import i18next from '../../i18n';
 import { Flashcard } from '../../types/Flashcard';
-import { localizeScopeAnalysisHeadings } from '../../utils/textFormatting';
-import { Ionicons, MaterialIcons, FontAwesome5, FontAwesome6 } from '@expo/vector-icons';
+import { localizeScopeAnalysisHeadings, parseScopeAnalysisForStyling } from '../../utils/textFormatting';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { FONTS } from '../../constants/typography';
 import { useSettings, AVAILABLE_LANGUAGES } from '../../context/SettingsContext';
 import FuriganaText from '../shared/FuriganaText';
+import PokedexButton from '../shared/PokedexButton';
 import { logger } from '../../utils/logger';
 import * as Haptics from 'expo-haptics';
 import { getCachedImageUri } from '../../services/imageCache';
@@ -132,7 +133,6 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   type ImageLoadingState = 'idle' | 'loading' | 'success' | 'error';
   const [imageLoadingState, setImageLoadingState] = useState<ImageLoadingState>('idle');
   const [imageRetryCount, setImageRetryCount] = useState(0);
-  const [imageUrlWithCacheBust, setImageUrlWithCacheBust] = useState(flashcard.imageUrl);
   const [imageUriToUse, setImageUriToUse] = useState<string | undefined>(flashcard.imageUrl);
   const MAX_RETRY_COUNT = 5;
   
@@ -392,13 +392,14 @@ const readingsText = flashcard.readingsText;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setImageRetryCount(prev => prev + 1);
+    setIsImageLoaded(false);
     setImageLoadingState('loading');
     
-    // Cache bust by appending timestamp
+    // Cache bust by appending timestamp - use cache-busted URL to force fresh network fetch
     if (flashcard.imageUrl) {
       const separator = flashcard.imageUrl.includes('?') ? '&' : '?';
       const cacheBustedUrl = `${flashcard.imageUrl}${separator}refresh=${Date.now()}`;
-      setImageUrlWithCacheBust(cacheBustedUrl);
+      setImageUriToUse(cacheBustedUrl);
     }
   };
 
@@ -483,8 +484,6 @@ const readingsText = flashcard.readingsText;
   
   // Reset image state when flashcard changes (but preserve successful loads)
   useEffect(() => {
-    // Reset to the original URL (removes any cache-busting params from retries)
-    setImageUrlWithCacheBust(flashcard.imageUrl);
     setImageRetryCount(0);
     
     // If this is a truly new flashcard (different ID), reset everything
@@ -618,26 +617,38 @@ const readingsText = flashcard.readingsText;
             {/* Bottom right actions - flip with front */}
             <View style={styles.bottomRightActionsContainer}>
               {flashcard.imageUrl && (
-                <TouchableOpacity style={styles.imageButton} onPress={toggleShowImage}>
-                  <FontAwesome6 name="image" size={24} color="black" />
-                </TouchableOpacity>
+                <PokedexButton
+                  onPress={toggleShowImage}
+                  icon="image"
+                  iconColor="black"
+                  color="grey"
+                  size="small"
+                  shape="square"
+                  style={styles.flashcardActionButton}
+                />
               )}
               {flashcard.imageUrl && showRefreshButton && showImage && (
-                <TouchableOpacity
-                  style={styles.bottomActionButton}
+                <PokedexButton
                   onPress={handleImageRetry}
+                  icon="refresh"
+                  iconColor={imageRetryCount >= MAX_RETRY_COUNT ? COLORS.darkGray : 'black'}
+                  color="grey"
+                  size="small"
+                  shape="square"
+                  style={styles.flashcardActionButton}
                   disabled={imageRetryCount >= MAX_RETRY_COUNT}
-                >
-                  <Ionicons
-                    name="refresh"
-                    size={24}
-                    color={imageRetryCount >= MAX_RETRY_COUNT ? COLORS.darkGray : 'black'}
-                  />
-                </TouchableOpacity>
+                  darkDisabled={imageRetryCount >= MAX_RETRY_COUNT}
+                />
               )}
-              <TouchableOpacity style={styles.flipButton} onPress={handleFlip}>
-                <MaterialIcons name="flip" size={24} color="black" />
-              </TouchableOpacity>
+              <PokedexButton
+                onPress={handleFlip}
+                materialCommunityIcon="flip-horizontal"
+                iconColor="black"
+                color="grey"
+                size="small"
+                shape="square"
+                style={styles.flashcardActionButton}
+              />
             </View>
             </View>
           </View>
@@ -734,11 +745,16 @@ const readingsText = flashcard.readingsText;
                   commonContext: targetT('flashcard.wordscope.commonContext'),
                   alternativeExpressions: targetT('flashcard.wordscope.alternativeExpressions'),
                 });
+                const segments = parseScopeAnalysisForStyling(localizedScopeAnalysis);
                 return (
                   <>
                     <Text style={styles.sectionTitle}>Wordscope</Text>
                     <Text style={styles.scopeAnalysisText}>
-                      {localizedScopeAnalysis}
+                      {segments.map((seg, i) => (
+                        <Text key={i} style={seg.isSourceLanguage ? styles.scopeAnalysisSourceText : undefined}>
+                          {seg.text}
+                        </Text>
+                      ))}
                     </Text>
                   </>
                 );
@@ -809,26 +825,38 @@ const readingsText = flashcard.readingsText;
             {/* Bottom right actions - flip with back */}
             <View style={styles.bottomRightActionsContainer}>
               {flashcard.imageUrl && (
-                <TouchableOpacity style={styles.imageButton} onPress={toggleShowImage}>
-                  <FontAwesome6 name="image" size={24} color="black" />
-                </TouchableOpacity>
+                <PokedexButton
+                  onPress={toggleShowImage}
+                  icon="image"
+                  iconColor="black"
+                  color="grey"
+                  size="small"
+                  shape="square"
+                  style={styles.flashcardActionButton}
+                />
               )}
               {flashcard.imageUrl && showRefreshButton && showImage && (
-                <TouchableOpacity
-                  style={styles.bottomActionButton}
+                <PokedexButton
                   onPress={handleImageRetry}
+                  icon="refresh"
+                  iconColor={imageRetryCount >= MAX_RETRY_COUNT ? COLORS.darkGray : 'black'}
+                  color="grey"
+                  size="small"
+                  shape="square"
+                  style={styles.flashcardActionButton}
                   disabled={imageRetryCount >= MAX_RETRY_COUNT}
-                >
-                  <Ionicons
-                    name="refresh"
-                    size={24}
-                    color={imageRetryCount >= MAX_RETRY_COUNT ? COLORS.darkGray : 'black'}
-                  />
-                </TouchableOpacity>
+                  darkDisabled={imageRetryCount >= MAX_RETRY_COUNT}
+                />
               )}
-              <TouchableOpacity style={styles.flipButton} onPress={handleFlip}>
-                <MaterialIcons name="flip" size={24} color="black" />
-              </TouchableOpacity>
+              <PokedexButton
+                onPress={handleFlip}
+                materialCommunityIcon="flip-horizontal"
+                iconColor="black"
+                color="grey"
+                size="small"
+                shape="square"
+                style={styles.flashcardActionButton}
+              />
             </View>
             </View>
           </View>
@@ -1008,6 +1036,9 @@ const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean
     fontStyle: 'italic',
     marginTop: 10,
   },
+  scopeAnalysisSourceText: {
+    color: '#4ADE80', // Green for scanned/source language
+  },
   appendAnalysisButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1049,25 +1080,9 @@ const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean
     padding: 4,
     zIndex: 10,
   },
-  bottomActionButton: {
-    marginHorizontal: 8,
-    padding: 10,
-    backgroundColor: 'rgba(128, 128, 128, 0.5)', // Translucent grey background
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  flipButton: {
-    marginHorizontal: 8,
-    padding: 10,
-    backgroundColor: 'rgba(128, 128, 128, 0.5)', // Translucent grey background
-    borderRadius: 10,
-  },
-  imageButton: {
-    marginHorizontal: 8,
-    padding: 10,
-    backgroundColor: 'rgba(128, 128, 128, 0.5)', // Translucent grey background
-    borderRadius: 10,
+  flashcardActionButton: {
+    marginVertical: 0,
+    marginHorizontal: 4,
   },
   deleteButton: {
     marginHorizontal: 8,

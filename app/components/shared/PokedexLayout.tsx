@@ -414,7 +414,8 @@ export default memo(function PokedexLayout({
           <View style={[styles.screenCorner, styles.screenCornerTopRight]} />
           <View style={[styles.screenCorner, styles.screenCornerBottomLeft]} />
           <View style={[styles.screenCorner, styles.screenCornerBottomRight]} />
-          
+          {/* Grey line just above bottom black edge (mirrors top: grey then black for 3D bevel) */}
+          <View style={styles.screenBottomGreyBevel} />
           {children}
         </View>
         
@@ -583,7 +584,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 10,
     zIndex: 0,
-    // Grey bevel at top of review area; uniform border for consistent edges
+    // Grey bevel at top; bottom has grey line + black edge for 3D (mirrors top)
     borderTopWidth: 1,
     borderLeftWidth: 1,
     borderBottomWidth: 1,
@@ -593,6 +594,17 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(0, 0, 0, 0.20)',
     borderRightColor: 'rgba(0, 0, 0, 0.15)',
     overflow: 'hidden',
+  },
+  /** Grey line at bottom, just above screen's black border; same 1px border as top for equal thickness */
+  screenBottomGreyBevel: {
+    position: 'absolute',
+    bottom: 1,
+    left: 0,
+    right: 0,
+    height: 0,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    zIndex: 1,
   },
   screenInnerGlow: {
     position: 'absolute',

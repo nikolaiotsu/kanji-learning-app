@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { usePathname } from 'expo-router';
 import { useVideoPlayer, type VideoPlayer } from 'expo-video';
 
 const guyflyingSource = require('../../assets/guyflying.mp4');
@@ -20,9 +21,9 @@ const OnboardingVideosContext = createContext<OnboardingVideosContextValue>({
 });
 
 /**
- * Creates and preloads all onboarding videos when the provider mounts.
- * Players are configured (loop, muted) but not played so they buffer in the background.
- * Onboarding screens consume these players for instant playback.
+ * Creates and preloads onboarding videos only when the provider is mounted.
+ * Mounted only while the user is on an onboarding route (see OnboardingVideosProviderWrapper).
+ * Players are configured (loop, muted); playback is started by each screen and paused on unmount.
  */
 function OnboardingVideosPlayerSource({
   setPlayers,
@@ -49,7 +50,7 @@ function OnboardingVideosPlayerSource({
   return null;
 }
 
-export function OnboardingVideosProvider({ children }: { children: ReactNode }) {
+function OnboardingVideosProviderInner({ children }: { children: ReactNode }) {
   const [players, setPlayers] = useState<OnboardingVideosContextValue>({
     guyflying: null,
     guytyping: null,
@@ -69,6 +70,21 @@ export function OnboardingVideosProvider({ children }: { children: ReactNode }) 
       {children}
     </OnboardingVideosContext.Provider>
   );
+}
+
+/**
+ * Only mounts OnboardingVideosProvider when the current route is an onboarding screen.
+ * Avoids creating three video players at app startup for users who never see onboarding.
+ */
+export function OnboardingVideosProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const isOnboardingRoute =
+    typeof pathname === 'string' && pathname.includes('onboarding');
+
+  if (!isOnboardingRoute) {
+    return <>{children}</>;
+  }
+  return <OnboardingVideosProviderInner>{children}</OnboardingVideosProviderInner>;
 }
 
 export function useOnboardingVideo(key: OnboardingVideoKey): VideoPlayer | null {

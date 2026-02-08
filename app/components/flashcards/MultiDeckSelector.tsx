@@ -19,6 +19,8 @@ import * as Haptics from 'expo-haptics';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Deck } from '../../types/Deck';
 import { getDecks, deleteDeck, getFlashcardsByDecks } from '../../services/supabaseStorage';
+import { getLocalDecks, getLocalFlashcards } from '../../services/localFlashcardStorage';
+import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../services/supabaseClient';
 import { isOnline } from '../../services/networkManager';
 import { COLORS } from '../../constants/colors';
@@ -40,6 +42,7 @@ export default function MultiDeckSelector({
   initialSelectedDeckIds 
 }: MultiDeckSelectorProps) {
   const { t } = useTranslation();
+  const { isGuest } = useAuth();
   const [decks, setDecks] = useState<Deck[]>([]);
   const [selectedDeckIds, setSelectedDeckIds] = useState<string[]>(initialSelectedDeckIds);
   const [isLoading, setIsLoading] = useState(true);
@@ -203,39 +206,36 @@ export default function MultiDeckSelector({
     };
   }, [visible, rainbowAnim]);
 
-  // Function to load decks from storage
   const loadDecks = async () => {
     setIsLoading(true);
     try {
-      const savedDecks = await getDecks();
+      const savedDecks = isGuest ? await getLocalDecks() : await getDecks();
       setDecks(savedDecks);
 
-      // Force a fresh network read (when online) so newly created decks appear immediately
-      try {
-        const online = await isOnline().catch(() => false);
-        if (online) {
-          let { data: rows, error } = await supabase
-            .from('decks')
-            .select('*')
-            .order('order_index', { ascending: true, nullsFirst: false });
-          if (error) {
-            ({ data: rows, error } = await supabase
+      if (!isGuest) {
+        try {
+          const online = await isOnline().catch(() => false);
+          if (online) {
+            let { data: rows, error } = await supabase
               .from('decks')
               .select('*')
-              .order('created_at', { ascending: false }));
+              .order('order_index', { ascending: true, nullsFirst: false });
+            if (error) {
+              ({ data: rows, error } = await supabase
+                .from('decks')
+                .select('*')
+                .order('created_at', { ascending: false }));
+            }
+            if (!error && Array.isArray(rows)) {
+              setDecks(rows.map(transformDeckRow));
+            }
           }
-          if (!error && Array.isArray(rows)) {
-            setDecks(rows.map(transformDeckRow));
-          }
-        }
-      } catch {}
+        } catch {}
+      }
       
-      // Filter out any invalid deck IDs from initial selection
       const validSelectedIds = initialSelectedDeckIds.filter(id =>
-        savedDecks.some(deck => deck.id === id)
+        savedDecks.some((deck: Deck) => deck.id === id)
       );
-
-      // Keep valid selections, allow empty selections
       setSelectedDeckIds(validSelectedIds);
     } catch (error) {
       logger.error('Error loading collections:', error);
@@ -270,11 +270,11 @@ export default function MultiDeckSelector({
   const handleSaveSelection = async () => {
     closeAllSwipeables();
 
-    // Allow saving with no decks selected
-    // Only validate cards if decks are actually selected
     if (selectedDeckIds.length > 0) {
       try {
-        const cards = await getFlashcardsByDecks(selectedDeckIds);
+        const cards = isGuest
+          ? (await getLocalFlashcards()).filter(c => selectedDeckIds.includes(c.deckId))
+          : await getFlashcardsByDecks(selectedDeckIds);
         if (cards.length === 0) {
           const titleKey = 'common.error';
           const msgKey = 'review.noCardsInSelectionSubtitle';

@@ -1,20 +1,91 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import KanjiScanner from './components/camera/KanjiScanner';
 import PokedexLayout from './components/shared/PokedexLayout';
+import SignInPrompt, { getSignInPromptDismissed } from './components/auth/SignInPrompt';
 import { Asset } from 'expo-asset';
+import { useAuth } from './context/AuthContext';
+import { useTransitionLoading } from './context/TransitionLoadingContext';
+import { useSignInPromptTrigger } from './context/SignInPromptTriggerContext';
+import { useBadge } from './context/BadgeContext';
 
 import { logger } from './utils/logger';
+
+const POST_ONBOARDING_LOADING_MS = 1800;
+const LOADING_FADE_DURATION_MS = 350;
+
+const WALKTHROUGH_COMPLETED_KEY = '@walkthrough_completed';
 // 1. Import the logo image
 const worddexLogo = require('../assets/images/worddexlogo.png'); // Adjusted path
 
 export default function App() {
-  // Use a counter instead of boolean so each swipe creates a new trigger value
-  // This allows the animation to restart immediately even if previous animation is still running
+  const { user, isGuest, setGuestMode } = useAuth();
+  const { setShowTransitionLoading } = useTransitionLoading();
+  const { registerTrigger } = useSignInPromptTrigger();
+  const { pendingBadge } = useBadge();
+  const params = useLocalSearchParams<{ walkthrough?: string }>();
+  const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const [triggerLightAnimation, setTriggerLightAnimation] = useState(0);
-  // Logo is always visible - simplified from complex content-ready sync
   const [logoVisible, setLogoVisible] = useState(true);
   const [logoUri, setLogoUri] = useState<string | null>(null);
+  const [canStartWalkthrough, setCanStartWalkthrough] = useState(() => params.walkthrough !== 'true');
+
+  // Allow badge modal dismiss to trigger sign-in prompt (e.g. after first card badge)
+  const showSignInPromptIfNeeded = useCallback(async () => {
+    if (user) return;
+    const dismissed = await getSignInPromptDismissed();
+    if (!dismissed) setShowSignInPrompt(true);
+  }, [user]);
+  useEffect(() => {
+    registerTrigger(showSignInPromptIfNeeded);
+    return () => registerTrigger(null);
+  }, [registerTrigger, showSignInPromptIfNeeded]);
+
+  const handleWalkthroughComplete = useCallback(() => {
+    // Do NOT show the sign-in prompt here. It will show when the user dismisses the
+    // badge celebration modal (if they earned one) so the badge is seen first.
+  }, []);
+
+  const handleContinueAsGuest = useCallback(() => {
+    setGuestMode(true);
+  }, [setGuestMode]);
+
+  // Dismiss post-onboarding loading overlay, then allow walkthrough to start (after fade finishes)
+  useEffect(() => {
+    if (params.walkthrough !== 'true') return;
+    setCanStartWalkthrough(false);
+    const t1 = setTimeout(() => setShowTransitionLoading(false), POST_ONBOARDING_LOADING_MS);
+    const t2 = setTimeout(
+      () => setCanStartWalkthrough(true),
+      POST_ONBOARDING_LOADING_MS + LOADING_FADE_DURATION_MS
+    );
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [params.walkthrough, setShowTransitionLoading]);
+
+  useFocusEffect(
+    useCallback(() => {
+      // Show sign-in prompt for guests who completed walkthrough but haven't dismissed prompt.
+      // Skip if there's a pending badge so the user sees the badge modal first; the prompt
+      // will show when they dismiss the badge modal.
+      if (user || pendingBadge) return;
+      let mounted = true;
+      (async () => {
+        const [dismissed, completed] = await Promise.all([
+          getSignInPromptDismissed(),
+          AsyncStorage.getItem(WALKTHROUGH_COMPLETED_KEY),
+        ]);
+        if (mounted && completed === 'true' && !dismissed) {
+          setShowSignInPrompt(true);
+        }
+      })();
+      return () => { mounted = false; };
+    }, [user, pendingBadge])
+  );
 
   // Callback to trigger the light animation
   const handleCardSwipe = useCallback(() => {
@@ -75,8 +146,19 @@ export default function App() {
           // logger.log(`[AppIndexRootView] onLayout: x:${x}, y:${y}, width:${width}, height:${height}`);
         }}
       >
-        <KanjiScanner onCardSwipe={handleCardSwipe} onContentReady={handleContentReady} />
+        <KanjiScanner
+          onCardSwipe={handleCardSwipe}
+          onContentReady={handleContentReady}
+          onWalkthroughComplete={handleWalkthroughComplete}
+          canStartWalkthrough={canStartWalkthrough}
+          blockTouchesBeforeWalkthrough={params.walkthrough === 'true' && canStartWalkthrough}
+        />
       </View>
+      <SignInPrompt
+        visible={showSignInPrompt}
+        onDismiss={() => setShowSignInPrompt(false)}
+        onContinueAsGuest={handleContinueAsGuest}
+      />
     </PokedexLayout>
   );
 }

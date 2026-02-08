@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import i18next from './i18n';
 import { processWithClaude, processWithClaudeAndScope, validateLanguageWithClaude, LanguageMismatchInfo, ClaudeResponse } from './services/claudeApi';
-import { localizeScopeAnalysisHeadings } from './utils/textFormatting';
+import { localizeScopeAnalysisHeadings, parseScopeAnalysisForStyling } from './utils/textFormatting';
 import { 
   cleanText, 
   containsJapanese, 
@@ -30,7 +30,9 @@ import {
   containsVietnameseText,
   containsKanji
 } from './utils/textFormatting';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveFlashcard, uploadImageToStorage } from './services/supabaseStorage';
+import { saveLocalFlashcard, getLocalDecksWithDefault } from './services/localFlashcardStorage';
 import { Flashcard } from './types/Flashcard';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import * as Crypto from 'expo-crypto';
@@ -50,7 +52,6 @@ const LANGUAGE_NAME_TO_CODE: Record<string, string> = Object.entries(AVAILABLE_L
 import { COLORS } from './constants/colors';
 import { FONTS } from './constants/typography';
 import { FontAwesome6 } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import PokedexLayout from './components/shared/PokedexLayout';
 import FuriganaText from './components/shared/FuriganaText';
 import { useFlashcardCounter } from './context/FlashcardCounterContext';
@@ -69,7 +70,7 @@ import { logger } from './utils/logger';
 export default function LanguageFlashcardsScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation();
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
 const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, setBothLanguages } = useSettings();
   const { incrementFlashcardCount, canCreateFlashcard, remainingFlashcards } = useFlashcardCounter();
   const { checkAndUnlockBadges } = useBadge();
@@ -83,7 +84,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
   const textParam = params.text;
   const imageUriParam = params.imageUri;
   const useScopeParam = params.useScope;
-  const walkthroughParam = params.walkthroughActive;
+  const walkthroughParam = params.walkthrough;
   
   const displayText = typeof textParam === 'string' 
     ? textParam 
@@ -947,6 +948,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
 
   // Function to show deck selector
   const handleShowDeckSelector = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     // Check network connectivity first
     if (!isConnected) {
       Alert.alert(
@@ -1010,23 +1012,25 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     setIsSaving(true);
 
     try {
-      // Upload image to storage if available
+      // Upload image to storage if available (skip for guests - keep local URI)
       let storedImageUrl: string | undefined = undefined;
       if (imageUri) {
-        // Give UI a frame to show the spinner before uploading
-        await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
-        try {
-          const uploadedUrl = await uploadImageToStorage(imageUri);
-          if (uploadedUrl) {
-            storedImageUrl = uploadedUrl;
+        if (isGuest) {
+          storedImageUrl = imageUri;
+        } else {
+          await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
+          try {
+            const uploadedUrl = await uploadImageToStorage(imageUri);
+            if (uploadedUrl) {
+              storedImageUrl = uploadedUrl;
+            }
+          } catch (imageError) {
+            const errorMsg = imageError instanceof Error ? imageError.message : 'Unable to upload image.';
+            Alert.alert(
+              t('flashcard.save.imageUploadFailedTitle'),
+              t('flashcard.save.imageUploadFailedMessage', { error: errorMsg })
+            );
           }
-        } catch (imageError) {
-          // Image upload failed (validation or upload error)
-          const errorMsg = imageError instanceof Error ? imageError.message : 'Unable to upload image.';
-          Alert.alert(
-            t('flashcard.save.imageUploadFailedTitle'),
-            t('flashcard.save.imageUploadFailedMessage', { error: errorMsg })
-          );
         }
       }
 
@@ -1035,15 +1039,35 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
         originalText: editedText,
         readingsText: needsRomanization ? readingsText : "", // Store readings (furigana/pinyin/romanization) in readingsText field
         translatedText,
-        targetLanguage, // Store the current target language with the flashcard
+        targetLanguage,
         createdAt: Date.now(),
         deckId: deckId,
-        imageUrl: storedImageUrl, // Include the image URL if available
-        scopeAnalysis: scopeAnalysis || undefined, // Include scope analysis if available
+        imageUrl: storedImageUrl,
+        scopeAnalysis: scopeAnalysis || undefined,
       };
 
-      // Save flashcard
-      await saveFlashcard(flashcard as Flashcard, deckId);
+      if (isGuest) {
+        const decks = await getLocalDecksWithDefault();
+        const effectiveDeckId = decks.some((d) => d.id === deckId) ? deckId : decks[0].id;
+        await saveLocalFlashcard(
+          { ...flashcard, id: '', createdAt: 0 } as Flashcard,
+          effectiveDeckId
+        );
+        // Auto-select this deck in the reviewer so the user sees their new card right away
+        await AsyncStorage.setItem('selectedDeckIds_guest', JSON.stringify([effectiveDeckId]));
+      } else {
+        await saveFlashcard(flashcard as Flashcard, deckId);
+        // Auto-select this deck in the reviewer so the user sees their new card right away
+        if (user?.id) {
+          const key = `selectedDeckIds_${user.id}`;
+          const raw = await AsyncStorage.getItem(key);
+          const current: string[] = raw ? JSON.parse(raw) : [];
+          if (!current.includes(deckId)) {
+            current.push(deckId);
+            await AsyncStorage.setItem(key, JSON.stringify(current));
+          }
+        }
+      }
       
       // Increment flashcard counter after successful save
       await incrementFlashcardCount();
@@ -1360,6 +1384,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
 
   // Function to handle editing input and retranslating
   const handleEditInputAndRetranslate = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     logger.log('🔍 [DEBUG] Edit Input & Retranslate button pressed!');
     
     // Set manual operation flag to prevent main useEffect interference
@@ -1436,6 +1461,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
 
   // Function to handle editing translation
   const handleEditTranslation = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     logger.log('🔍 [DEBUG] Edit Translation button pressed!');
     
     // Set manual operation flag to prevent main useEffect interference
@@ -1454,16 +1480,6 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       processingFailed={processingFailed}
     >
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>{t('flashcard.input.title')}</Text>
-          <TouchableOpacity 
-            style={styles.homeButton}
-            onPress={handleGoHome}
-          >
-            <Ionicons name="home-outline" size={24} color={COLORS.text} />
-          </TouchableOpacity>
-        </View>
-        
         <ScrollView 
           ref={scrollViewRef}
           style={styles.scrollView} 
@@ -1540,28 +1556,8 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                   onPress={handleEditText}
                   disabled={isWalkthroughActive && currentStep?.id !== 'edit-text-button' && currentStep?.id !== 'choose-translation'}
                 >
-                  {/* Main gradient background */}
-                  <LinearGradient
-                    colors={isWalkthroughActive && currentStep?.id === 'edit-text-button'
-                      ? ['rgba(255, 255, 0, 0.4)', 'rgba(255, 200, 0, 0.5)']
-                      : ['rgba(140, 140, 140, 0.35)', 'rgba(100, 100, 100, 0.45)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 0, y: 1 }}
-                    style={StyleSheet.absoluteFill}
-                  />
-                  
-                  {/* Glass highlight overlay (top shine) */}
-                  <LinearGradient
-                    colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 0, y: 0.6 }}
-                    style={styles.glassOverlay}
-                  />
-                  
-                  {/* Inner glow border */}
-                  <View style={styles.innerBorder} />
-                  
-                  {/* Button content */}
+                  <View style={[styles.flashcardButtonFill, { backgroundColor: isWalkthroughActive && currentStep?.id === 'edit-text-button' ? 'rgba(255, 200, 0, 0.5)' : 'rgba(255, 255, 255, 0.15)' }]} />
+                  <View style={styles.flashcardButtonTopHighlight} />
                   <View style={styles.buttonContent}>
                     <Ionicons 
                       name="pencil" 
@@ -1596,28 +1592,8 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                   onPress={() => !canUseWordscope ? showAPILimitUpgradeAlert('wordscope') : handleScopeAndTranslate()}
                   disabled={isLoadingLimits || (isWalkthroughActive && currentStep?.id !== 'wordscope-button' && currentStep?.id !== 'choose-translation')}
                 >
-                  {/* Main gradient background */}
-                  <LinearGradient
-                    colors={isWalkthroughActive && (currentStep?.id === 'wordscope-button' || currentStep?.id === 'choose-translation')
-                      ? ['rgba(255, 255, 0, 0.4)', 'rgba(255, 200, 0, 0.5)']
-                      : ['rgba(140, 140, 140, 0.35)', 'rgba(100, 100, 100, 0.45)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 0, y: 1 }}
-                    style={StyleSheet.absoluteFill}
-                  />
-                  
-                  {/* Glass highlight overlay (top shine) */}
-                  <LinearGradient
-                    colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 0, y: 0.6 }}
-                    style={styles.glassOverlay}
-                  />
-                  
-                  {/* Inner glow border */}
-                  <View style={styles.innerBorder} />
-                  
-                  {/* Button content */}
+                  <View style={[styles.flashcardButtonFill, { backgroundColor: isWalkthroughActive && (currentStep?.id === 'wordscope-button' || currentStep?.id === 'choose-translation') ? 'rgba(255, 200, 0, 0.5)' : 'rgba(255, 255, 255, 0.15)' }]} />
+                  {canUseWordscope && !isAPILimitExhausted && <View style={styles.flashcardButtonTopHighlight} />}
                   <View style={styles.buttonContent}>
                     <View style={styles.dualIconContainer}>
                       {!canUseWordscope ? (
@@ -1665,28 +1641,8 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                   onPress={() => !canUseTranslate ? showAPILimitUpgradeAlert('translate') : handleTranslate()}
                   disabled={isLoadingLimits || (isWalkthroughActive && currentStep?.id !== 'translate-button' && currentStep?.id !== 'choose-translation')}
                 >
-                  {/* Main gradient background */}
-                  <LinearGradient
-                    colors={isWalkthroughActive && (currentStep?.id === 'translate-button' || currentStep?.id === 'choose-translation')
-                      ? ['rgba(255, 255, 0, 0.4)', 'rgba(255, 200, 0, 0.5)']
-                      : ['rgba(140, 140, 140, 0.35)', 'rgba(100, 100, 100, 0.45)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 0, y: 1 }}
-                    style={StyleSheet.absoluteFill}
-                  />
-                  
-                  {/* Glass highlight overlay (top shine) */}
-                  <LinearGradient
-                    colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 0, y: 0.6 }}
-                    style={styles.glassOverlay}
-                  />
-                  
-                  {/* Inner glow border */}
-                  <View style={styles.innerBorder} />
-                  
-                  {/* Button content */}
+                  <View style={[styles.flashcardButtonFill, { backgroundColor: isWalkthroughActive && (currentStep?.id === 'translate-button' || currentStep?.id === 'choose-translation') ? 'rgba(255, 200, 0, 0.5)' : 'rgba(255, 255, 255, 0.15)' }]} />
+                  {canUseTranslate && !isAPILimitExhausted && <View style={styles.flashcardButtonTopHighlight} />}
                   <View style={styles.buttonContent}>
                     <Ionicons 
                       name={!canUseTranslate ? "lock-closed" : "language"} 
@@ -1797,10 +1753,17 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                       commonContext: targetT('flashcard.wordscope.commonContext'),
                       alternativeExpressions: targetT('flashcard.wordscope.alternativeExpressions'),
                     });
+                    const segments = parseScopeAnalysisForStyling(localizedScopeAnalysis);
                     return (
                       <View style={styles.resultContainer} key="wordscope">
                         <Text style={styles.sectionTitle}>Wordscope</Text>
-                        <Text style={styles.scopeAnalysisText} numberOfLines={0}>{localizedScopeAnalysis}</Text>
+                        <Text style={styles.scopeAnalysisText} numberOfLines={0}>
+                          {segments.map((seg, i) => (
+                            <Text key={i} style={seg.isSourceLanguage ? styles.scopeAnalysisSourceText : undefined}>
+                              {seg.text}
+                            </Text>
+                          ))}
+                        </Text>
                       </View>
                     );
                   })()}
@@ -1825,28 +1788,8 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                             onPress={handleViewSavedFlashcards}
                             disabled={isWalkthroughActive && currentStep?.id !== 'view-saved-button'}
                           >
-                            {/* Main gradient background */}
-                            <LinearGradient
-                              colors={isWalkthroughActive && currentStep?.id === 'view-saved-button'
-                                ? ['rgba(255, 255, 0, 0.4)', 'rgba(255, 200, 0, 0.5)']
-                                : ['rgba(100, 116, 139, 0.35)', 'rgba(71, 85, 105, 0.45)']}
-                              start={{ x: 0, y: 0 }}
-                              end={{ x: 0, y: 1 }}
-                              style={StyleSheet.absoluteFill}
-                            />
-                            
-                            {/* Glass highlight overlay (top shine) */}
-                            <LinearGradient
-                              colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
-                              start={{ x: 0, y: 0 }}
-                              end={{ x: 0, y: 0.6 }}
-                              style={styles.glassOverlay}
-                            />
-                            
-                            {/* Inner glow border */}
-                            <View style={styles.innerBorder} />
-                            
-                            {/* Button content */}
+                            <View style={[styles.flashcardButtonFill, { backgroundColor: isWalkthroughActive && currentStep?.id === 'view-saved-button' ? 'rgba(255, 200, 0, 0.5)' : 'rgba(59, 130, 246, 0.28)' }]} />
+                            <View style={styles.flashcardButtonTopHighlight} />
                             <View style={styles.gridButtonContent}>
                               <Ionicons 
                                 name="albums-outline" 
@@ -1884,51 +1827,21 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                             onPress={handleShowDeckSelector}
                             disabled={isSaving || isSaved || (isWalkthroughActive && currentStep?.id !== 'save-button' && currentStep?.id !== 'final-save-prompt')}
                           >
-                            {/* Main gradient background */}
-                            {isSaved ? (
-                              <LinearGradient
-                                colors={['rgba(255, 149, 0, 0.4)', 'rgba(255, 149, 0, 0.5)']}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 0, y: 1 }}
-                                style={StyleSheet.absoluteFill}
-                              />
-                            ) : isWalkthroughActive && (currentStep?.id === 'save-button' || currentStep?.id === 'final-save-prompt') ? (
-                              <LinearGradient
-                                colors={['rgba(255, 255, 0, 0.4)', 'rgba(255, 200, 0, 0.5)']}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 0, y: 1 }}
-                                style={StyleSheet.absoluteFill}
-                              />
-                            ) : (isSaving || !canCreateFlashcard) ? (
-                              <LinearGradient
-                                colors={['rgba(51, 65, 85, 0.5)', 'rgba(30, 41, 59, 0.6)']}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 0, y: 1 }}
-                                style={StyleSheet.absoluteFill}
-                              />
-                            ) : (
-                              <LinearGradient
-                                colors={['rgba(100, 116, 139, 0.35)', 'rgba(71, 85, 105, 0.45)']}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 0, y: 1 }}
-                                style={StyleSheet.absoluteFill}
-                              />
-                            )}
-                            
-                            {/* Glass highlight overlay (top shine) - only if not disabled */}
-                            {(!isSaving && canCreateFlashcard) && (
-                              <LinearGradient
-                                colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 0, y: 0.6 }}
-                                style={styles.glassOverlay}
-                              />
-                            )}
-                            
-                            {/* Inner glow border */}
-                            <View style={styles.innerBorder} />
-                            
-                            {/* Button content */}
+                            <View
+                              style={[
+                                styles.flashcardButtonFill,
+                                {
+                                  backgroundColor: isSaved
+                                    ? 'rgba(251, 191, 36, 0.4)'
+                                    : isWalkthroughActive && (currentStep?.id === 'save-button' || currentStep?.id === 'final-save-prompt')
+                                      ? 'rgba(255, 200, 0, 0.5)'
+                                      : (isSaving || !canCreateFlashcard)
+                                        ? 'rgba(51, 65, 85, 0.5)'
+                                        : 'rgba(59, 130, 246, 0.28)',
+                                },
+                              ]}
+                            />
+                            {(!isSaving && canCreateFlashcard) && <View style={styles.flashcardButtonTopHighlight} />}
                             <View style={styles.gridButtonContent}>
                               {isSaving ? (
                                 <ActivityIndicator size="small" color="#ffffff" />
@@ -1977,28 +1890,8 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                             onPress={handleEditTranslation}
                             disabled={isWalkthroughActive && currentStep?.id !== 'edit-translation-button'}
                           >
-                            {/* Main gradient background - green or yellow if highlighted */}
-                            <LinearGradient
-                              colors={isWalkthroughActive && currentStep?.id === 'edit-translation-button'
-                                ? ['rgba(255, 255, 0, 0.4)', 'rgba(255, 200, 0, 0.5)']
-                                : ['rgba(44, 182, 125, 0.4)', 'rgba(34, 151, 103, 0.5)']}
-                              start={{ x: 0, y: 0 }}
-                              end={{ x: 0, y: 1 }}
-                              style={StyleSheet.absoluteFill}
-                            />
-                            
-                            {/* Glass highlight overlay (top shine) */}
-                            <LinearGradient
-                              colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
-                              start={{ x: 0, y: 0 }}
-                              end={{ x: 0, y: 0.6 }}
-                              style={styles.glassOverlay}
-                            />
-                            
-                            {/* Inner glow border */}
-                            <View style={styles.innerBorder} />
-                            
-                            {/* Button content */}
+                            <View style={[styles.flashcardButtonFill, { backgroundColor: isWalkthroughActive && currentStep?.id === 'edit-translation-button' ? 'rgba(255, 200, 0, 0.5)' : 'rgba(34, 197, 94, 0.28)' }]} />
+                            <View style={styles.flashcardButtonTopHighlight} />
                             <View style={styles.gridButtonContent}>
                               <Ionicons 
                                 name="pencil" 
@@ -2029,28 +1922,8 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                             onPress={handleEditInputAndRetranslate}
                             disabled={isWalkthroughActive && currentStep?.id !== 'edit-input-retranslate-button'}
                           >
-                            {/* Main gradient background - red or yellow if highlighted */}
-                            <LinearGradient
-                              colors={isWalkthroughActive && currentStep?.id === 'edit-input-retranslate-button'
-                                ? ['rgba(255, 255, 0, 0.4)', 'rgba(255, 200, 0, 0.5)']
-                                : ['rgba(255, 107, 107, 0.4)', 'rgba(220, 38, 38, 0.5)']}
-                              start={{ x: 0, y: 0 }}
-                              end={{ x: 0, y: 1 }}
-                              style={StyleSheet.absoluteFill}
-                            />
-                            
-                            {/* Glass highlight overlay (top shine) */}
-                            <LinearGradient
-                              colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
-                              start={{ x: 0, y: 0 }}
-                              end={{ x: 0, y: 0.6 }}
-                              style={styles.glassOverlay}
-                            />
-                            
-                            {/* Inner glow border */}
-                            <View style={styles.innerBorder} />
-                            
-                            {/* Button content */}
+                            <View style={[styles.flashcardButtonFill, { backgroundColor: isWalkthroughActive && currentStep?.id === 'edit-input-retranslate-button' ? 'rgba(255, 200, 0, 0.5)' : 'rgba(239, 68, 68, 0.28)' }]} />
+                            <View style={styles.flashcardButtonTopHighlight} />
                             <View style={styles.gridButtonContent}>
                               <Ionicons 
                                 name="refresh" 
@@ -2315,6 +2188,16 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
           onDone={completeWalkthrough}
         />
 
+        {/* Header on top so home button stays tappable during walkthrough overlay */}
+        <View style={styles.header} pointerEvents="box-none">
+          <Text style={styles.title}>{t('flashcard.input.title')}</Text>
+          <TouchableOpacity
+            style={styles.homeButton}
+            onPress={handleGoHome}
+          >
+            <Ionicons name="home-outline" size={24} color={COLORS.text} />
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     </PokedexLayout>
   );
@@ -2326,6 +2209,11 @@ const styles = StyleSheet.create({
     // Removed backgroundColor: COLORS.screenBackground to allow PokedexLayout to control it
   },
   header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1100, // Above WalkthroughOverlay (zIndex 1000) so home button is tappable
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -2345,7 +2233,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 12, // Reduced for tighter layout
-    paddingTop: 4, // Reduced for tighter layout
+    paddingTop: 44, // Space for absolutely positioned header (home button)
     paddingBottom: 60, // Add extra padding at the bottom for better scrolling experience
   },
   title: {
@@ -2389,40 +2277,34 @@ const styles = StyleSheet.create({
   editButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
+    borderRadius: 12,
     width: 90,
     height: 90,
     overflow: 'hidden',
-    // Glassmorphism border
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    // Soft shadow for depth
-    shadowColor: '#3B82F6',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
     elevation: 8,
-    // Background blur simulation (via semi-transparent background)
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    backgroundColor: 'transparent',
   },
   scopeAndTranslateButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
+    borderRadius: 12,
     width: 90,
     height: 90,
     overflow: 'hidden',
-    // Glassmorphism border
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    // Soft shadow for depth
-    shadowColor: '#3B82F6',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
     elevation: 8,
-    // Background blur simulation (via semi-transparent background)
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    backgroundColor: 'transparent',
   },
   dualIconContainer: {
     flexDirection: 'row',
@@ -2432,40 +2314,38 @@ const styles = StyleSheet.create({
   translateButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
+    borderRadius: 12,
     width: 90,
     height: 90,
     overflow: 'hidden',
-    // Glassmorphism border
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    // Soft shadow for depth
-    shadowColor: '#3B82F6',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
     elevation: 8,
-    // Background blur simulation (via semi-transparent background)
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    backgroundColor: 'transparent',
   },
-  glassOverlay: {
+  /** Single top edge highlight (matches PokedexButton - no gradient) */
+  flashcardButtonTopHighlight: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: '60%',
-    borderRadius: 8,
-  },
-  innerBorder: {
-    position: 'absolute',
-    top: 1,
-    left: 1,
-    right: 1,
-    bottom: 1,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 7,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
     pointerEvents: 'none',
+  },
+  flashcardButtonFill: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 12,
   },
   buttonContent: {
     flexDirection: 'column',
@@ -2554,6 +2434,9 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     color: COLORS.text,
     fontStyle: 'italic',
+  },
+  scopeAnalysisSourceText: {
+    color: '#4ADE80', // Green for scanned/source language
   },
   appendAnalysisButton: {
     flexDirection: 'row',
@@ -2810,21 +2693,18 @@ const styles = StyleSheet.create({
   gridButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
+    borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 12,
     overflow: 'hidden',
-    // Glassmorphism border
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    // Soft shadow for depth
-    shadowColor: '#3B82F6',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
     elevation: 8,
-    // Background blur simulation (via semi-transparent background)
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    backgroundColor: 'transparent',
     flex: 1,
     minHeight: 80,
   },
@@ -2887,17 +2767,17 @@ const styles = StyleSheet.create({
   highlightedButtonWrapper: {
     borderRadius: 8,
     padding: 0.5,
-    backgroundColor: '#FFFF00', // Bright yellow glow
+    backgroundColor: 'rgba(255, 255, 0, 0.22)', // Subtle yellow tint so button stays visible
     shadowColor: '#FFFF00',
     shadowOffset: {
       width: 0,
       height: 0,
     },
-    shadowOpacity: 0.4,
-    shadowRadius: 3,
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
     elevation: 3,
   },
   highlightedButtonText: {
-    color: '#FFFF00', // Bright yellow text
+    color: 'rgba(255, 220, 0, 0.9)', // Softer yellow text
   },
 });

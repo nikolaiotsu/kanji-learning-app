@@ -17,6 +17,16 @@ import {
   createDeck,
   updateFlashcard
 } from './services/supabaseStorage';
+import {
+  getLocalDecks,
+  getLocalFlashcards,
+  deleteLocalFlashcard,
+  deleteLocalDeck,
+  createLocalDeck,
+  updateLocalFlashcard,
+  updateLocalDeckName,
+  moveLocalFlashcardToDeck,
+} from './services/localFlashcardStorage';
 import FlashcardItem from './components/flashcards/FlashcardItem';
 import EditFlashcardModal from './components/flashcards/EditFlashcardModal';
 import DeckReorderModal from './components/flashcards/DeckReorderModal';
@@ -59,7 +69,7 @@ export default function SavedFlashcardsScreen() {
   // This allows the animation to restart immediately even if previous animation is still running
   const [triggerLightAnimation, setTriggerLightAnimation] = useState(0);
   const [hasAppliedRequestedDeck, setHasAppliedRequestedDeck] = useState(false);
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const router = useRouter();
   const { isConnected } = useNetworkState();
   const { getMaxDecks, subscription } = useSubscription();
@@ -177,27 +187,24 @@ export default function SavedFlashcardsScreen() {
   useEffect(() => {
     if (user) {
       logger.log('🚀 [SavedFlashcards] Component mounted with user:', user.id.substring(0, 8));
-      
-      // Log cache status for debugging
       import('./services/offlineStorage').then(({ getCacheStatus }) => {
         getCacheStatus(user.id).then(status => {
           logger.log('📊 [SavedFlashcards] Cache status on mount:', status);
         });
       });
-      
-      // Just load decks directly, don't initialize 
+      loadDecks();
+    } else if (isGuest) {
+      logger.log('🚀 [SavedFlashcards] Component mounted as guest');
       loadDecks();
     }
-  }, [user]);
+  }, [user, isGuest]);
 
-  // When the screen loses focus (back, home, or swipe-down to dismiss), refresh deck list
-  // so deck order is updated everywhere (e.g. deck rows on the previous screen).
   useFocusEffect(
     useCallback(() => {
       return () => {
-        refreshDecksFromServer().catch(() => {});
+        if (!isGuest) refreshDecksFromServer().catch(() => {});
       };
-    }, [])
+    }, [isGuest])
   );
   
   // Reload cache if state is empty on navigation back
@@ -345,53 +352,36 @@ export default function SavedFlashcardsScreen() {
   // Function to load decks from storage
   const loadDecks = async () => {
     logger.log('📚 [SavedFlashcards] ========== loadDecks START ==========');
-    logger.log('📚 [SavedFlashcards] Current network status:', isConnected ? 'ONLINE' : 'OFFLINE');
-    logger.log('📚 [SavedFlashcards] Current decks.length:', decks.length);
-    logger.log('📚 [SavedFlashcards] Setting isLoadingDecks = true');
+    logger.log('📚 [SavedFlashcards] isGuest:', isGuest, 'network:', isConnected ? 'ONLINE' : 'OFFLINE');
     setIsLoadingDecks(true);
     
     try {
-      logger.log('📚 [SavedFlashcards] Calling getDecks(false)...');
-      // Do not auto-create a default deck; allow zero-deck state
-      const cachedDecks = await getDecks(false);
-      logger.log('📚 [SavedFlashcards] getDecks returned:', cachedDecks.length, 'decks');
-
-      if (cachedDecks.length > 0) {
-        logger.log('📚 [SavedFlashcards] Deck names:', cachedDecks.map(d => d.name).join(', '));
-      }
-
-      let decksToUse = cachedDecks;
-
-      // If we navigated here with a requested deck and it's missing from cache, force a network refresh
-      const needsRefresh = Boolean(
-        requestedDeckId &&
-        cachedDecks.every(deck => deck.id !== requestedDeckId) &&
-        isConnected
-      );
-
-      if (needsRefresh) {
-        logger.log('🔄 [SavedFlashcards] Requested deck not in cache; forcing refresh from server');
-        const refreshedDecks = await refreshDecksFromServer();
-        if (refreshedDecks.length > 0) {
-          logger.log('🔄 [SavedFlashcards] Refresh returned', refreshedDecks.length, 'decks');
-          decksToUse = refreshedDecks;
-        } else {
-          logger.log('⚠️ [SavedFlashcards] Refresh did not return any decks');
+      if (isGuest) {
+        const cachedDecks = await getLocalDecks();
+        logger.log('📚 [SavedFlashcards] getLocalDecks returned:', cachedDecks.length, 'decks');
+        setDecks(cachedDecks);
+      } else {
+        const cachedDecks = await getDecks(false);
+        logger.log('📚 [SavedFlashcards] getDecks returned:', cachedDecks.length, 'decks');
+        let decksToUse = cachedDecks;
+        const needsRefresh = Boolean(
+          requestedDeckId &&
+          cachedDecks.every(deck => deck.id !== requestedDeckId) &&
+          isConnected
+        );
+        if (needsRefresh) {
+          const refreshedDecks = await refreshDecksFromServer();
+          if (refreshedDecks.length > 0) decksToUse = refreshedDecks;
         }
+        setDecks(decksToUse);
       }
-
-      logger.log('📚 [SavedFlashcards] Calling setDecks with', decksToUse.length, 'decks');
-      setDecks(decksToUse);
-      
-      // Selection handled by separate effect to respect route params/newest deck
-      if (decksToUse.length === 0) {
+      if (decks.length === 0 && !isGuest) {
         logger.log('⚠️ [SavedFlashcards] No decks returned - user may need to sync online first');
-      } 
+      }
     } catch (error) {
       logger.error('❌ [SavedFlashcards] Error loading collections:', error);
       Alert.alert(t('common.error'), t('savedFlashcards.loadCollectionsError'));
     } finally {
-      logger.log('📚 [SavedFlashcards] Setting isLoadingDecks = false');
       setIsLoadingDecks(false);
       logger.log('📚 [SavedFlashcards] ========== loadDecks END ==========');
     }
@@ -401,8 +391,9 @@ export default function SavedFlashcardsScreen() {
   const loadAllFlashcards = async () => {
     setIsLoadingFlashcards(true);
     try {
-      const savedFlashcards = await getFlashcards();
-      // Sort by creation date (newest first)
+      const savedFlashcards = isGuest
+        ? await getLocalFlashcards()
+        : await getFlashcards();
       savedFlashcards.sort((a, b) => b.createdAt - a.createdAt);
       setFlashcards(savedFlashcards);
     } catch (error) {
@@ -417,8 +408,9 @@ export default function SavedFlashcardsScreen() {
   const loadFlashcardsByDeck = async (deckId: string) => {
     setIsLoadingFlashcards(true);
     try {
-      const deckFlashcards = await getFlashcardsByDeck(deckId);
-      // Sort by creation date (newest first)
+      const deckFlashcards = isGuest
+        ? (await getLocalFlashcards()).filter((c) => c.deckId === deckId)
+        : await getFlashcardsByDeck(deckId);
       deckFlashcards.sort((a, b) => b.createdAt - a.createdAt);
       setFlashcards(deckFlashcards);
     } catch (error) {
@@ -441,14 +433,15 @@ export default function SavedFlashcardsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const success = await deleteFlashcard(id);
+              const success = isGuest
+                ? await deleteLocalFlashcard(id)
+                : await deleteFlashcard(id);
               if (success) {
-                // Update local state if successfully deleted
                 setFlashcards(cards => cards.filter(card => card.id !== id));
               }
             } catch (error) {
               logger.error('Error deleting flashcard:', error);
-                              Alert.alert(t('common.error'), t('savedFlashcards.deleteFlashcardError'));
+              Alert.alert(t('common.error'), t('savedFlashcards.deleteFlashcardError'));
             }
           },
         },
@@ -468,7 +461,9 @@ export default function SavedFlashcardsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const success = await deleteDeck(deckId);
+              const success = isGuest
+                ? await deleteLocalDeck(deckId)
+                : await deleteDeck(deckId);
               if (success) {
                 // Update local state if successfully deleted
                 const updatedDecks = decks.filter(deck => deck.id !== deckId);
@@ -514,7 +509,9 @@ export default function SavedFlashcardsScreen() {
     }
 
     try {
-      const updatedDeck = await updateDeckName(editingDeckId, newDeckName.trim());
+      const updatedDeck = isGuest
+        ? await updateLocalDeckName(editingDeckId, newDeckName.trim())
+        : await updateDeckName(editingDeckId, newDeckName.trim());
       if (updatedDeck) {
         // Update local state if successfully renamed
         setDecks(decks.map(deck => 
@@ -532,8 +529,7 @@ export default function SavedFlashcardsScreen() {
 
   // Function to handle long press on deck item
   const handleDeckLongPress = (deckId: string) => {
-    // Disable deck management when offline
-    if (!isConnected) {
+    if (!isGuest && !isConnected) {
       Alert.alert(
         t('offline.title') || 'Offline',
         t('offline.deckManagementDisabled') || 'Deck management requires an internet connection. You can still view your cached flashcards offline.',
@@ -578,7 +574,9 @@ export default function SavedFlashcardsScreen() {
     if (!selectedFlashcardId) return;
     
     try {
-      const success = await moveFlashcardToDeck(selectedFlashcardId, targetDeckId);
+      const success = isGuest
+        ? await moveLocalFlashcardToDeck(selectedFlashcardId, targetDeckId)
+        : await moveFlashcardToDeck(selectedFlashcardId, targetDeckId);
       if (success) {
         // If moving from the currently viewed deck, remove from local state
         if (selectedDeckId === flashcards.find(f => f.id === selectedFlashcardId)?.deckId) {
@@ -618,21 +616,17 @@ export default function SavedFlashcardsScreen() {
     }
     
     try {
-      // Create new deck
-      const newDeck = await createDeck(newDeckNameForSend.trim());
+      const newDeck = isGuest
+        ? await createLocalDeck(newDeckNameForSend.trim())
+        : await createDeck(newDeckNameForSend.trim());
 
-      // Append deck locally to appear immediately, honoring right-append order
-      setDecks(prev => {
-        const next = [...prev, newDeck];
-        return next;
-      });
-
-      // Select the new deck in the UI immediately
+      setDecks(prev => [...prev, newDeck]);
       setSelectedDeckId(newDeck.id);
       setSelectedDeckIndex(Math.max(0, decks.length));
 
-      // Move flashcard to new deck
-      const success = await moveFlashcardToDeck(selectedFlashcardId, newDeck.id);
+      const success = isGuest
+        ? await moveLocalFlashcardToDeck(selectedFlashcardId, newDeck.id)
+        : await moveFlashcardToDeck(selectedFlashcardId, newDeck.id);
       
       if (success) {
         // If moving from the currently viewed deck, remove from local state
@@ -661,12 +655,12 @@ export default function SavedFlashcardsScreen() {
 
   // Function to handle going back to the previous screen
   const handleGoBack = async () => {
-    // Refresh deck list from server so the previous screen's deck rows show the latest order
-    // (e.g. after reordering here). Otherwise the update would only appear after pressing home.
-    try {
-      await refreshDecksFromServer();
-    } catch {
-      // Non-blocking: still go back even if refresh fails (e.g. offline)
+    if (!isGuest) {
+      try {
+        await refreshDecksFromServer();
+      } catch {
+        // Non-blocking
+      }
     }
     router.back();
   };
@@ -744,7 +738,16 @@ export default function SavedFlashcardsScreen() {
   // Function to save edited flashcard
   const handleSaveEditedFlashcard = async (updatedFlashcard: Flashcard) => {
     try {
-      const success = await updateFlashcard(updatedFlashcard);
+      const success = isGuest
+        ? (await updateLocalFlashcard(updatedFlashcard.id, {
+            originalText: updatedFlashcard.originalText,
+            readingsText: updatedFlashcard.readingsText,
+            translatedText: updatedFlashcard.translatedText,
+            targetLanguage: updatedFlashcard.targetLanguage,
+            imageUrl: updatedFlashcard.imageUrl,
+            scopeAnalysis: updatedFlashcard.scopeAnalysis,
+          })) != null
+        : await updateFlashcard(updatedFlashcard);
       if (success) {
         // Update the flashcard in the local state
         setFlashcards(currentFlashcards => 
@@ -1406,7 +1409,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.royalBlue50,
+    borderBottomColor: COLORS.border,
     backgroundColor: COLORS.pokedexBlack,
   },
   titleContainer: {

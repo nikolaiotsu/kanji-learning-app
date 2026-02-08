@@ -20,6 +20,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { Deck } from '../../types/Deck';
 import { getDecks, createDeck } from '../../services/supabaseStorage';
+import { getLocalDecksWithDefault, createLocalDeck } from '../../services/localFlashcardStorage';
+import { useAuth } from '../../context/AuthContext';
 import { COLORS } from '../../constants/colors';
 import { FONTS } from '../../constants/typography';
 import { supabase } from '../../services/supabaseClient';
@@ -35,6 +37,7 @@ interface DeckSelectorProps {
 
 export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSelectorProps) {
   const { t } = useTranslation();
+  const { isGuest } = useAuth();
   const { isConnected } = useNetworkState();
   const { getMaxDecks, subscription } = useSubscription();
   const [decks, setDecks] = useState<Deck[]>([]);
@@ -62,13 +65,12 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
     }
   }, [visible]);
 
-  // Function to load decks from storage
   const loadDecks = async () => {
-    logger.log(`[loadDecks] Loading decks...`);
+    logger.log(`[loadDecks] Loading decks... isGuest:`, isGuest);
     setIsLoading(true);
     try {
-      const savedDecks = await getDecks();
-      logger.log(`[loadDecks] Loaded ${savedDecks.length} decks:`, savedDecks.map(d => `${d.name} (${d.id})`));
+      const savedDecks = isGuest ? await getLocalDecksWithDefault() : await getDecks();
+      logger.log(`[loadDecks] Loaded ${savedDecks.length} decks`);
       setDecks(savedDecks);
     } catch (error) {
       logger.error('Error loading collections:', error);
@@ -84,9 +86,8 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
     onClose();
   };
 
-  // Function to handle creating a new deck
   const handleCreateDeck = async () => {
-    if (!isConnected) {
+    if (!isGuest && !isConnected) {
       Alert.alert(
         t('offline.title') || 'Offline',
         t('offline.createDeckDisabled') || 'Creating decks requires an internet connection.',
@@ -116,7 +117,9 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
 
     setIsCreatingDeck(true);
     try {
-      const newDeck = await createDeck(newDeckName.trim());
+      const newDeck = isGuest
+        ? await createLocalDeck(newDeckName.trim())
+        : await createDeck(newDeckName.trim());
       setDecks([...decks, newDeck]);
       setNewDeckName('');
       setShowNewDeckInput(false);

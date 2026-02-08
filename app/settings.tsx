@@ -49,7 +49,7 @@ export default function SettingsScreen() {
     availableProducts
   } = useSubscription();
   const { setHasCompletedOnboarding } = useOnboarding();
-  const { clearPendingBadge, setPendingBadge } = useBadge();
+  const { clearPendingBadge, setPendingBadge, refreshEarnedBadges } = useBadge();
   
   const router = useRouter();
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
@@ -254,9 +254,10 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              clearPendingBadge();
               const success = await resetBadgeProgress();
               if (success) {
+                clearPendingBadge();
+                await refreshEarnedBadges();
                 Alert.alert('Success', 'Badge progress has been reset. Create a flashcard and return home to see the celebration modal.');
               } else {
                 Alert.alert('Error', 'Failed to reset badge progress. Please try again.');

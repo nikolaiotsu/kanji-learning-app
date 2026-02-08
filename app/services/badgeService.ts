@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, getCurrentUser } from './supabaseClient';
 import { getUserIdOffline } from './offlineAuth';
 import { logger } from '../utils/logger';
@@ -19,6 +20,20 @@ export interface UserBadge {
   earnedAt: string;
   badge?: Badge;
 }
+
+const GUEST_BADGE_PROGRESS_KEY = 'guest_badge_progress';
+const GUEST_EARNED_BADGES_KEY = 'guest_earned_badges';
+
+/** Static badge definitions for guests (no DB). Must match badges table for cards_created. */
+const GUEST_CARDS_CREATED_BADGES: Badge[] = [
+  { id: 'guest_fc_1', name: '', description: '', imagePath: 'fc1.png', badgeType: 'cards_created', threshold: 1, createdAt: '' },
+  { id: 'guest_fc_3', name: '', description: '', imagePath: 'fc3.png', badgeType: 'cards_created', threshold: 3, createdAt: '' },
+  { id: 'guest_fc_10', name: '', description: '', imagePath: 'fc10.png', badgeType: 'cards_created', threshold: 10, createdAt: '' },
+  { id: 'guest_fc_25', name: '', description: '', imagePath: 'fc25.png', badgeType: 'cards_created', threshold: 25, createdAt: '' },
+  { id: 'guest_fc_50', name: '', description: '', imagePath: 'fc50.png', badgeType: 'cards_created', threshold: 50, createdAt: '' },
+  { id: 'guest_fc_100', name: '', description: '', imagePath: 'fc100.png', badgeType: 'cards_created', threshold: 100, createdAt: '' },
+  { id: 'guest_fc_250', name: '', description: '', imagePath: 'fc250.png', badgeType: 'cards_created', threshold: 250, createdAt: '' },
+];
 
 const transformBadge = (row: Record<string, unknown>): Badge => ({
   id: row.id as string,
@@ -44,14 +59,52 @@ const getUserId = async (): Promise<string | null> => {
 };
 
 /**
+ * Guest: increment progress in AsyncStorage and return newly unlocked badge if any.
+ */
+async function incrementGuestBadgeProgress(badgeType: string): Promise<Badge | null> {
+  try {
+    const raw = await AsyncStorage.getItem(GUEST_BADGE_PROGRESS_KEY);
+    const progress: Record<string, number> = raw ? JSON.parse(raw) : {};
+    const count = (progress[badgeType] ?? 0) + 1;
+    progress[badgeType] = count;
+    await AsyncStorage.setItem(GUEST_BADGE_PROGRESS_KEY, JSON.stringify(progress));
+
+    const earnedRaw = await AsyncStorage.getItem(GUEST_EARNED_BADGES_KEY);
+    const earned: { badgeId: string; earnedAt: string }[] = earnedRaw ? JSON.parse(earnedRaw) : [];
+    const earnedIds = new Set(earned.map((e) => e.badgeId));
+
+    const badges = badgeType === 'cards_created' ? GUEST_CARDS_CREATED_BADGES : [];
+    if (badges.length === 0) return null;
+
+    // Newly unlocked: threshold <= count and not already earned; pick highest such threshold
+    let toUnlock: Badge | null = null;
+    for (const b of badges) {
+      if (b.threshold <= count && !earnedIds.has(b.id)) toUnlock = b;
+    }
+    if (!toUnlock) return null;
+
+    const earnedAt = new Date().toISOString();
+    earned.push({ badgeId: toUnlock.id, earnedAt });
+    await AsyncStorage.setItem(GUEST_EARNED_BADGES_KEY, JSON.stringify(earned));
+
+    const badge: Badge = { ...toUnlock, createdAt: earnedAt };
+    logger.log('[BadgeService] Guest unlocked badge:', badge.id);
+    return badge;
+  } catch (error) {
+    logger.error('[BadgeService] Error in incrementGuestBadgeProgress:', error);
+    return null;
+  }
+}
+
+/**
  * Increment badge progress and check for newly unlocked badges.
  * Returns the badge if a new badge was unlocked, null otherwise.
+ * Supports guests via AsyncStorage when no user is signed in.
  */
 export async function incrementBadgeProgress(badgeType: string): Promise<Badge | null> {
   const userId = await getUserId();
   if (!userId) {
-    logger.log('[BadgeService] No user ID, skipping badge progress');
-    return null;
+    return incrementGuestBadgeProgress(badgeType);
   }
 
   try {
@@ -115,6 +168,33 @@ export async function incrementBadgeProgress(badgeType: string): Promise<Badge |
 }
 
 /**
+ * Get earned badges for guest (from AsyncStorage). Used when user is not signed in.
+ */
+export async function getGuestEarnedBadges(): Promise<UserBadge[]> {
+  try {
+    const earnedRaw = await AsyncStorage.getItem(GUEST_EARNED_BADGES_KEY);
+    const earned: { badgeId: string; earnedAt: string }[] = earnedRaw ? JSON.parse(earnedRaw) : [];
+    const userBadges: UserBadge[] = [];
+    for (const e of earned) {
+      const badge = GUEST_CARDS_CREATED_BADGES.find((b) => b.id === e.badgeId);
+      if (badge) {
+        userBadges.push({
+          id: `ub_${e.badgeId}`,
+          userId: 'guest',
+          badgeId: e.badgeId,
+          earnedAt: e.earnedAt,
+          badge: { ...badge, createdAt: e.earnedAt },
+        });
+      }
+    }
+    return userBadges.sort((a, b) => new Date(b.earnedAt).getTime() - new Date(a.earnedAt).getTime());
+  } catch (error) {
+    logger.error('[BadgeService] Error in getGuestEarnedBadges:', error);
+    return [];
+  }
+}
+
+/**
  * Get all badges a user has earned
  */
 export async function getUserBadges(userId: string): Promise<UserBadge[]> {
@@ -167,14 +247,14 @@ export async function getUserBadges(userId: string): Promise<UserBadge[]> {
 }
 
 /**
- * Reset badge progress for the current user (for testing).
- * Deletes badge_progress and user_badges so the user can re-earn badges.
+ * Reset badge progress for the current user (or guest) (for testing).
+ * Signed-in: deletes badge_progress and user_badges in Supabase.
+ * Guest: clears guest_badge_progress and guest_earned_badges from AsyncStorage.
  */
 export async function resetBadgeProgress(): Promise<boolean> {
   const userId = await getUserId();
   if (!userId) {
-    logger.log('[BadgeService] No user ID, cannot reset badge progress');
-    return false;
+    return resetGuestBadgeProgress();
   }
 
   try {
@@ -202,6 +282,21 @@ export async function resetBadgeProgress(): Promise<boolean> {
     return true;
   } catch (error) {
     logger.error('[BadgeService] Error resetting badge progress:', error);
+    return false;
+  }
+}
+
+/**
+ * Reset guest badge progress (AsyncStorage). Used when no user is signed in.
+ */
+export async function resetGuestBadgeProgress(): Promise<boolean> {
+  try {
+    await AsyncStorage.removeItem(GUEST_BADGE_PROGRESS_KEY);
+    await AsyncStorage.removeItem(GUEST_EARNED_BADGES_KEY);
+    logger.log('[BadgeService] Guest badge progress reset successfully');
+    return true;
+  } catch (error) {
+    logger.error('[BadgeService] Error resetting guest badge progress:', error);
     return false;
   }
 }

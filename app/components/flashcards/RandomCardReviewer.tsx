@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import FlashcardItem from './FlashcardItem';
 import { useRandomCardReview, LoadingState } from '../../hooks/useRandomCardReview';
 import { getDecks, updateFlashcard, resetSRSProgress, refreshDecksFromServer } from '../../services/supabaseStorage';
+import { getLocalDecks } from '../../services/localFlashcardStorage';
 import { Flashcard } from '../../types/Flashcard';
 import { COLORS } from '../../constants/colors';
 import { FONTS } from '../../constants/typography';
@@ -63,10 +64,12 @@ interface RandomCardReviewerProps {
   onSwipeInstructionsDismissed?: () => void;
 }
 
+const GUEST_SELECTED_DECK_IDS_KEY = 'selectedDeckIds_guest';
+
 const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, onContentReady, collectionsButtonRef, reviewButtonRef, isWalkthroughActive = false, currentWalkthroughStepId, walkthroughJustCompleted = false, onSwipeInstructionsDismissed }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const { pendingBadge } = useBadge();
   const { incrementRightSwipe, incrementLeftSwipe, streakCount, setDeckCardIds, resetSwipeCounts } = useSwipeCounter();
   const { isConnected } = useNetworkState();
@@ -820,82 +823,56 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     </View>
   );
 
-  // Load selected deck IDs from AsyncStorage on initialization (user-specific)
-  // CRITICAL: Also validates that stored deck IDs still exist in the database
-  useEffect(() => {
-    const loadSelectedDeckIds = async () => {
-      if (!user?.id) {
-        logger.log('👤 [Component] No user, skipping deck selection load');
-        setDeckIdsLoaded(true);
-        return;
+  // Load selected deck IDs from AsyncStorage (user-specific or guest)
+  const loadSelectedDeckIds = useCallback(async () => {
+    const userStorageKey = user?.id ? getSelectedDeckIdsStorageKey(user.id) : GUEST_SELECTED_DECK_IDS_KEY;
+    try {
+      logger.log('👤 [Component] Loading deck selection for', isGuest ? 'guest' : user?.id);
+      let storedDeckIds = await AsyncStorage.getItem(userStorageKey);
+
+      if (!storedDeckIds && user?.id) {
+        const legacyDeckIds = await AsyncStorage.getItem(LEGACY_SELECTED_DECK_IDS_STORAGE_KEY);
+        if (legacyDeckIds) {
+          await AsyncStorage.setItem(userStorageKey, legacyDeckIds);
+          await AsyncStorage.removeItem(LEGACY_SELECTED_DECK_IDS_STORAGE_KEY);
+          storedDeckIds = legacyDeckIds;
+        }
       }
 
-      try {
-        const userStorageKey = getSelectedDeckIdsStorageKey(user.id);
-        logger.log('👤 [Component] Loading deck selection for user:', user.id);
-        
-        // Try to load user-specific deck selection
-        let storedDeckIds = await AsyncStorage.getItem(userStorageKey);
-        
-        // Migration: If no user-specific data, check for legacy global key
-        if (!storedDeckIds) {
-          logger.log('👤 [Component] No user-specific deck selection, checking legacy key');
-          const legacyDeckIds = await AsyncStorage.getItem(LEGACY_SELECTED_DECK_IDS_STORAGE_KEY);
-          
-          if (legacyDeckIds) {
-            logger.log('👤 [Component] Migrating legacy deck selection to user-specific key');
-            // Migrate to user-specific key
-            await AsyncStorage.setItem(userStorageKey, legacyDeckIds);
-            // Clear the legacy key
-            await AsyncStorage.removeItem(LEGACY_SELECTED_DECK_IDS_STORAGE_KEY);
-            storedDeckIds = legacyDeckIds;
-          }
+      const existingDecks = user ? await getDecks() : await getLocalDecks();
+
+      if (storedDeckIds) {
+        const deckIds = JSON.parse(storedDeckIds);
+        const existingDeckIds = new Set(existingDecks.map((d: { id: string }) => d.id));
+        const validDeckIds = deckIds.filter((id: string) => existingDeckIds.has(id));
+        if (validDeckIds.length === 0 && existingDecks.length > 0) {
+          validDeckIds.push(existingDecks[0].id);
         }
-        
-        if (storedDeckIds) {
-          const deckIds = JSON.parse(storedDeckIds);
-          logger.log('👤 [Component] Loaded deck selection:', deckIds.length, 'decks');
-          
-          // CRITICAL FIX: Validate that stored deck IDs actually exist
-          // This prevents issues where stored IDs reference deleted decks
-          try {
-            const existingDecks = await getDecks();
-            const existingDeckIds = new Set(existingDecks.map(d => d.id));
-            const validDeckIds = deckIds.filter((id: string) => existingDeckIds.has(id));
-            
-            if (validDeckIds.length !== deckIds.length) {
-              logger.log('👤 [Component] Pruned invalid deck IDs:', deckIds.length - validDeckIds.length, 'removed');
-              
-              // If all stored IDs were invalid, select the first available deck
-              if (validDeckIds.length === 0 && existingDecks.length > 0) {
-                logger.log('👤 [Component] All stored IDs invalid, selecting first deck');
-                validDeckIds.push(existingDecks[0].id);
-              }
-              
-              // Update storage with valid IDs
-              await AsyncStorage.setItem(userStorageKey, JSON.stringify(validDeckIds));
-            }
-            
-            setSelectedDeckIds(validDeckIds);
-          } catch (validationError) {
-            // If validation fails, use stored IDs as-is (offline scenario)
-            logger.log('👤 [Component] Deck validation failed, using stored IDs:', validationError);
-            setSelectedDeckIds(deckIds);
-          }
-        } else {
-          logger.log('👤 [Component] No deck selection found, using all decks');
-          setSelectedDeckIds([]);
+        if (validDeckIds.length !== deckIds.length) {
+          await AsyncStorage.setItem(userStorageKey, JSON.stringify(validDeckIds));
         }
-      } catch (error) {
-        logger.error('Error loading selected deck IDs from AsyncStorage:', error);
+        setSelectedDeckIds(validDeckIds);
+      } else {
         setSelectedDeckIds([]);
-      } finally {
-        setDeckIdsLoaded(true);
       }
-    };
+    } catch (error) {
+      logger.error('Error loading selected deck IDs from AsyncStorage:', error);
+      setSelectedDeckIds([]);
+    } finally {
+      setDeckIdsLoaded(true);
+    }
+  }, [user?.id, isGuest]);
 
+  useEffect(() => {
     loadSelectedDeckIds();
-  }, [user?.id]);
+  }, [loadSelectedDeckIds]);
+
+  // Re-load selected deck IDs when screen gains focus (e.g. returning from flashcards after saving)
+  useFocusEffect(
+    useCallback(() => {
+      loadSelectedDeckIds();
+    }, [loadSelectedDeckIds])
+  );
 
   // Load daily review stats from AsyncStorage on initialization (user-specific)
   // Resets stats if it's a new day (midnight reset)
@@ -1779,15 +1756,12 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         resetReviewSession();
       }
       
-      // Save to user-specific storage key
-      if (user?.id) {
-        try {
-          const userStorageKey = getSelectedDeckIdsStorageKey(user.id);
-          await AsyncStorage.setItem(userStorageKey, JSON.stringify(deckIds));
-          logger.log('✅ [Component] Deck selection saved:', deckIds.length, 'decks');
-        } catch (error) {
-          logger.error('Error saving deck selection:', error);
-        }
+      const userStorageKey = user?.id ? getSelectedDeckIdsStorageKey(user.id) : GUEST_SELECTED_DECK_IDS_KEY;
+      try {
+        await AsyncStorage.setItem(userStorageKey, JSON.stringify(deckIds));
+        logger.log('✅ [Component] Deck selection saved:', deckIds.length, 'decks');
+      } catch (error) {
+        logger.error('Error saving deck selection:', error);
       }
     }
     
@@ -1864,23 +1838,34 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 {t('review.collections')}
               </Text>
           </TouchableOpacity>
-          </View>
-          
-          {/* SRS Mode Toggle */}
-          <AnimatedTouchableOpacity
-            style={[
-              styles.reviewModeButton,
-              buttonDisplayActive && styles.reviewModeButtonActive,
-              styles.deckButtonDisabled,
-              rainbowBorderStyle,
-              showCompletionPulse && completionPulseStyle
-            ]}
-            disabled={true}
+            </View>
+            
+            {/* SRS Mode Toggle */}
+            <View
+              ref={reviewButtonRef}
+              collapsable={false}
+              style={
+                isWalkthroughActive && currentWalkthroughStepId === 'review-button'
+                  ? styles.highlightedReviewButtonWrapper
+                  : undefined
+              }
+              pointerEvents={isWalkthroughActive && currentWalkthroughStepId !== 'review-button' ? 'none' : 'auto'}
+            >
+            <AnimatedTouchableOpacity
+              style={[
+                styles.reviewModeButton,
+                buttonDisplayActive && styles.reviewModeButtonActive,
+                styles.deckButtonDisabled,
+                rainbowBorderStyle,
+                showCompletionPulse && completionPulseStyle,
+                isWalkthroughActive && currentWalkthroughStepId === 'review-button' && { backgroundColor: 'transparent' }
+              ]}
+              disabled={true}
           >
             <Ionicons 
               name={buttonDisplayActive ? "school" : "school-outline"} 
               size={18} 
-              color={buttonDisplayActive ? COLORS.text : COLORS.primary}
+              color={isWalkthroughActive && currentWalkthroughStepId === 'review-button' ? '#FBBF24' : (buttonDisplayActive ? COLORS.text : COLORS.primary)}
             />
             <Text 
               style={[
@@ -1891,6 +1876,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               {t('review.reviewMode')}
             </Text>
           </AnimatedTouchableOpacity>
+            </View>
           
           {/* Offline Indicator */}
           <OfflineBanner visible={!isConnected} />
@@ -1977,15 +1963,26 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
             </View>
             
             {/* SRS Mode Toggle */}
+            <View
+              ref={reviewButtonRef}
+              collapsable={false}
+              style={
+                isWalkthroughActive && currentWalkthroughStepId === 'review-button'
+                  ? styles.highlightedReviewButtonWrapper
+                  : undefined
+              }
+              pointerEvents={isWalkthroughActive && currentWalkthroughStepId !== 'review-button' ? 'none' : 'auto'}
+            >
             <AnimatedTouchableOpacity
               style={[
                 styles.reviewModeButton,
                 buttonDisplayActive && styles.reviewModeButtonActive,
                 (reviewSessionCards.length === 0 && filteredCards.length === 0) && styles.reviewModeButtonDisabled,
                 rainbowBorderStyle,
-                showCompletionPulse && completionPulseStyle
+                showCompletionPulse && completionPulseStyle,
+                isWalkthroughActive && currentWalkthroughStepId === 'review-button' && { backgroundColor: 'transparent' }
               ]}
-              disabled={reviewSessionCards.length === 0 && filteredCards.length === 0}
+              disabled={(reviewSessionCards.length === 0 && filteredCards.length === 0) || (isWalkthroughActive && currentWalkthroughStepId !== 'review-button')}
               onPress={() => {
                 // Prevent rapid button presses from causing overlapping transitions
                 if (isTransitionLoading || isCardTransitioning || isInitializing) {
@@ -2052,9 +2049,11 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               <Ionicons 
                 name={buttonDisplayActive ? "school" : "school-outline"} 
                 size={18} 
-                color={(reviewSessionCards.length === 0 && filteredCards.length === 0) 
-                  ? COLORS.lightGray 
-                  : (buttonDisplayActive ? COLORS.text : COLORS.primary)}
+                color={isWalkthroughActive && currentWalkthroughStepId === 'review-button'
+                  ? '#FBBF24'
+                  : ((reviewSessionCards.length === 0 && filteredCards.length === 0) 
+                    ? COLORS.lightGray 
+                    : (buttonDisplayActive ? COLORS.text : COLORS.primary))}
               />
               <Text 
                 style={[
@@ -2066,6 +2065,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 {t('review.reviewMode')}
               </Text>
             </AnimatedTouchableOpacity>
+            </View>
             
             {/* Offline Indicator */}
             <OfflineBanner visible={!isConnected} />
@@ -2192,15 +2192,26 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
             </View>
             
             {/* SRS Mode Toggle */}
+            <View
+              ref={reviewButtonRef}
+              collapsable={false}
+              style={
+                isWalkthroughActive && currentWalkthroughStepId === 'review-button'
+                  ? styles.highlightedReviewButtonWrapper
+                  : undefined
+              }
+              pointerEvents={isWalkthroughActive && currentWalkthroughStepId !== 'review-button' ? 'none' : 'auto'}
+            >
             <AnimatedTouchableOpacity
               style={[
                 styles.reviewModeButton,
                 buttonDisplayActive && styles.reviewModeButtonActive,
                 isSessionFinished && styles.reviewModeButtonDisabled,
                 rainbowBorderStyle,
-                showCompletionPulse && completionPulseStyle
+                showCompletionPulse && completionPulseStyle,
+                isWalkthroughActive && currentWalkthroughStepId === 'review-button' && { backgroundColor: 'transparent' }
               ]}
-              disabled={isSessionFinished}
+              disabled={isSessionFinished || (isWalkthroughActive && currentWalkthroughStepId !== 'review-button')}
               onPress={() => {
                 // Prevent rapid button presses from causing overlapping transitions
                 if (isTransitionLoading || isCardTransitioning || isInitializing) {
@@ -2262,9 +2273,11 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               <Ionicons 
                 name={buttonDisplayActive ? "school" : "school-outline"} 
                 size={18} 
-                color={isSessionFinished 
-                  ? COLORS.lightGray 
-                  : (buttonDisplayActive ? COLORS.text : COLORS.primary)}
+                color={isWalkthroughActive && currentWalkthroughStepId === 'review-button'
+                  ? '#FBBF24'
+                  : (isSessionFinished 
+                    ? COLORS.lightGray 
+                    : (buttonDisplayActive ? COLORS.text : COLORS.primary))}
               />
               <Text 
                 style={[
@@ -2276,6 +2289,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 {t('review.reviewMode')}
               </Text>
             </AnimatedTouchableOpacity>
+            </View>
             
             {/* SRS Counter - Keep visible when showing no cards message */}
             {shouldShowCounter && (
@@ -2846,9 +2860,9 @@ const createStyles = (
   },
   containerHighlighted: {
     borderWidth: 3,
-    borderColor: '#FFFF00',
+    borderColor: 'rgba(255, 255, 0, 0.5)',
     shadowColor: '#FFFF00',
-    shadowOpacity: 0.9,
+    shadowOpacity: 0.35,
     shadowRadius: 20,
     elevation: 20,
   },
@@ -2916,13 +2930,13 @@ const createStyles = (
   highlightedCollectionsButtonWrapper: {
     borderRadius: 11, // Slightly larger to accommodate padding
     padding: 3,
-    backgroundColor: '#FFFF00', // Bright yellow background like other buttons
+    backgroundColor: 'rgba(255, 255, 0, 0.22)', // Subtle yellow tint so button stays visible
     shadowColor: '#FFFF00',
     shadowOffset: {
       width: 0,
       height: 0,
     },
-    shadowOpacity: 0.8,
+    shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 12,
     zIndex: 1000, // Ensure it's above other elements
@@ -2932,13 +2946,13 @@ const createStyles = (
   highlightedReviewButtonWrapper: {
     borderRadius: 11, // Slightly larger to accommodate padding
     padding: 3,
-    backgroundColor: '#FFFF00', // Bright yellow background like other buttons
+    backgroundColor: 'rgba(255, 255, 0, 0.22)', // Subtle yellow tint so button stays visible
     shadowColor: '#FFFF00',
     shadowOffset: {
       width: 0,
       height: 0,
     },
-    shadowOpacity: 0.8,
+    shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 12,
     zIndex: 1000, // Ensure it's above other elements

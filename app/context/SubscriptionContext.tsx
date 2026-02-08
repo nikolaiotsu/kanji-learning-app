@@ -5,6 +5,7 @@ import * as InAppPurchases from 'expo-in-app-purchases';
 import Constants from 'expo-constants';
 import { SubscriptionContextType, SubscriptionState, SubscriptionPlan, IAPProduct } from '../../types';
 import { SUBSCRIPTION_PLANS, PRODUCT_IDS } from '../constants/config';
+import { useAuth } from './AuthContext';
 import { 
   validateReceipt, 
   fetchSubscriptionStatus, 
@@ -24,6 +25,7 @@ const isDevelopment = __DEV__ || Constants.appOwnership === 'expo';
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
 
 export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, isGuest } = useAuth();
   const [subscription, setSubscription] = useState<SubscriptionState>({
     plan: 'FREE',
     isActive: false,
@@ -33,7 +35,15 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [error, setError] = useState<string | null>(null);
   const [availableProducts, setAvailableProducts] = useState<IAPProduct[]>([]);
   
-  // Initialize IAP and subscription data
+  // When guest, always show FREE (no premium)
+  useEffect(() => {
+    if (isGuest) {
+      setSubscription({ plan: 'FREE', isActive: false });
+      setIsSubscriptionReady(true);
+    }
+  }, [isGuest]);
+  
+  // Initialize IAP and subscription data (guests always FREE; load stored subscription only when not guest)
   useEffect(() => {
     initializeIAP();
     loadSubscriptionData();
@@ -46,7 +56,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
         );
       }
     };
-  }, []);
+  }, [isGuest]);
   
   // Initialize In-App Purchases
   const initializeIAP = async () => {
@@ -170,6 +180,11 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const loadSubscriptionData = async () => {
     try {
+      if (isGuest) {
+        setSubscription({ plan: 'FREE', isActive: false });
+        setIsSubscriptionReady(true);
+        return;
+      }
       // In production, load from server
       if (!isDevelopment) {
         logger.log('Loading subscription from server...');

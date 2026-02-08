@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getFlashcards } from '../services/supabaseStorage';
+import { getLocalFlashcards } from '../services/localFlashcardStorage';
 import { Flashcard } from '../types/Flashcard';
 import { useAuth } from '../context/AuthContext';
 import { AppState } from 'react-native';
@@ -51,7 +52,7 @@ export const useRandomCardReview = (onSessionFinishing?: () => void) => {
     onSessionFinishingRef.current = onSessionFinishing;
   }, [onSessionFinishing]);
   
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const { isConnected } = useNetworkState();
 
   // Helper function to check if two arrays of flashcards are equal by serializing and comparing
@@ -89,8 +90,8 @@ export const useRandomCardReview = (onSessionFinishing?: () => void) => {
         return;
       }
       
-      // Fetch without setting old loading state first to avoid UI flashing
-      const cards = await getFlashcards();
+      // When no user (guest or pre-auth), use local storage so the reviewer shows empty/intro state
+      const cards = user ? await getFlashcards() : await getLocalFlashcards();
       
       // OFFLINE PROTECTION: If we're offline and got 0 cards, but we already have cards,
       // don't clear them. Keep showing what we have.
@@ -188,13 +189,11 @@ export const useRandomCardReview = (onSessionFinishing?: () => void) => {
     } finally {
       isFetchingRef.current = false;
     }
-  }, [isInReviewMode, currentCard, reviewSessionCards, isConnected]);
+  }, [isInReviewMode, currentCard, reviewSessionCards, isConnected, user]);
 
-  // Initial load and when user changes
+  // Initial load on mount and when user changes (no user = fetch local for guest/intro state)
   useEffect(() => {
-    if (user) {
-      fetchAllFlashcards();
-    }
+    fetchAllFlashcards();
   }, [user, fetchAllFlashcards]);
 
   // Refresh data when app comes to foreground
@@ -210,11 +209,10 @@ export const useRandomCardReview = (onSessionFinishing?: () => void) => {
     };
   }, [fetchAllFlashcards]);
 
-  // Set a polling interval to periodically refresh data
+  // Set a polling interval to periodically refresh data (skip for guest)
   useEffect(() => {
-    if (!user) return;
+    if (!user || isGuest) return;
     
-    // Refresh every 30 seconds instead of 5 seconds to reduce database calls
     const interval = setInterval(() => {
       // Only automatically refresh if not in review mode AND online
       if (!isInReviewMode && isConnected) {
@@ -228,7 +226,7 @@ export const useRandomCardReview = (onSessionFinishing?: () => void) => {
     }, 30000);
     
     return () => clearInterval(interval);
-  }, [user, fetchAllFlashcards, isInReviewMode, isConnected]);
+  }, [user, isGuest, fetchAllFlashcards, isInReviewMode, isConnected]);
 
   // Update refs when state changes
   useEffect(() => {

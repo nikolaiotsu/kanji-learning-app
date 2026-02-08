@@ -16,6 +16,8 @@ import LoadingVideoScreen from './components/LoadingVideoScreen';
 import { LoadingVideoProvider } from './context/LoadingVideoContext';
 import { OnboardingVideosProvider } from './context/OnboardingVideosContext';
 import { AppReadyProvider } from './context/AppReadyContext';
+import { TransitionLoadingProvider, useTransitionLoading } from './context/TransitionLoadingContext';
+import { SignInPromptTriggerProvider } from './context/SignInPromptTriggerContext';
 import { StyleSheet, View, LogBox, Animated } from 'react-native';
 import { COLORS } from './constants/colors';
 import { FONTS } from './constants/typography';
@@ -81,14 +83,19 @@ console.error = (...args) => {
 
 // Inner layout: waits for auth + onboarding so we never show AuthGuard's spinner.
 // One loading screen (video) then one clean fade to the app.
+const POST_ONBOARDING_LOADING_MS = 2500;
+
 function RootLayoutContent() {
   const [isAppReady, setIsAppReady] = useState(false);
   const [isLoadingVisible, setIsLoadingVisible] = useState(true);
   const [hasContentMounted, setHasContentMounted] = useState(false);
+  const [showTransitionOverlay, setShowTransitionOverlay] = useState(false);
   const loadingOpacity = useRef(new Animated.Value(1)).current;
   const fadeInOpacity = useRef(new Animated.Value(0)).current;
+  const transitionOpacity = useRef(new Animated.Value(0)).current;
   const loadingStartTimeRef = useRef(Date.now());
   const { i18n } = useTranslation();
+  const { showTransitionLoading, setShowTransitionLoading } = useTransitionLoading();
 
   const [fontsLoaded] = useFonts({
     DMSans_400Regular,
@@ -106,6 +113,26 @@ function RootLayoutContent() {
       useNativeDriver: true,
     }).start();
   }, [fadeInOpacity]);
+
+  // When onboarding sets "transition loading", show overlay with video
+  useEffect(() => {
+    if (showTransitionLoading) {
+      setShowTransitionOverlay(true);
+      transitionOpacity.setValue(1);
+    }
+  }, [showTransitionLoading, transitionOpacity]);
+
+  // When transition loading is dismissed, fade out then hide
+  useEffect(() => {
+    if (!showTransitionLoading && showTransitionOverlay) {
+      Animated.timing(transitionOpacity, {
+        toValue: 0,
+        duration: LOADING_FADE_DURATION,
+        useNativeDriver: true,
+      }).start(() => setShowTransitionOverlay(false));
+    }
+  }, [showTransitionLoading, showTransitionOverlay, transitionOpacity]);
+
   const { user, isLoading: authLoading } = useAuth();
   const { hasCompletedOnboarding } = useOnboarding();
 
@@ -254,12 +281,14 @@ function RootLayoutContent() {
             </View>
           )}
       </AppReadyProvider>
-      {isLoadingVisible && (
+      {(isLoadingVisible || showTransitionOverlay) && (
         <Animated.View
-          style={[styles.loadingOverlay, { opacity: loadingOpacity }]}
-          pointerEvents={hasContentMounted ? 'none' : 'auto'}
+          style={[
+            styles.loadingOverlay,
+            { opacity: showTransitionOverlay ? transitionOpacity : loadingOpacity },
+          ]}
+          pointerEvents={hasContentMounted && !showTransitionOverlay ? 'none' : 'auto'}
         >
-          {/* Fade in the video content only - overlay background stays solid */}
           <Animated.View style={{ opacity: fadeInOpacity }}>
             <LoadingVideoScreen compact />
           </Animated.View>
@@ -301,9 +330,13 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <LoadingVideoProvider>
           <AuthProvider>
-            <OnboardingProvider>
-              <RootLayoutContent />
-            </OnboardingProvider>
+            <SignInPromptTriggerProvider>
+              <OnboardingProvider>
+                <TransitionLoadingProvider>
+                  <RootLayoutContent />
+                </TransitionLoadingProvider>
+              </OnboardingProvider>
+            </SignInPromptTriggerProvider>
           </AuthProvider>
         </LoadingVideoProvider>
       </SafeAreaProvider>

@@ -328,6 +328,43 @@ export function localizeScopeAnalysisHeadings(
   return localized;
 }
 
+/**
+ * Segment for styled scope analysis rendering
+ */
+export interface ScopeAnalysisSegment {
+  text: string;
+  isSourceLanguage: boolean;
+}
+
+/**
+ * Parses scopeAnalysis text into segments for styling.
+ * Source language text (example sentences, wrong/correct examples, alternative phrases) is marked for green highlighting.
+ *
+ * @param scopeAnalysis The localized scopeAnalysis text
+ * @returns Array of segments with isSourceLanguage flag for styling
+ */
+export function parseScopeAnalysisForStyling(scopeAnalysis: string): ScopeAnalysisSegment[] {
+  if (!scopeAnalysis) return [];
+
+  const lines = scopeAnalysis.split('\n');
+  const segments: ScopeAnalysisSegment[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const isSource =
+      /^\d+\.\s+.+/.test(line) ||  // "1. sentence" or "2. phrase" (Examples / Alternative Expressions)
+      /^✗\s+.+/.test(line) ||      // "✗ wrong" (Common Mistake)
+      /^✓\s+.+/.test(line);        // "✓ correct" (Common Mistake)
+
+    segments.push({
+      text: line + (i < lines.length - 1 ? '\n' : ''),
+      isSourceLanguage: isSource,
+    });
+  }
+
+  return segments;
+}
+
 // Add this default export to satisfy Expo Router
 const TextFormatting = { 
   cleanText, 
@@ -353,6 +390,7 @@ const TextFormatting = {
   containsEsperantoText,
   containsKanji,
   countKanji,
-  localizeScopeAnalysisHeadings
+  localizeScopeAnalysisHeadings,
+  parseScopeAnalysisForStyling
 };
 export default TextFormatting; 
