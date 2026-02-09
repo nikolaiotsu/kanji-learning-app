@@ -1876,7 +1876,6 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           <TouchableOpacity 
             style={[
               styles.deckButton,
-              isWalkthroughActive && currentWalkthroughStepId === 'collections' && { backgroundColor: 'transparent' }
             ]} 
             disabled={isWalkthroughActive && currentWalkthroughStepId !== 'collections'}
           >
@@ -1915,7 +1914,6 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 styles.deckButtonDisabled,
                 rainbowBorderStyle,
                 showCompletionPulse && completionPulseStyle,
-                isWalkthroughActive && currentWalkthroughStepId === 'review-button' && { backgroundColor: 'transparent' }
               ]}
               disabled={true}
           >
@@ -1997,7 +1995,6 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
             <TouchableOpacity 
                 style={[
                   styles.deckButton,
-                  isWalkthroughActive && currentWalkthroughStepId === 'collections' && { backgroundColor: 'transparent' }
                 ]} 
               onPress={() => setShowDeckSelector(true)}
                 disabled={isWalkthroughActive && currentWalkthroughStepId !== 'collections'}
@@ -2037,7 +2034,6 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 (reviewSessionCards.length === 0 && filteredCards.length === 0) && styles.reviewModeButtonDisabled,
                 rainbowBorderStyle,
                 showCompletionPulse && completionPulseStyle,
-                isWalkthroughActive && currentWalkthroughStepId === 'review-button' && { backgroundColor: 'transparent' }
               ]}
               disabled={(reviewSessionCards.length === 0 && filteredCards.length === 0) || (isWalkthroughActive && currentWalkthroughStepId !== 'review-button')}
               onPress={() => {
@@ -2226,7 +2222,6 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
             <TouchableOpacity 
                 style={[
                   styles.deckButton,
-                  isWalkthroughActive && currentWalkthroughStepId === 'collections' && { backgroundColor: 'transparent' }
                 ]} 
               onPress={() => setShowDeckSelector(true)}
                 disabled={isWalkthroughActive && currentWalkthroughStepId !== 'collections'}
@@ -2266,7 +2261,6 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 isSessionFinished && styles.reviewModeButtonDisabled,
                 rainbowBorderStyle,
                 showCompletionPulse && completionPulseStyle,
-                isWalkthroughActive && currentWalkthroughStepId === 'review-button' && { backgroundColor: 'transparent' }
               ]}
               disabled={isSessionFinished || (isWalkthroughActive && currentWalkthroughStepId !== 'review-button')}
               onPress={() => {
@@ -2482,7 +2476,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         <TouchableOpacity 
             style={[
               styles.deckButton,
-                  isWalkthroughActive && currentWalkthroughStepId === 'collections' && { backgroundColor: 'transparent' },
+,
                   // Keep full opacity during walkthrough; only dim when not in walkthrough and disabled
                   (!isWalkthroughActive && (isCardTransitioning || isInitializing)) && styles.deckButtonDisabled
             ]} 
@@ -2526,7 +2520,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           style={[
             styles.reviewModeButton,
             buttonDisplayActive && styles.reviewModeButtonActive,
-            isWalkthroughActive && currentWalkthroughStepId === 'review-button' && { backgroundColor: 'transparent' },
+,
             (!isWalkthroughActive && (isCardTransitioning || isInitializing)) && styles.deckButtonDisabled,
             isResettingSRS && { opacity: 0.6 },
             rainbowBorderStyle,
@@ -2999,9 +2993,10 @@ const createStyles = (
     color: COLORS.lightGray,
   },
   highlightedCollectionsButtonWrapper: {
-    borderRadius: 11, // Slightly larger to accommodate padding
+    borderRadius: 11,
     padding: 3,
-    backgroundColor: 'rgba(255, 255, 0, 0.22)', // Subtle yellow tint so button stays visible
+    borderWidth: 2,
+    borderColor: 'rgba(255, 200, 0, 0.9)',
     shadowColor: '#FFFF00',
     shadowOffset: {
       width: 0,
@@ -3010,14 +3005,15 @@ const createStyles = (
     shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 12,
-    zIndex: 1000, // Ensure it's above other elements
-    overflow: 'visible', // Ensure children are visible
-    position: 'relative', // Create stacking context for children
+    zIndex: 1000,
+    overflow: 'visible',
+    position: 'relative',
   },
   highlightedReviewButtonWrapper: {
-    borderRadius: 11, // Slightly larger to accommodate padding
+    borderRadius: 11,
     padding: 3,
-    backgroundColor: 'rgba(255, 255, 0, 0.22)', // Subtle yellow tint so button stays visible
+    borderWidth: 2,
+    borderColor: 'rgba(255, 200, 0, 0.9)',
     shadowColor: '#FFFF00',
     shadowOffset: {
       width: 0,

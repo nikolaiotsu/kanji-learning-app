@@ -15,18 +15,25 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { useOnboardingVideo } from './context/OnboardingVideosContext';
 import { useEvent } from 'expo';
 import { useOnboarding } from './context/OnboardingContext';
+import { useOnboardingProgress } from './context/OnboardingProgressContext';
 import { useAuth } from './context/AuthContext';
 import { useTransitionLoading } from './context/TransitionLoadingContext';
 import { resetWalkthrough } from './hooks/useWalkthrough';
 import { COLORS } from './constants/colors';
 import { FONTS } from './constants/typography';
 import LoadingVideoScreen from './components/LoadingVideoScreen';
+import OnboardingProgressBar from './components/shared/OnboardingProgressBar';
 
 const guyflyingVideoSource = require('../assets/guyflying.mp4');
 
 export default function OnboardingEducationalScreen() {
   const { t } = useTranslation();
   const { setHasCompletedOnboarding } = useOnboarding();
+  const { setOnboardingStep } = useOnboardingProgress();
+
+  useEffect(() => {
+    setOnboardingStep('onboarding-educational');
+  }, [setOnboardingStep]);
   const { setGuestMode } = useAuth();
   const [hasError, setHasError] = useState(false);
 
@@ -76,6 +83,7 @@ export default function OnboardingEducationalScreen() {
     <View style={styles.fullScreen}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+        <OnboardingProgressBar />
         <View style={styles.content}>
           <View style={styles.textBlock}>
             <View style={styles.titleRow}>

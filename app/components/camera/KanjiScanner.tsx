@@ -38,6 +38,7 @@ import * as FileSystem from 'expo-file-system';
 import WalkthroughOverlay from '../shared/WalkthroughOverlay';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useWalkthrough, WalkthroughStep } from '../../hooks/useWalkthrough';
+import { useOnboardingProgress } from '../../context/OnboardingProgressContext';
 import { useAppReady } from '../../context/AppReadyContext';
 import { ensureMeasuredThenAdvance, measureButton } from '../../utils/walkthroughUtils';
 import APIUsageEnergyBar from '../shared/APIUsageEnergyBar';
@@ -273,6 +274,15 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     updateStepLayout,
   } = useWalkthrough(walkthroughSteps);
 
+  const { setWalkthroughPhase, hideProgressBar } = useOnboardingProgress();
+
+  // Sync progress bar with home walkthrough step
+  useEffect(() => {
+    if (isWalkthroughActive) {
+      setWalkthroughPhase('home', currentStepIndex);
+    }
+  }, [isWalkthroughActive, currentStepIndex, setWalkthroughPhase]);
+
   // Track when user completes walkthrough via Done button (to show swipe instructions modal)
   const [walkthroughJustCompleted, setWalkthroughJustCompleted] = useState(false);
   // Once walkthrough has ended (completed or skipped), never show the pre-walkthrough touch block again
@@ -286,8 +296,9 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
 
   const handleSkipWalkthrough = useCallback(() => {
     walkthroughEverEndedRef.current = true;
+    hideProgressBar();
     skipWalkthrough();
-  }, [skipWalkthrough]);
+  }, [skipWalkthrough, hideProgressBar]);
 
   // Register steps with the walkthrough hook
   useEffect(() => {
@@ -3109,7 +3120,8 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
   highlightedSettingsButtonWrapper: {
     padding: 4,
     borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 0, 0.22)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 200, 0, 0.9)',
     shadowColor: '#FFFF00',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.35,
@@ -3118,8 +3130,8 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
   },
   highlightedToolbarButtonWrapper: {
     borderRadius: 10,
-    padding: 0.5,
-    backgroundColor: 'rgba(255, 255, 0, 0.22)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 200, 0, 0.9)',
     shadowColor: '#FFFF00',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.25,
@@ -3394,8 +3406,8 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
   },
   highlightedButtonWrapper: {
     borderRadius: 8,
-    padding: 0.5,
-    backgroundColor: 'rgba(255, 255, 0, 0.22)', // Subtle yellow tint so button stays visible
+    borderWidth: 2,
+    borderColor: 'rgba(255, 200, 0, 0.9)',
     shadowColor: '#FFFF00',
     shadowOffset: {
       width: 0,

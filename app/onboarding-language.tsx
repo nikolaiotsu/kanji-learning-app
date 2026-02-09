@@ -14,11 +14,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useOnboarding } from './context/OnboardingContext';
+import { useOnboardingProgress } from './context/OnboardingProgressContext';
 import { useSettings, AVAILABLE_LANGUAGES, DETECTABLE_LANGUAGES } from './context/SettingsContext';
 import { COLORS } from './constants/colors';
 import { FONTS } from './constants/typography';
 import { Ionicons } from '@expo/vector-icons';
 import LoadingVideoScreen from './components/LoadingVideoScreen';
+import OnboardingProgressBar from './components/shared/OnboardingProgressBar';
 
 const SPEAK_LANGUAGE_DATA = Object.entries(AVAILABLE_LANGUAGES).map(([code, name]) => ({ code, name }));
 const LEARN_LANGUAGE_DATA = Object.entries(DETECTABLE_LANGUAGES).map(([code, name]) => ({ code, name }));
@@ -26,6 +28,11 @@ const LEARN_LANGUAGE_DATA = Object.entries(DETECTABLE_LANGUAGES).map(([code, nam
 export default function OnboardingLanguageScreen() {
   const { t } = useTranslation();
   const { setHasCompletedOnboarding } = useOnboarding();
+  const { setOnboardingStep } = useOnboardingProgress();
+
+  useEffect(() => {
+    setOnboardingStep('onboarding-language');
+  }, [setOnboardingStep]);
   const { targetLanguage, setTargetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage } = useSettings();
   const [showSpeakPicker, setShowSpeakPicker] = useState(false);
   const [showLearnPicker, setShowLearnPicker] = useState(false);
@@ -57,6 +64,7 @@ export default function OnboardingLanguageScreen() {
     <View style={styles.fullScreen}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+        <OnboardingProgressBar />
         <View style={styles.content}>
           <View style={styles.videoSection}>
             <LoadingVideoScreen compact />

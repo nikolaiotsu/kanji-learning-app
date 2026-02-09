@@ -10,9 +10,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { useOnboardingProgress } from './context/OnboardingProgressContext';
 import { COLORS } from './constants/colors';
 import { FONTS } from './constants/typography';
 import LoadingVideoScreen from './components/LoadingVideoScreen';
+import OnboardingProgressBar from './components/shared/OnboardingProgressBar';
 
 const REASON_OPTIONS = [
   { id: 'work', emoji: '💼', labelKey: 'onboarding.whyWork' },
@@ -22,7 +24,12 @@ const REASON_OPTIONS = [
 
 export default function OnboardingWhyScreen() {
   const { t } = useTranslation();
+  const { setOnboardingStep } = useOnboardingProgress();
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    setOnboardingStep('onboarding-why');
+  }, [setOnboardingStep]);
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -50,6 +57,7 @@ export default function OnboardingWhyScreen() {
     <View style={styles.fullScreen}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+        <OnboardingProgressBar />
         <View style={styles.content}>
           <View style={styles.videoSection}>
             <LoadingVideoScreen compact />

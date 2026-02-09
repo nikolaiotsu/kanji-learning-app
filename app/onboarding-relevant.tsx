@@ -15,15 +15,22 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { useOnboardingVideo } from './context/OnboardingVideosContext';
 import { useEvent } from 'expo';
 import { useOnboarding } from './context/OnboardingContext';
+import { useOnboardingProgress } from './context/OnboardingProgressContext';
 import { COLORS } from './constants/colors';
 import { FONTS } from './constants/typography';
 import LoadingVideoScreen from './components/LoadingVideoScreen';
+import OnboardingProgressBar from './components/shared/OnboardingProgressBar';
 
 const guygettingburiedVideoSource = require('../assets/guygettingburied.mp4');
 
 export default function OnboardingRelevantScreen() {
   const { t } = useTranslation();
   const { setHasCompletedOnboarding } = useOnboarding();
+  const { setOnboardingStep } = useOnboardingProgress();
+
+  useEffect(() => {
+    setOnboardingStep('onboarding-relevant');
+  }, [setOnboardingStep]);
   const [hasError, setHasError] = useState(false);
 
   const preloadedPlayer = useOnboardingVideo('guygettingburied');
@@ -64,6 +71,7 @@ export default function OnboardingRelevantScreen() {
     <View style={styles.fullScreen}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+        <OnboardingProgressBar />
         <View style={styles.content}>
           <View style={styles.textBlock}>
             <View style={styles.titleRow}>

@@ -12,6 +12,7 @@ import { SwipeCounterProvider } from './context/SwipeCounterContext';
 import AuthGuard from './components/auth/AuthGuard';
 import BadgeModalGate from './components/shared/BadgeModalGate';
 import { OnboardingProvider } from './context/OnboardingContext';
+import { OnboardingProgressProvider } from './context/OnboardingProgressContext';
 import LoadingVideoScreen from './components/LoadingVideoScreen';
 import { LoadingVideoProvider } from './context/LoadingVideoContext';
 import { OnboardingVideosProvider } from './context/OnboardingVideosContext';
@@ -139,17 +140,31 @@ function RootLayoutContent() {
   // Auth/onboarding ready = we can safely reveal the app (AuthGuard won't show its own spinner)
   const isAuthReady = !authLoading && (user != null || hasCompletedOnboarding != null);
 
-  // Ensure i18n is ready before rendering the app
+  // Ensure i18n is ready before rendering the app (with cleanup and max wait to avoid runaway polling)
   useEffect(() => {
+    const POLL_INTERVAL_MS = 100;
+    const MAX_WAIT_MS = 5000;
+    const startTime = Date.now();
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
     const checkI18nReady = () => {
       if (i18n.isInitialized) {
         logger.log('[RootLayout] i18n is ready, language:', i18n.language);
         setIsAppReady(true);
-      } else {
-        setTimeout(checkI18nReady, 100);
+        return;
       }
+      if (Date.now() - startTime >= MAX_WAIT_MS) {
+        logger.warn('[RootLayout] i18n not ready after max wait, proceeding anyway');
+        setIsAppReady(true);
+        return;
+      }
+      timeoutId = setTimeout(checkI18nReady, POLL_INTERVAL_MS);
     };
     checkI18nReady();
+
+    return () => {
+      if (timeoutId != null) clearTimeout(timeoutId);
+    };
   }, [i18n]);
 
   // When content is ready, fonts loaded, and we've shown the loading screen for at least MIN_LOADING_DISPLAY_MS, fade out
@@ -332,9 +347,11 @@ export default function RootLayout() {
           <AuthProvider>
             <SignInPromptTriggerProvider>
               <OnboardingProvider>
-                <TransitionLoadingProvider>
-                  <RootLayoutContent />
-                </TransitionLoadingProvider>
+                <OnboardingProgressProvider>
+                  <TransitionLoadingProvider>
+                    <RootLayoutContent />
+                  </TransitionLoadingProvider>
+                </OnboardingProgressProvider>
               </OnboardingProvider>
             </SignInPromptTriggerProvider>
           </AuthProvider>

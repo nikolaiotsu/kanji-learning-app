@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, Platform, ActivityIndicator, ScrollView, Toucha
 import WalkthroughTarget from './components/shared/WalkthroughTarget';
 import WalkthroughOverlay from './components/shared/WalkthroughOverlay';
 import { useWalkthrough, WalkthroughStep } from './hooks/useWalkthrough';
+import { useOnboardingProgress } from './context/OnboardingProgressContext';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -53,6 +54,7 @@ import { COLORS } from './constants/colors';
 import { FONTS } from './constants/typography';
 import { FontAwesome6 } from '@expo/vector-icons';
 import PokedexLayout from './components/shared/PokedexLayout';
+import OnboardingProgressBar from './components/shared/OnboardingProgressBar';
 import FuriganaText from './components/shared/FuriganaText';
 import { useFlashcardCounter } from './context/FlashcardCounterContext';
 import { useBadge } from './context/BadgeContext';
@@ -107,6 +109,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [savedDuringWalkthrough, setSavedDuringWalkthrough] = useState(false);
   
   // Track the actual target language used for the current translation
   // This preserves the original target language even if settings get swapped during retries
@@ -239,6 +242,15 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     registerStep,
     updateStepLayout,
   } = useWalkthrough(flashcardWalkthroughSteps);
+
+  const { setWalkthroughPhase, hideProgressBar } = useOnboardingProgress();
+
+  // Sync progress bar with flashcards walkthrough step
+  useEffect(() => {
+    if (isWalkthroughActive) {
+      setWalkthroughPhase('flashcards', currentStepIndex);
+    }
+  }, [isWalkthroughActive, currentStepIndex, setWalkthroughPhase]);
 
   // Track if walkthrough has been started from params
   const walkthroughStartedRef = useRef(false);
@@ -1107,7 +1119,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
 
       // If walkthrough is active and we just saved (from final-save-prompt or save-button step), show congratulations
       if (isWalkthroughActive && (currentStep?.id === 'final-save-prompt' || currentStep?.id === 'save-button')) {
-        // Advance to congratulations step
+        setSavedDuringWalkthrough(true); // Keep button blue after walkthrough completes
         setHideWalkthroughOverlay(false);
         nextStep();
         // Don't show the regular alert during walkthrough - let the congratulations overlay handle it
@@ -1486,6 +1498,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       processingFailed={processingFailed}
     >
       <SafeAreaView style={styles.container}>
+        <OnboardingProgressBar />
         <ScrollView 
           ref={scrollViewRef}
           style={styles.scrollView} 
@@ -1562,18 +1575,18 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                   onPress={handleEditText}
                   disabled={isWalkthroughActive && currentStep?.id !== 'edit-text-button' && currentStep?.id !== 'choose-translation'}
                 >
-                  <View style={[styles.flashcardButtonFill, { backgroundColor: isWalkthroughActive && currentStep?.id === 'edit-text-button' ? 'rgba(255, 200, 0, 0.5)' : 'rgba(255, 255, 255, 0.15)' }]} />
+                  <View style={[styles.flashcardButtonFill, { backgroundColor: 'rgba(255, 255, 255, 0.15)' }]} />
                   <View style={styles.flashcardButtonTopHighlight} />
                   <View style={styles.buttonContent}>
                     <Ionicons 
                       name="pencil" 
                       size={20} 
-                      color={isWalkthroughActive && currentStep?.id === 'edit-text-button' ? '#000' : '#ffffff'} 
+                      color="#ffffff" 
                       style={styles.buttonIcon} 
                     />
                     <Text style={[
                       styles.buttonText,
-                      isWalkthroughActive && currentStep?.id === 'edit-text-button' ? { color: '#000' } : null
+                      null
                     ]}>
                       Edit Text
                     </Text>
@@ -1598,7 +1611,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                   onPress={() => !canUseWordscope ? showAPILimitUpgradeAlert('wordscope') : handleScopeAndTranslate()}
                   disabled={isLoadingLimits || (isWalkthroughActive && currentStep?.id !== 'wordscope-button' && currentStep?.id !== 'choose-translation')}
                 >
-                  <View style={[styles.flashcardButtonFill, { backgroundColor: isWalkthroughActive && (currentStep?.id === 'wordscope-button' || currentStep?.id === 'choose-translation') ? 'rgba(255, 200, 0, 0.5)' : 'rgba(255, 255, 255, 0.15)' }]} />
+                  <View style={[styles.flashcardButtonFill, { backgroundColor: 'rgba(255, 255, 255, 0.15)' }]} />
                   {canUseWordscope && !isAPILimitExhausted && <View style={styles.flashcardButtonTopHighlight} />}
                   <View style={styles.buttonContent}>
                     <View style={styles.dualIconContainer}>
@@ -1609,12 +1622,12 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                           <FontAwesome5 
                             name="microscope" 
                             size={16} 
-                            color={isWalkthroughActive && (currentStep?.id === 'wordscope-button' || currentStep?.id === 'choose-translation') ? '#000' : '#ffffff'} 
+                            color="#ffffff" 
                           />
                           <Ionicons 
                             name="language" 
                             size={16} 
-                            color={isWalkthroughActive && (currentStep?.id === 'wordscope-button' || currentStep?.id === 'choose-translation') ? '#000' : '#ffffff'} 
+                            color="#ffffff" 
                           />
                         </>
                       )}
@@ -1622,7 +1635,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                     <Text style={[
                       styles.buttonText, 
                       !canUseWordscope ? { color: COLORS.darkGray } : null,
-                      isWalkthroughActive && (currentStep?.id === 'wordscope-button' || currentStep?.id === 'choose-translation') ? { color: '#000' } : null
+                      null
                     ]}>
                       {!canUseWordscope ? 'Locked' : 'Wordscope'}
                     </Text>
@@ -1647,19 +1660,19 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                   onPress={() => !canUseTranslate ? showAPILimitUpgradeAlert('translate') : handleTranslate()}
                   disabled={isLoadingLimits || (isWalkthroughActive && currentStep?.id !== 'translate-button' && currentStep?.id !== 'choose-translation')}
                 >
-                  <View style={[styles.flashcardButtonFill, { backgroundColor: isWalkthroughActive && (currentStep?.id === 'translate-button' || currentStep?.id === 'choose-translation') ? 'rgba(255, 200, 0, 0.5)' : 'rgba(255, 255, 255, 0.15)' }]} />
+                  <View style={[styles.flashcardButtonFill, { backgroundColor: 'rgba(255, 255, 255, 0.15)' }]} />
                   {canUseTranslate && !isAPILimitExhausted && <View style={styles.flashcardButtonTopHighlight} />}
                   <View style={styles.buttonContent}>
                     <Ionicons 
                       name={!canUseTranslate ? "lock-closed" : "language"} 
                       size={20} 
-                      color={!canUseTranslate ? COLORS.darkGray : (isWalkthroughActive && (currentStep?.id === 'translate-button' || currentStep?.id === 'choose-translation') ? '#000' : '#ffffff')} 
+                      color={!canUseTranslate ? COLORS.darkGray : '#ffffff'} 
                       style={styles.buttonIcon} 
                     />
                     <Text style={[
                       styles.buttonText, 
                       !canUseTranslate ? { color: COLORS.darkGray } : null,
-                      isWalkthroughActive && (currentStep?.id === 'translate-button' || currentStep?.id === 'choose-translation') ? { color: '#000' } : null
+                      null
                     ]}>
                       {!canUseTranslate ? 'Locked' : 'Translate'}
                     </Text>
@@ -1794,18 +1807,18 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                             onPress={handleViewSavedFlashcards}
                             disabled={isWalkthroughActive && currentStep?.id !== 'view-saved-button'}
                           >
-                            <View style={[styles.flashcardButtonFill, { backgroundColor: isWalkthroughActive && currentStep?.id === 'view-saved-button' ? 'rgba(255, 200, 0, 0.5)' : 'rgba(59, 130, 246, 0.28)' }]} />
+                            <View style={[styles.flashcardButtonFill, { backgroundColor: 'rgba(59, 130, 246, 0.28)' }]} />
                             <View style={styles.flashcardButtonTopHighlight} />
                             <View style={styles.gridButtonContent}>
                               <Ionicons 
                                 name="albums-outline" 
                                 size={18} 
-                                color={isWalkthroughActive && currentStep?.id === 'view-saved-button' ? '#000' : '#ffffff'} 
+                                color="#ffffff" 
                                 style={styles.buttonIcon} 
                               />
                               <Text style={[
                                 styles.gridButtonText,
-                                isWalkthroughActive && currentStep?.id === 'view-saved-button' ? { color: '#000' } : null
+                                null
                               ]}>{t('flashcard.save.viewSaved')}</Text>
                             </View>
                           </TouchableOpacity>
@@ -1837,10 +1850,10 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                               style={[
                                 styles.flashcardButtonFill,
                                 {
-                                  backgroundColor: isSaved
-                                    ? 'rgba(251, 191, 36, 0.4)'
-                                    : isWalkthroughActive && (currentStep?.id === 'save-button' || currentStep?.id === 'final-save-prompt')
-                                      ? 'rgba(255, 200, 0, 0.5)'
+                                  backgroundColor: ((isWalkthroughActive && currentStep?.id === 'congratulations') || savedDuringWalkthrough)
+                                    ? 'rgba(59, 130, 246, 0.28)' // Keep original blue during/after walkthrough
+                                    : isSaved
+                                      ? 'rgba(251, 191, 36, 0.4)'
                                       : (isSaving || !canCreateFlashcard)
                                         ? 'rgba(51, 65, 85, 0.5)'
                                         : 'rgba(59, 130, 246, 0.28)',
@@ -1860,13 +1873,13 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                                       "bookmark-outline"
                                     } 
                                     size={18} 
-                                    color={!canCreateFlashcard ? COLORS.darkGray : (isWalkthroughActive && (currentStep?.id === 'save-button' || currentStep?.id === 'final-save-prompt') ? '#000' : '#ffffff')}
+                                    color={!canCreateFlashcard ? COLORS.darkGray : '#ffffff'}
                                     style={styles.buttonIcon} 
                                   />
                                   <Text style={[
                                     styles.gridButtonText,
                                     !canCreateFlashcard ? { color: COLORS.darkGray } : null,
-                                    isWalkthroughActive && (currentStep?.id === 'save-button' || currentStep?.id === 'final-save-prompt') ? { color: '#000' } : null
+                                    null
                                   ]}>
                                     {isSaved ? t('flashcard.save.savedAsFlashcard') : 
                                      !canCreateFlashcard ? `Limit reached (${remainingFlashcards} left)` :
@@ -1896,18 +1909,18 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                             onPress={handleEditTranslation}
                             disabled={isWalkthroughActive && currentStep?.id !== 'edit-translation-button'}
                           >
-                            <View style={[styles.flashcardButtonFill, { backgroundColor: isWalkthroughActive && currentStep?.id === 'edit-translation-button' ? 'rgba(255, 200, 0, 0.5)' : 'rgba(34, 197, 94, 0.28)' }]} />
+                            <View style={[styles.flashcardButtonFill, { backgroundColor: 'rgba(34, 197, 94, 0.28)' }]} />
                             <View style={styles.flashcardButtonTopHighlight} />
                             <View style={styles.gridButtonContent}>
                               <Ionicons 
                                 name="pencil" 
                                 size={18} 
-                                color={isWalkthroughActive && currentStep?.id === 'edit-translation-button' ? '#000' : '#ffffff'} 
+                                color="#ffffff" 
                                 style={styles.buttonIcon} 
                               />
                               <Text style={[
                                 styles.gridButtonText,
-                                isWalkthroughActive && currentStep?.id === 'edit-translation-button' ? { color: '#000' } : null
+                                null
                               ]}>{t('flashcard.edit.editTranslation')}</Text>
                             </View>
                           </TouchableOpacity>
@@ -1928,18 +1941,18 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                             onPress={handleEditInputAndRetranslate}
                             disabled={isWalkthroughActive && currentStep?.id !== 'edit-input-retranslate-button'}
                           >
-                            <View style={[styles.flashcardButtonFill, { backgroundColor: isWalkthroughActive && currentStep?.id === 'edit-input-retranslate-button' ? 'rgba(255, 200, 0, 0.5)' : 'rgba(239, 68, 68, 0.28)' }]} />
+                            <View style={[styles.flashcardButtonFill, { backgroundColor: 'rgba(239, 68, 68, 0.28)' }]} />
                             <View style={styles.flashcardButtonTopHighlight} />
                             <View style={styles.gridButtonContent}>
                               <Ionicons 
                                 name="refresh" 
                                 size={18} 
-                                color={isWalkthroughActive && currentStep?.id === 'edit-input-retranslate-button' ? '#000' : '#ffffff'} 
+                                color="#ffffff" 
                                 style={styles.buttonIcon} 
                               />
                               <Text style={[
                                 styles.gridButtonText,
-                                isWalkthroughActive && currentStep?.id === 'edit-input-retranslate-button' ? { color: '#000' } : null
+                                null
                               ]}>{t('flashcard.edit.editInputRetranslate')}</Text>
                             </View>
                           </TouchableOpacity>
@@ -2190,8 +2203,14 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
             }
           }}
           onPrevious={previousStep}
-          onSkip={skipWalkthrough}
-          onDone={completeWalkthrough}
+          onSkip={() => {
+            hideProgressBar();
+            skipWalkthrough();
+          }}
+          onDone={() => {
+            hideProgressBar();
+            completeWalkthrough();
+          }}
         />
 
         {/* Header on top so home button stays tappable during walkthrough overlay */}
@@ -2772,8 +2791,8 @@ const styles = StyleSheet.create({
   },
   highlightedButtonWrapper: {
     borderRadius: 8,
-    padding: 0.5,
-    backgroundColor: 'rgba(255, 255, 0, 0.22)', // Subtle yellow tint so button stays visible
+    borderWidth: 2,
+    borderColor: 'rgba(255, 200, 0, 0.9)',
     shadowColor: '#FFFF00',
     shadowOffset: {
       width: 0,

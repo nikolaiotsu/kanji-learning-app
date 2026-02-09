@@ -10,6 +10,7 @@ import { useAuth } from './context/AuthContext';
 import { useTransitionLoading } from './context/TransitionLoadingContext';
 import { useSignInPromptTrigger } from './context/SignInPromptTriggerContext';
 import { useBadge } from './context/BadgeContext';
+import OnboardingProgressBar from './components/shared/OnboardingProgressBar';
 
 import { logger } from './utils/logger';
 
@@ -146,6 +147,7 @@ export default function App() {
           // logger.log(`[AppIndexRootView] onLayout: x:${x}, y:${y}, width:${width}, height:${height}`);
         }}
       >
+        <OnboardingProgressBar />
         <KanjiScanner
           onCardSwipe={handleCardSwipe}
           onContentReady={handleContentReady}

@@ -210,22 +210,52 @@ export const useRandomCardReview = (onSessionFinishing?: () => void) => {
   }, [fetchAllFlashcards]);
 
   // Set a polling interval to periodically refresh data (skip for guest)
+  // Pauses when app is backgrounded to save battery
   useEffect(() => {
     if (!user || isGuest) return;
-    
-    const interval = setInterval(() => {
-      // Only automatically refresh if not in review mode AND online
-      if (!isInReviewMode && isConnected) {
-        logger.log('⏰ [Hook] Polling - fetching all flashcards (not in review mode, online)');
-        fetchAllFlashcards();
-      } else if (!isConnected) {
-        logger.log('⏰ [Hook] Polling - skipping fetch (offline)');
-      } else {
-        logger.log('⏰ [Hook] Polling - skipping fetch (in review mode)');
+
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const startPolling = () => {
+      if (intervalId) return; // Already running
+      intervalId = setInterval(() => {
+        // Only automatically refresh if not in review mode AND online
+        if (!isInReviewMode && isConnected) {
+          logger.log('⏰ [Hook] Polling - fetching all flashcards (not in review mode, online)');
+          fetchAllFlashcards();
+        } else if (!isConnected) {
+          logger.log('⏰ [Hook] Polling - skipping fetch (offline)');
+        } else {
+          logger.log('⏰ [Hook] Polling - skipping fetch (in review mode)');
+        }
+      }, 30000);
+    };
+
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
       }
-    }, 30000);
-    
-    return () => clearInterval(interval);
+    };
+
+    // Start polling immediately (app is in foreground when effect runs)
+    startPolling();
+
+    // Pause/resume based on app state
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState === 'active') {
+        logger.log('⏰ [Hook] App active - resuming polling');
+        startPolling();
+      } else {
+        logger.log('⏰ [Hook] App inactive/background - pausing polling');
+        stopPolling();
+      }
+    });
+
+    return () => {
+      stopPolling();
+      subscription.remove();
+    };
   }, [user, isGuest, fetchAllFlashcards, isInReviewMode, isConnected]);
 
   // Update refs when state changes

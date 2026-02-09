@@ -4,7 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { router } from 'expo-router';
 import { useOnboarding } from './context/OnboardingContext';
+import { useOnboardingProgress } from './context/OnboardingProgressContext';
 import { COLORS } from './constants/colors';
+import OnboardingProgressBar from './components/shared/OnboardingProgressBar';
 import { FONTS } from './constants/typography';
 import LoadingVideoScreen from './components/LoadingVideoScreen';
 
@@ -17,6 +19,11 @@ import LoadingVideoScreen from './components/LoadingVideoScreen';
 export default function OnboardingScreen() {
   const { t } = useTranslation();
   const { setHasCompletedOnboarding } = useOnboarding();
+  const { setOnboardingStep, hideProgressBar } = useOnboardingProgress();
+
+  useEffect(() => {
+    setOnboardingStep('onboarding');
+  }, [setOnboardingStep]);
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -29,6 +36,7 @@ export default function OnboardingScreen() {
   };
 
   const handleSignIn = async () => {
+    hideProgressBar();
     await setHasCompletedOnboarding(true);
     router.replace('/login');
   };
@@ -37,6 +45,7 @@ export default function OnboardingScreen() {
     <View style={styles.fullScreen}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+        <OnboardingProgressBar />
         <View style={styles.content}>
           <View style={styles.videoSection}>
             <LoadingVideoScreen compact />
