@@ -114,6 +114,7 @@
       "title": "Limite Collezioni Raggiunto",
       "messageFree": "Gli utenti gratuiti possono creare fino a {{maxDecks}} collezioni. Passa a Premium per collezioni illimitate!",
       "messagePremium": "Hai raggiunto il numero massimo di collezioni ({{maxDecks}}).",
+      "messageGuest": "Gli utenti ospiti possono creare fino a {{maxDecks}} collezioni. Accedi per crearne di più!",
       "reorderHint": "Tieni premuto e trascina per riordinare"
     }
   },
@@ -154,6 +155,8 @@
     "save": {
       "title": "Scheda Salvata",
       "message": "La tua {{cardType}} è stata salvata in {{deckName}}!",
+      "guestLimitTitle": "Limite di schede raggiunto",
+      "guestLimitMessage": "Gli utenti ospiti possono salvare fino a {{maxCards}} schede. Accedi per salvarne di più!",
       "cannotSaveTitle": "Impossibile Salvare",
       "cannotSaveTranslation": "Traduzione mancante per la scheda. Assicurati che il testo sia stato elaborato correttamente.",
       "cannotSaveContent": "Contenuto mancante per la scheda. Assicurati che il testo sia stato elaborato correttamente.",
@@ -275,6 +278,9 @@
     "resetSwipeCounterMessage": "Questo reimposterà i tuoi contatori di scorrimento giornalieri a zero. Sei sicuro?",
     "resetSwipeCounterConfirm": "Reimposta",
     "resetSwipeCounterSuccess": "I contatori di scorrimento sono stati reimpostati con successo!",
+    "resetSwipeInstructionsModal": "Reimposta finestra istruzioni scorrimento",
+    "resetSwipeInstructionsSuccess": "Istruzioni di scorrimento reimpostate. Vai alla Home e apparirà la finestra \"Scorri a sinistra/destra\".",
+    "resetSwipeInstructionsError": "Impossibile reimpostare le istruzioni di scorrimento.",
     "showAppWalkthrough": "Mostra Tour App",
     "showAppWalkthroughDescription": "Riproduci il tutorial di onboarding per conoscere le funzionalità dell'app"
   },

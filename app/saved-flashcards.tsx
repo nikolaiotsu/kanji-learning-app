@@ -23,6 +23,7 @@ import {
   deleteLocalFlashcard,
   deleteLocalDeck,
   createLocalDeck,
+  GUEST_MAX_DECKS,
   updateLocalFlashcard,
   updateLocalDeckName,
   moveLocalFlashcardToDeck,
@@ -601,17 +602,25 @@ export default function SavedFlashcardsScreen() {
       return;
     }
     
-    // Check deck limit for free users
-    const maxDecks = getMaxDecks();
+    // Check deck limit (guest: 2 decks; signed-in: subscription limit)
+    const maxDecks = isGuest ? GUEST_MAX_DECKS : getMaxDecks();
     if (decks.length >= maxDecks) {
-      const isPremium = subscription.plan === 'PREMIUM';
-      Alert.alert(
-        t('deck.limit.title'),
-        isPremium 
-          ? t('deck.limit.messagePremium', { maxDecks })
-          : t('deck.limit.messageFree', { maxDecks }),
-        [{ text: t('common.ok') }]
-      );
+      if (isGuest) {
+        Alert.alert(
+          t('deck.limit.title'),
+          t('deck.limit.messageGuest', { maxDecks: GUEST_MAX_DECKS }),
+          [{ text: t('common.ok') }]
+        );
+      } else {
+        const isPremium = subscription.plan === 'PREMIUM';
+        Alert.alert(
+          t('deck.limit.title'),
+          isPremium 
+            ? t('deck.limit.messagePremium', { maxDecks })
+            : t('deck.limit.messageFree', { maxDecks }),
+          [{ text: t('common.ok') }]
+        );
+      }
       return;
     }
     
@@ -637,9 +646,13 @@ export default function SavedFlashcardsScreen() {
       } else {
         Alert.alert(t('common.error'), t('savedFlashcards.moveFlashcardError'));
       }
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error creating deck and moving flashcard:', error);
-      Alert.alert(t('common.error'), t('savedFlashcards.createDeckError'));
+      if (error?.code === 'GUEST_LIMIT_DECKS' || error?.message === 'GUEST_LIMIT_DECKS') {
+        Alert.alert(t('deck.limit.title'), t('deck.limit.messageGuest', { maxDecks: GUEST_MAX_DECKS }));
+      } else {
+        Alert.alert(t('common.error'), t('savedFlashcards.createDeckError'));
+      }
     } finally {
       closeModal();
     }
@@ -877,6 +890,24 @@ export default function SavedFlashcardsScreen() {
   };
 
   // Render flashcard item
+  const handleImageLoadFailed = useCallback(
+    async (card: Flashcard) => {
+      try {
+        if (isGuest) {
+          await updateLocalFlashcard(card.id, { imageUrl: undefined });
+        } else {
+          await updateFlashcard({ ...card, imageUrl: undefined });
+        }
+        setFlashcards((prev) =>
+          prev.map((c) => (c.id === card.id ? { ...c, imageUrl: undefined } : c))
+        );
+      } catch (err) {
+        logger.error('Failed to clear imageUrl after load fail:', err);
+      }
+    },
+    [isGuest, updateFlashcard, updateLocalFlashcard]
+  );
+
   const renderFlashcard = ({ item }: { item: Flashcard }) => {
     return (
       <FlashcardItem
@@ -888,6 +919,7 @@ export default function SavedFlashcardsScreen() {
         isOnline={isConnected}
         disableBackdropOverlay={true}
         useScreenBackground={true}
+        onImageLoadFailed={handleImageLoadFailed}
       />
     );
   };

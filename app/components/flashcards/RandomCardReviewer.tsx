@@ -65,15 +65,30 @@ interface RandomCardReviewerProps {
   walkthroughJustCompleted?: boolean;
   // Callback when swipe instructions modal is dismissed (to reset walkthroughJustCompleted in parent)
   onSwipeInstructionsDismissed?: () => void;
+  // When true, sign-in prompt modal is visible - swipe instructions should wait
+  isSignInPromptVisible?: boolean;
 }
 
 const GUEST_SELECTED_DECK_IDS_KEY = 'selectedDeckIds_guest';
 
-const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, onContentReady, collectionsButtonRef, reviewButtonRef, isWalkthroughActive = false, currentWalkthroughStepId, walkthroughJustCompleted = false, onSwipeInstructionsDismissed }) => {
+const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, onContentReady, collectionsButtonRef, reviewButtonRef, isWalkthroughActive = false, currentWalkthroughStepId, walkthroughJustCompleted = false, onSwipeInstructionsDismissed, isSignInPromptVisible = false }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { user, isGuest } = useAuth();
   const { isSplashVisible } = useAppReady();
+  const isSplashVisibleRef = useRef(isSplashVisible);
+  isSplashVisibleRef.current = isSplashVisible;
+  // Track if the initial app load has completed (splash dismissed at least once)
+  const hasInitialLoadCompletedRef = useRef(false);
+  if (!isSplashVisible && !hasInitialLoadCompletedRef.current) {
+    hasInitialLoadCompletedRef.current = true;
+  }
+  // Track isWalkthroughActive via ref for use in delayed callbacks
+  const isWalkthroughActiveRef = useRef(isWalkthroughActive);
+  isWalkthroughActiveRef.current = isWalkthroughActive;
+  // Track isSignInPromptVisible via ref for use in delayed callbacks
+  const isSignInPromptVisibleRef = useRef(isSignInPromptVisible);
+  isSignInPromptVisibleRef.current = isSignInPromptVisible;
   const { pendingBadge } = useBadge();
   const { incrementRightSwipe, incrementLeftSwipe, streakCount, setDeckCardIds, resetSwipeCounts } = useSwipeCounter();
   const { isConnected } = useNetworkState();
@@ -208,9 +223,11 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
 
   // Track if we're waiting to show swipe instructions (after badge modal dismisses)
   const shouldShowSwipeInstructionsRef = useRef(false);
+  // Track if this is the first focus event (initial app load) - skip modal on first focus to let walkthrough start
+  const isFirstFocusRef = useRef(true);
 
   // Show swipe instructions modal after walkthrough completes (if user hasn't dismissed it)
-  // Waits for badge modal to be dismissed first if one is showing
+  // Waits for badge modal AND sign-in prompt to be dismissed first if either is showing
   useEffect(() => {
     const trigger = walkthroughJustCompleted;
     if (!trigger) return;
@@ -219,40 +236,60 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         const dismissed = await AsyncStorage.getItem(SWIPE_INSTRUCTIONS_DISMISSED_KEY);
         if (!dismissed || dismissed !== 'true') {
           shouldShowSwipeInstructionsRef.current = true;
-          // If no badge modal showing, show immediately; otherwise wait for it to dismiss
-          if (!pendingBadge) {
+          // If no badge modal showing AND no sign-in prompt, show immediately; otherwise wait
+          if (!pendingBadge && !isSignInPromptVisible) {
             setShowSwipeInstructionsModal(true);
           }
         }
       } catch {
         shouldShowSwipeInstructionsRef.current = true;
-        if (!pendingBadge) {
+        if (!pendingBadge && !isSignInPromptVisible) {
           setShowSwipeInstructionsModal(true);
         }
       }
     };
     checkAndScheduleSwipeInstructions();
-  }, [walkthroughJustCompleted, pendingBadge]);
+  }, [walkthroughJustCompleted, pendingBadge, isSignInPromptVisible]);
 
-  // When badge modal is dismissed, show swipe instructions if we were waiting
+  // When badge modal or sign-in prompt is dismissed, show swipe instructions if we were waiting
   useEffect(() => {
-    if (!pendingBadge && shouldShowSwipeInstructionsRef.current) {
+    if (!pendingBadge && !isSignInPromptVisible && shouldShowSwipeInstructionsRef.current) {
       shouldShowSwipeInstructionsRef.current = false;
       setShowSwipeInstructionsModal(true);
     }
-  }, [pendingBadge]);
+  }, [pendingBadge, isSignInPromptVisible]);
 
   // Show swipe instructions every time user lands on Home (after initial loading is gone), unless they chose "Don't show again"
+  // IMPORTANT: Don't show during walkthrough - the walkthroughJustCompleted effect handles showing after walkthrough ends
+  // NOTE: Skip on first focus (initial app load) to let walkthrough start - only show on subsequent returns to Home
+  // NOTE: We check refs INSIDE checkAndShow() to get current values at execution time, not when effect started
   useFocusEffect(
     useCallback(() => {
       if (isSplashVisible) return; // Don't show while initial loading screen is visible
+      if (isWalkthroughActive) return; // Don't show during walkthrough - wait for walkthroughJustCompleted
+      if (isSignInPromptVisible) return; // Don't show while sign-in prompt is visible
+      // Skip on initial app load (first focus) - let walkthroughJustCompleted effect handle showing after walkthrough
+      // This prevents the modal from appearing before the walkthrough has a chance to start
+      if (isFirstFocusRef.current) {
+        isFirstFocusRef.current = false;
+        return;
+      }
       let cancelled = false;
       const checkAndShow = async () => {
+        // Re-check current state via refs - these may have changed since the effect started
+        // This is critical because the 600ms delay can allow walkthrough to start, splash to reappear, or sign-in prompt to show
+        if (isSplashVisibleRef.current) return; // Splash is now visible, don't show
+        if (isWalkthroughActiveRef.current) return; // Walkthrough started, don't show
+        if (isSignInPromptVisibleRef.current) return; // Sign-in prompt is showing, don't show
         try {
           const dismissed = await AsyncStorage.getItem(SWIPE_INSTRUCTIONS_DISMISSED_KEY);
           if (cancelled || (dismissed && dismissed === 'true')) return;
+          // Final check after async operation - state may have changed
+          if (isSplashVisibleRef.current || isWalkthroughActiveRef.current || isSignInPromptVisibleRef.current) return;
           await AsyncStorage.removeItem(SWIPE_INSTRUCTIONS_PENDING_KEY);
           if (cancelled) return;
+          // Final safety check before showing
+          if (isSplashVisibleRef.current || isWalkthroughActiveRef.current || isSignInPromptVisibleRef.current) return;
           shouldShowSwipeInstructionsRef.current = true;
           if (!pendingBadge) {
             setShowSwipeInstructionsModal(true);
@@ -268,7 +305,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         cancelled = true;
         clearTimeout(timer);
       };
-    }, [pendingBadge, isSplashVisible])
+    }, [pendingBadge, isSplashVisible, isWalkthroughActive, isSignInPromptVisible])
   );
 
   // State to track if image is expanded (to hide controls)
@@ -2701,6 +2738,20 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                   setIsImageExpanded(showImage);
                 }}
                 isSrsModeActive={isSrsModeActive}
+                onImageLoadFailed={async (card) => {
+                  try {
+                    if (isGuest) {
+                      await updateLocalFlashcard(card.id, { imageUrl: undefined });
+                    } else {
+                      await updateFlashcard({ ...card, imageUrl: undefined });
+                    }
+                    setCurrentCard((prev) =>
+                      prev?.id === card.id ? { ...prev, imageUrl: undefined } : prev
+                    );
+                  } catch (err) {
+                    logger.error('Failed to clear imageUrl after load fail:', err);
+                  }
+                }}
               />
               {/* Right swipe overlay - Green with checkmark - Only show in SRS Mode */}
               {isSrsModeActive && (

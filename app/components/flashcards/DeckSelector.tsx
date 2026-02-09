@@ -20,7 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { Deck } from '../../types/Deck';
 import { getDecks, createDeck } from '../../services/supabaseStorage';
-import { getLocalDecksWithDefault, createLocalDeck } from '../../services/localFlashcardStorage';
+import { getLocalDecksWithDefault, createLocalDeck, GUEST_MAX_DECKS } from '../../services/localFlashcardStorage';
 import { useAuth } from '../../context/AuthContext';
 import { COLORS } from '../../constants/colors';
 import { FONTS } from '../../constants/typography';
@@ -101,17 +101,25 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
       return;
     }
 
-    // Check deck limit for free users
-    const maxDecks = getMaxDecks();
+    // Check deck limit (guest: 2 decks; signed-in: subscription limit)
+    const maxDecks = isGuest ? GUEST_MAX_DECKS : getMaxDecks();
     if (decks.length >= maxDecks) {
-      const isPremium = subscription.plan === 'PREMIUM';
-      Alert.alert(
-        t('deck.limit.title'),
-        isPremium 
-          ? t('deck.limit.messagePremium', { maxDecks })
-          : t('deck.limit.messageFree', { maxDecks }),
-        [{ text: t('common.ok') }]
-      );
+      if (isGuest) {
+        Alert.alert(
+          t('deck.limit.title'),
+          t('deck.limit.messageGuest', { maxDecks: GUEST_MAX_DECKS }),
+          [{ text: t('common.ok') }]
+        );
+      } else {
+        const isPremium = subscription.plan === 'PREMIUM';
+        Alert.alert(
+          t('deck.limit.title'),
+          isPremium 
+            ? t('deck.limit.messagePremium', { maxDecks })
+            : t('deck.limit.messageFree', { maxDecks }),
+          [{ text: t('common.ok') }]
+        );
+      }
       return;
     }
 
@@ -125,9 +133,13 @@ export default function DeckSelector({ visible, onClose, onSelectDeck }: DeckSel
       setShowNewDeckInput(false);
       
       handleSelectDeck(newDeck.id);
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error creating collection:', error);
-      Alert.alert(t('common.error'), t('deck.create.failed'));
+      if (error?.code === 'GUEST_LIMIT_DECKS' || error?.message === 'GUEST_LIMIT_DECKS') {
+        Alert.alert(t('deck.limit.title'), t('deck.limit.messageGuest', { maxDecks: GUEST_MAX_DECKS }));
+      } else {
+        Alert.alert(t('common.error'), t('deck.create.failed'));
+      }
     } finally {
       setIsCreatingDeck(false);
     }

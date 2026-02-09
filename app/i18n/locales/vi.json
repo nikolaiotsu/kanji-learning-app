@@ -114,6 +114,7 @@
       "title": "Đạt Giới hạn Bộ Sưu Tập",
       "messageFree": "Người dùng miễn phí có thể tạo tối đa {{maxDecks}} bộ sưu tập. Nâng cấp lên Premium để có bộ sưu tập không giới hạn!",
       "messagePremium": "Bạn đã đạt số lượng bộ sưu tập tối đa ({{maxDecks}}).",
+      "messageGuest": "Người dùng khách có thể tạo tối đa {{maxDecks}} bộ sưu tập. Đăng nhập để tạo thêm!",
       "reorderHint": "Nhấn giữ và kéo để sắp xếp lại"
     }
   },
@@ -154,6 +155,8 @@
     "save": {
       "title": "Thẻ đã được Lưu",
       "message": "{{cardType}} của bạn đã được lưu vào {{deckName}}!",
+      "guestLimitTitle": "Đạt giới hạn thẻ",
+      "guestLimitMessage": "Người dùng khách có thể lưu tối đa {{maxCards}} thẻ. Đăng nhập để lưu thêm!",
       "cannotSaveTitle": "Không thể Lưu",
       "cannotSaveTranslation": "Thiếu bản dịch cho thẻ. Vui lòng đảm bảo văn bản đã được xử lý đúng cách.",
       "cannotSaveContent": "Thiếu nội dung cho thẻ. Vui lòng đảm bảo văn bản đã được xử lý đúng cách.",
@@ -275,6 +278,9 @@
     "resetSwipeCounterMessage": "Điều này sẽ đặt lại bộ đếm vuốt hàng ngày của bạn về không. Bạn có chắc chắn?",
     "resetSwipeCounterConfirm": "Đặt lại",
     "resetSwipeCounterSuccess": "Đã đặt lại bộ đếm vuốt thành công!",
+    "resetSwipeInstructionsModal": "Đặt lại cửa sổ hướng dẫn vuốt",
+    "resetSwipeInstructionsSuccess": "Đã đặt lại hướng dẫn vuốt. Vào Trang chủ và cửa sổ \"Vuốt trái/phải\" sẽ hiển thị.",
+    "resetSwipeInstructionsError": "Không thể đặt lại hướng dẫn vuốt.",
     "showAppWalkthrough": "Hiển thị Hướng dẫn Ứng dụng",
     "showAppWalkthroughDescription": "Phát lại hướng dẫn onboarding để tìm hiểu về các tính năng ứng dụng"
   },

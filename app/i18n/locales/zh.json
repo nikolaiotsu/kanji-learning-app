@@ -114,6 +114,7 @@
       "title": "已达到收藏集数量上限",
       "messageFree": "免费用户最多可创建{{maxDecks}}个收藏集。升级到高级版可获得无限收藏集！",
       "messagePremium": "您已达到最大收藏集数量（{{maxDecks}}个）。",
+      "messageGuest": "访客最多可创建{{maxDecks}}个收藏集。登录以创建更多！",
       "reorderHint": "长按并拖动以重新排列"
     }
   },
@@ -154,6 +155,8 @@
     "save": {
       "title": "单词卡已保存",
       "message": "您的{{cardType}}已保存到{{deckName}}！",
+      "guestLimitTitle": "已达卡片上限",
+      "guestLimitMessage": "访客最多可保存{{maxCards}}张单词卡。登录以保存更多！",
       "cannotSaveTranslation": "单词卡缺少翻译。请确保文本已正确处理。",
       "cannotSaveContent": "单词卡缺少内容。请确保文本已正确处理。",
       "saveError": "保存错误",
@@ -272,6 +275,9 @@
     "resetSwipeCounterMessage": "这会将您的每日滑动计数器重置为零。您确定吗？",
     "resetSwipeCounterConfirm": "重置",
     "resetSwipeCounterSuccess": "滑动计数器已成功重置！",
+    "resetSwipeInstructionsModal": "重置滑动说明弹窗",
+    "resetSwipeInstructionsSuccess": "滑动说明已重置。返回首页后将显示「左/右滑动」说明弹窗。",
+    "resetSwipeInstructionsError": "无法重置滑动说明。",
     "showAppWalkthrough": "显示应用导览",
     "showAppWalkthroughDescription": "重新播放入门教程，了解应用功能"
   },

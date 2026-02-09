@@ -114,6 +114,7 @@
       "title": "تم الوصول إلى الحد الأقصى للمجموعات",
       "messageFree": "يمكن للمستخدمين المجانيين إنشاء ما يصل إلى {{maxDecks}} مجموعة. قم بالترقية إلى Premium للحصول على مجموعات غير محدودة!",
       "messagePremium": "لقد وصلت إلى الحد الأقصى من المجموعات ({{maxDecks}}).",
+      "messageGuest": "يمكن للمستخدمين الضيوف إنشاء ما يصل إلى {{maxDecks}} مجموعات. سجّل الدخول لإنشاء المزيد!",
       "reorderHint": "اضغط مطولاً واسحب لإعادة الترتيب"
     }
   },
@@ -154,6 +155,8 @@
     "save": {
       "title": "تم حفظ البطاقة",
       "message": "تم حفظ {{cardType}} في {{deckName}}!",
+      "guestLimitTitle": "تم الوصول إلى حد البطاقات",
+      "guestLimitMessage": "يمكن للمستخدمين الضيوف حفظ ما يصل إلى {{maxCards}} بطاقة. سجّل الدخول لحفظ المزيد!",
       "cannotSaveTitle": "لا يمكن الحفظ",
       "cannotSaveTranslation": "الترجمة مفقودة للبطاقة. يرجى التأكد من معالجة النص بشكل صحيح.",
       "cannotSaveContent": "المحتوى مفقود للبطاقة. يرجى التأكد من معالجة النص بشكل صحيح.",
@@ -275,6 +278,9 @@
     "resetSwipeCounterMessage": "سيؤدي هذا إلى إعادة تعيين عدادات السحب اليومية إلى الصفر. هل أنت متأكد؟",
     "resetSwipeCounterConfirm": "إعادة تعيين",
     "resetSwipeCounterSuccess": "تم إعادة تعيين عدادات السحب بنجاح!",
+    "resetSwipeInstructionsModal": "إعادة تعيين نافذة تعليمات السحب",
+    "resetSwipeInstructionsSuccess": "تم إعادة تعيين تعليمات السحب. انتقل إلى الصفحة الرئيسية وستظهر نافذة \"اسحب لليسار/لليمين\".",
+    "resetSwipeInstructionsError": "تعذر إعادة تعيين تعليمات السحب.",
     "showAppWalkthrough": "عرض دليل التطبيق",
     "showAppWalkthroughDescription": "أعد تشغيل البرنامج التعليمي للتعرف على ميزات التطبيق"
   },

@@ -7,6 +7,10 @@ import { createDeck as createDeckSupabase, saveFlashcard, uploadImageToStorage }
 const GUEST_FLASHCARDS_KEY = '@guest_flashcards';
 const GUEST_DECKS_KEY = '@guest_decks';
 
+/** Guest mode limits (enforced in createLocalDeck and saveLocalFlashcard) */
+export const GUEST_MAX_DECKS = 2;
+export const GUEST_MAX_CARDS = 20;
+
 function generateUUID(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
@@ -35,10 +39,16 @@ export const getLocalDecks = async (): Promise<Deck[]> => {
 };
 
 /**
- * Create a new deck for guest users (local only)
+ * Create a new deck for guest users (local only).
+ * Throws if guest already has GUEST_MAX_DECKS decks.
  */
 export const createLocalDeck = async (name: string): Promise<Deck> => {
   const decks = await getLocalDecks();
+  if (decks.length >= GUEST_MAX_DECKS) {
+    const err = new Error('GUEST_LIMIT_DECKS') as Error & { code?: string };
+    err.code = 'GUEST_LIMIT_DECKS';
+    throw err;
+  }
   const now = Date.now();
   const newDeck: Deck = {
     id: generateUUID(),
@@ -82,6 +92,7 @@ export const getLocalFlashcards = async (): Promise<Flashcard[]> => {
 
 /**
  * Save a flashcard locally for guest users.
+ * Throws if guest already has GUEST_MAX_CARDS cards.
  * imageUrl can be a local file URI (file://...) - it will be stored as-is and uploaded on migration.
  */
 export const saveLocalFlashcard = async (
@@ -89,6 +100,11 @@ export const saveLocalFlashcard = async (
   deckId: string
 ): Promise<Flashcard> => {
   const cards = await getLocalFlashcards();
+  if (cards.length >= GUEST_MAX_CARDS) {
+    const err = new Error('GUEST_LIMIT_CARDS') as Error & { code?: string };
+    err.code = 'GUEST_LIMIT_CARDS';
+    throw err;
+  }
   const now = Date.now();
   const newCard: Flashcard = {
     ...flashcard,

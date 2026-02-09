@@ -114,6 +114,7 @@
       "title": "Límite de colecciones alcanzado",
       "messageFree": "Los usuarios gratuitos pueden crear hasta {{maxDecks}} colecciones. ¡Actualiza a Premium para colecciones ilimitadas!",
       "messagePremium": "Has alcanzado el número máximo de colecciones ({{maxDecks}}).",
+      "messageGuest": "Los usuarios invitados pueden crear hasta {{maxDecks}} colecciones. ¡Inicia sesión para crear más!",
       "reorderHint": "Mantén presionado y arrastra para reordenar"
     }
   },
@@ -154,6 +155,8 @@
     "save": {
       "title": "Tarjeta guardada",
       "message": "¡Tu {{cardType}} se ha guardado en {{deckName}}!",
+      "guestLimitTitle": "Límite de tarjetas alcanzado",
+      "guestLimitMessage": "Los usuarios invitados pueden guardar hasta {{maxCards}} tarjetas. ¡Inicia sesión para guardar más!",
       "cannotSaveTitle": "No se puede guardar",
       "cannotSaveTranslation": "Falta la traducción de la tarjeta. Por favor asegúrate de que el texto se procesó correctamente.",
       "cannotSaveContent": "Falta el contenido de la tarjeta. Por favor asegúrate de que el texto se procesó correctamente.",
@@ -275,6 +278,9 @@
     "resetSwipeCounterMessage": "Esto restablecerá tus contadores de deslizamiento diarios a cero. ¿Estás seguro?",
     "resetSwipeCounterConfirm": "Restablecer",
     "resetSwipeCounterSuccess": "¡Los contadores de deslizamiento se han restablecido exitosamente!",
+    "resetSwipeInstructionsModal": "Restablecer ventana de instrucciones de deslizar",
+    "resetSwipeInstructionsSuccess": "Instrucciones de deslizar restablecidas. Ve a Inicio y aparecerá la ventana \"Deslizar izquierda/derecha\".",
+    "resetSwipeInstructionsError": "No se pudieron restablecer las instrucciones de deslizar.",
     "showAppWalkthrough": "Mostrar Tutorial de la App",
     "showAppWalkthroughDescription": "Repite el tutorial de incorporación para aprender sobre las funciones de la app"
   },

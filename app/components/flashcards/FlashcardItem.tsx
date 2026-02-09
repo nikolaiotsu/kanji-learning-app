@@ -35,6 +35,8 @@ interface FlashcardItemProps {
   isSrsModeActive?: boolean; // Whether review mode is active (for rainbow border effect)
   disableBackdropOverlay?: boolean; // If true, don't show the backdrop overlay (useful in list contexts)
   useScreenBackground?: boolean; // If true, use screen background color instead of black for flipped cards
+  /** When the image fails to load (e.g. local file was deleted), call with the card so parent can clear imageUrl and persist */
+  onImageLoadFailed?: (flashcard: Flashcard) => void | Promise<void>;
 }
 
 const FlashcardItem: React.FC<FlashcardItemProps> = ({ 
@@ -51,6 +53,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   isSrsModeActive = false, // Default to false
   disableBackdropOverlay = false, // Default to false to maintain existing behavior
   useScreenBackground = false, // Default to false to maintain existing black background
+  onImageLoadFailed,
 }) => {
   const { t } = useTranslation();
   const { targetLanguage } = useSettings();
@@ -377,11 +380,19 @@ const readingsText = flashcard.readingsText;
     }
   }, [imageLoadingState]);
 
-  // Handle image load error
-  const handleImageLoadError = () => {
+  // Handle image load error - optionally clear stored URL for local files so we don't keep retrying a dead path
+  const handleImageLoadError = useCallback(() => {
     logger.error('Image failed to load:', flashcard.imageUrl);
     setImageLoadingState('error');
-  };
+    const uri = flashcard.imageUrl;
+    const isLocalFile = uri?.startsWith('file://') ?? false;
+    if (isLocalFile && onImageLoadFailed) {
+      setImageUriToUse(undefined);
+      Promise.resolve(onImageLoadFailed(flashcard)).catch((err) =>
+        logger.error('FlashcardItem onImageLoadFailed error:', err)
+      );
+    }
+  }, [flashcard, onImageLoadFailed]);
 
   // Handle image retry (tap-to-retry or refresh button)
   const handleImageRetry = () => {

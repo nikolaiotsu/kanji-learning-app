@@ -152,6 +152,7 @@ export default function App() {
           onWalkthroughComplete={handleWalkthroughComplete}
           canStartWalkthrough={canStartWalkthrough}
           blockTouchesBeforeWalkthrough={params.walkthrough === 'true' && canStartWalkthrough}
+          isSignInPromptVisible={showSignInPrompt}
         />
       </View>
       <SignInPrompt

@@ -864,17 +864,17 @@ export default function SettingsScreen() {
                   await AsyncStorage.setItem('@swipe_instructions_pending', 'true');
                   Alert.alert(
                     t('common.success') ?? 'Done',
-                    "Swipe instructions reset. Go to Home and the \"Swipe left/right\" modal will appear."
+                    t('settings.resetSwipeInstructionsSuccess')
                   );
                 } catch (e) {
                   logger.error('Error resetting swipe instructions:', e);
-                  Alert.alert(t('common.error') ?? 'Error', 'Could not reset swipe instructions.');
+                  Alert.alert(t('common.error') ?? 'Error', t('settings.resetSwipeInstructionsError'));
                 }
               }}
             >
               <Ionicons name="swap-horizontal-outline" size={16} color="white" style={{ marginRight: 8 }} />
               <Text style={styles.resetCountButtonText}>
-                Reset Swipe Instructions Modal
+                {t('settings.resetSwipeInstructionsModal')}
               </Text>
             </TouchableOpacity>
 

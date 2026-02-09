@@ -114,6 +114,7 @@
       "title": "Limite de Coleções Atingido",
       "messageFree": "Usuários gratuitos podem criar até {{maxDecks}} coleções. Faça upgrade para Premium para coleções ilimitadas!",
       "messagePremium": "Você atingiu o número máximo de coleções ({{maxDecks}}).",
+      "messageGuest": "Usuários visitantes podem criar até {{maxDecks}} coleções. Entre para criar mais!",
       "reorderHint": "Pressione e arraste para reordenar"
     }
   },
@@ -154,6 +155,8 @@
     "save": {
       "title": "Cartão Salvo",
       "message": "Seu {{cardType}} foi salvo em {{deckName}}!",
+      "guestLimitTitle": "Limite de cartões atingido",
+      "guestLimitMessage": "Usuários visitantes podem salvar até {{maxCards}} cartões. Entre para salvar mais!",
       "cannotSaveTitle": "Não é possível salvar",
       "cannotSaveTranslation": "Tradução ausente para o cartão. Por favor, certifique-se de que o texto foi processado corretamente.",
       "cannotSaveContent": "Conteúdo ausente para o cartão. Por favor, certifique-se de que o texto foi processado corretamente.",
@@ -275,6 +278,9 @@
     "resetSwipeCounterMessage": "Isso redefinirá seus contadores de deslize diários para zero. Tem certeza?",
     "resetSwipeCounterConfirm": "Redefinir",
     "resetSwipeCounterSuccess": "Os contadores de deslize foram redefinidos com sucesso!",
+    "resetSwipeInstructionsModal": "Redefinir janela de instruções de deslizar",
+    "resetSwipeInstructionsSuccess": "Instruções de deslizar redefinidas. Vá para Início e a janela \"Deslizar esquerda/direita\" aparecerá.",
+    "resetSwipeInstructionsError": "Não foi possível redefinir as instruções de deslizar.",
     "showAppWalkthrough": "Mostrar Tour do App",
     "showAppWalkthroughDescription": "Reproduzir o tutorial de onboarding para aprender sobre os recursos do app"
   },

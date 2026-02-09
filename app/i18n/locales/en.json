@@ -83,10 +83,10 @@
   },
   "signInPrompt": {
     "title": "Create an Account",
-    "subtitle": "Sign up to sync your cards across devices and never lose your progress.",
-    "benefit1": "• Sync cards across all your devices",
-    "benefit2": "• Backup your collection in the cloud",
-    "benefit3": "• Pick up where you left off anytime",
+    "subtitle": "Accelerate your learning by signing in to get greater access to Worddex's features:",
+    "benefit1": "• Higher daily usage",
+    "benefit2": "• Unlimited deck creation",
+    "benefit3": "• Refresh dex energy for free",
     "signUp": "Sign Up",
     "continueAsGuest": "Continue as Guest"
   },
@@ -143,6 +143,7 @@
       "title": "Collection Limit Reached",
       "messageFree": "Free users can create up to {{maxDecks}} collections. Upgrade to Premium for unlimited collections!",
       "messagePremium": "You have reached the maximum number of collections ({{maxDecks}}).",
+      "messageGuest": "Guest users can create up to {{maxDecks}} collections. Sign in to create more!",
       "reorderHint": "Long press and drag to reorder"
     }
   },
@@ -184,6 +185,8 @@
     "save": {
       "title": "Flashcard Saved",
       "message": "Your {{cardType}} has been saved to {{deckName}}!",
+      "guestLimitTitle": "Card Limit Reached",
+      "guestLimitMessage": "Guest users can save up to {{maxCards}} flashcards. Sign in to save more!",
       "cannotSaveTitle": "Cannot Save",
       "cannotSaveTranslation": "Missing translation for the flashcard. Please make sure the text was processed correctly.",
       "cannotSaveContent": "Missing content for the flashcard. Please make sure the text was processed correctly.",
@@ -305,6 +308,9 @@
     "resetSwipeCounterMessage": "This will reset your daily swipe counters to zero. Are you sure?",
     "resetSwipeCounterConfirm": "Reset",
     "resetSwipeCounterSuccess": "Swipe counters have been reset successfully!",
+    "resetSwipeInstructionsModal": "Reset Swipe Instructions Modal",
+    "resetSwipeInstructionsSuccess": "Swipe instructions reset. Go to Home and the \"Swipe left/right\" modal will appear.",
+    "resetSwipeInstructionsError": "Could not reset swipe instructions.",
     "showAppWalkthrough": "Show App Walkthrough",
     "showAppWalkthroughDescription": "Replay the onboarding tutorial to learn about the app features"
   },

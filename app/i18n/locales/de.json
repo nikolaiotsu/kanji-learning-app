@@ -114,6 +114,7 @@
       "title": "Sammlungslimit erreicht",
       "messageFree": "Kostenlose Benutzer können bis zu {{maxDecks}} Sammlungen erstellen. Upgrade auf Premium für unbegrenzte Sammlungen!",
       "messagePremium": "Sie haben die maximale Anzahl an Sammlungen erreicht ({{maxDecks}}).",
+      "messageGuest": "Gastnutzer können bis zu {{maxDecks}} Sammlungen erstellen. Melde dich an, um mehr zu erstellen!",
       "reorderHint": "Lange drücken und ziehen, um neu zu ordnen"
     }
   },
@@ -154,6 +155,8 @@
     "save": {
       "title": "Karteikarte gespeichert",
       "message": "Ihre {{cardType}} wurde in {{deckName}} gespeichert!",
+      "guestLimitTitle": "Kartenlimit erreicht",
+      "guestLimitMessage": "Gastnutzer können bis zu {{maxCards}} Karteikarten speichern. Melde dich an, um mehr zu speichern!",
       "cannotSaveTitle": "Kann nicht speichern",
       "cannotSaveTranslation": "Übersetzung für die Karteikarte fehlt. Bitte stellen Sie sicher, dass der Text korrekt verarbeitet wurde.",
       "cannotSaveContent": "Inhalt für die Karteikarte fehlt. Bitte stellen Sie sicher, dass der Text korrekt verarbeitet wurde.",
@@ -275,6 +278,9 @@
     "resetSwipeCounterMessage": "Dies setzt Ihre täglichen Wischzähler auf null zurück. Sind Sie sicher?",
     "resetSwipeCounterConfirm": "Zurücksetzen",
     "resetSwipeCounterSuccess": "Wischzähler wurden erfolgreich zurückgesetzt!",
+    "resetSwipeInstructionsModal": "Swipe-Anleitung zurücksetzen",
+    "resetSwipeInstructionsSuccess": "Swipe-Anleitung zurückgesetzt. Gehe zur Startseite und das „Links/rechts wischen“-Fenster wird angezeigt.",
+    "resetSwipeInstructionsError": "Swipe-Anleitung konnte nicht zurückgesetzt werden.",
     "showAppWalkthrough": "App-Tour anzeigen",
     "showAppWalkthroughDescription": "Onboarding-Tutorial erneut abspielen, um die App-Funktionen kennenzulernen"
   },

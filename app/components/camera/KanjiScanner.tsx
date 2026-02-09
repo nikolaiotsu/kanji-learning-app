@@ -53,9 +53,11 @@ interface KanjiScannerProps {
   canStartWalkthrough?: boolean;
   /** When true, block touches until the walkthrough modal appears (prevents tapping buttons in the brief window). */
   blockTouchesBeforeWalkthrough?: boolean;
+  /** When true, sign-in prompt modal is visible - swipe instructions should wait */
+  isSignInPromptVisible?: boolean;
 }
 
-export default function KanjiScanner({ onCardSwipe, onContentReady, onWalkthroughComplete, canStartWalkthrough = true, blockTouchesBeforeWalkthrough = false }: KanjiScannerProps) {
+export default function KanjiScanner({ onCardSwipe, onContentReady, onWalkthroughComplete, canStartWalkthrough = true, blockTouchesBeforeWalkthrough = false, isSignInPromptVisible = false }: KanjiScannerProps) {
   logger.log('🎬 [KanjiScanner] Component render, onContentReady callback:', !!onContentReady);
   
   const { t } = useTranslation();
@@ -2412,6 +2414,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
               currentWalkthroughStepId={currentStep?.id}
               walkthroughJustCompleted={walkthroughJustCompleted}
               onSwipeInstructionsDismissed={() => setWalkthroughJustCompleted(false)}
+              isSignInPromptVisible={isSignInPromptVisible}
             />
           </View>
           

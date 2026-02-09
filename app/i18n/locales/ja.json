@@ -134,6 +134,7 @@
       "title": "コレクション数の上限に達しました",
       "messageFree": "無料ユーザーは最大{{maxDecks}}個のコレクションを作成できます。無制限のコレクションをご利用いただくには、プレミアムにアップグレードしてください！",
       "messagePremium": "最大コレクション数（{{maxDecks}}個）に達しました。",
+      "messageGuest": "ゲストは最大{{maxDecks}}個のコレクションを作成できます。サインインしてもっと作成！",
       "reorderHint": "長押ししてドラッグして並び替え"
     }
   },
@@ -174,6 +175,8 @@
     "save": {
       "title": "フラッシュカードが保存されました",
       "message": "{{cardType}}が{{deckName}}に保存されました！",
+      "guestLimitTitle": "カード上限に達しました",
+      "guestLimitMessage": "ゲストは最大{{maxCards}}枚のフラッシュカードを保存できます。サインインしてもっと保存！",
       "cannotSaveTitle": "保存できません",
       "cannotSaveTranslation": "フラッシュカードの翻訳がありません。テキストが正しく処理されていることを確認してください。",
       "cannotSaveContent": "フラッシュカードのコンテンツがありません。テキストが正しく処理されていることを確認してください。",
@@ -295,6 +298,9 @@
     "resetSwipeCounterMessage": "これにより毎日のスワイプカウンターが0にリセットされます。よろしいですか？",
     "resetSwipeCounterConfirm": "リセット",
     "resetSwipeCounterSuccess": "スワイプカウンターが正常にリセットされました！",
+    "resetSwipeInstructionsModal": "スワイプ説明モーダルをリセット",
+    "resetSwipeInstructionsSuccess": "スワイプ説明をリセットしました。ホームに移動すると「左/右にスワイプ」のモーダルが表示されます。",
+    "resetSwipeInstructionsError": "スワイプ説明をリセットできませんでした。",
     "showAppWalkthrough": "アプリチュートリアルを表示",
     "showAppWalkthroughDescription": "アプリの機能について学ぶためのオンボーディングチュートリアルを再度再生します"
   },

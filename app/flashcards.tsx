@@ -32,7 +32,7 @@ import {
 } from './utils/textFormatting';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveFlashcard, uploadImageToStorage } from './services/supabaseStorage';
-import { saveLocalFlashcard, getLocalDecksWithDefault } from './services/localFlashcardStorage';
+import { saveLocalFlashcard, getLocalDecksWithDefault, GUEST_MAX_CARDS } from './services/localFlashcardStorage';
 import { Flashcard } from './types/Flashcard';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import * as Crypto from 'expo-crypto';
@@ -1133,11 +1133,17 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
           { text: t('common.ok') }
         ]
       );
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error saving flashcard:', err);
-      // Show specific error message if available
-      const errorMessage = err instanceof Error ? err.message : t('flashcard.save.saveFailed');
-      Alert.alert(t('flashcard.save.saveError'), errorMessage);
+      if (err?.code === 'GUEST_LIMIT_CARDS' || err?.message === 'GUEST_LIMIT_CARDS') {
+        Alert.alert(
+          t('flashcard.save.guestLimitTitle'),
+          t('flashcard.save.guestLimitMessage', { maxCards: GUEST_MAX_CARDS })
+        );
+      } else {
+        const errorMessage = err instanceof Error ? err.message : t('flashcard.save.saveFailed');
+        Alert.alert(t('flashcard.save.saveError'), errorMessage);
+      }
     } finally {
       setIsSaving(false);
     }

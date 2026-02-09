@@ -114,6 +114,7 @@
       "title": "Limite de collections atteinte",
       "messageFree": "Les utilisateurs gratuits peuvent créer jusqu'à {{maxDecks}} collections. Passez à Premium pour des collections illimitées !",
       "messagePremium": "Vous avez atteint le nombre maximum de collections ({{maxDecks}}).",
+      "messageGuest": "Les utilisateurs invités peuvent créer jusqu'à {{maxDecks}} collections. Connectez-vous pour en créer plus !",
       "reorderHint": "Appuyez longuement et glissez pour réorganiser"
     }
   },
@@ -154,6 +155,8 @@
     "save": {
       "title": "Flashcard enregistrée",
       "message": "Votre {{cardType}} a été enregistrée dans {{deckName}} !",
+      "guestLimitTitle": "Limite de cartes atteinte",
+      "guestLimitMessage": "Les utilisateurs invités peuvent enregistrer jusqu'à {{maxCards}} cartes. Connectez-vous pour en enregistrer plus !",
       "cannotSaveTitle": "Impossible d'enregistrer",
       "cannotSaveTranslation": "Traduction manquante pour la flashcard. Veuillez vous assurer que le texte a été traité correctement.",
       "cannotSaveContent": "Contenu manquant pour la flashcard. Veuillez vous assurer que le texte a été traité correctement.",
@@ -275,6 +278,9 @@
     "resetSwipeCounterMessage": "Cela réinitialisera vos compteurs de balayage quotidiens à zéro. Êtes-vous sûr ?",
     "resetSwipeCounterConfirm": "Réinitialiser",
     "resetSwipeCounterSuccess": "Les compteurs de balayage ont été réinitialisés avec succès !",
+    "resetSwipeInstructionsModal": "Réinitialiser la fenêtre des instructions de balayage",
+    "resetSwipeInstructionsSuccess": "Instructions de balayage réinitialisées. Allez à l'accueil et la fenêtre « Balayer gauche/droite » s'affichera.",
+    "resetSwipeInstructionsError": "Impossible de réinitialiser les instructions de balayage.",
     "showAppWalkthrough": "Afficher le guide de l'application",
     "showAppWalkthroughDescription": "Revoir le didacticiel d'intégration pour découvrir les fonctionnalités de l'application"
   },
