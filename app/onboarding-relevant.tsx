@@ -16,6 +16,7 @@ import { useOnboardingVideo } from './context/OnboardingVideosContext';
 import { useEvent } from 'expo';
 import { useOnboarding } from './context/OnboardingContext';
 import { useOnboardingProgress } from './context/OnboardingProgressContext';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from './constants/colors';
 import { FONTS } from './constants/typography';
 import LoadingVideoScreen from './components/LoadingVideoScreen';
@@ -114,7 +115,10 @@ export default function OnboardingRelevantScreen() {
             onPress={handleCTA}
             activeOpacity={0.8}
           >
-            <Text style={styles.buttonText}>{t('onboarding.relevantCta')}</Text>
+            <View style={styles.buttonContent}>
+              <Text style={styles.buttonText}>{t('onboarding.relevantCta')}</Text>
+              <Ionicons name="chevron-forward" size={22} color={COLORS.text} style={styles.buttonArrow} />
+            </View>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -225,10 +229,11 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: COLORS.primary,
-    paddingVertical: 16,
+    height: 65,
     paddingHorizontal: 32,
     borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
     alignSelf: 'stretch',
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
@@ -236,10 +241,17 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   buttonText: {
     fontFamily: FONTS.sansSemiBold,
     color: COLORS.text,
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '600',
+  },
+  buttonArrow: {
+    marginLeft: 8,
   },
 });

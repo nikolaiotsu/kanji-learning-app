@@ -857,28 +857,6 @@ export default function SettingsScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.resetCountButton, { backgroundColor: COLORS.mediumSurface }]}
-              onPress={async () => {
-                try {
-                  await AsyncStorage.removeItem('@swipe_instructions_dismissed');
-                  await AsyncStorage.setItem('@swipe_instructions_pending', 'true');
-                  Alert.alert(
-                    t('common.success') ?? 'Done',
-                    t('settings.resetSwipeInstructionsSuccess')
-                  );
-                } catch (e) {
-                  logger.error('Error resetting swipe instructions:', e);
-                  Alert.alert(t('common.error') ?? 'Error', t('settings.resetSwipeInstructionsError'));
-                }
-              }}
-            >
-              <Ionicons name="swap-horizontal-outline" size={16} color="white" style={{ marginRight: 8 }} />
-              <Text style={styles.resetCountButtonText}>
-                {t('settings.resetSwipeInstructionsModal')}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
               style={[styles.resetCountButton, { backgroundColor: COLORS.accent }]}
               onPress={async () => {
                 try {

@@ -139,7 +139,7 @@ const SocialAuth = ({ mode }: SocialAuthProps) => {
           </View>
         </>
       ) : (
-        // Fade in both buttons simultaneously for smooth, synchronized appearance
+        // Fade in both buttons: Google first (most prominent), then Apple
         <>
           <Animated.View style={{ opacity: googleButtonOpacity }}>
             <TouchableOpacity 
@@ -151,7 +151,7 @@ const SocialAuth = ({ mode }: SocialAuthProps) => {
                 <ActivityIndicator color="#4285F4" size="small" />
               ) : (
                 <>
-                  <AntDesign name="google" size={20} color="#4285F4" style={styles.buttonIcon} />
+                  <AntDesign name="google" size={22} color="#4285F4" style={styles.buttonIcon} />
                   <Text style={styles.googleButtonText}>
                     {mode === 'login' ? 'Continue with Google' : 'Sign up with Google'}
                   </Text>
@@ -159,7 +159,7 @@ const SocialAuth = ({ mode }: SocialAuthProps) => {
               )}
             </TouchableOpacity>
           </Animated.View>
-          
+
           {isAppleSignInSupported && (
             <Animated.View style={{ opacity: appleButtonOpacity }}>
               <TouchableOpacity 
@@ -203,15 +203,17 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   googleButton: {
-    backgroundColor: COLORS.darkSurface,
-    borderWidth: 1,
-    borderColor: COLORS.darkGray,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(66, 133, 244, 0.6)',
+    marginVertical: 6,
+    paddingVertical: 16,
   },
   googleButtonText: {
     fontFamily: FONTS.sansMedium,
     color: COLORS.text,
-    fontWeight: '500',
-    fontSize: 16,
+    fontWeight: '600',
+    fontSize: 17,
   },
   appleButton: {
     backgroundColor: 'black',

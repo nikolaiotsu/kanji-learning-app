@@ -46,6 +46,7 @@
       "title": "Bonjour Collectionneur.",
       "newUser": "Nouveau sur l'app ?",
       "createAccount": "Créer un compte",
+      "signInWithEmail": "Continuer avec l'e-mail",
       "emailPlaceholder": "E-mail",
       "passwordPlaceholder": "Mot de passe",
       "loginButton": "Se connecter",

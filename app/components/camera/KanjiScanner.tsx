@@ -313,7 +313,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     }
   }, [isWalkthroughActive, currentStepIndex, setWalkthroughPhase]);
 
-  // Track when user completes walkthrough via Done button (to show swipe instructions modal)
+  // Track when user completes walkthrough via Done button (parent may use for sign-in prompt timing)
   const [walkthroughJustCompleted, setWalkthroughJustCompleted] = useState(false);
   // Once walkthrough has ended (completed or skipped), never show the pre-walkthrough touch block again
   const walkthroughEverEndedRef = useRef(false);
@@ -1370,7 +1370,6 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
             walkthroughEverEndedRef.current = true;
             completeWalkthrough();
             onWalkthroughComplete?.({ fromFinalStep: false });
-            AsyncStorage.setItem('@swipe_instructions_pending', 'true').catch(() => {});
           }
           router.push({ pathname: '/flashcards', params });
         } else {
@@ -1622,7 +1621,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     if (currentStep?.id === 'flip-card' || currentStep?.id === 'image-button' || currentStep?.id === 'swipe-left-instruction' || currentStep?.id === 'swipe-right-instruction') {
       return;
     }
-    // On last step, use handleWalkthroughDone to set flag for swipe instructions modal
+    // On last step, use handleWalkthroughDone to complete walkthrough
     if (currentStepIndex === walkthroughSteps.length - 1) {
       handleWalkthroughDone();
     } else {
@@ -2949,26 +2948,15 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
             <View style={styles.modalFooter} pointerEvents="auto">
               <View style={styles.modalButtonsContainer}>
                 <TouchableOpacity 
-                  style={styles.modalButton} 
+                  style={[
+                    styles.modalButton,
+                    (localProcessing || isImageProcessing) ? styles.disabledButton : null
+                  ]} 
                   onPress={handleCancelTextInput}
                   disabled={localProcessing || isImageProcessing}
                 >
-                  <LinearGradient
-                    colors={(localProcessing || isImageProcessing) 
-                      ? ['rgba(100, 116, 139, 0.5)', 'rgba(71, 85, 105, 0.6)']
-                      : ['rgba(140, 140, 140, 0.35)', 'rgba(100, 100, 100, 0.45)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 0, y: 1 }}
-                    style={StyleSheet.absoluteFill}
-                  />
-                  {!(localProcessing || isImageProcessing) && (
-                    <LinearGradient
-                      colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 0, y: 0.6 }}
-                      style={StyleSheet.absoluteFill}
-                    />
-                  )}
+                  <View style={[styles.modalFlashcardButtonFill, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]} />
+                  {!(localProcessing || isImageProcessing) && <View style={styles.modalFlashcardButtonTopHighlight} />}
                   <View style={styles.modalButtonContent}>
                     <Text style={styles.modalButtonText}>{t('textInput.cancel')}</Text>
                   </View>
@@ -2989,36 +2977,22 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                   }}
                   disabled={localProcessing || isImageProcessing || isLoadingAPILimits}
                 >
-                  <LinearGradient
-                    colors={(localProcessing || isImageProcessing || isAPILimitExhausted) 
-                      ? ['rgba(100, 116, 139, 0.5)', 'rgba(71, 85, 105, 0.6)']
-                      : ['rgba(140, 140, 140, 0.35)', 'rgba(100, 100, 100, 0.45)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 0, y: 1 }}
-                    style={StyleSheet.absoluteFill}
-                  />
-                  {!(localProcessing || isImageProcessing || isAPILimitExhausted) && (
-                    <LinearGradient
-                      colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 0, y: 0.6 }}
-                      style={StyleSheet.absoluteFill}
-                    />
-                  )}
+                  <View style={[styles.modalFlashcardButtonFill, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]} />
+                  {!isAPILimitExhausted && <View style={styles.modalFlashcardButtonTopHighlight} />}
                   <View style={styles.modalButtonContent}>
                     <View style={styles.modalDualIconContainer}>
                       {isAPILimitExhausted ? (
-                        <Ionicons name="lock-closed" size={16} color={COLORS.darkGray} />
+                        <Ionicons name="lock-closed" size={14} color={COLORS.darkGray} />
                       ) : (
                         <>
                           <FontAwesome5 
                             name="microscope" 
-                            size={14} 
+                            size={12} 
                             color="#ffffff" 
                           />
                           <Ionicons 
                             name="language" 
-                            size={14} 
+                            size={12} 
                             color="#ffffff" 
                           />
                         </>
@@ -3048,26 +3022,12 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                   }}
                   disabled={localProcessing || isImageProcessing || isLoadingAPILimits}
                 >
-                  <LinearGradient
-                    colors={(localProcessing || isImageProcessing || isAPILimitExhausted) 
-                      ? ['rgba(100, 116, 139, 0.5)', 'rgba(71, 85, 105, 0.6)']
-                      : ['rgba(140, 140, 140, 0.35)', 'rgba(100, 100, 100, 0.45)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 0, y: 1 }}
-                    style={StyleSheet.absoluteFill}
-                  />
-                  {!(localProcessing || isImageProcessing || isAPILimitExhausted) && (
-                    <LinearGradient
-                      colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.0)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 0, y: 0.6 }}
-                      style={StyleSheet.absoluteFill}
-                    />
-                  )}
+                  <View style={[styles.modalFlashcardButtonFill, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]} />
+                  {!isAPILimitExhausted && <View style={styles.modalFlashcardButtonTopHighlight} />}
                   <View style={styles.modalButtonContent}>
                     <Ionicons 
                       name={isAPILimitExhausted ? "lock-closed" : "language"} 
-                      size={14} 
+                      size={12} 
                       color={isAPILimitExhausted ? COLORS.darkGray : "#ffffff"} 
                       style={styles.modalButtonIcon}
                     />
@@ -3101,7 +3061,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           customNextLabel={
             currentStep?.id === 'crop' ? t('walkthrough.crop.cta') :
             currentStep?.id === 'highlight' ? t('walkthrough.highlight.cta') :
-            currentStep?.id === 'confirm-highlight' ? t('common.next') :
+            currentStep?.id === 'confirm-highlight' ? t('common.continue') :
             currentStep?.id === 'final-congratulations' ? t('walkthrough.finalCongratulations.buttonLabel') :
             undefined
           }
@@ -3350,9 +3310,9 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     backgroundColor: COLORS.darkSurface,
     borderRadius: 12,
     width: '100%',
-    maxWidth: 500,
+    maxWidth: 380,
     marginBottom: Platform.OS === 'ios' ? 10 : 0,
-    maxHeight: '80%',
+    maxHeight: '70%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
@@ -3361,18 +3321,18 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     flexDirection: 'column',
   },
   modalScrollContent: {
-    maxHeight: 300,
+    maxHeight: 220,
   },
   modalScrollContentContainer: {
-    padding: 20,
-    paddingBottom: 12,
+    padding: 14,
+    paddingBottom: 8,
   },
   modalFooter: {
     borderTopWidth: 1,
     borderTopColor: COLORS.mediumSurface,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 20,
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 14,
   },
   modalTitle: {
     fontFamily: FONTS.sansBold,
@@ -3387,40 +3347,59 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     borderWidth: 1,
     borderColor: COLORS.lightGray,
     borderRadius: 8,
-    padding: 12,
-    fontSize: 18,
-    minHeight: 120,
-    maxHeight: 180,
+    padding: 10,
+    fontSize: 16,
+    minHeight: 96,
+    maxHeight: 160,
     color: COLORS.text,
     backgroundColor: COLORS.mediumSurface,
   },
   modalButtonsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: 6,
   },
   modalButton: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    flex: 1,
+    borderRadius: 10,
+    minHeight: 64,
+    height: 64,
     overflow: 'hidden',
     position: 'relative',
-    // Glassmorphism border
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    // Soft shadow for depth
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-    // Background for gradient overlay
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.22,
+    shadowRadius: 16,
+    elevation: 6,
+    backgroundColor: 'transparent',
+  },
+  /** Matches main screen flashcardButtonFill (same opacity as main so modal buttons match color). */
+  modalFlashcardButtonFill: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 10,
+  },
+  /** Matches main screen flashcardButtonTopHighlight (slightly subtler so modal doesn’t look brighter). */
+  modalFlashcardButtonTopHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+    pointerEvents: 'none',
   },
   modalButtonContent: {
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,
@@ -3432,33 +3411,29 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
   },
   modalDualIconContainer: {
     flexDirection: 'row',
-    gap: 6,
-    marginBottom: 2,
+    gap: 4,
+    marginBottom: 0,
   },
   modalButtonIcon: {
-    marginBottom: 4,
+    marginBottom: 2,
   },
   modalButtonText: {
     fontFamily: FONTS.sansBold,
-    color: 'white',
+    color: COLORS.text,
     fontWeight: 'bold',
-    fontSize: 13,
+    fontSize: 12,
     textAlign: 'center',
+    marginTop: 2,
     zIndex: 1,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   modalWordScopeButtonText: {
     fontFamily: FONTS.sansBold,
-    color: 'white',
+    color: COLORS.text,
     fontWeight: 'bold',
     fontSize: 11,
     textAlign: 'center',
+    marginTop: 2,
     zIndex: 1,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   instructionContainer: {
     position: 'absolute',

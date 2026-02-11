@@ -36,13 +36,6 @@ const LEGACY_SELECTED_DECK_IDS_STORAGE_KEY = 'selectedDeckIds'; // For migration
 // Storage key generator for daily review stats (user-specific)
 const getDailyReviewStatsStorageKey = (userId: string) => `dailyReviewStats_${userId}`;
 
-// Storage key for "don't show again" preference on swipe instructions modal
-const SWIPE_INSTRUCTIONS_DISMISSED_KEY = '@swipe_instructions_dismissed';
-// Storage key for showing swipe instructions when user returns to home (e.g. after completing walkthrough via flashcards flow)
-const SWIPE_INSTRUCTIONS_PENDING_KEY = '@swipe_instructions_pending';
-// Delay before showing swipe instructions so initial loading screen can dismiss first
-const SWIPE_INSTRUCTIONS_DELAY_MS = 600;
-
 // Interface for daily review stats stored in AsyncStorage
 interface DailyReviewStats {
   date: string; // YYYY-MM-DD format
@@ -66,11 +59,11 @@ interface RandomCardReviewerProps {
   // Refs for flip and image buttons (passed from KanjiScanner for walkthrough overlay positioning)
   flipButtonRef?: React.RefObject<View>;
   imageButtonRef?: React.RefObject<View>;
-  // Show swipe instructions modal when walkthrough just completed
+  // Walkthrough just completed (parent may use for e.g. sign-in prompt timing)
   walkthroughJustCompleted?: boolean;
-  // Callback when swipe instructions modal is dismissed (to reset walkthroughJustCompleted in parent)
+  // Callback when walkthrough just completed has been acknowledged (parent can clear walkthroughJustCompleted)
   onSwipeInstructionsDismissed?: () => void;
-  // When true, sign-in prompt modal is visible - swipe instructions should wait
+  // When true, sign-in prompt modal is visible
   isSignInPromptVisible?: boolean;
 }
 
@@ -102,22 +95,6 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const [delaySessionFinish, setDelaySessionFinish] = useState(false);
   const [isTransitionLoading, setIsTransitionLoading] = useState(false);
   const [showStreakCongratsOverlay, setShowStreakCongratsOverlay] = useState(false);
-  // Swipe instructions modal (shown after walkthrough completes)
-  const [showSwipeInstructionsModal, setShowSwipeInstructionsModal] = useState(false);
-  const [dontShowSwipeInstructionsAgain, setDontShowSwipeInstructionsAgain] = useState(false);
-  // Entrance-only fade animation for swipe instructions modal (exit is instant via animationType="none")
-  const swipeInstructionsFadeAnim = useRef(new Animated.Value(0)).current;
-  // Fade in when swipe instructions modal becomes visible (exit is instant)
-  useEffect(() => {
-    if (showSwipeInstructionsModal) {
-      swipeInstructionsFadeAnim.setValue(0);
-      Animated.timing(swipeInstructionsFadeAnim, {
-        toValue: 1,
-        duration: 250,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [showSwipeInstructionsModal, swipeInstructionsFadeAnim]);
   // Card interaction walkthrough: track flip and image toggle counts (need 2 each to advance)
   const [walkthroughFlipCount, setWalkthroughFlipCount] = useState(0);
   const [walkthroughImageToggleCount, setWalkthroughImageToggleCount] = useState(0);
@@ -251,106 +228,14 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   // State for showing the deck selector modal
   const [showDeckSelector, setShowDeckSelector] = useState(false);
 
-  // Track if we're waiting to show swipe instructions (after badge modal dismisses)
-  const shouldShowSwipeInstructionsRef = useRef(false);
-  // Track if this is the first focus event (initial app load) - skip modal on first focus to let walkthrough start
-  const isFirstFocusRef = useRef(true);
-
-  // Show swipe instructions modal after walkthrough completes (if user hasn't dismissed it)
-  // Waits for badge modal AND sign-in prompt to be dismissed first if either is showing
-  // IMPORTANT: We add a delay to allow the sign-in prompt state to propagate before we check isSignInPromptVisible
+  // When walkthrough just completed, notify parent so it can clear the flag (no swipe instructions modal anymore)
   useEffect(() => {
-    const trigger = walkthroughJustCompleted;
-    if (!trigger) return;
-    let cancelled = false;
-    const checkAndScheduleSwipeInstructions = async () => {
-      // Wait a bit for sign-in prompt state to propagate (set synchronously in handleWalkthroughComplete)
-      await new Promise(resolve => setTimeout(resolve, 400));
-      if (cancelled) return;
-      // Re-check isSignInPromptVisible via ref for current value
-      if (isSignInPromptVisibleRef.current) {
-        // Sign-in prompt is showing, mark that we should show swipe instructions after it's dismissed
-        shouldShowSwipeInstructionsRef.current = true;
-        return;
-      }
-      try {
-        const dismissed = await AsyncStorage.getItem(SWIPE_INSTRUCTIONS_DISMISSED_KEY);
-        if (cancelled) return;
-        if (!dismissed || dismissed !== 'true') {
-          shouldShowSwipeInstructionsRef.current = true;
-          // If no badge modal showing AND no sign-in prompt, show immediately; otherwise wait
-          if (!pendingBadge && !isSignInPromptVisibleRef.current) {
-            setShowSwipeInstructionsModal(true);
-          }
-        }
-      } catch {
-        if (cancelled) return;
-        shouldShowSwipeInstructionsRef.current = true;
-        if (!pendingBadge && !isSignInPromptVisibleRef.current) {
-          setShowSwipeInstructionsModal(true);
-        }
-      }
-    };
-    checkAndScheduleSwipeInstructions();
-    return () => { cancelled = true; };
-  }, [walkthroughJustCompleted, pendingBadge]);
-
-  // When badge modal or sign-in prompt is dismissed, show swipe instructions if we were waiting
-  useEffect(() => {
-    if (!pendingBadge && !isSignInPromptVisible && shouldShowSwipeInstructionsRef.current) {
-      shouldShowSwipeInstructionsRef.current = false;
-      setShowSwipeInstructionsModal(true);
-    }
-  }, [pendingBadge, isSignInPromptVisible]);
-
-  // Show swipe instructions every time user lands on Home (after initial loading is gone), unless they chose "Don't show again"
-  // IMPORTANT: Don't show during walkthrough - the walkthroughJustCompleted effect handles showing after walkthrough ends
-  // NOTE: Skip on first focus (initial app load) to let walkthrough start - only show on subsequent returns to Home
-  // NOTE: We check refs INSIDE checkAndShow() to get current values at execution time, not when effect started
-  useFocusEffect(
-    useCallback(() => {
-      if (isSplashVisible) return; // Don't show while initial loading screen is visible
-      if (isWalkthroughActive) return; // Don't show during walkthrough - wait for walkthroughJustCompleted
-      if (isSignInPromptVisible) return; // Don't show while sign-in prompt is visible
-      // Skip on initial app load (first focus) - let walkthroughJustCompleted effect handle showing after walkthrough
-      // This prevents the modal from appearing before the walkthrough has a chance to start
-      if (isFirstFocusRef.current) {
-        isFirstFocusRef.current = false;
-        return;
-      }
-      let cancelled = false;
-      const checkAndShow = async () => {
-        // Re-check current state via refs - these may have changed since the effect started
-        // This is critical because the 600ms delay can allow walkthrough to start, splash to reappear, or sign-in prompt to show
-        if (isSplashVisibleRef.current) return; // Splash is now visible, don't show
-        if (isWalkthroughActiveRef.current) return; // Walkthrough started, don't show
-        if (isSignInPromptVisibleRef.current) return; // Sign-in prompt is showing, don't show
-        try {
-          const dismissed = await AsyncStorage.getItem(SWIPE_INSTRUCTIONS_DISMISSED_KEY);
-          if (cancelled || (dismissed && dismissed === 'true')) return;
-          // Final check after async operation - state may have changed
-          if (isSplashVisibleRef.current || isWalkthroughActiveRef.current || isSignInPromptVisibleRef.current) return;
-          await AsyncStorage.removeItem(SWIPE_INSTRUCTIONS_PENDING_KEY);
-          if (cancelled) return;
-          // Final safety check before showing
-          if (isSplashVisibleRef.current || isWalkthroughActiveRef.current || isSignInPromptVisibleRef.current) return;
-          shouldShowSwipeInstructionsRef.current = true;
-          if (!pendingBadge) {
-            setShowSwipeInstructionsModal(true);
-          }
-        } catch {
-          if (!cancelled) AsyncStorage.removeItem(SWIPE_INSTRUCTIONS_PENDING_KEY).catch(() => {});
-        }
-      };
-      const timer = setTimeout(() => {
-        checkAndShow();
-      }, SWIPE_INSTRUCTIONS_DELAY_MS);
-      return () => {
-        cancelled = true;
-        clearTimeout(timer);
-      };
-    }, [pendingBadge, isSplashVisible, isWalkthroughActive, isSignInPromptVisible])
-  );
+    if (!walkthroughJustCompleted) return;
+    const t = setTimeout(() => {
+      onSwipeInstructionsDismissed?.();
+    }, 400);
+    return () => clearTimeout(t);
+  }, [walkthroughJustCompleted, onSwipeInstructionsDismissed]);
 
   // State to track if image is expanded (to hide controls)
   const [isImageExpanded, setIsImageExpanded] = useState(false);
@@ -2952,71 +2837,6 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       {deckSelector}
     </View>
 
-    {/* Swipe instructions modal - shown after walkthrough completes */}
-    <Modal
-      visible={showSwipeInstructionsModal}
-      transparent
-      animationType="none"
-      onRequestClose={() => {
-        setShowSwipeInstructionsModal(false);
-        if (dontShowSwipeInstructionsAgain) {
-          AsyncStorage.setItem(SWIPE_INSTRUCTIONS_DISMISSED_KEY, 'true').catch(() => {});
-        }
-        onSwipeInstructionsDismissed?.();
-      }}
-    >
-      <Animated.View style={{ flex: 1, opacity: swipeInstructionsFadeAnim }}>
-      <TouchableOpacity
-        style={styles.streakCongratsOverlay}
-        activeOpacity={1}
-        onPress={() => {
-          setShowSwipeInstructionsModal(false);
-          if (dontShowSwipeInstructionsAgain) {
-            AsyncStorage.setItem(SWIPE_INSTRUCTIONS_DISMISSED_KEY, 'true').catch(() => {});
-          }
-          onSwipeInstructionsDismissed?.();
-        }}
-      >
-        <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-          <View style={styles.streakCongratsCard}>
-            <Text style={styles.streakCongratsTitle}>{t('review.swipeInstructionsTitle')}</Text>
-            <Text style={styles.streakCongratsBody}>
-              {t('review.swipeInstructionsBody')}
-            </Text>
-            <TouchableOpacity
-              style={styles.swipeInstructionsCheckboxRow}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setDontShowSwipeInstructionsAgain((prev) => !prev);
-              }}
-              activeOpacity={0.7}
-            >
-              <Ionicons
-                name={dontShowSwipeInstructionsAgain ? 'checkbox' : 'square-outline'}
-                size={22}
-                color={dontShowSwipeInstructionsAgain ? COLORS.primary : COLORS.lightGray}
-              />
-              <Text style={styles.swipeInstructionsCheckboxLabel}>{t('review.dontShowAgain')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.streakCongratsButton}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowSwipeInstructionsModal(false);
-                if (dontShowSwipeInstructionsAgain) {
-                  AsyncStorage.setItem(SWIPE_INSTRUCTIONS_DISMISSED_KEY, 'true').catch(() => {});
-                }
-                onSwipeInstructionsDismissed?.();
-              }}
-            >
-              <Text style={styles.streakCongratsButtonText}>{t('common.ok')}</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </TouchableOpacity>
-      </Animated.View>
-    </Modal>
-
     {/* Streak congratulations overlay - shown when user reaches 3 right swipes in a review session */}
     <Modal
       visible={showStreakCongratsOverlay}
@@ -3367,18 +3187,6 @@ const createStyles = (
     lineHeight: 24,
     textAlign: 'center',
     marginBottom: 16,
-  },
-  swipeInstructionsCheckboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    marginBottom: 20,
-    gap: 10,
-  },
-  swipeInstructionsCheckboxLabel: {
-    fontFamily: FONTS.sans,
-    fontSize: 14,
-    color: COLORS.lightGray,
   },
   streakCongratsFireRow: {
     flexDirection: 'row',

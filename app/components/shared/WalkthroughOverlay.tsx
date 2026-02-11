@@ -351,12 +351,21 @@ export default function WalkthroughOverlay({
                 {/* Next/Done button */}
                 {isEffectivelyLastStep ? (
                   <TouchableOpacity style={styles.doneButton} onPress={onDone}>
-                    <Text style={styles.doneButtonText}>{customNextLabel || t('common.done')}</Text>
+                    <View style={styles.ctaButtonContent}>
+                      <Text style={styles.doneButtonText} numberOfLines={1} adjustsFontSizeToFit>
+                        {customNextLabel || t('common.done')}
+                      </Text>
+                      <Ionicons name="chevron-forward" size={22} color="#000" style={styles.ctaButtonArrow} />
+                    </View>
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity style={styles.nextButton} onPress={onNext}>
-                    <Text style={styles.nextButtonText}>{customNextLabel || t('common.next')}</Text>
-                    <Ionicons name="chevron-forward" size={16} color={COLORS.primary} />
+                    <View style={styles.ctaButtonContent}>
+                      <Text style={styles.nextButtonText} numberOfLines={1} adjustsFontSizeToFit>
+                        {customNextLabel || t('common.continue')}
+                      </Text>
+                      <Ionicons name="chevron-forward" size={22} color="#000" style={styles.ctaButtonArrow} />
+                    </View>
                   </TouchableOpacity>
                 )}
               </View>
@@ -418,16 +427,16 @@ const styles = StyleSheet.create({
   },
   tooltipTitle: {
     fontFamily: FONTS.sansBold,
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: COLORS.text,
     marginBottom: 8,
   },
   tooltipDescription: {
     fontFamily: FONTS.sans,
-    fontSize: 14,
+    fontSize: 16,
     color: COLORS.textSecondary,
-    lineHeight: 20,
+    lineHeight: 24,
     marginBottom: 16,
   },
   actionButtons: {
@@ -438,9 +447,9 @@ const styles = StyleSheet.create({
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    height: 65,
     paddingHorizontal: 16,
-    paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: COLORS.primary,
@@ -453,37 +462,49 @@ const styles = StyleSheet.create({
   backButtonText: {
     fontFamily: FONTS.sansSemiBold,
     color: COLORS.primary,
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '600',
   },
   backButtonTextDisabled: {
     color: COLORS.darkGray,
   },
   nextButton: {
+    backgroundColor: COLORS.primary,
+    height: 65,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ctaButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    gap: 4,
+    flexShrink: 1,
+    maxWidth: '100%',
+  },
+  ctaButtonArrow: {
+    marginLeft: 8,
   },
   nextButtonText: {
     fontFamily: FONTS.sansSemiBold,
     color: '#000',
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '600',
+    flexShrink: 1,
   },
   doneButton: {
     backgroundColor: COLORS.primary,
+    height: 65,
     paddingHorizontal: 20,
-    paddingVertical: 10,
     borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   doneButtonText: {
     fontFamily: FONTS.sansSemiBold,
     color: '#000',
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '600',
+    flexShrink: 1,
   },
 });

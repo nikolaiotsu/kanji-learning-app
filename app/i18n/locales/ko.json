@@ -46,6 +46,7 @@
       "title": "안녕하세요, 수집가님.",
       "newUser": "앱이 처음이신가요?",
       "createAccount": "계정 만들기",
+      "signInWithEmail": "이메일로 계속하기",
       "emailPlaceholder": "이메일",
       "passwordPlaceholder": "비밀번호",
       "loginButton": "로그인",

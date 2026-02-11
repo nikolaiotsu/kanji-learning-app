@@ -46,6 +46,7 @@
       "title": "Привет, Коллекционер.",
       "newUser": "Новичок в приложении?",
       "createAccount": "Создать аккаунт",
+      "signInWithEmail": "Продолжить с email",
       "emailPlaceholder": "Email",
       "passwordPlaceholder": "Пароль",
       "loginButton": "Войти",

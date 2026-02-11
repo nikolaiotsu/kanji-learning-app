@@ -3,6 +3,7 @@ import { View, StyleSheet, Text, TouchableOpacity, StatusBar, Platform } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useOnboarding } from './context/OnboardingContext';
 import { useOnboardingProgress } from './context/OnboardingProgressContext';
 import { COLORS } from './constants/colors';
@@ -66,7 +67,10 @@ export default function OnboardingScreen() {
             onPress={handleGetStarted}
             activeOpacity={0.8}
           >
-            <Text style={styles.buttonText}>{t('onboarding.getStarted')}</Text>
+            <View style={styles.buttonContent}>
+              <Text style={styles.buttonText}>{t('onboarding.getStarted')}</Text>
+              <Ionicons name="chevron-forward" size={22} color={COLORS.text} style={styles.buttonArrow} />
+            </View>
           </TouchableOpacity>
           <View style={styles.footer}>
             <Text style={styles.footerText}>{t('onboarding.alreadyHaveAccount')}{' '}
@@ -136,10 +140,11 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: COLORS.primary,
-    paddingVertical: 18,
+    height: 65,
     paddingHorizontal: 32,
     borderRadius: 14,
     alignItems: 'center',
+    justifyContent: 'center',
     alignSelf: 'stretch',
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
@@ -147,11 +152,18 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   buttonText: {
     fontFamily: FONTS.sansSemiBold,
     color: COLORS.text,
-    fontSize: 17,
+    fontSize: 20,
     fontWeight: '600',
+  },
+  buttonArrow: {
+    marginLeft: 8,
   },
   footer: {
     marginTop: 28,

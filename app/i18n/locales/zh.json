@@ -46,6 +46,7 @@
       "title": "你好，收藏家。",
       "newUser": "新用户？",
       "createAccount": "创建账户",
+      "signInWithEmail": "使用邮箱继续",
       "emailPlaceholder": "邮箱",
       "passwordPlaceholder": "密码",
       "loginButton": "登录",

@@ -46,6 +46,7 @@
       "title": "Olá, Colecionador.",
       "newUser": "Novo no app?",
       "createAccount": "Criar Conta",
+      "signInWithEmail": "Continuar com e-mail",
       "emailPlaceholder": "Email",
       "passwordPlaceholder": "Senha",
       "loginButton": "Entrar",

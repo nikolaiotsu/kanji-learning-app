@@ -282,18 +282,18 @@ export default memo(function PokedexLayout({
     
     return (
       <View key={index} style={styles.smallLightContainer}>
-        {/* Outer glow (premium: single soft layer); flashcards = rounded rect to match main bar */}
+        {/* Outer glow (premium: single soft layer); same circular shape for both variants */}
         <Animated.View 
           style={[
             {
               position: 'absolute',
-              width: variant === 'flashcards' ? 44 : 40,
-              height: variant === 'flashcards' ? 20 : 40,
-              borderRadius: variant === 'flashcards' ? 10 : 20,
+              width: 40,
+              height: 40,
+              borderRadius: 20,
               backgroundColor: glowColor,
               opacity: glowOuterOpacity,
-              top: variant === 'flashcards' ? -6 : -10,
-              left: variant === 'flashcards' ? -12 : -11,
+              top: -10,
+              left: -11,
               zIndex: 3,
             }
           ]}
@@ -303,13 +303,13 @@ export default memo(function PokedexLayout({
           style={[
             {
               position: 'absolute',
-              width: variant === 'flashcards' ? 34 : 26,
-              height: variant === 'flashcards' ? 14 : 26,
-              borderRadius: variant === 'flashcards' ? 7 : 13,
+              width: 26,
+              height: 26,
+              borderRadius: 13,
               backgroundColor: glowColor,
               opacity: glowInnerOpacity,
-              top: variant === 'flashcards' ? -3 : -4,
-              left: variant === 'flashcards' ? -5 : -4,
+              top: -4,
+              left: -4,
               zIndex: 5,
             }
           ]}
@@ -343,25 +343,22 @@ export default memo(function PokedexLayout({
           
           {variant === 'flashcards' ? (
             <>
-              {/* Flashcards Variant: Main light — glow from shadow only (same as main screen, no extra layers) */}
-              <View style={{ position: 'relative', marginRight: 10 }}>
-                {/* Main light element */}
-                <Animated.View 
-                  style={[
-                    styles.flashcardsMainStatusBar,
-                    mainLightAnimatedStyle,
-                    { zIndex: 10 }
-                  ]}
-                >
-                  <LinearGradient
-                    colors={[mainLightBaseColor, mainLightInnerColor]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 0, y: 1 }}
-                    style={StyleSheet.absoluteFill}
-                  />
-                  <View style={styles.flashcardsMainStatusBar_InnerShadow} />
-                </Animated.View>
-              </View>
+              {/* Flashcards Variant: Circular main light (same shape as main screen) */}
+              <Animated.View 
+                style={[
+                  styles.mainLight,
+                  mainLightAnimatedStyle,
+                  { zIndex: 10 }
+                ]}
+              >
+                <LinearGradient
+                  colors={[mainLightBaseColor, mainLightInnerColor]}
+                  start={{ x: 0.2, y: 0 }}
+                  end={{ x: 0.8, y: 1 }}
+                  style={[StyleSheet.absoluteFill, { borderRadius: 22.5 }]}
+                />
+                <View style={styles.mainLightInnerShadow} />
+              </Animated.View>
               <View style={styles.flashcardsSmallLightContainer}>
                 {smallLightColors.map((color, index) => renderSmallLight(color, index))}
               </View>
@@ -562,13 +559,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 5,
-    borderWidth: 1,
+    borderRadius: 9,
+    borderWidth: 2,
     borderColor: 'transparent',
-    borderTopColor: 'rgba(0, 0, 0, 0.12)',
-    borderLeftColor: 'rgba(0, 0, 0, 0.08)',
-    borderRightColor: 'rgba(255, 255, 255, 0.04)',
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    borderTopColor: 'rgba(0, 0, 0, 0.32)',
+    borderLeftColor: 'rgba(0, 0, 0, 0.18)',
+    borderRightColor: 'rgba(255, 255, 255, 0.10)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.14)',
   },
   screen: {
     flex: 1,
@@ -704,53 +701,19 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     borderColor: 'rgba(255, 255, 255, 0.4)',
   },
-  flashcardsMainStatusBar: {
-    height: 20,
-    width: 100,
-    borderRadius: 6,
-    // Subtle dark border for depth
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.22)',
-    justifyContent: 'center',
-    position: 'relative',
-    overflow: 'hidden',
-    zIndex: 15,
-  },
-  flashcardsMainStatusBar_Inner: {
-    height: '70%',
-    width: '50%',
-    borderRadius: 4,
-    position: 'absolute',
-    left: '5%',
-  },
-  /** Subtle border-based shading to match main screen mainLightInnerShadow (flat, not 3D). */
-  flashcardsMainStatusBar_InnerShadow: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    borderTopColor: 'rgba(0, 0, 0, 0.12)',
-    borderLeftColor: 'rgba(0, 0, 0, 0.08)',
-    borderRightColor: 'rgba(255, 255, 255, 0.04)',
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
-  },
   flashcardsSmallLightContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  /** Rounded rectangle to match main status bar (same proportions: ~5:2, rounded corners). */
+  /** Same circular shape as main screen small lights. */
   flashcardsSmallLight: {
-    width: 26,
-    height: 10,
-    borderRadius: 5,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     // Subtle dark border for depth
-    borderWidth: 0.5,
+    borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.25)',
-    elevation: 15,
+    elevation: 4,
     position: 'relative',
     overflow: 'hidden',
   },

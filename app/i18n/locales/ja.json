@@ -46,6 +46,7 @@
       "title": "こんにちは、コレクター。",
       "newUser": "初めてのご利用ですか？",
       "createAccount": "アカウント作成",
+      "signInWithEmail": "メールで続ける",
       "emailPlaceholder": "メールアドレス",
       "passwordPlaceholder": "パスワード",
       "loginButton": "ログイン",

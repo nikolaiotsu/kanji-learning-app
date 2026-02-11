@@ -16,6 +16,7 @@ const worddexLogo = require('../../assets/images/worddexlogo.png');
 
 const LoginScreen = () => {
   const { t } = useTranslation();
+  const [showEmailForm, setShowEmailForm] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -96,36 +97,8 @@ const LoginScreen = () => {
           </TouchableOpacity>
         </View>
         
-        <TextInput
-          style={styles.input}
-          placeholder={t('auth.login.emailPlaceholder')}
-          placeholderTextColor="#A0A0A0"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-        
-        <TextInput
-          style={styles.input}
-          placeholder={t('auth.login.passwordPlaceholder')}
-          placeholderTextColor="#A0A0A0"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-        
-        <TouchableOpacity 
-          style={styles.button}
-          onPress={handleLogin}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>{t('auth.login.loginButton')}</Text>
-          )}
-        </TouchableOpacity>
+        {/* Social sign-in first (Google prominent, then Apple) */}
+        <SocialAuth mode="login" />
         
         <View style={styles.divider}>
           <View style={styles.dividerLine} />
@@ -133,18 +106,58 @@ const LoginScreen = () => {
           <View style={styles.dividerLine} />
         </View>
         
-        <SocialAuth mode="login" />
-        
-        <View style={styles.links}>
-          <TouchableOpacity onPress={navigateToResetPassword}>
-            <Text style={styles.link}>{t('auth.login.forgotPassword')}</Text>
+        {!showEmailForm ? (
+          <TouchableOpacity
+            style={styles.emailButton}
+            onPress={() => setShowEmailForm(true)}
+          >
+            <Text style={styles.emailButtonText}>{t('auth.login.signInWithEmail')}</Text>
           </TouchableOpacity>
-          {__DEV__ && (
+        ) : (
+          <>
+            <TextInput
+              style={styles.input}
+              placeholder={t('auth.login.emailPlaceholder')}
+              placeholderTextColor="#A0A0A0"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+            <TextInput
+              style={styles.input}
+              placeholder={t('auth.login.passwordPlaceholder')}
+              placeholderTextColor="#A0A0A0"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+            <TouchableOpacity 
+              style={styles.button}
+              onPress={handleLogin}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>{t('auth.login.loginButton')}</Text>
+              )}
+            </TouchableOpacity>
+            <View style={styles.links}>
+              <TouchableOpacity onPress={navigateToResetPassword}>
+                <Text style={styles.link}>{t('auth.login.forgotPassword')}</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+        
+        {__DEV__ && (
+          <View style={styles.links}>
             <TouchableOpacity onPress={resetOnboardingForTesting} style={styles.testLink}>
               <Text style={styles.testLinkText}>Test: New user flow (onboarding → guest)</Text>
             </TouchableOpacity>
-          )}
-        </View>
+          </View>
+        )}
       </View>
     </PokedexLayout>
   );
@@ -247,6 +260,21 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.sans,
     marginHorizontal: 10,
     color: COLORS.text,
+  },
+  emailButton: {
+    backgroundColor: COLORS.darkSurface,
+    borderWidth: 1,
+    borderColor: COLORS.darkGray,
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginVertical: 8,
+  },
+  emailButtonText: {
+    fontFamily: FONTS.sansMedium,
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

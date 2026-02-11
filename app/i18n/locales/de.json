@@ -46,6 +46,7 @@
       "title": "Hallo Sammler.",
       "newUser": "Neu in der App?",
       "createAccount": "Konto erstellen",
+      "signInWithEmail": "Mit E-Mail fortfahren",
       "emailPlaceholder": "E-Mail",
       "passwordPlaceholder": "Passwort",
       "loginButton": "Anmelden",
