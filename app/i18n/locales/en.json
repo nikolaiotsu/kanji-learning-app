@@ -467,10 +467,6 @@
       "title": "Add Custom Card",
       "description": "No image? Heard a phrase? No problem. Type it in here."
     },
-    "reviewCards": {
-      "title": "Review Cards",
-      "description": "Your cards hang out here. Swipe right = nailed it. Swipe left = needs work. Tap to flip!"
-    },
     "collections": {
       "title": "Collections",
       "description": "Pick which decks to review. Long press to focus on just one."
@@ -478,10 +474,6 @@
     "reviewButton": {
       "title": "Review Button",
       "description": "Start a review session here. Rainbow glow = cards are waiting for you!"
-    },
-    "settings": {
-      "title": "Settings",
-      "description": "Tweak languages, manage your account, and all that good stuff."
     },
     "galleryConfirm": {
       "title": "Upload from Gallery",
@@ -521,29 +513,35 @@
       "title": "Ready to Translate!",
       "description": "Your call: Translate (quick) or Wordscope (deep dive)."
     },
-    "saveButton": {
-      "title": "Save Flashcard",
-      "description": "Add this card to your collection!"
-    },
-    "viewSavedButton": {
-      "title": "View Saved Flashcards",
-      "description": "Peek at all your saved cards anytime."
-    },
-    "editTranslationButton": {
-      "title": "Edit Translation",
-      "description": "Not quite right? Tweak the translation here."
-    },
-    "editInputRetranslateButton": {
-      "title": "Edit & Retranslate",
-      "description": "Need to change the original text? Tap here to edit your input and get a fresh translation."
-    },
     "finalSavePrompt": {
       "title": "Save Your First Flashcard!",
       "description": "This is it! Tap to save your very first card."
     },
-    "congratulations": {
+    "goHomePrompt": {
       "title": "Congratulations! 🎉",
-      "description": "You did it! First flashcard saved. Here's to hundreds more. 🎉"
+      "description": "You did it! First flashcard saved. Here's to hundreds more. 🎉",
+      "buttonLabel": "Continue"
+    },
+    "flipCard": {
+      "title": "Flip the Card",
+      "description": "Flip your card to see the translation!"
+    },
+    "imageButton": {
+      "title": "See the Image",
+      "description": "Toggle the image to see your photo!"
+    },
+    "swipeLeftInstruction": {
+      "title": "Swipe Left",
+      "description": "Swipe left if you need more practice."
+    },
+    "swipeRightInstruction": {
+      "title": "Swipe Right",
+      "description": "Swipe right when you've got it!"
+    },
+    "finalCongratulations": {
+      "title": "You're All Set! 🎉",
+      "description": "Now you're ready to go capture new words on your own. Have a great time collecting and reviewing.",
+      "buttonLabel": "Continue"
     },
     "continueWalkthrough": "No, Continue Walkthrough",
     "endWalkthrough": "Yes, End Walkthrough",

@@ -61,6 +61,11 @@ interface RandomCardReviewerProps {
   // Walkthrough state
   isWalkthroughActive?: boolean;
   currentWalkthroughStepId?: string;
+  // Callback when user completes a card interaction walkthrough step (flip 2x, image 2x, swipe left, swipe right)
+  onWalkthroughNextStep?: () => void;
+  // Refs for flip and image buttons (passed from KanjiScanner for walkthrough overlay positioning)
+  flipButtonRef?: React.RefObject<View>;
+  imageButtonRef?: React.RefObject<View>;
   // Show swipe instructions modal when walkthrough just completed
   walkthroughJustCompleted?: boolean;
   // Callback when swipe instructions modal is dismissed (to reset walkthroughJustCompleted in parent)
@@ -71,7 +76,7 @@ interface RandomCardReviewerProps {
 
 const GUEST_SELECTED_DECK_IDS_KEY = 'selectedDeckIds_guest';
 
-const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, onContentReady, collectionsButtonRef, reviewButtonRef, isWalkthroughActive = false, currentWalkthroughStepId, walkthroughJustCompleted = false, onSwipeInstructionsDismissed, isSignInPromptVisible = false }) => {
+const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, onContentReady, collectionsButtonRef, reviewButtonRef, isWalkthroughActive = false, currentWalkthroughStepId, onWalkthroughNextStep, flipButtonRef, imageButtonRef, walkthroughJustCompleted = false, onSwipeInstructionsDismissed, isSignInPromptVisible = false }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { user, isGuest } = useAuth();
@@ -100,6 +105,22 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   // Swipe instructions modal (shown after walkthrough completes)
   const [showSwipeInstructionsModal, setShowSwipeInstructionsModal] = useState(false);
   const [dontShowSwipeInstructionsAgain, setDontShowSwipeInstructionsAgain] = useState(false);
+  // Entrance-only fade animation for swipe instructions modal (exit is instant via animationType="none")
+  const swipeInstructionsFadeAnim = useRef(new Animated.Value(0)).current;
+  // Fade in when swipe instructions modal becomes visible (exit is instant)
+  useEffect(() => {
+    if (showSwipeInstructionsModal) {
+      swipeInstructionsFadeAnim.setValue(0);
+      Animated.timing(swipeInstructionsFadeAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [showSwipeInstructionsModal, swipeInstructionsFadeAnim]);
+  // Card interaction walkthrough: track flip and image toggle counts (need 2 each to advance)
+  const [walkthroughFlipCount, setWalkthroughFlipCount] = useState(0);
+  const [walkthroughImageToggleCount, setWalkthroughImageToggleCount] = useState(0);
   
   // Callback to prepare for session finish - must be stable reference
   const handleSessionFinishing = useCallback(() => {
@@ -201,6 +222,15 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     onContentReadyRef.current = onContentReady;
   }, [onContentReady]);
   
+  // Reset walkthrough action counts when step changes
+  useEffect(() => {
+    if (currentWalkthroughStepId === 'flip-card') {
+      setWalkthroughFlipCount(0);
+    } else if (currentWalkthroughStepId === 'image-button') {
+      setWalkthroughImageToggleCount(0);
+    }
+  }, [currentWalkthroughStepId]);
+
   // Track the currently displayed card ID in a ref for swipe tracking
   useEffect(() => {
     if (currentCard?.id) {
@@ -228,28 +258,42 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
 
   // Show swipe instructions modal after walkthrough completes (if user hasn't dismissed it)
   // Waits for badge modal AND sign-in prompt to be dismissed first if either is showing
+  // IMPORTANT: We add a delay to allow the sign-in prompt state to propagate before we check isSignInPromptVisible
   useEffect(() => {
     const trigger = walkthroughJustCompleted;
     if (!trigger) return;
+    let cancelled = false;
     const checkAndScheduleSwipeInstructions = async () => {
+      // Wait a bit for sign-in prompt state to propagate (set synchronously in handleWalkthroughComplete)
+      await new Promise(resolve => setTimeout(resolve, 400));
+      if (cancelled) return;
+      // Re-check isSignInPromptVisible via ref for current value
+      if (isSignInPromptVisibleRef.current) {
+        // Sign-in prompt is showing, mark that we should show swipe instructions after it's dismissed
+        shouldShowSwipeInstructionsRef.current = true;
+        return;
+      }
       try {
         const dismissed = await AsyncStorage.getItem(SWIPE_INSTRUCTIONS_DISMISSED_KEY);
+        if (cancelled) return;
         if (!dismissed || dismissed !== 'true') {
           shouldShowSwipeInstructionsRef.current = true;
           // If no badge modal showing AND no sign-in prompt, show immediately; otherwise wait
-          if (!pendingBadge && !isSignInPromptVisible) {
+          if (!pendingBadge && !isSignInPromptVisibleRef.current) {
             setShowSwipeInstructionsModal(true);
           }
         }
       } catch {
+        if (cancelled) return;
         shouldShowSwipeInstructionsRef.current = true;
-        if (!pendingBadge && !isSignInPromptVisible) {
+        if (!pendingBadge && !isSignInPromptVisibleRef.current) {
           setShowSwipeInstructionsModal(true);
         }
       }
     };
     checkAndScheduleSwipeInstructions();
-  }, [walkthroughJustCompleted, pendingBadge, isSignInPromptVisible]);
+    return () => { cancelled = true; };
+  }, [walkthroughJustCompleted, pendingBadge]);
 
   // When badge modal or sign-in prompt is dismissed, show swipe instructions if we were waiting
   useEffect(() => {
@@ -601,6 +645,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const slideAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
+  const walkthroughSwipeHintAnim = useRef(new Animated.Value(0)).current;
 
   // Define swipe threshold
   const SWIPE_THRESHOLD = 120;
@@ -736,6 +781,46 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       setShowCompletionPulse(false);
     }
   }, [isSessionFinished, isSrsModeActive, completionPulseAnim]);
+
+  // Walkthrough: looping swipe-hint animation (translucent yellow overlay) when on swipe-left or swipe-right step
+  const walkthroughSwipeHintLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+  useEffect(() => {
+    const step = currentWalkthroughStepId;
+    if (step !== 'swipe-left-instruction' && step !== 'swipe-right-instruction') {
+      walkthroughSwipeHintAnim.setValue(0);
+      if (walkthroughSwipeHintLoopRef.current) {
+        walkthroughSwipeHintLoopRef.current.stop();
+        walkthroughSwipeHintLoopRef.current = null;
+      }
+      return;
+    }
+    walkthroughSwipeHintAnim.setValue(0);
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(walkthroughSwipeHintAnim, {
+          toValue: 1,
+          duration: 800,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(walkthroughSwipeHintAnim, {
+          toValue: 0,
+          duration: 800,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    walkthroughSwipeHintLoopRef.current = loop;
+    loop.start();
+    return () => {
+      if (walkthroughSwipeHintLoopRef.current) {
+        walkthroughSwipeHintLoopRef.current.stop();
+        walkthroughSwipeHintLoopRef.current = null;
+      }
+      walkthroughSwipeHintAnim.setValue(0);
+    };
+  }, [currentWalkthroughStepId, walkthroughSwipeHintAnim]);
 
   // SRS Update Handler - Updates box and nextReviewDate for cards in SRS Mode
   const handleSRSUpdate = async (card: Flashcard, isCorrect: boolean) => {
@@ -1224,6 +1309,11 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     }, [isInitializing, isCardTransitioning, loadingState, isLoading, isConnected, filteredCards.length, selectedDeckIds.length, allFlashcards.length, deckIdsLoaded])
   );
 
+  // Refs so PanResponder (created once) always sees current values (avoids stale closure so walkthrough swipe advances)
+  const isProcessingRef = useRef(false);
+  const completeSwipeRef = useRef<(direction: 'left' | 'right') => void>(() => {});
+  isProcessingRef.current = isProcessing;
+
   // Configure PanResponder
   const panResponder = useRef(
     PanResponder.create({
@@ -1235,7 +1325,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       },
       onPanResponderGrant: () => {
         // When touch starts
-        if (isProcessing) return;
+        if (isProcessingRef.current) return;
       },
       onPanResponderMove: (_, gestureState) => {
         // Update position as user drags
@@ -1244,17 +1334,17 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         rotateAnim.setValue(gestureState.dx / 20);
       },
       onPanResponderRelease: (_, gestureState) => {
-        if (isProcessing) {
+        if (isProcessingRef.current) {
           return;
         }
         
         // Determine if the user swiped far enough to trigger an action
         if (gestureState.dx > SWIPE_THRESHOLD) {
           // Swiped right - dismiss card
-          completeSwipe('right');
+          completeSwipeRef.current('right');
         } else if (gestureState.dx < -SWIPE_THRESHOLD) {
           // Swiped left - keep card
-          completeSwipe('left');
+          completeSwipeRef.current('left');
         } else {
           // Not swiped far enough, reset position
           Animated.spring(slideAnim, {
@@ -1279,6 +1369,17 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     if (isProcessing) {
       return;
     }
+
+    // Walkthrough: advance step when user completes swipe-left-instruction (left) or swipe-right-instruction (right)
+    // Defer to avoid "Cannot update a component while rendering a different component"
+    if (isWalkthroughActive && onWalkthroughNextStep) {
+      if (currentWalkthroughStepId === 'swipe-left-instruction' && direction === 'left') {
+        setTimeout(() => onWalkthroughNextStep(), 0);
+      } else if (currentWalkthroughStepId === 'swipe-right-instruction' && direction === 'right') {
+        setTimeout(() => onWalkthroughNextStep(), 0);
+      }
+    }
+
     setIsProcessing(true);
     
     // Capture the current card ID from the ref (which is updated immediately when card changes)
@@ -1383,6 +1484,11 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       }, 50);
     });
   };
+
+  // Keep ref updated so PanResponder always calls latest completeSwipe (needed for walkthrough step advance)
+  useEffect(() => {
+    completeSwipeRef.current = completeSwipe;
+  }, [completeSwipe]);
 
   // Manual button handler to refresh deck in browse mode (not restart review mode)
   const onRefreshDeck = () => {
@@ -1848,6 +1954,16 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     extrapolate: 'clamp',
   });
 
+  // Walkthrough swipe hint: arrow moves left or right to suggest swipe direction
+  const walkthroughSwipeHintTranslateXLeft = walkthroughSwipeHintAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -45],
+  });
+  const walkthroughSwipeHintTranslateXRight = walkthroughSwipeHintAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 45],
+  });
+
   // Create dynamic styles based on calculated dimensions
   const styles = useMemo(() => createStyles(
     CONTAINER_PADDING_TOP,
@@ -1861,7 +1977,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   // Industry standard: Only show hook loading for initial data fetch
   if (loadingState === LoadingState.SKELETON_LOADING && isInitializing) {
       return (
-        <View style={[styles.container, isWalkthroughActive && currentWalkthroughStepId === 'review-cards' && styles.containerHighlighted]}>
+        <View style={[styles.container]}>
           <View style={styles.header}>
           <View 
             ref={collectionsButtonRef} 
@@ -1946,7 +2062,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   // Fallback loading spinner for other loading states
   if (isLoading && loadingState !== LoadingState.CONTENT_READY) {
     return (
-      <View style={[styles.container, isWalkthroughActive && currentWalkthroughStepId === 'review-cards' && styles.containerHighlighted]}>
+      <View style={[styles.container]}>
         <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
@@ -1954,7 +2070,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
 
   if (error) {
     return (
-      <View style={[styles.container, isWalkthroughActive && currentWalkthroughStepId === 'review-cards' && styles.containerHighlighted]}>
+      <View style={[styles.container]}>
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={resetReviewSession}>
           <Text style={styles.retryText}>Retry</Text>
@@ -1980,7 +2096,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     if (reviewSessionCards.length === 0 && filteredCards.length === 0 && !isSessionFinished) {
       logger.log('🎯 [RENDER DEBUG] Showing "No cards in selection" guide (NOT session finished)');
       return (
-        <View style={[styles.container, isWalkthroughActive && currentWalkthroughStepId === 'review-cards' && styles.containerHighlighted]}>
+        <View style={[styles.container]}>
           <View style={styles.header}>
             <View 
               ref={collectionsButtonRef} 
@@ -2207,7 +2323,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
      });
       
       return (
-        <View style={[styles.container, isWalkthroughActive && currentWalkthroughStepId === 'review-cards' && styles.containerHighlighted]}>
+        <View style={[styles.container]}>
           <View style={styles.header}>
             <View 
               ref={collectionsButtonRef} 
@@ -2461,7 +2577,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
 
   return (
     <>
-    <View style={[styles.container, isWalkthroughActive && currentWalkthroughStepId === 'review-cards' && styles.containerHighlighted]}>
+    <View style={[styles.container]}>
       <View style={styles.header}>
         <View 
           ref={collectionsButtonRef} 
@@ -2730,7 +2846,31 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 cardHeight={CARD_STAGE_HEIGHT}
                 onImageToggle={(showImage) => {
                   setIsImageExpanded(showImage);
+                  if (isWalkthroughActive && currentWalkthroughStepId === 'image-button' && onWalkthroughNextStep) {
+                    setWalkthroughImageToggleCount((prev) => {
+                      const next = prev + 1;
+                      if (next >= 2) {
+                        setTimeout(() => onWalkthroughNextStep(), 0);
+                      }
+                      return next;
+                    });
+                  }
                 }}
+                onFlip={() => {
+                  if (isWalkthroughActive && currentWalkthroughStepId === 'flip-card' && onWalkthroughNextStep) {
+                    setWalkthroughFlipCount((prev) => {
+                      const next = prev + 1;
+                      if (next >= 2) {
+                        setTimeout(() => onWalkthroughNextStep(), 0);
+                      }
+                      return next;
+                    });
+                  }
+                }}
+                flipButtonRef={flipButtonRef}
+                imageButtonRef={imageButtonRef}
+                isWalkthroughActive={isWalkthroughActive}
+                currentWalkthroughStepId={currentWalkthroughStepId}
                 isSrsModeActive={isSrsModeActive}
                 onImageLoadFailed={async (card) => {
                   try {
@@ -2773,6 +2913,24 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                   <Ionicons name="refresh" size={80} color={COLORS.text} />
                 </Animated.View>
               )}
+              {/* Walkthrough: translucent yellow swipe hint (arrow animation) when on swipe-left or swipe-right step */}
+              {isWalkthroughActive && (currentWalkthroughStepId === 'swipe-left-instruction' || currentWalkthroughStepId === 'swipe-right-instruction') && (
+                <Animated.View
+                  style={[styles.swipeOverlay, styles.walkthroughSwipeHintOverlay]}
+                  pointerEvents="none"
+                >
+                  {currentWalkthroughStepId === 'swipe-left-instruction' && (
+                    <Animated.View style={{ transform: [{ translateX: walkthroughSwipeHintTranslateXLeft }] }}>
+                      <Ionicons name="chevron-back" size={72} color="rgba(0,0,0,0.85)" />
+                    </Animated.View>
+                  )}
+                  {currentWalkthroughStepId === 'swipe-right-instruction' && (
+                    <Animated.View style={{ transform: [{ translateX: walkthroughSwipeHintTranslateXRight }] }}>
+                      <Ionicons name="chevron-forward" size={72} color="rgba(0,0,0,0.85)" />
+                    </Animated.View>
+                  )}
+                </Animated.View>
+              )}
             </View>
           )}
 
@@ -2798,7 +2956,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     <Modal
       visible={showSwipeInstructionsModal}
       transparent
-      animationType="fade"
+      animationType="none"
       onRequestClose={() => {
         setShowSwipeInstructionsModal(false);
         if (dontShowSwipeInstructionsAgain) {
@@ -2807,6 +2965,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         onSwipeInstructionsDismissed?.();
       }}
     >
+      <Animated.View style={{ flex: 1, opacity: swipeInstructionsFadeAnim }}>
       <TouchableOpacity
         style={styles.streakCongratsOverlay}
         activeOpacity={1}
@@ -2855,6 +3014,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           </View>
         </TouchableOpacity>
       </TouchableOpacity>
+      </Animated.View>
     </Modal>
 
     {/* Streak congratulations overlay - shown when user reaches 3 right swipes in a review session */}
@@ -3163,6 +3323,9 @@ const createStyles = (
   },
   swipeOverlayLeft: {
     backgroundColor: COLORS.secondary,
+  },
+  walkthroughSwipeHintOverlay: {
+    backgroundColor: 'rgba(251, 191, 36, 0.38)',
   },
   transitionLoadingOverlay: {
     ...StyleSheet.absoluteFillObject,

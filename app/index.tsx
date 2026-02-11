@@ -1,14 +1,12 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLocalSearchParams } from 'expo-router';
 import KanjiScanner from './components/camera/KanjiScanner';
 import PokedexLayout from './components/shared/PokedexLayout';
 import SignInPrompt, { getSignInPromptDismissed } from './components/auth/SignInPrompt';
 import { Asset } from 'expo-asset';
 import { useAuth } from './context/AuthContext';
 import { useTransitionLoading } from './context/TransitionLoadingContext';
-import { useSignInPromptTrigger } from './context/SignInPromptTriggerContext';
 import { useBadge } from './context/BadgeContext';
 import OnboardingProgressBar from './components/shared/OnboardingProgressBar';
 
@@ -17,37 +15,49 @@ import { logger } from './utils/logger';
 const POST_ONBOARDING_LOADING_MS = 1800;
 const LOADING_FADE_DURATION_MS = 350;
 
-const WALKTHROUGH_COMPLETED_KEY = '@walkthrough_completed';
 // 1. Import the logo image
 const worddexLogo = require('../assets/images/worddexlogo.png'); // Adjusted path
 
 export default function App() {
   const { user, isGuest, setGuestMode } = useAuth();
   const { setShowTransitionLoading } = useTransitionLoading();
-  const { registerTrigger } = useSignInPromptTrigger();
   const { pendingBadge } = useBadge();
-  const params = useLocalSearchParams<{ walkthrough?: string }>();
+  const params = useLocalSearchParams<{ walkthrough?: string; continueWalkthrough?: string }>();
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const [triggerLightAnimation, setTriggerLightAnimation] = useState(0);
   const [logoVisible, setLogoVisible] = useState(true);
   const [logoUri, setLogoUri] = useState<string | null>(null);
   const [canStartWalkthrough, setCanStartWalkthrough] = useState(() => params.walkthrough !== 'true');
+  const containerRef = useRef<View>(null);
+  const containerYRef = useRef<number | null>(null);
+  const [progressBarTop, setProgressBarTop] = useState(4);
 
-  // Allow badge modal dismiss to trigger sign-in prompt (e.g. after first card badge)
-  const showSignInPromptIfNeeded = useCallback(async () => {
-    if (user) return;
-    const dismissed = await getSignInPromptDismissed();
-    if (!dismissed) setShowSignInPrompt(true);
-  }, [user]);
-  useEffect(() => {
-    registerTrigger(showSignInPromptIfNeeded);
-    return () => registerTrigger(null);
-  }, [registerTrigger, showSignInPromptIfNeeded]);
-
-  const handleWalkthroughComplete = useCallback(() => {
-    // Do NOT show the sign-in prompt here. It will show when the user dismisses the
-    // badge celebration modal (if they earned one) so the badge is seen first.
+  const handleHeaderLayout = useCallback((headerY: number) => {
+    const cy = containerYRef.current;
+    if (cy != null) {
+      setProgressBarTop(Math.max(0, headerY - cy - 8));
+    }
   }, []);
+
+  const handleContainerLayout = useCallback(() => {
+    containerRef.current?.measureInWindow((_x, y) => {
+      containerYRef.current = y;
+    });
+  }, []);
+
+  const handleWalkthroughComplete = useCallback(async (options?: { fromFinalStep?: boolean }) => {
+    if (options?.fromFinalStep !== true) return;
+    if (pendingBadge || user) return;
+    // Sign-in prompt is shown only after walkthrough overlay has fully closed (onClosed from WalkthroughOverlay).
+    try {
+      const dismissed = await getSignInPromptDismissed();
+      if (!dismissed) {
+        setShowSignInPrompt(true);
+      }
+    } catch {
+      setShowSignInPrompt(true);
+    }
+  }, [user, pendingBadge]);
 
   const handleContinueAsGuest = useCallback(() => {
     setGuestMode(true);
@@ -68,25 +78,9 @@ export default function App() {
     };
   }, [params.walkthrough, setShowTransitionLoading]);
 
-  useFocusEffect(
-    useCallback(() => {
-      // Show sign-in prompt for guests who completed walkthrough but haven't dismissed prompt.
-      // Skip if there's a pending badge so the user sees the badge modal first; the prompt
-      // will show when they dismiss the badge modal.
-      if (user || pendingBadge) return;
-      let mounted = true;
-      (async () => {
-        const [dismissed, completed] = await Promise.all([
-          getSignInPromptDismissed(),
-          AsyncStorage.getItem(WALKTHROUGH_COMPLETED_KEY),
-        ]);
-        if (mounted && completed === 'true' && !dismissed) {
-          setShowSignInPrompt(true);
-        }
-      })();
-      return () => { mounted = false; };
-    }, [user, pendingBadge])
-  );
+  // Sign-in prompt is only shown when the user presses Continue on the final "You're all set"
+  // walkthrough step (via handleWalkthroughComplete). We do NOT show it on focus or after
+  // the badge modal, so it appears in the right place in the flow.
 
   // Callback to trigger the light animation
   const handleCardSwipe = useCallback(() => {
@@ -141,13 +135,11 @@ export default function App() {
       triggerLightAnimation={triggerLightAnimation}
     >
       <View
+        ref={containerRef}
         style={styles.container}
-        onLayout={(event) => {
-          // const { x, y, width, height } = event.nativeEvent.layout;
-          // logger.log(`[AppIndexRootView] onLayout: x:${x}, y:${y}, width:${width}, height:${height}`);
-        }}
+        onLayout={handleContainerLayout}
       >
-        <OnboardingProgressBar />
+        <OnboardingProgressBar topOffset={progressBarTop} />
         <KanjiScanner
           onCardSwipe={handleCardSwipe}
           onContentReady={handleContentReady}
@@ -155,6 +147,8 @@ export default function App() {
           canStartWalkthrough={canStartWalkthrough}
           blockTouchesBeforeWalkthrough={params.walkthrough === 'true' && canStartWalkthrough}
           isSignInPromptVisible={showSignInPrompt}
+          continueWalkthrough={params.continueWalkthrough === 'true'}
+          onHeaderLayout={handleHeaderLayout}
         />
       </View>
       <SignInPrompt

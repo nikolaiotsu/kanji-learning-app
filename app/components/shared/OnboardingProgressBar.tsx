@@ -1,13 +1,30 @@
 import React, { useRef, useEffect } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useOnboardingProgress } from '../../context/OnboardingProgressContext';
 import { COLORS } from '../../constants/colors';
+
 const PROGRESS_BAR_HEIGHT = 3;
 const ANIMATION_DURATION = 200;
+const PADDING_BELOW_SAFE_AREA = 8;
 
-export default function OnboardingProgressBar() {
+/** Use when bar is inside app layout (e.g. PokedexLayout). Single place to adjust if header/layout changes. */
+export const ONBOARDING_PROGRESS_BAR_APP_TOP_OFFSET = 16;
+
+type OnboardingProgressBarProps = {
+  /**
+   * When set, use this value as `top` (e.g. app view where container is already below safe area).
+   * When undefined, use safe area insets so the bar sits below status bar/notch (onboarding).
+   * Lets callers adapt to device/layout (e.g. pass different values per screen or from layout constants).
+   */
+  topOffset?: number;
+};
+
+export default function OnboardingProgressBar({ topOffset }: OnboardingProgressBarProps = {}) {
+  const insets = useSafeAreaInsets();
   const { progress, isProgressBarVisible } = useOnboardingProgress();
   const animatedWidth = useRef(new Animated.Value(0)).current;
+  const top = topOffset !== undefined ? topOffset : insets.top + PADDING_BELOW_SAFE_AREA;
 
   useEffect(() => {
     Animated.timing(animatedWidth, {
@@ -27,7 +44,7 @@ export default function OnboardingProgressBar() {
   });
 
   return (
-    <View style={[styles.container, styles.elevated]} pointerEvents="none">
+    <View style={[styles.container, styles.elevated, { top }]} pointerEvents="none">
       <View style={styles.track}>
         <Animated.View
           style={[
@@ -42,10 +59,10 @@ export default function OnboardingProgressBar() {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 0,
     left: 0,
     right: 0,
     width: '100%',
+    // top set dynamically via useSafeAreaInsets() so bar sits below status bar / notch
   },
   // Ensure progress bar appears above absolutely positioned headers (e.g. flashcards screen)
   elevated: {

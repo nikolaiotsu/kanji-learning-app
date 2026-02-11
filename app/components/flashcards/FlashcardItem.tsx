@@ -27,6 +27,7 @@ interface FlashcardItemProps {
   onSend?: (id: string) => void;
   onEdit?: (id: string) => void;
   onImageToggle?: (showImage: boolean) => void;
+  onFlip?: () => void; // Called when card flip animation completes (for walkthrough tracking)
   deckName?: string; // Optional deck name to display
   disableTouchHandling?: boolean; // If true, the card won't be flippable via touch
   cardHeight?: number; // Optional responsive card height (defaults to 300 if not provided)
@@ -37,6 +38,12 @@ interface FlashcardItemProps {
   useScreenBackground?: boolean; // If true, use screen background color instead of black for flipped cards
   /** When the image fails to load (e.g. local file was deleted), call with the card so parent can clear imageUrl and persist */
   onImageLoadFailed?: (flashcard: Flashcard) => void | Promise<void>;
+  /** Refs for walkthrough overlay positioning (flip and image buttons) */
+  flipButtonRef?: React.RefObject<View>;
+  imageButtonRef?: React.RefObject<View>;
+  /** Walkthrough state for highlighting buttons during card interaction steps */
+  isWalkthroughActive?: boolean;
+  currentWalkthroughStepId?: string;
 }
 
 const FlashcardItem: React.FC<FlashcardItemProps> = ({ 
@@ -45,6 +52,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   onSend, 
   onEdit,
   onImageToggle,
+  onFlip,
   deckName,
   disableTouchHandling = false,
   cardHeight = 300, // Sensible default for saved-flashcards page
@@ -54,6 +62,10 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   disableBackdropOverlay = false, // Default to false to maintain existing behavior
   useScreenBackground = false, // Default to false to maintain existing black background
   onImageLoadFailed,
+  flipButtonRef,
+  imageButtonRef,
+  isWalkthroughActive = false,
+  currentWalkthroughStepId,
 }) => {
   const { t } = useTranslation();
   const { targetLanguage } = useSettings();
@@ -274,6 +286,7 @@ const readingsText = flashcard.readingsText;
       useNativeDriver: true,
     }).start(() => {
       setIsFlipped(!isFlipped);
+      onFlip?.();
     });
   };
 
@@ -628,15 +641,17 @@ const readingsText = flashcard.readingsText;
             {/* Bottom right actions - flip with front */}
             <View style={styles.bottomRightActionsContainer}>
               {flashcard.imageUrl && (
-                <PokedexButton
-                  onPress={toggleShowImage}
-                  icon="image"
-                  iconColor="black"
-                  color="grey"
-                  size="small"
-                  shape="square"
-                  style={styles.flashcardActionButton}
-                />
+                <View ref={imageButtonRef} collapsable={false}>
+                  <PokedexButton
+                    onPress={toggleShowImage}
+                    icon="image"
+                    iconColor={isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? '#FBBF24' : 'black'}
+                    color={isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? '#FBBF24' : 'grey'}
+                    size="small"
+                    shape="square"
+                    style={StyleSheet.flatten([styles.flashcardActionButton, ...(isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? [styles.walkthroughHighlightedButton] : [])])}
+                  />
+                </View>
               )}
               {flashcard.imageUrl && showRefreshButton && showImage && (
                 <PokedexButton
@@ -651,15 +666,17 @@ const readingsText = flashcard.readingsText;
                   darkDisabled={imageRetryCount >= MAX_RETRY_COUNT}
                 />
               )}
-              <PokedexButton
-                onPress={handleFlip}
-                materialCommunityIcon="flip-horizontal"
-                iconColor="black"
-                color="grey"
-                size="small"
-                shape="square"
-                style={styles.flashcardActionButton}
-              />
+              <View ref={flipButtonRef} collapsable={false}>
+                <PokedexButton
+                  onPress={handleFlip}
+                  materialCommunityIcon="flip-horizontal"
+                  iconColor={isWalkthroughActive && currentWalkthroughStepId === 'flip-card' ? '#FBBF24' : 'black'}
+                  color={isWalkthroughActive && currentWalkthroughStepId === 'flip-card' ? '#FBBF24' : 'grey'}
+                  size="small"
+                  shape="square"
+                  style={StyleSheet.flatten([styles.flashcardActionButton, ...(isWalkthroughActive && currentWalkthroughStepId === 'flip-card' ? [styles.walkthroughHighlightedButton] : [])])}
+                />
+              </View>
             </View>
             </View>
           </View>
@@ -839,11 +856,11 @@ const readingsText = flashcard.readingsText;
                 <PokedexButton
                   onPress={toggleShowImage}
                   icon="image"
-                  iconColor="black"
-                  color="grey"
+                  iconColor={isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? '#FBBF24' : 'black'}
+                  color={isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? '#FBBF24' : 'grey'}
                   size="small"
                   shape="square"
-                  style={styles.flashcardActionButton}
+                  style={StyleSheet.flatten([styles.flashcardActionButton, ...(isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? [styles.walkthroughHighlightedButton] : [])])}
                 />
               )}
               {flashcard.imageUrl && showRefreshButton && showImage && (
@@ -862,11 +879,11 @@ const readingsText = flashcard.readingsText;
               <PokedexButton
                 onPress={handleFlip}
                 materialCommunityIcon="flip-horizontal"
-                iconColor="black"
-                color="grey"
+                iconColor={isWalkthroughActive && currentWalkthroughStepId === 'flip-card' ? '#FBBF24' : 'black'}
+                color={isWalkthroughActive && currentWalkthroughStepId === 'flip-card' ? '#FBBF24' : 'grey'}
                 size="small"
                 shape="square"
-                style={styles.flashcardActionButton}
+                style={StyleSheet.flatten([styles.flashcardActionButton, ...(isWalkthroughActive && currentWalkthroughStepId === 'flip-card' ? [styles.walkthroughHighlightedButton] : [])])}
               />
             </View>
             </View>
@@ -1094,6 +1111,11 @@ const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean
   flashcardActionButton: {
     marginVertical: 0,
     marginHorizontal: 4,
+  },
+  walkthroughHighlightedButton: {
+    borderWidth: 2,
+    borderColor: '#FBBF24',
+    borderRadius: 8,
   },
   deleteButton: {
     marginHorizontal: 8,

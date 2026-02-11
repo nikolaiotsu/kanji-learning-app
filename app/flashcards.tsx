@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Constants from 'expo-constants';
 import { View, Text, StyleSheet, Platform, ActivityIndicator, ScrollView, TouchableOpacity, Alert, TextInput, Modal, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Animated } from 'react-native';
 import WalkthroughTarget from './components/shared/WalkthroughTarget';
@@ -164,11 +164,8 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
   const wordscopeButtonRef = useRef<View>(null);
   const editTextButtonRef = useRef<View>(null);
   const saveButtonRef = useRef<View>(null);
-  const viewSavedButtonRef = useRef<View>(null);
-  const editTranslationButtonRef = useRef<View>(null);
-  const editInputRetranslateButtonRef = useRef<View>(null);
   
-  // ScrollView ref for auto-scrolling during walkthrough
+  // ScrollView ref for auto-scrolling during walkthrough for auto-scrolling during walkthrough
   const scrollViewRef = useRef<ScrollView>(null);
   
   // Ref to track if we've already initiated the scroll-and-advance transition (prevents multiple executions)
@@ -197,34 +194,14 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       description: t('walkthrough.chooseTranslation.description'),
     },
     {
-      id: 'save-button',
-      title: t('walkthrough.saveButton.title'),
-      description: t('walkthrough.saveButton.description'),
-    },
-    {
-      id: 'view-saved-button',
-      title: t('walkthrough.viewSavedButton.title'),
-      description: t('walkthrough.viewSavedButton.description'),
-    },
-    {
-      id: 'edit-translation-button',
-      title: t('walkthrough.editTranslationButton.title'),
-      description: t('walkthrough.editTranslationButton.description'),
-    },
-    {
-      id: 'edit-input-retranslate-button',
-      title: t('walkthrough.editInputRetranslateButton.title'),
-      description: t('walkthrough.editInputRetranslateButton.description'),
-    },
-    {
       id: 'final-save-prompt',
       title: t('walkthrough.finalSavePrompt.title'),
       description: t('walkthrough.finalSavePrompt.description'),
     },
     {
-      id: 'congratulations',
-      title: t('walkthrough.congratulations.title'),
-      description: t('walkthrough.congratulations.description'),
+      id: 'go-home-prompt',
+      title: t('walkthrough.goHomePrompt.title'),
+      description: t('walkthrough.goHomePrompt.description'),
     },
   ];
 
@@ -244,6 +221,26 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
   } = useWalkthrough(flashcardWalkthroughSteps);
 
   const { setWalkthroughPhase, hideProgressBar } = useOnboardingProgress();
+
+  const containerRef = useRef<View>(null);
+  const headerRef = useRef<View>(null);
+  const containerYRef = useRef<number | null>(null);
+  const [progressBarTop, setProgressBarTop] = useState(4);
+
+  const handleHeaderLayout = useCallback(() => {
+    headerRef.current?.measureInWindow((_x, headerY) => {
+      const cy = containerYRef.current;
+      if (cy != null) {
+        setProgressBarTop(Math.max(0, headerY - cy - 8));
+      }
+    });
+  }, []);
+
+  const handleContainerLayout = useCallback(() => {
+    containerRef.current?.measureInWindow((_x, y) => {
+      containerYRef.current = y;
+    });
+  }, []);
 
   // Sync progress bar with flashcards walkthrough step
   useEffect(() => {
@@ -276,12 +273,8 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
           step.id === 'wordscope-button' ? wordscopeButtonRef :
           step.id === 'edit-text-button' ? editTextButtonRef :
           step.id === 'choose-translation' ? translateButtonRef :
-          step.id === 'save-button' ? saveButtonRef :
-          step.id === 'view-saved-button' ? viewSavedButtonRef :
-          step.id === 'edit-translation-button' ? editTranslationButtonRef :
-          step.id === 'edit-input-retranslate-button' ? editInputRetranslateButtonRef :
           step.id === 'final-save-prompt' ? saveButtonRef :
-          step.id === 'congratulations' ? saveButtonRef :
+          step.id === 'go-home-prompt' ? saveButtonRef :
           undefined,
       });
     });
@@ -307,12 +300,8 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       measureButton(wordscopeButtonRef, 'wordscope-button');
       measureButton(editTextButtonRef, 'edit-text-button');
       measureButton(translateButtonRef, 'choose-translation');
-      measureButton(saveButtonRef, 'save-button');
-      measureButton(viewSavedButtonRef, 'view-saved-button');
-      measureButton(editTranslationButtonRef, 'edit-translation-button');
-      measureButton(editInputRetranslateButtonRef, 'edit-input-retranslate-button');
       measureButton(saveButtonRef, 'final-save-prompt');
-      measureButton(saveButtonRef, 'congratulations');
+      measureButton(saveButtonRef, 'go-home-prompt');
     }, 100);
   }, [isWalkthroughActive, updateStepLayout]);
 
@@ -325,7 +314,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
   }, [isWalkthroughActive, currentStep?.id, navigation]);
 
   // Auto-scroll to save button when walkthrough reaches final-save-prompt step
-  // (The initial save-button step scroll is handled in the translation completion effect for proper sequencing)
+  // (Scroll from choose-translation to final-save-prompt is handled in the translation completion effect)
   useEffect(() => {
     if (isWalkthroughActive && textProcessed && currentStep?.id === 'final-save-prompt') {
       // For final-save-prompt, scroll to make the save button visible
@@ -340,7 +329,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
   }, [isWalkthroughActive, currentStep?.id, textProcessed]);
 
   // Show overlay and measure buttons when post-translation steps become active
-  const postTranslationSteps = ['save-button', 'view-saved-button', 'edit-translation-button', 'edit-input-retranslate-button', 'final-save-prompt', 'congratulations'];
+  const postTranslationSteps = ['final-save-prompt', 'go-home-prompt'];
   
   // Helper function to measure all post-translation buttons
   const measureAllPostTranslationButtons = (retryCount = 0) => {
@@ -361,59 +350,39 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     };
 
     // Save button needs special retry handling since it only appears after translation
-    measureButton(saveButtonRef, 'save-button', true);
     measureButton(saveButtonRef, 'final-save-prompt', true);
-    measureButton(saveButtonRef, 'congratulations', true);
-    measureButton(viewSavedButtonRef, 'view-saved-button', false);
-    measureButton(editTranslationButtonRef, 'edit-translation-button', false);
-    measureButton(editInputRetranslateButtonRef, 'edit-input-retranslate-button', false);
+    measureButton(saveButtonRef, 'go-home-prompt', true);
   };
 
-  // Measure buttons when post-translation step becomes active
-  // Note: We DON'T show the overlay here for save-button step - that's handled by the translation completion effect
-  // to ensure proper scroll-then-show sequencing
+  // Measure buttons when post-translation step becomes active (final-save-prompt or go-home-prompt)
   useEffect(() => {
     if (isWalkthroughActive && currentStep?.id && postTranslationSteps.includes(currentStep.id)) {
-      // Only show overlay for non-save-button steps here
-      // save-button overlay visibility is controlled by the translation completion effect for proper sequencing
-      if (currentStep.id !== 'save-button') {
-        setHideWalkthroughOverlay(false);
-      }
-
+      setHideWalkthroughOverlay(false);
       // Small delay to ensure buttons are rendered (especially after translation completes)
       setTimeout(() => measureAllPostTranslationButtons(), textProcessed ? 100 : 300);
     }
   }, [isWalkthroughActive, currentStep?.id, updateStepLayout]);
 
-  // Advance to save-button step when translation completes AND results are ACTUALLY DISPLAYED (if we're on a translation step)
+  // Advance to final-save-prompt when translation completes AND results are DISPLAYED (connection from previous screen)
+  // When user is on choose-translation (or translate/wordscope), we scroll to save button and advance to final-save-prompt
   // IMPORTANT: We must wait for isLoading to be false, otherwise the results/buttons aren't rendered yet
   useEffect(() => {
     if (isWalkthroughActive && textProcessed && !isLoading && currentStep?.id) {
       const translationSteps = ['translate-button', 'wordscope-button', 'choose-translation'];
       if (translationSteps.includes(currentStep.id)) {
-        // Check if results are actually displayed (translatedText for translate, scopeAnalysis for wordscope)
         const hasResults = translatedText || scopeAnalysis;
         
         if (hasResults && !walkthroughTransitionInProgressRef.current) {
-          // Mark transition as in progress to prevent multiple executions
           walkthroughTransitionInProgressRef.current = true;
-          
-          // Results are now rendered (isLoading is false) - sequence the transition properly:
-          // 1. Keep overlay hidden
           setHideWalkthroughOverlay(true);
-          
-          // 2. Wait a moment for layout to settle, then scroll to bottom
           setTimeout(() => {
             scrollViewRef.current?.scrollToEnd({ animated: true });
-            
-            // 3. After scroll animation completes, show overlay and advance step
             setTimeout(() => {
               setHideWalkthroughOverlay(false);
-              nextStep();
-              // Reset the flag after transition completes
+              nextStep(); // Advances to final-save-prompt (first post-translation step)
               walkthroughTransitionInProgressRef.current = false;
-            }, 600); // Wait for scroll animation to complete
-          }, 200); // Wait for layout to settle
+            }, 600);
+          }, 200);
         }
       }
     }
@@ -1011,11 +980,6 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       return;
     }
     
-    // If walkthrough is active on save-button step, complete the walkthrough
-    if (isWalkthroughActive && currentStep?.id === 'save-button') {
-      completeWalkthrough();
-    }
-    
     setShowDeckSelector(true);
   };
 
@@ -1117,12 +1081,12 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       
       setIsSaved(true);
 
-      // If walkthrough is active and we just saved (from final-save-prompt or save-button step), show congratulations
-      if (isWalkthroughActive && (currentStep?.id === 'final-save-prompt' || currentStep?.id === 'save-button')) {
+      // If walkthrough is active and we just saved (from final-save-prompt step), show go-home-prompt
+      if (isWalkthroughActive && currentStep?.id === 'final-save-prompt') {
         setSavedDuringWalkthrough(true); // Keep button blue after walkthrough completes
         setHideWalkthroughOverlay(false);
         nextStep();
-        // Don't show the regular alert during walkthrough - let the congratulations overlay handle it
+        // Don't show the regular alert during walkthrough - let the go-home-prompt overlay handle it
         return;
       }
 
@@ -1216,7 +1180,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     setActionButtonsFadingOut(true);
     processTextWithClaude(editedText);
     
-    // If walkthrough is active, hide overlay while processing (will advance to save-button when textProcessed becomes true)
+    // If walkthrough is active, hide overlay while processing (will advance to final-save-prompt when textProcessed becomes true)
     if (isWalkthroughActive && (currentStep?.id === 'translate-button' || currentStep?.id === 'choose-translation')) {
       setHideWalkthroughOverlay(true); // Hide overlay while processing
       walkthroughTransitionInProgressRef.current = false; // Reset to allow fresh transition
@@ -1238,7 +1202,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       return;
     }
     
-    // If walkthrough is active, hide overlay while processing (will advance to save-button when textProcessed becomes true)
+    // If walkthrough is active, hide overlay while processing (will advance to final-save-prompt when textProcessed becomes true)
     if (isWalkthroughActive && (currentStep?.id === 'wordscope-button' || currentStep?.id === 'choose-translation')) {
       setHideWalkthroughOverlay(true); // Hide overlay while processing
       walkthroughTransitionInProgressRef.current = false; // Reset to allow fresh transition
@@ -1497,8 +1461,8 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       isProcessing={isLoading}
       processingFailed={processingFailed}
     >
-      <SafeAreaView style={styles.container}>
-        <OnboardingProgressBar />
+      <SafeAreaView ref={containerRef} style={styles.container} onLayout={handleContainerLayout}>
+        <OnboardingProgressBar topOffset={progressBarTop} />
         <ScrollView 
           ref={scrollViewRef}
           style={styles.scrollView} 
@@ -1792,20 +1756,11 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                     <View style={styles.buttonContainer}>
                       {/* Top Row */}
                       <View style={styles.gridRow}>
-                        <WalkthroughTarget
-                          targetRef={viewSavedButtonRef}
-                          stepId="view-saved-button"
-                          currentStepId={currentStep?.id}
-                          isWalkthroughActive={isWalkthroughActive}
-                          style={StyleSheet.flatten([
-                            { flex: 1 },
-                            isWalkthroughActive && currentStep?.id === 'view-saved-button' && styles.highlightedButtonWrapper
-                          ])}
-                        >
+                        <View style={{ flex: 1 }}>
                           <TouchableOpacity
                             style={[styles.gridButton]}
                             onPress={handleViewSavedFlashcards}
-                            disabled={isWalkthroughActive && currentStep?.id !== 'view-saved-button'}
+                            disabled={isWalkthroughActive}
                           >
                             <View style={[styles.flashcardButtonFill, { backgroundColor: 'rgba(59, 130, 246, 0.28)' }]} />
                             <View style={styles.flashcardButtonTopHighlight} />
@@ -1822,17 +1777,17 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                               ]}>{t('flashcard.save.viewSaved')}</Text>
                             </View>
                           </TouchableOpacity>
-                        </WalkthroughTarget>
+                        </View>
 
                         <WalkthroughTarget
                           targetRef={saveButtonRef}
-                          stepId="save-button"
+                          stepId="final-save-prompt"
                           currentStepId={currentStep?.id}
-                          activeIds={['final-save-prompt']}
+                          activeIds={['go-home-prompt']}
                           isWalkthroughActive={isWalkthroughActive}
                           style={StyleSheet.flatten([
                             { flex: 1 },
-                            isWalkthroughActive && (currentStep?.id === 'save-button' || currentStep?.id === 'final-save-prompt') && styles.highlightedButtonWrapper
+                            isWalkthroughActive && (currentStep?.id === 'final-save-prompt' || currentStep?.id === 'go-home-prompt') && styles.highlightedButtonWrapper
                           ])}
                         >
                           <TouchableOpacity
@@ -1844,13 +1799,13 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                               !canCreateFlashcard ? styles.darkDisabledButton : null,
                             ]}
                             onPress={handleShowDeckSelector}
-                            disabled={isSaving || isSaved || (isWalkthroughActive && currentStep?.id !== 'save-button' && currentStep?.id !== 'final-save-prompt')}
+                            disabled={isSaving || isSaved || (isWalkthroughActive && currentStep?.id !== 'final-save-prompt' && currentStep?.id !== 'go-home-prompt')}
                           >
                             <View
                               style={[
                                 styles.flashcardButtonFill,
                                 {
-                                  backgroundColor: ((isWalkthroughActive && currentStep?.id === 'congratulations') || savedDuringWalkthrough)
+                                  backgroundColor: ((isWalkthroughActive && currentStep?.id === 'go-home-prompt') || savedDuringWalkthrough)
                                     ? 'rgba(59, 130, 246, 0.28)' // Keep original blue during/after walkthrough
                                     : isSaved
                                       ? 'rgba(251, 191, 36, 0.4)'
@@ -1894,20 +1849,11 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
 
                       {/* Bottom Row */}
                       <View style={styles.gridRow}>
-                        <WalkthroughTarget
-                          targetRef={editTranslationButtonRef}
-                          stepId="edit-translation-button"
-                          currentStepId={currentStep?.id}
-                          isWalkthroughActive={isWalkthroughActive}
-                          style={StyleSheet.flatten([
-                            { flex: 1 },
-                            isWalkthroughActive && currentStep?.id === 'edit-translation-button' && styles.highlightedButtonWrapper
-                          ])}
-                        >
+                        <View style={{ flex: 1 }}>
                           <TouchableOpacity 
                             style={[styles.gridButton, styles.editTranslationGridButton]} 
                             onPress={handleEditTranslation}
-                            disabled={isWalkthroughActive && currentStep?.id !== 'edit-translation-button'}
+                            disabled={isWalkthroughActive}
                           >
                             <View style={[styles.flashcardButtonFill, { backgroundColor: 'rgba(34, 197, 94, 0.28)' }]} />
                             <View style={styles.flashcardButtonTopHighlight} />
@@ -1924,22 +1870,13 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                               ]}>{t('flashcard.edit.editTranslation')}</Text>
                             </View>
                           </TouchableOpacity>
-                        </WalkthroughTarget>
+                        </View>
                         
-                        <WalkthroughTarget
-                          targetRef={editInputRetranslateButtonRef}
-                          stepId="edit-input-retranslate-button"
-                          currentStepId={currentStep?.id}
-                          isWalkthroughActive={isWalkthroughActive}
-                          style={StyleSheet.flatten([
-                            { flex: 1 },
-                            isWalkthroughActive && currentStep?.id === 'edit-input-retranslate-button' && styles.highlightedButtonWrapper
-                          ])}
-                        >
+                        <View style={{ flex: 1 }}>
                           <TouchableOpacity 
                             style={[styles.gridButton, styles.editInputGridButton]} 
                             onPress={handleEditInputAndRetranslate}
-                            disabled={isWalkthroughActive && currentStep?.id !== 'edit-input-retranslate-button'}
+                            disabled={isWalkthroughActive}
                           >
                             <View style={[styles.flashcardButtonFill, { backgroundColor: 'rgba(239, 68, 68, 0.28)' }]} />
                             <View style={styles.flashcardButtonTopHighlight} />
@@ -1956,7 +1893,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                               ]}>{t('flashcard.edit.editInputRetranslate')}</Text>
                             </View>
                           </TouchableOpacity>
-                        </WalkthroughTarget>
+                        </View>
                       </View>
 
                       {/* Deck Selector Modal */}
@@ -2188,6 +2125,8 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
           currentStep={currentStep}
           currentStepIndex={currentStepIndex}
           totalSteps={totalSteps}
+          treatAsNonFinal={currentStep?.id === 'go-home-prompt'}
+          customNextLabel={currentStep?.id === 'go-home-prompt' ? t('walkthrough.goHomePrompt.buttonLabel') : undefined}
           onNext={() => {
             // If on choose-translation step, just hide the overlay instead of advancing
             if (currentStep?.id === 'choose-translation') {
@@ -2195,9 +2134,9 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
             } else if (currentStep?.id === 'final-save-prompt') {
               // Hide overlay so user can press the save button
               setHideWalkthroughOverlay(true);
-            } else if (currentStep?.id === 'congratulations') {
-              // Complete the walkthrough when they press Done on congratulations
-              completeWalkthrough();
+            } else if (currentStep?.id === 'go-home-prompt') {
+              // Navigate to home to continue walkthrough with card interaction steps
+              router.replace({ pathname: '/', params: { continueWalkthrough: 'true' } });
             } else {
               nextStep();
             }
@@ -2214,7 +2153,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
         />
 
         {/* Header on top so home button stays tappable during walkthrough overlay */}
-        <View style={styles.header} pointerEvents="box-none">
+        <View ref={headerRef} style={styles.header} pointerEvents="box-none" onLayout={handleHeaderLayout}>
           <Text style={styles.title}>{t('flashcard.input.title')}</Text>
           <TouchableOpacity
             style={styles.homeButton}
@@ -2271,6 +2210,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     backgroundColor: COLORS.darkSurface,
+    marginTop: 26, // Space between header divider and scanned text box
     marginBottom: 20,
   },
   originalText: {

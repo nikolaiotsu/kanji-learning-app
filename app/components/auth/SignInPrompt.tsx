@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   Modal,
   TouchableOpacity,
   useWindowDimensions,
+  Animated,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
@@ -43,16 +44,30 @@ export default function SignInPrompt({
   const { t } = useTranslation();
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Fade in on mount (entrance animation only; exit is instant via animationType="none")
+  useEffect(() => {
+    if (visible) {
+      fadeAnim.setValue(0);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [visible, fadeAnim]);
 
   const handleSignUp = () => {
     onDismiss();
     router.push('/signup');
   };
 
-  const handleContinueAsGuest = async () => {
-    onContinueAsGuest();
-    await setSignInPromptDismissed(true);
+  const handleContinueAsGuest = () => {
+    // Dismiss modal immediately so it doesn't stay visible during async work
     onDismiss();
+    onContinueAsGuest();
+    setSignInPromptDismissed(true); // Persist in background; no need to block UI
   };
 
   if (!visible) return null;
@@ -61,10 +76,10 @@ export default function SignInPrompt({
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="none"
       onRequestClose={onDismiss}
     >
-      <View style={styles.backdrop}>
+      <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
         <View style={[styles.card, { maxWidth: Math.min(width - 32, 360) }]}>
           <Text style={styles.title}>
             {t('signInPrompt.title', 'Create an Account')}
@@ -102,7 +117,7 @@ export default function SignInPrompt({
             </Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </Animated.View>
     </Modal>
   );
 }

@@ -6,6 +6,7 @@ import { logger } from '../utils/logger';
 const WALKTHROUGH_COMPLETED_KEY = '@walkthrough_completed';
 const WALKTHROUGH_SKIPPED_KEY = '@walkthrough_skipped';
 const WALKTHROUGH_STARTED_KEY = '@walkthrough_started';
+const SIGNIN_PROMPT_DISMISSED_KEY = '@signin_prompt_dismissed';
 
 // Global flag to track if walkthrough status has been checked in this app session
 // This prevents re-checking every time the component remounts
@@ -31,6 +32,7 @@ export interface UseWalkthroughReturn {
   currentStepIndex: number;
   totalSteps: number;
   startWalkthrough: () => void;
+  startWalkthroughAtStep: (stepIndex: number) => void;
   nextStep: () => void;
   previousStep: () => void;
   skipWalkthrough: () => void;
@@ -38,6 +40,7 @@ export interface UseWalkthroughReturn {
   shouldShowWalkthrough: boolean;
   registerStep: (step: WalkthroughStep) => void;
   updateStepLayout: (stepId: string, layout: { x: number; y: number; width: number; height: number }) => void;
+  setCurrentStepIndex: (index: number) => void;
 }
 
 export function useWalkthrough(steps: WalkthroughStep[]): UseWalkthroughReturn {
@@ -122,7 +125,7 @@ export function useWalkthrough(steps: WalkthroughStep[]): UseWalkthroughReturn {
     ? (registeredSteps.get(stepDef.id) || { ...stepDef })
     : null;
 
-  // Start the walkthrough
+  // Start the walkthrough from step 0
   const startWalkthrough = useCallback(async () => {
     setIsActive(true);
     setCurrentStepIndex(0);
@@ -133,6 +136,19 @@ export function useWalkthrough(steps: WalkthroughStep[]): UseWalkthroughReturn {
       logger.error('Error persisting walkthrough started:', error);
     }
   }, []);
+
+  // Start the walkthrough at a specific step (for cross-screen continuation, e.g. from flashcards to home)
+  const startWalkthroughAtStep = useCallback((stepIndex: number) => {
+    const clampedIndex = Math.max(0, Math.min(stepIndex, steps.length - 1));
+    setIsActive(true);
+    setCurrentStepIndex(clampedIndex);
+    setShouldShowWalkthrough(false);
+  }, [steps.length]);
+
+  // Set current step index directly (e.g. when user completes an action-based step)
+  const setCurrentStepIndexFn = useCallback((index: number) => {
+    setCurrentStepIndex(Math.max(0, Math.min(index, steps.length - 1)));
+  }, [steps.length]);
 
   // Complete walkthrough
   const completeWalkthrough = useCallback(async () => {
@@ -218,6 +234,7 @@ export function useWalkthrough(steps: WalkthroughStep[]): UseWalkthroughReturn {
     currentStepIndex,
     totalSteps: steps.length,
     startWalkthrough,
+    startWalkthroughAtStep,
     nextStep,
     previousStep,
     skipWalkthrough,
@@ -225,6 +242,7 @@ export function useWalkthrough(steps: WalkthroughStep[]): UseWalkthroughReturn {
     shouldShowWalkthrough,
     registerStep,
     updateStepLayout,
+    setCurrentStepIndex: setCurrentStepIndexFn,
   };
 }
 
@@ -235,13 +253,15 @@ export async function resetWalkthrough(): Promise<void> {
       AsyncStorage.removeItem(WALKTHROUGH_COMPLETED_KEY),
       AsyncStorage.removeItem(WALKTHROUGH_SKIPPED_KEY),
       AsyncStorage.removeItem(WALKTHROUGH_STARTED_KEY),
+      // Also reset sign-in prompt dismissed state so it shows after walkthrough completes
+      AsyncStorage.removeItem(SIGNIN_PROMPT_DISMISSED_KEY),
     ]);
     
     // Reset global flags so walkthrough will show on next mount
     globalWalkthroughChecked = false;
     globalShouldShowWalkthrough = false;
     
-    logger.log('Walkthrough reset');
+    logger.log('Walkthrough reset (including sign-in prompt dismissed state)');
   } catch (error) {
     logger.error('Error resetting walkthrough:', error);
   }

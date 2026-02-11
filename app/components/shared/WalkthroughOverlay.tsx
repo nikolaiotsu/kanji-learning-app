@@ -39,6 +39,12 @@ interface WalkthroughOverlayProps {
   customNextLabel?: string;
   treatAsNonFinal?: boolean;
   zIndex?: number; // Optional z-index for overlay priority (higher = on top)
+  /** When true, hide Next/Done button so user must complete the action to advance (e.g. flip card twice) */
+  hideNextButton?: boolean;
+  /** When true, dimmed background does not capture touches so user can tap through to the card */
+  allowTouchThrough?: boolean;
+  /** Called when the overlay has finished its close animation and unmounted. Use to coordinate showing the next modal (e.g. sign-in prompt). */
+  onClosed?: () => void;
 }
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -55,8 +61,13 @@ export default function WalkthroughOverlay({
   customNextLabel,
   treatAsNonFinal,
   zIndex = 1000, // Default z-index, can be overridden
+  hideNextButton = false,
+  allowTouchThrough = false,
+  onClosed,
 }: WalkthroughOverlayProps) {
   const { t } = useTranslation();
+  const onClosedRef = useRef(onClosed);
+  onClosedRef.current = onClosed;
   // Animated opacity for cross-fade transitions between steps
   const fadeAnim = useRef(new Animated.Value(1)).current;
   // Separate animated value to track if layout is ready (prevents flicker on initial render)
@@ -77,7 +88,7 @@ export default function WalkthroughOverlay({
       setShouldRender(true);
       setIsClosing(false);
     } else if (!visible && previousVisibleRef.current && shouldRender) {
-      // Closing - fade out first, then hide
+      // Closing - fade out first, then hide and notify parent
       setIsClosing(true);
       Animated.timing(layoutReadyAnim, {
         toValue: 0,
@@ -86,6 +97,7 @@ export default function WalkthroughOverlay({
       }).start(() => {
         setShouldRender(false);
         setIsClosing(false);
+        onClosedRef.current?.();
       });
     }
     previousVisibleRef.current = visible;
@@ -100,15 +112,21 @@ export default function WalkthroughOverlay({
 
   // Check if layout is ready for current step
   const targetLayout = currentStep?.targetLayout;
-  const isReviewCardsStep = currentStep?.id === 'review-cards';
   const isCollectionsStep = currentStep?.id === 'collections';
   const isReviewButtonStep = currentStep?.id === 'review-button';
   const isChooseTranslationStep = currentStep?.id === 'choose-translation';
   const isCongratulationsStep = currentStep?.id === 'congratulations';
-  const isSaveButtonStep = currentStep?.id === 'save-button';
+  const isGoHomePromptStep = currentStep?.id === 'go-home-prompt';
+  const isFinalCongratulationsStep = currentStep?.id === 'final-congratulations';
+  const isSwipeLeftInstructionStep = currentStep?.id === 'swipe-left-instruction';
+  const isSwipeRightInstructionStep = currentStep?.id === 'swipe-right-instruction';
   const isFinalSavePromptStep = currentStep?.id === 'final-save-prompt';
-  // Note: save-button and final-save-prompt are NOT in canUseFallback - they require actual button measurement
-  const canUseFallback = isReviewCardsStep || isCollectionsStep || isReviewButtonStep || isChooseTranslationStep || isCongratulationsStep;
+  // Card interaction steps: stronger shadow so tooltip doesn't blend with the card
+  const cardInteractionStepIds = ['flip-card', 'image-button', 'swipe-left-instruction', 'swipe-right-instruction'];
+  const isCardInteractionStep = currentStep?.id ? cardInteractionStepIds.includes(currentStep.id) : false;
+  // Note: final-save-prompt is NOT in canUseFallback - it requires actual button measurement
+  const centeredModalSteps = isCongratulationsStep || isGoHomePromptStep || isFinalCongratulationsStep || isSwipeLeftInstructionStep || isSwipeRightInstructionStep;
+  const canUseFallback = isCollectionsStep || isReviewButtonStep || isChooseTranslationStep || centeredModalSteps;
   const isLayoutReady = targetLayout || canUseFallback;
 
   // Handle layout ready state - fade in when layout becomes available
@@ -158,9 +176,10 @@ export default function WalkthroughOverlay({
     }).start();
   }, [currentStepIndex, isClosing]);
 
-  // Float animation for congratulations step only
+  // Float animation for congratulations, go-home-prompt, final-congratulations, and swipe instruction steps
   useEffect(() => {
-    if (currentStep?.id !== 'congratulations' || !visible) {
+    const floatSteps = ['congratulations', 'go-home-prompt', 'final-congratulations', 'swipe-left-instruction', 'swipe-right-instruction'];
+    if (!currentStep || !floatSteps.includes(currentStep.id) || !visible) {
       floatAnim.setValue(0);
       return;
     }
@@ -210,16 +229,16 @@ export default function WalkthroughOverlay({
   const TOOLTIP_WIDTH = Math.min(SCREEN_WIDTH - 32, 300);
   const TOOLTIP_HEIGHT = 160; // Approximate height
 
-  // Use fallback layout if not measured yet (only for review-cards/collections/choose-translation)
+  // Use fallback layout if not measured yet (only for collections/choose-translation)
   const layout = targetLayout || { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2, width: 100, height: 50 };
 
   // Center tooltip horizontally
-  // review-cards, collections, review-button, choose-translation, congratulations ALWAYS center
-  // All other steps (including save-button) position over the measured button
-  const alwaysCenterSteps = isReviewCardsStep || isCollectionsStep || isReviewButtonStep || isChooseTranslationStep || isCongratulationsStep;
+  // collections, review-button, choose-translation, congratulations, go-home-prompt, final-congratulations ALWAYS center
+  // All other steps (including final-save-prompt) position over the measured button
+  const alwaysCenterSteps = isCollectionsStep || isReviewButtonStep || isChooseTranslationStep || centeredModalSteps;
   
   const tooltipLeft = alwaysCenterSteps
-    ? (SCREEN_WIDTH - TOOLTIP_WIDTH) / 2  // Always center for review-cards, collections, etc.
+    ? (SCREEN_WIDTH - TOOLTIP_WIDTH) / 2  // Always center for collections, etc.
     : targetLayout
       ? Math.max(
           TOOLTIP_PADDING,
@@ -230,19 +249,19 @@ export default function WalkthroughOverlay({
         )
       : (SCREEN_WIDTH - TOOLTIP_WIDTH) / 2; // Fallback center if no layout
 
-  // For review cards, collections, choose-translation, congratulations: ALWAYS center
-  // For all other buttons (including save-button): position above or below the measured button
+  // For collections, choose-translation, congratulations, go-home-prompt, final-congratulations: ALWAYS center
+  // For all other buttons (including final-save-prompt): position above or below the measured button
   let tooltipTop: number;
   if (alwaysCenterSteps) {
-    // Always use centered position for review-cards, collections, choose-translation, congratulations
+    // Always use centered position for collections, choose-translation, modal steps
     if (isChooseTranslationStep) {
       // Position tooltip in the middle-lower portion of screen, above where buttons typically are
       tooltipTop = SCREEN_HEIGHT * 0.4; // About 40% down from top
-    } else if (isCongratulationsStep) {
-      // Center congratulations message on screen
+    } else if (centeredModalSteps) {
+      // Center congratulations, go-home-prompt, final-congratulations message on screen
       tooltipTop = (SCREEN_HEIGHT - TOOLTIP_HEIGHT) / 2;
     } else {
-      // Center vertically on screen for review-cards and collections
+      // Center vertically on screen for collections
       tooltipTop = (SCREEN_HEIGHT - TOOLTIP_HEIGHT) / 2;
     }
   } else if (targetLayout) {
@@ -271,16 +290,18 @@ export default function WalkthroughOverlay({
       statusBarTranslucent={true}
     >
       <View style={[styles.container, { zIndex }]}>
-        {/* Dimmed overlay background - animated to fade in smoothly */}
+        {/* Dimmed overlay background - when allowTouchThrough, do not render block so parent can hide overlay instead */}
         <Animated.View 
           style={[
             styles.dimmedBackground, 
             { opacity: combinedOpacity }
           ]} 
+          pointerEvents={allowTouchThrough ? 'none' : 'auto'}
         >
           <Pressable 
             style={StyleSheet.absoluteFill} 
             onPress={() => {}} 
+            pointerEvents={allowTouchThrough ? 'none' : 'auto'}
           />
         </Animated.View>
 
@@ -288,12 +309,13 @@ export default function WalkthroughOverlay({
         <Animated.View
           style={[
             styles.tooltipContainer,
+            isCardInteractionStep && styles.tooltipContainerCardStep,
             {
               left: tooltipLeft,
               top: tooltipTop,
               width: TOOLTIP_WIDTH,
               opacity: combinedOpacity,
-              transform: isCongratulationsStep ? [{ translateY: floatTranslateY }] : [],
+              transform: centeredModalSteps ? [{ translateY: floatTranslateY }] : [],
             },
           ]}
         >
@@ -311,32 +333,34 @@ export default function WalkthroughOverlay({
             <Text style={styles.tooltipTitle}>{currentStep.title}</Text>
             <Text style={styles.tooltipDescription}>{currentStep.description}</Text>
 
-            {/* Action buttons */}
-            <View style={styles.actionButtons}>
-              {/* Back button - hidden on congratulations step */}
-              {!isCongratulationsStep && (
-                <TouchableOpacity
-                  style={[styles.backButton, isFirstStep && styles.backButtonDisabled]}
-                  onPress={onPrevious}
-                  disabled={isFirstStep}
-                >
-                  <Ionicons name="chevron-back" size={16} color={isFirstStep ? COLORS.darkGray : COLORS.primary} />
-                  <Text style={[styles.backButtonText, isFirstStep && styles.backButtonTextDisabled]}>{t('common.back')}</Text>
-                </TouchableOpacity>
-              )}
+            {/* Action buttons - hidden when hideNextButton (user must complete action to advance) */}
+            {!hideNextButton && (
+              <View style={styles.actionButtons}>
+                {/* Back button - hidden on congratulations, go-home-prompt, and final-congratulations steps */}
+                {!centeredModalSteps && (
+                  <TouchableOpacity
+                    style={[styles.backButton, isFirstStep && styles.backButtonDisabled]}
+                    onPress={onPrevious}
+                    disabled={isFirstStep}
+                  >
+                    <Ionicons name="chevron-back" size={16} color={isFirstStep ? COLORS.darkGray : COLORS.primary} />
+                    <Text style={[styles.backButtonText, isFirstStep && styles.backButtonTextDisabled]}>{t('common.back')}</Text>
+                  </TouchableOpacity>
+                )}
 
-              {/* Next/Done button */}
-              {isEffectivelyLastStep ? (
-                <TouchableOpacity style={styles.doneButton} onPress={onDone}>
-                  <Text style={styles.doneButtonText}>{t('common.done')}</Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity style={styles.nextButton} onPress={onNext}>
-                  <Text style={styles.nextButtonText}>{customNextLabel || t('common.next')}</Text>
-                  <Ionicons name="chevron-forward" size={16} color={COLORS.primary} />
-                </TouchableOpacity>
-              )}
-            </View>
+                {/* Next/Done button */}
+                {isEffectivelyLastStep ? (
+                  <TouchableOpacity style={styles.doneButton} onPress={onDone}>
+                    <Text style={styles.doneButtonText}>{customNextLabel || t('common.done')}</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity style={styles.nextButton} onPress={onNext}>
+                    <Text style={styles.nextButtonText}>{customNextLabel || t('common.next')}</Text>
+                    <Ionicons name="chevron-forward" size={16} color={COLORS.primary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
           </View>
         </Animated.View>
       </View>
@@ -365,6 +389,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  // Stronger shadow + border so flip/image/swipe modals stand out from the card
+  tooltipContainerCardStep: {
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.55,
+    shadowRadius: 20,
+    elevation: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   skipButton: {
     position: 'absolute',

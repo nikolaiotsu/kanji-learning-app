@@ -49,16 +49,21 @@ import * as Haptics from 'expo-haptics';
 interface KanjiScannerProps {
   onCardSwipe?: () => void;
   onContentReady?: (isReady: boolean) => void;
-  onWalkthroughComplete?: () => void;
+  /** Called when walkthrough ends. Use fromFinalStep: true only when user tapped Continue on "You're all set" (so app can show sign-in prompt). */
+  onWalkthroughComplete?: (options?: { fromFinalStep?: boolean }) => void;
   /** When false, walkthrough will not auto-start (e.g. until post-onboarding loading overlay is dismissed). */
   canStartWalkthrough?: boolean;
   /** When true, block touches until the walkthrough modal appears (prevents tapping buttons in the brief window). */
   blockTouchesBeforeWalkthrough?: boolean;
   /** When true, sign-in prompt modal is visible - swipe instructions should wait */
   isSignInPromptVisible?: boolean;
+  /** When true, continue walkthrough from card interaction steps (flip, image, swipes) - used when returning from flashcards after saving */
+  continueWalkthrough?: boolean;
+  /** Called with header area top (window Y) so parent can position progress bar above it */
+  onHeaderLayout?: (headerY: number) => void;
 }
 
-export default function KanjiScanner({ onCardSwipe, onContentReady, onWalkthroughComplete, canStartWalkthrough = true, blockTouchesBeforeWalkthrough = false, isSignInPromptVisible = false }: KanjiScannerProps) {
+export default function KanjiScanner({ onCardSwipe, onContentReady, onWalkthroughComplete, canStartWalkthrough = true, blockTouchesBeforeWalkthrough = false, isSignInPromptVisible = false, continueWalkthrough = false, onHeaderLayout }: KanjiScannerProps) {
   logger.log('🎬 [KanjiScanner] Component render, onContentReady callback:', !!onContentReady);
   
   const { t } = useTranslation();
@@ -183,11 +188,14 @@ const reviewerContainerRef = useRef<View>(null);
 const collectionsButtonRef = useRef<View>(null);
 const reviewButtonRef = useRef<View>(null);
 const settingsButtonRef = useRef<View>(null);
+  const headerAreaRef = useRef<View>(null);
 const rotateButtonRef = useRef<View>(null);
 const cropButtonRef = useRef<View>(null);
 const highlightButtonRef = useRef<View>(null);
 const checkmarkButtonRef = useRef<View>(null);
 const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the second prompt
+  const flipButtonRef = useRef<View>(null);
+  const imageButtonRef = useRef<View>(null);
 
   // Define walkthrough steps (starting from rightmost button: camera)
   const walkthroughSteps: WalkthroughStep[] = [
@@ -212,11 +220,6 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       description: t('walkthrough.customCard.description'),
     },
     {
-      id: 'review-cards',
-      title: t('walkthrough.reviewCards.title'),
-      description: t('walkthrough.reviewCards.description'),
-    },
-    {
       id: 'collections',
       title: t('walkthrough.collections.title'),
       description: t('walkthrough.collections.description'),
@@ -225,11 +228,6 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       id: 'review-button',
       title: t('walkthrough.reviewButton.title'),
       description: t('walkthrough.reviewButton.description'),
-    },
-    {
-      id: 'settings',
-      title: t('walkthrough.settings.title'),
-      description: t('walkthrough.settings.description'),
     },
     {
       id: 'gallery-confirm',
@@ -256,6 +254,32 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       title: t('walkthrough.confirmHighlight.title'),
       description: t('walkthrough.confirmHighlight.description'),
     },
+    // Card interaction steps (after returning from flashcards with first saved card)
+    {
+      id: 'flip-card',
+      title: t('walkthrough.flipCard.title'),
+      description: t('walkthrough.flipCard.description'),
+    },
+    {
+      id: 'image-button',
+      title: t('walkthrough.imageButton.title'),
+      description: t('walkthrough.imageButton.description'),
+    },
+    {
+      id: 'swipe-left-instruction',
+      title: t('walkthrough.swipeLeftInstruction.title'),
+      description: t('walkthrough.swipeLeftInstruction.description'),
+    },
+    {
+      id: 'swipe-right-instruction',
+      title: t('walkthrough.swipeRightInstruction.title'),
+      description: t('walkthrough.swipeRightInstruction.description'),
+    },
+    {
+      id: 'final-congratulations',
+      title: t('walkthrough.finalCongratulations.title'),
+      description: t('walkthrough.finalCongratulations.description'),
+    },
   ];
 
   // Initialize walkthrough hook
@@ -265,6 +289,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     currentStepIndex,
     totalSteps,
     startWalkthrough,
+    startWalkthroughAtStep,
     nextStep,
     previousStep,
     skipWalkthrough,
@@ -276,10 +301,15 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
 
   const { setWalkthroughPhase, hideProgressBar } = useOnboardingProgress();
 
-  // Sync progress bar with home walkthrough step
+  // Sync progress bar with walkthrough step (home vs card interaction phase)
+  // After removing review-cards and settings: home = indices 0–10, cardInteraction = 11+
   useEffect(() => {
     if (isWalkthroughActive) {
-      setWalkthroughPhase('home', currentStepIndex);
+      if (currentStepIndex < 11) {
+        setWalkthroughPhase('home', currentStepIndex);
+      } else {
+        setWalkthroughPhase('cardInteraction', currentStepIndex - 11);
+      }
     }
   }, [isWalkthroughActive, currentStepIndex, setWalkthroughPhase]);
 
@@ -287,12 +317,24 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   const [walkthroughJustCompleted, setWalkthroughJustCompleted] = useState(false);
   // Once walkthrough has ended (completed or skipped), never show the pre-walkthrough touch block again
   const walkthroughEverEndedRef = useRef(false);
+  // When user taps Done on final step, we defer onWalkthroughComplete until overlay has finished closing (avoids modal flash)
+  const pendingFinalStepCompleteRef = useRef(false);
   const handleWalkthroughDone = useCallback(() => {
+    logger.log('[handleWalkthroughDone] Called - completing walkthrough; onWalkthroughComplete will run after overlay closes');
+    setWalkthroughPhase('cardInteraction', 5); // step 28+5 = 33 = last step
     setWalkthroughJustCompleted(true);
     walkthroughEverEndedRef.current = true;
+    pendingFinalStepCompleteRef.current = true;
     completeWalkthrough();
-    onWalkthroughComplete?.();
-  }, [completeWalkthrough, onWalkthroughComplete]);
+    hideProgressBar();
+  }, [completeWalkthrough, setWalkthroughPhase, hideProgressBar]);
+  const handleWalkthroughOverlayClosed = useCallback(() => {
+    if (pendingFinalStepCompleteRef.current) {
+      pendingFinalStepCompleteRef.current = false;
+      logger.log('[KanjiScanner] Walkthrough overlay closed - calling onWalkthroughComplete with fromFinalStep: true');
+      onWalkthroughComplete?.({ fromFinalStep: true });
+    }
+  }, [onWalkthroughComplete]);
 
   const handleSkipWalkthrough = useCallback(() => {
     walkthroughEverEndedRef.current = true;
@@ -315,14 +357,35 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           step.id === 'crop' ? cropButtonRef :
           step.id === 'highlight' ? highlightButtonRef :
           step.id === 'confirm-highlight' ? checkmarkButtonRef :
-          step.id === 'review-cards' ? reviewerContainerRef :
           step.id === 'collections' ? collectionsButtonRef :
           step.id === 'review-button' ? reviewButtonRef :
-          step.id === 'settings' ? settingsButtonRef :
+          step.id === 'flip-card' ? flipButtonRef :
+          step.id === 'image-button' ? imageButtonRef :
           undefined,
       });
     });
   }, []);
+
+  // Handle continueWalkthrough: start at flip-card step when returning from flashcards after saving
+  const continueWalkthroughHandledRef = useRef(false);
+  useEffect(() => {
+    if (continueWalkthrough && !continueWalkthroughHandledRef.current && !isWalkthroughActive) {
+      continueWalkthroughHandledRef.current = true;
+      setTimeout(() => {
+        startWalkthroughAtStep(11); // flip-card is index 11 (after removing review-cards and settings)
+      }, 500);
+    }
+  }, [continueWalkthrough, isWalkthroughActive, startWalkthroughAtStep]);
+
+  // For flip-card, image-button, and swipe steps, hide the overlay so the user can interact with the card (Modal blocks touch-through)
+  useEffect(() => {
+    if (!isWalkthroughActive || !currentStep?.id) return;
+    if (['flip-card', 'image-button', 'swipe-left-instruction', 'swipe-right-instruction'].includes(currentStep.id)) {
+      setHideWalkthroughOverlay(true);
+    } else if (currentStep.id === 'final-congratulations') {
+      setHideWalkthroughOverlay(false);
+    }
+  }, [isWalkthroughActive, currentStep?.id]);
 
   // Start walkthrough on first launch or after reset (only after splash and post-onboarding loading are dismissed)
   useEffect(() => {
@@ -475,10 +538,10 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           measureButton(cropButtonRef, 'crop', updateStepLayout);
           measureButton(highlightButtonRef, 'highlight', updateStepLayout);
         }
-        measureButton(reviewerContainerRef, 'review-cards', updateStepLayout);
         measureButton(collectionsButtonRef, 'collections', updateStepLayout);
         measureButton(reviewButtonRef, 'review-button', updateStepLayout);
-        measureButton(settingsButtonRef, 'settings', updateStepLayout);
+        measureButton(flipButtonRef, 'flip-card', updateStepLayout);
+        measureButton(imageButtonRef, 'image-button', updateStepLayout);
       };
 
       // Small delay to ensure layout is complete
@@ -508,10 +571,10 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           'rotate': rotateButtonRef,
           'crop': cropButtonRef,
           'highlight': highlightButtonRef,
-          'review-cards': reviewerContainerRef,
           'collections': collectionsButtonRef,
           'review-button': reviewButtonRef,
-          'settings': settingsButtonRef,
+          'flip-card': flipButtonRef,
+          'image-button': imageButtonRef,
         };
         const ref = refMap[currentStepId];
         if (ref) {
@@ -1306,7 +1369,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
             params.walkthrough = 'true';
             walkthroughEverEndedRef.current = true;
             completeWalkthrough();
-            onWalkthroughComplete?.();
+            onWalkthroughComplete?.({ fromFinalStep: false });
             AsyncStorage.setItem('@swipe_instructions_pending', 'true').catch(() => {});
           }
           router.push({ pathname: '/flashcards', params });
@@ -1553,6 +1616,10 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
 
       // Hide walkthrough overlay to let user interact with crop mode
       setHideWalkthroughOverlay(true);
+      return;
+    }
+    // flip-card, image-button, swipe-left-instruction, swipe-right-instruction: only advance via user action (handled by RandomCardReviewer)
+    if (currentStep?.id === 'flip-card' || currentStep?.id === 'image-button' || currentStep?.id === 'swipe-left-instruction' || currentStep?.id === 'swipe-right-instruction') {
       return;
     }
     // On last step, use handleWalkthroughDone to set flag for swipe instructions modal
@@ -2349,7 +2416,15 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           {/* Badge + Settings Buttons */}
           {!capturedImage && (
             <>
-              <View style={styles.topRightButtonRow}>
+              <View
+                ref={headerAreaRef}
+                style={styles.topRightButtonRow}
+                onLayout={() => {
+                  headerAreaRef.current?.measureInWindow((_x, y) => {
+                    onHeaderLayout?.(y);
+                  });
+                }}
+              >
                 <TouchableOpacity
                   style={[
                     styles.badgeButtonTouchable,
@@ -2367,33 +2442,22 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                     color="grey"
                   />
                 </TouchableOpacity>
-                <WalkthroughTarget
-                  targetRef={settingsButtonRef}
-                  stepId="settings"
-                  currentStepId={currentStep?.id}
-                  isWalkthroughActive={isWalkthroughActive}
-                  style={styles.settingsButton}
-                  highlightStyle={styles.highlightedSettingsButtonWrapper}
-                >
+                <View style={styles.settingsButton}>
                   <TouchableOpacity 
                     style={[
                       styles.settingsButtonTouchable,
                       (localProcessing || isImageProcessing) ? styles.disabledButton : null
                     ]} 
                     onPress={handleOpenSettings}
-                    disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'settings')}
+                    disabled={localProcessing || isImageProcessing || isWalkthroughActive}
                   >
                     <Ionicons 
                       name="menu-outline" 
                       size={30} 
-                      color={
-                        isWalkthroughActive
-                          ? (currentStep?.id === 'settings' ? '#FFFF00' : '#CCCCCC')
-                          : 'grey'
-                      } 
+                      color={(localProcessing || isImageProcessing || isWalkthroughActive) ? '#CCCCCC' : 'grey'} 
                     />
                   </TouchableOpacity>
-                </WalkthroughTarget>
+                </View>
               </View>
               
               {/* API Usage Energy Bar + Streak (fire) indicator */}
@@ -2410,6 +2474,29 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
             </>
           )}
           
+          {/* Inline walkthrough instruction when overlay is hidden (flip/image/swipe steps so user can interact with the card) */}
+          {(isWalkthroughActive && (currentStep?.id === 'flip-card' || currentStep?.id === 'image-button' || currentStep?.id === 'swipe-left-instruction' || currentStep?.id === 'swipe-right-instruction')) && (
+            <View style={styles.cardStepInstructionBanner} pointerEvents="box-none">
+              <TouchableOpacity style={styles.cardStepInstructionSkipOuter} onPress={handleSkipWalkthrough} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Text style={styles.cardStepInstructionSkipText}>{t('common.skip')}</Text>
+              </TouchableOpacity>
+              <View style={styles.cardStepInstructionCard}>
+                <Text style={styles.cardStepInstructionTitle}>
+                  {currentStep?.id === 'flip-card' ? t('walkthrough.flipCard.title') :
+                   currentStep?.id === 'image-button' ? t('walkthrough.imageButton.title') :
+                   currentStep?.id === 'swipe-left-instruction' ? t('walkthrough.swipeLeftInstruction.title') :
+                   t('walkthrough.swipeRightInstruction.title')}
+                </Text>
+                <Text style={styles.cardStepInstructionDescription}>
+                  {currentStep?.id === 'flip-card' ? t('walkthrough.flipCard.description') :
+                   currentStep?.id === 'image-button' ? t('walkthrough.imageButton.description') :
+                   currentStep?.id === 'swipe-left-instruction' ? t('walkthrough.swipeLeftInstruction.description') :
+                   t('walkthrough.swipeRightInstruction.description')}
+                </Text>
+              </View>
+            </View>
+          )}
+
           {/* Random Card Reviewer */}
           <View 
             ref={reviewerContainerRef} 
@@ -2423,6 +2510,9 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
               reviewButtonRef={reviewButtonRef}
               isWalkthroughActive={isWalkthroughActive}
               currentWalkthroughStepId={currentStep?.id}
+              onWalkthroughNextStep={nextStep}
+              flipButtonRef={flipButtonRef}
+              imageButtonRef={imageButtonRef}
               walkthroughJustCompleted={walkthroughJustCompleted}
               onSwipeInstructionsDismissed={() => setWalkthroughJustCompleted(false)}
               isSignInPromptVisible={isSignInPromptVisible}
@@ -3012,9 +3102,13 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
             currentStep?.id === 'crop' ? t('walkthrough.crop.cta') :
             currentStep?.id === 'highlight' ? t('walkthrough.highlight.cta') :
             currentStep?.id === 'confirm-highlight' ? t('common.next') :
+            currentStep?.id === 'final-congratulations' ? t('walkthrough.finalCongratulations.buttonLabel') :
             undefined
           }
           treatAsNonFinal={currentStep?.id === 'confirm-highlight'}
+          hideNextButton={currentStep?.id === 'flip-card' || currentStep?.id === 'image-button' || currentStep?.id === 'swipe-left-instruction' || currentStep?.id === 'swipe-right-instruction'}
+          allowTouchThrough={currentStep?.id === 'flip-card' || currentStep?.id === 'image-button'}
+          onClosed={handleWalkthroughOverlayClosed}
         />
       )}
         </>
@@ -3180,6 +3274,53 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     right: 0,
     zIndex: 900,
     maxHeight: reviewerMaxHeight, // Calculated to fit available space
+  },
+  cardStepInstructionBanner: {
+    position: 'absolute',
+    top: reviewerTopOffset - 8,
+    left: 16,
+    right: 16,
+    zIndex: 905,
+    alignItems: 'center',
+  },
+  cardStepInstructionSkipOuter: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    zIndex: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  cardStepInstructionCard: {
+    backgroundColor: COLORS.darkSurface,
+    borderRadius: 12,
+    padding: 16,
+    maxWidth: 320,
+    marginTop: 36,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  cardStepInstructionTitle: {
+    fontFamily: FONTS.sansBold,
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 6,
+  },
+  cardStepInstructionDescription: {
+    fontFamily: FONTS.sans,
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    lineHeight: 20,
+  },
+  cardStepInstructionSkipText: {
+    fontFamily: FONTS.sansMedium,
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
   },
   textInputButton: {
     backgroundColor: '#E53170',
