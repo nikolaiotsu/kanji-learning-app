@@ -359,7 +359,6 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           step.id === 'confirm-highlight' ? checkmarkButtonRef :
           step.id === 'collections' ? collectionsButtonRef :
           step.id === 'review-button' ? reviewButtonRef :
-          step.id === 'flip-card' ? flipButtonRef :
           step.id === 'image-button' ? imageButtonRef :
           undefined,
       });
@@ -540,7 +539,6 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
         }
         measureButton(collectionsButtonRef, 'collections', updateStepLayout);
         measureButton(reviewButtonRef, 'review-button', updateStepLayout);
-        measureButton(flipButtonRef, 'flip-card', updateStepLayout);
         measureButton(imageButtonRef, 'image-button', updateStepLayout);
       };
 
@@ -573,7 +571,6 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           'highlight': highlightButtonRef,
           'collections': collectionsButtonRef,
           'review-button': reviewButtonRef,
-          'flip-card': flipButtonRef,
           'image-button': imageButtonRef,
         };
         const ref = refMap[currentStepId];

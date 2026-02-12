@@ -520,6 +520,10 @@
       "title": "¡Felicitaciones! 🎉",
       "description": "¡Has guardado tu primera tarjeta! ¡Que haya muchas más! ¡Salud! 🥳"
     },
+    "flipCard": {
+      "title": "Flip the Card",
+      "description": "Swipe inward from either edge of the card to flip it!"
+    },
     "continueWalkthrough": "No, continuar el tutorial",
     "endWalkthrough": "Sí, terminar el tutorial",
     "noTextFoundTitle": "¡Ups!",

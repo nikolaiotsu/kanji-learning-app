@@ -516,6 +516,10 @@
       "title": "ยินดีด้วย! 🎉",
       "description": "คุณบันทึกการ์ดแรกแล้ว! ขอให้มีอีกมากมาย! ไชโย! 🥳"
     },
+    "flipCard": {
+      "title": "Flip the Card",
+      "description": "Swipe inward from either edge of the card to flip it!"
+    },
     "continueWalkthrough": "ไม่ ดูคู่มือต่อ",
     "endWalkthrough": "ใช่ จบคู่มือ",
     "noTextFoundTitle": "โอ๊ะ!",

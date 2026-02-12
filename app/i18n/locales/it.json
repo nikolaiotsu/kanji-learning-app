@@ -516,6 +516,10 @@
       "title": "Congratulazioni! 🎉",
       "description": "Hai salvato la tua prima scheda! Ecco a molte altre! Salute! 🥳"
     },
+    "flipCard": {
+      "title": "Flip the Card",
+      "description": "Swipe inward from either edge of the card to flip it!"
+    },
     "continueWalkthrough": "No, Continua Tour",
     "endWalkthrough": "Sì, Termina Tour",
     "noTextFoundTitle": "Ops!",

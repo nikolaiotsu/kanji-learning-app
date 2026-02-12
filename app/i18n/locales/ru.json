@@ -516,6 +516,10 @@
       "title": "Поздравляем! 🎉",
       "description": "Вы сохранили вашу первую карточку! Пусть их будет ещё много! Ура! 🥳"
     },
+    "flipCard": {
+      "title": "Flip the Card",
+      "description": "Swipe inward from either edge of the card to flip it!"
+    },
     "continueWalkthrough": "Нет, продолжить экскурсию",
     "endWalkthrough": "Да, закончить экскурсию",
     "noTextFoundTitle": "Упс!",

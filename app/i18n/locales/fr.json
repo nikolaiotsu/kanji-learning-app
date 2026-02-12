@@ -516,6 +516,10 @@
       "title": "Félicitations ! 🎉",
       "description": "Vous avez enregistré votre première flashcard ! À beaucoup d'autres ! Santé ! 🥳"
     },
+    "flipCard": {
+      "title": "Flip the Card",
+      "description": "Swipe inward from either edge of the card to flip it!"
+    },
     "continueWalkthrough": "Non, continuer le guide",
     "endWalkthrough": "Oui, terminer le guide",
     "noTextFoundTitle": "Oups !",

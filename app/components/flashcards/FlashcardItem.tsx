@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, Dimensions, Animated, ScrollView, LayoutChangeEvent, Image, ActivityIndicator, Easing } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, Dimensions, Animated, ScrollView, LayoutChangeEvent, Image, ActivityIndicator, Easing, PanResponder } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import i18next from '../../i18n';
 import { Flashcard } from '../../types/Flashcard';
@@ -290,6 +290,110 @@ const readingsText = flashcard.readingsText;
     });
   };
 
+  // Refs so edge PanResponders (created once) always see current values
+  const disableTouchHandlingRef = useRef(disableTouchHandling);
+  disableTouchHandlingRef.current = disableTouchHandling;
+  const isFlippedRef = useRef(isFlipped);
+  isFlippedRef.current = isFlipped;
+  const onFlipRef = useRef(onFlip);
+  onFlipRef.current = onFlip;
+
+  // Interactive flip gesture constants (larger range = heavier, less twitchy feel)
+  const FLIP_GESTURE_THRESHOLD = 40;   // Min drag to commit the flip
+  const FLIP_DRAG_RANGE = 130;         // Drag distance for a full 180° (higher = slower, more resistance)
+
+  // Track haptic thresholds for both directions so we fire at 25%, 50%, 75% each way
+  const lastForwardThresholdRef = useRef(-1);
+  const lastBackwardThresholdRef = useRef(4);
+  const lastProgressRef = useRef(-1);
+
+  // Shared handler: update flipAnim to follow the finger during drag
+  const handleFlipGestureMove = useCallback((_: any, gestureState: { dx: number }) => {
+    const absDx = Math.abs(gestureState.dx);
+    const progress = Math.min(absDx / FLIP_DRAG_RANGE, 1);
+    const wasFlipped = isFlippedRef.current;
+    flipAnim.setValue(wasFlipped ? 1 - progress : progress);
+
+    const thresholdIndex = Math.floor(progress * 4); // 0..3 for 0–25%, 25–50%, 50–75%, 75–100%
+    const lastProgress = lastProgressRef.current;
+
+    if (progress > lastProgress) {
+      // Dragging forward (opening the flip): haptic at 25%, 50%, 75%
+      if (thresholdIndex > lastForwardThresholdRef.current && thresholdIndex >= 1) {
+        lastForwardThresholdRef.current = thresholdIndex;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+      lastBackwardThresholdRef.current = 4; // reset so next backward pass gets full haptics
+    } else if (progress < lastProgress) {
+      // Dragging backward (closing the flip): haptic when crossing 75%, 50%, 25% on the way back
+      if (thresholdIndex < lastBackwardThresholdRef.current) {
+        lastBackwardThresholdRef.current = thresholdIndex;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+      lastForwardThresholdRef.current = -1; // reset so next forward pass gets full haptics
+    }
+
+    lastProgressRef.current = progress;
+  }, [flipAnim]);
+
+  // Shared handler: on release, complete flip or snap back
+  const handleFlipGestureRelease = useCallback((_: any, gestureState: { dx: number }) => {
+    lastForwardThresholdRef.current = -1;
+    lastBackwardThresholdRef.current = 4;
+    lastProgressRef.current = -1;
+
+    const absDx = Math.abs(gestureState.dx);
+    const wasFlipped = isFlippedRef.current;
+
+    if (absDx > FLIP_GESTURE_THRESHOLD) {
+      // Commit the flip -- animate to the target with remaining duration
+      const progress = Math.min(absDx / FLIP_DRAG_RANGE, 1);
+      const remainingDuration = Math.max((1 - progress) * 300, 80);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      Animated.timing(flipAnim, {
+        toValue: wasFlipped ? 0 : 1,
+        duration: remainingDuration,
+        useNativeDriver: true,
+      }).start(() => {
+        setIsFlipped(!wasFlipped);
+        onFlipRef.current?.();
+      });
+    } else {
+      // Snap back to the starting position
+      Animated.timing(flipAnim, {
+        toValue: wasFlipped ? 1 : 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [flipAnim]);
+
+  const leftEdgePanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) =>
+        !disableTouchHandlingRef.current &&
+        gestureState.dx > 15 &&
+        Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 2,
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderMove: handleFlipGestureMove,
+      onPanResponderRelease: handleFlipGestureRelease,
+    })
+  ).current;
+
+  const rightEdgePanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) =>
+        !disableTouchHandlingRef.current &&
+        gestureState.dx < -15 &&
+        Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 2,
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderMove: handleFlipGestureMove,
+      onPanResponderRelease: handleFlipGestureRelease,
+    })
+  ).current;
+
   const handleDelete = () => {
     if (!isOnline) {
       // Show offline alert
@@ -445,15 +549,22 @@ const readingsText = flashcard.readingsText;
   }, []);
 
   // Interpolate for front and back animations
-  // Content rotates relative to wrapper, so when wrapper rotates, content rotates with it
+  // Content rotates relative to wrapper; perspective on wrapper gives 3D depth
   const frontAnimatedStyle = {
     transform: [
-      { 
+      {
         rotateY: flipAnim.interpolate({
           inputRange: [0, 1],
-          outputRange: ['0deg', '180deg']
-        })
-      }
+          outputRange: ['0deg', '180deg'],
+        }),
+      },
+      // Slight scale at 90° so the card looks thinner when edge-on (more 3D)
+      {
+        scaleX: flipAnim.interpolate({
+          inputRange: [0, 0.5, 1],
+          outputRange: [1, 0.92, 1],
+        }),
+      },
     ],
     opacity: flipAnim.interpolate({
       inputRange: [0.5, 1],
@@ -467,12 +578,19 @@ const readingsText = flashcard.readingsText;
   
   const backAnimatedStyle = {
     transform: [
-      { 
+      {
         rotateY: flipAnim.interpolate({
           inputRange: [0, 1],
-          outputRange: ['180deg', '360deg']
-        })
-      }
+          outputRange: ['180deg', '360deg'],
+        }),
+      },
+      // Match front: slightly narrower when edge-on for 3D effect
+      {
+        scaleX: flipAnim.interpolate({
+          inputRange: [0, 0.5, 1],
+          outputRange: [1, 0.92, 1],
+        }),
+      },
     ],
     opacity: flipAnim.interpolate({
       inputRange: [0, 0.5],
@@ -547,6 +665,13 @@ const readingsText = flashcard.readingsText;
           styles.cardSide, 
           frontAnimatedStyle
         ]}>
+          {/* Small notches marking where the flip gesture zone begins (50px from each edge) */}
+          <View style={styles.flipZoneNotchContainer} pointerEvents="none">
+            <View style={[styles.flipZoneNotch, styles.flipZoneNotchLeftTop, { backgroundColor: isSrsModeActive ? rainbowBorderColor : COLORS.appleLiquidGrey }]} />
+            <View style={[styles.flipZoneNotch, styles.flipZoneNotchLeftBottom, { backgroundColor: isSrsModeActive ? rainbowBorderColor : COLORS.appleLiquidGrey }]} />
+            <View style={[styles.flipZoneNotch, styles.flipZoneNotchRightTop, { backgroundColor: isSrsModeActive ? rainbowBorderColor : COLORS.appleLiquidGrey }]} />
+            <View style={[styles.flipZoneNotch, styles.flipZoneNotchRightBottom, { backgroundColor: isSrsModeActive ? rainbowBorderColor : COLORS.appleLiquidGrey }]} />
+          </View>
           <View style={[
             styles.cardBorderWrapper,
             {
@@ -666,18 +791,10 @@ const readingsText = flashcard.readingsText;
                   darkDisabled={imageRetryCount >= MAX_RETRY_COUNT}
                 />
               )}
-              <View ref={flipButtonRef} collapsable={false}>
-                <PokedexButton
-                  onPress={handleFlip}
-                  materialCommunityIcon="flip-horizontal"
-                  iconColor={isWalkthroughActive && currentWalkthroughStepId === 'flip-card' ? '#FBBF24' : 'black'}
-                  color={isWalkthroughActive && currentWalkthroughStepId === 'flip-card' ? '#FBBF24' : 'grey'}
-                  size="small"
-                  shape="square"
-                  style={StyleSheet.flatten([styles.flashcardActionButton, ...(isWalkthroughActive && currentWalkthroughStepId === 'flip-card' ? [styles.walkthroughHighlightedButton] : [])])}
-                />
-              </View>
             </View>
+            {/* Edge flip zones - swipe inward from left or right edge to flip */}
+            <View style={styles.leftEdgeZone} {...leftEdgePanResponder.panHandlers} />
+            <View style={styles.rightEdgeZone} {...rightEdgePanResponder.panHandlers} />
             </View>
           </View>
         </Animated.View>
@@ -688,6 +805,13 @@ const readingsText = flashcard.readingsText;
           styles.cardSide, 
           backAnimatedStyle
         ]}>
+          {/* Small notches marking where the flip gesture zone begins (50px from each edge) */}
+          <View style={styles.flipZoneNotchContainer} pointerEvents="none">
+            <View style={[styles.flipZoneNotch, styles.flipZoneNotchLeftTop, { backgroundColor: isSrsModeActive ? rainbowBorderColor : COLORS.appleLiquidGrey }]} />
+            <View style={[styles.flipZoneNotch, styles.flipZoneNotchLeftBottom, { backgroundColor: isSrsModeActive ? rainbowBorderColor : COLORS.appleLiquidGrey }]} />
+            <View style={[styles.flipZoneNotch, styles.flipZoneNotchRightTop, { backgroundColor: isSrsModeActive ? rainbowBorderColor : COLORS.appleLiquidGrey }]} />
+            <View style={[styles.flipZoneNotch, styles.flipZoneNotchRightBottom, { backgroundColor: isSrsModeActive ? rainbowBorderColor : COLORS.appleLiquidGrey }]} />
+          </View>
           <View style={[
             styles.cardBorderWrapper,
             {
@@ -876,16 +1000,10 @@ const readingsText = flashcard.readingsText;
                   darkDisabled={imageRetryCount >= MAX_RETRY_COUNT}
                 />
               )}
-              <PokedexButton
-                onPress={handleFlip}
-                materialCommunityIcon="flip-horizontal"
-                iconColor={isWalkthroughActive && currentWalkthroughStepId === 'flip-card' ? '#FBBF24' : 'black'}
-                color={isWalkthroughActive && currentWalkthroughStepId === 'flip-card' ? '#FBBF24' : 'grey'}
-                size="small"
-                shape="square"
-                style={StyleSheet.flatten([styles.flashcardActionButton, ...(isWalkthroughActive && currentWalkthroughStepId === 'flip-card' ? [styles.walkthroughHighlightedButton] : [])])}
-              />
             </View>
+            {/* Edge flip zones - swipe inward from left or right edge to flip */}
+            <View style={styles.leftEdgeZone} {...leftEdgePanResponder.panHandlers} />
+            <View style={styles.rightEdgeZone} {...rightEdgePanResponder.panHandlers} />
             </View>
           </View>
         </Animated.View>
@@ -958,6 +1076,8 @@ const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean
     backgroundColor: useScreenBackground ? COLORS.flashcardScreenBackground : '#000000', // Use screen background in collections screen, black elsewhere
     position: 'relative',
     zIndex: 2, // Above the backdrop overlay (zIndex: 1)
+    // Perspective for 3D flip: smaller = more dramatic depth
+    transform: [{ perspective: 1000 }],
   },
   expandedCardWrapper: {
     // Removed padding to prevent border size changes
@@ -1009,6 +1129,52 @@ const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean
     padding: 20,
     paddingTop: 50,
     paddingBottom: 50,
+  },
+  flipZoneNotchContainer: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 15,
+  },
+  flipZoneNotch: {
+    position: 'absolute',
+    width: 2,
+    height: 10,
+    borderRadius: 1,
+  },
+  flipZoneNotchLeftTop: {
+    left: 49,
+    top: -5, // Jut out from top border (half above, half below the line)
+  },
+  flipZoneNotchLeftBottom: {
+    left: 49,
+    bottom: -5, // Jut out from bottom border
+  },
+  flipZoneNotchRightTop: {
+    right: 49,
+    top: -5,
+  },
+  flipZoneNotchRightBottom: {
+    right: 49,
+    bottom: -5,
+  },
+  leftEdgeZone: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 64, // Stop above action buttons so they remain tappable
+    width: 50,
+    zIndex: 20,
+  },
+  rightEdgeZone: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 64, // Stop above action buttons so they remain tappable
+    width: 50,
+    zIndex: 20,
   },
   scrollContainer: {
     flex: 1,

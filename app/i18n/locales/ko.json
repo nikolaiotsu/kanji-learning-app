@@ -520,6 +520,10 @@
       "title": "축하합니다! 🎉",
       "description": "첫 번째 플래시카드를 저장했습니다! 더 많은 카드를 수집하세요! 건배! 🥳"
     },
+    "flipCard": {
+      "title": "Flip the Card",
+      "description": "Swipe inward from either edge of the card to flip it!"
+    },
     "continueWalkthrough": "아니요, 가이드 계속하기",
     "endWalkthrough": "예, 가이드 종료",
     "noTextFoundTitle": "앗!",

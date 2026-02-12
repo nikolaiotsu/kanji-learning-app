@@ -516,6 +516,10 @@
       "title": "Glückwunsch! 🎉",
       "description": "Sie haben Ihre erste Karteikarte gespeichert! Auf viele weitere! Prost! 🥳"
     },
+    "flipCard": {
+      "title": "Flip the Card",
+      "description": "Swipe inward from either edge of the card to flip it!"
+    },
     "continueWalkthrough": "Nein, Tour fortsetzen",
     "endWalkthrough": "Ja, Tour beenden",
     "noTextFoundTitle": "Ups!",

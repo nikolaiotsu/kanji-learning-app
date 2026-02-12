@@ -516,6 +516,10 @@
       "title": "Chúc mừng! 🎉",
       "description": "Bạn đã lưu thẻ đầu tiên của mình! Chúc bạn có thêm nhiều thẻ nữa! Chúc mừng! 🥳"
     },
+    "flipCard": {
+      "title": "Flip the Card",
+      "description": "Swipe inward from either edge of the card to flip it!"
+    },
     "continueWalkthrough": "Không, Tiếp tục Hướng dẫn",
     "endWalkthrough": "Có, Kết thúc Hướng dẫn",
     "noTextFoundTitle": "Ối!",

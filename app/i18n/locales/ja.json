@@ -540,6 +540,10 @@
       "title": "おめでとうございます！🎉",
       "description": "やったね!最初のフラッシュカードを保存できました。これから何百枚も作っていきましょう。🎉"
     },
+    "flipCard": {
+      "title": "Flip the Card",
+      "description": "Swipe inward from either edge of the card to flip it!"
+    },
     "continueWalkthrough": "いいえ、ウォークスルーを続ける",
     "endWalkthrough": "はい、ウォークスルーを終了",
     "noTextFoundTitle": "おっと！",

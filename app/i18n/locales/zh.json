@@ -513,6 +513,10 @@
       "title": "恭喜！🎉",
       "description": "您已保存了第一张闪卡！祝您收集更多！干杯！🥳"
     },
+    "flipCard": {
+      "title": "Flip the Card",
+      "description": "Swipe inward from either edge of the card to flip it!"
+    },
     "continueWalkthrough": "不，继续教程",
     "endWalkthrough": "是，结束教程",
     "noTextFoundTitle": "哎呀！",

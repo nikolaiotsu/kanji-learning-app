@@ -525,7 +525,7 @@
     },
     "flipCard": {
       "title": "Flip the Card",
-      "description": "Flip your card to see the translation!"
+      "description": "Swipe inward from either edge of the card to flip it!"
     },
     "imageButton": {
       "title": "See the Image",

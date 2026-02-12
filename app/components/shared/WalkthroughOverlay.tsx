@@ -125,7 +125,8 @@ export default function WalkthroughOverlay({
   const cardInteractionStepIds = ['flip-card', 'image-button', 'swipe-left-instruction', 'swipe-right-instruction'];
   const isCardInteractionStep = currentStep?.id ? cardInteractionStepIds.includes(currentStep.id) : false;
   // Note: final-save-prompt is NOT in canUseFallback - it requires actual button measurement
-  const centeredModalSteps = isCongratulationsStep || isGoHomePromptStep || isFinalCongratulationsStep || isSwipeLeftInstructionStep || isSwipeRightInstructionStep;
+  const isFlipCardStep = currentStep?.id === 'flip-card';
+  const centeredModalSteps = isCongratulationsStep || isGoHomePromptStep || isFinalCongratulationsStep || isSwipeLeftInstructionStep || isSwipeRightInstructionStep || isFlipCardStep;
   const canUseFallback = isCollectionsStep || isReviewButtonStep || isChooseTranslationStep || centeredModalSteps;
   const isLayoutReady = targetLayout || canUseFallback;
 

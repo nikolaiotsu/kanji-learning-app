@@ -520,6 +520,10 @@
       "title": "تهانينا! 🎉",
       "description": "لقد حفظت بطاقتك الأولى! إلى المزيد! في صحتك! 🥳"
     },
+    "flipCard": {
+      "title": "Flip the Card",
+      "description": "Swipe inward from either edge of the card to flip it!"
+    },
     "continueWalkthrough": "لا، متابعة الشرح",
     "endWalkthrough": "نعم، إنهاء الشرح",
     "noTextFoundTitle": "عذراً!",
