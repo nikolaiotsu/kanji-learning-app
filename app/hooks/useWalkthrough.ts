@@ -119,10 +119,20 @@ export function useWalkthrough(steps: WalkthroughStep[]): UseWalkthroughReturn {
     });
   }, []);
 
-  // Get current step from registered steps, fallback to step definition if not registered yet
+  // Current step: always use latest step def for title/description (so e.g. language name updates),
+  // and merge in targetRef/targetLayout from registered step when present
   const stepDef = steps[currentStepIndex];
-  const currentStep = stepDef 
-    ? (registeredSteps.get(stepDef.id) || { ...stepDef })
+  const registered = stepDef ? registeredSteps.get(stepDef.id) : undefined;
+  const currentStep = stepDef
+    ? {
+        ...stepDef,
+        title: stepDef.title,
+        description: stepDef.description,
+        ...(registered && {
+          targetRef: registered.targetRef ?? stepDef.targetRef,
+          targetLayout: registered.targetLayout ?? stepDef.targetLayout,
+        }),
+      }
     : null;
 
   // Start the walkthrough from step 0

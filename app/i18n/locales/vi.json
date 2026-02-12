@@ -88,7 +88,19 @@
     "welcomeSubtitle2": "Mỗi từ bạn quét hiển thị ngữ pháp, ngữ cảnh và từ đồng nghĩa — ngay lập tức.",
     "getStarted": "Bắt đầu",
     "alreadyHaveAccount": "Đã có tài khoản?",
-    "signIn": "Đăng nhập"
+    "signIn": "Đăng nhập",
+    "whyTitle": "Tại sao bạn học {{language}}?",
+    "newLanguage": "ngoại ngữ mới",
+    "whyWork": "Để phục vụ công việc hoặc học tập",
+    "whyTravel": "Để đi du lịch hoặc sinh hoạt hàng ngày",
+    "whyPeople": "Vì những người tôi quan tâm",
+    "whyFun": "Chỉ để giải trí",
+    "whyOther": "Khác",
+    "whyCta": "Tiếp tục",
+    "timeCta": "Tiếp tục",
+    "fastCta": "Tiếp tục",
+    "relevantCta": "Tiếp tục",
+    "empoweringCta": "Tiếp tục"
   },
   "badges": {
     "title": "Huy Hiệu Của Bạn"

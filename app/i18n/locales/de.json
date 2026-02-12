@@ -88,7 +88,19 @@
     "welcomeSubtitle2": "Jedes gescannte Wort zeigt sofort Grammatik, Kontext und Synonyme.",
     "getStarted": "Los geht's",
     "alreadyHaveAccount": "Bereits ein Konto?",
-    "signIn": "Anmelden"
+    "signIn": "Anmelden",
+    "whyTitle": "Warum lernst du {{language}}?",
+    "newLanguage": "eine neue Sprache",
+    "whyWork": "Für Arbeit oder Schule",
+    "whyTravel": "Für Reisen oder den Alltag",
+    "whyPeople": "Für Menschen, die mir am Herzen liegen",
+    "whyFun": "Einfach zum Spaß",
+    "whyOther": "Sonstiges",
+    "whyCta": "Weiter",
+    "timeCta": "Weiter",
+    "fastCta": "Weiter",
+    "relevantCta": "Weiter",
+    "empoweringCta": "Weiter"
   },
   "badges": {
     "title": "Deine Abzeichen"

@@ -88,10 +88,10 @@ export default function OnboardingEducationalScreen() {
         <View style={styles.content}>
           <View style={styles.textBlock}>
             <View style={styles.titleRow}>
+              <Text style={styles.titleText}>{t('onboarding.empoweringTitle')}</Text>
               <View style={styles.titleLogoWrap}>
                 <LoadingVideoScreen compact />
               </View>
-              <Text style={styles.titleText}>{t('onboarding.empoweringTitleSuffix')}</Text>
             </View>
             <View style={styles.bulletRow}>
               <View style={styles.bullet} />
@@ -99,16 +99,6 @@ export default function OnboardingEducationalScreen() {
                 {t('onboarding.empoweringBullet1')}
               </Text>
             </View>
-            <View style={styles.bulletRow}>
-              <View style={styles.bullet} />
-              <Text style={styles.subtitle}>
-                {t('onboarding.empoweringBullet2')}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.arrowContainer}>
-            <View style={styles.arrowStem} />
-            <View style={styles.arrowHead} />
           </View>
           <View style={styles.videoSection}>
             {(hasError || status === 'error') ? (
@@ -165,10 +155,7 @@ const styles = StyleSheet.create({
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-  },
-  titleLogoWrap: {
-    marginRight: 10,
+    marginBottom: 20,
   },
   titleText: {
     fontFamily: FONTS.sansBold,
@@ -176,6 +163,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.text,
     letterSpacing: -0.5,
+    flex: 1,
+    marginRight: 10,
+  },
+  titleLogoWrap: {
+    flexShrink: 0,
+    marginTop: -30,
   },
   bulletRow: {
     flexDirection: 'row',
@@ -198,33 +191,6 @@ const styles = StyleSheet.create({
     textAlign: 'left',
     lineHeight: 30,
     opacity: 0.9,
-  },
-  arrowContainer: {
-    alignSelf: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  arrowStem: {
-    width: 2,
-    height: 14,
-    backgroundColor: COLORS.primary,
-    borderRadius: 1,
-  },
-  arrowHead: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 7,
-    borderRightWidth: 7,
-    borderTopWidth: 10,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderTopColor: COLORS.primary,
-    marginTop: 1,
   },
   videoSection: {
     marginBottom: 32,

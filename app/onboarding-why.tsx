@@ -12,6 +12,7 @@ import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useOnboardingProgress } from './context/OnboardingProgressContext';
+import { useSettings, DETECTABLE_LANGUAGES } from './context/SettingsContext';
 import { COLORS } from './constants/colors';
 import { FONTS } from './constants/typography';
 import LoadingVideoScreen from './components/LoadingVideoScreen';
@@ -21,12 +22,19 @@ const REASON_OPTIONS = [
   { id: 'work', emoji: '💼', labelKey: 'onboarding.whyWork' },
   { id: 'travel', emoji: '✈️', labelKey: 'onboarding.whyTravel' },
   { id: 'people', emoji: '❤️', labelKey: 'onboarding.whyPeople' },
+  { id: 'fun', emoji: '🕺', labelKey: 'onboarding.whyFun' },
+  { id: 'other', emoji: '…', labelKey: 'onboarding.whyOther' },
 ];
 
 export default function OnboardingWhyScreen() {
   const { t } = useTranslation();
   const { setOnboardingStep } = useOnboardingProgress();
+  const { forcedDetectionLanguage } = useSettings();
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const learnLanguageName =
+    DETECTABLE_LANGUAGES[forcedDetectionLanguage as keyof typeof DETECTABLE_LANGUAGES] ??
+    t('onboarding.newLanguage');
 
   useEffect(() => {
     setOnboardingStep('onboarding-why');
@@ -64,7 +72,7 @@ export default function OnboardingWhyScreen() {
             <LoadingVideoScreen compact />
           </View>
           <View style={styles.textBlock}>
-            <Text style={styles.title}>{t('onboarding.whyTitle')}</Text>
+            <Text style={styles.title}>{t('onboarding.whyTitle', { language: learnLanguageName })}</Text>
             {REASON_OPTIONS.map((option) => {
               const isSelected = selected.has(option.id);
               return (

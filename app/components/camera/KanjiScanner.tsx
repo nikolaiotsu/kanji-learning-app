@@ -63,9 +63,13 @@ interface KanjiScannerProps {
   continueWalkthrough?: boolean;
   /** Called with header area top (window Y) so parent can position progress bar above it */
   onHeaderLayout?: (headerY: number) => void;
+  /** When true/false, parent can show/hide the find-text step Skip (e.g. above progress bar) */
+  onFindTextSkipVisibilityChange?: (visible: boolean) => void;
+  /** Parent sets this ref; we assign handleSkipWalkthrough so parent's Skip button can trigger it */
+  walkthroughSkipRef?: React.MutableRefObject<(() => void) | null>;
 }
 
-export default function KanjiScanner({ onCardSwipe, onContentReady, onWalkthroughComplete, canStartWalkthrough = true, blockTouchesBeforeWalkthrough = false, isSignInPromptVisible = false, continueWalkthrough = false, onHeaderLayout }: KanjiScannerProps) {
+export default function KanjiScanner({ onCardSwipe, onContentReady, onWalkthroughComplete, canStartWalkthrough = true, blockTouchesBeforeWalkthrough = false, isSignInPromptVisible = false, continueWalkthrough = false, onHeaderLayout, onFindTextSkipVisibilityChange, walkthroughSkipRef }: KanjiScannerProps) {
   logger.log('🎬 [KanjiScanner] Component render, onContentReady callback:', !!onContentReady);
   
   const { t } = useTranslation();
@@ -97,6 +101,8 @@ export default function KanjiScanner({ onCardSwipe, onContentReady, onWalkthroug
   const [hasHighlightSelection, setHasHighlightSelection] = useState(false);
   const [highlightDrawing, setHighlightDrawing] = useState(false);
   const [hideWalkthroughOverlay, setHideWalkthroughOverlay] = useState(false);
+  /** When true, "Your first card" modal is dismissed and user sees only dimmed overlay + highlighted gallery/photo buttons */
+  const [findTextIntroDismissed, setFindTextIntroDismissed] = useState(false);
   const [highlightRegion, setHighlightRegion] = useState<{
     x: number;
     y: number;
@@ -169,6 +175,8 @@ export default function KanjiScanner({ onCardSwipe, onContentReady, onWalkthroug
   const { rightSwipeCount, streakCount, currentDeckSwipedCount, deckTotalCards, resetSwipeCounts } = useSwipeCounter();
   const { purchaseSubscription, subscription } = useSubscription();
   const { forcedDetectionLanguage } = useSettings();
+  const learnLanguageName =
+    DETECTABLE_LANGUAGES[forcedDetectionLanguage as keyof typeof DETECTABLE_LANGUAGES] ?? t('walkthrough.findText.languageFallback');
   const { isConnected } = useNetworkState();
   
   // State for unified API limit (applies to all API call types)
@@ -190,6 +198,7 @@ const customCardButtonRef = useRef<View>(null);
 const reviewerContainerRef = useRef<View>(null);
 const collectionsButtonRef = useRef<View>(null);
 const reviewButtonRef = useRef<View>(null);
+  const cameraGalleryRowRef = useRef<View>(null);
 const settingsButtonRef = useRef<View>(null);
   const headerAreaRef = useRef<View>(null);
 const rotateButtonRef = useRef<View>(null);
@@ -201,42 +210,12 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   const imageButtonRef = useRef<View>(null);
   const cropConfirmingRef = useRef(false);
 
-  // Define walkthrough steps (starting from rightmost button: camera)
+  // Define walkthrough steps (first step: "Your first card" modal, then find-text action = gallery/photo)
   const walkthroughSteps: WalkthroughStep[] = [
     {
-      id: 'camera',
-      title: t('walkthrough.camera.title'),
-      description: t('walkthrough.camera.description'),
-    },
-    {
-      id: 'gallery',
-      title: t('walkthrough.gallery.title'),
-      description: t('walkthrough.gallery.description'),
-    },
-    {
-      id: 'flashcards',
-      title: t('walkthrough.flashcards.title'),
-      description: t('walkthrough.flashcards.description'),
-    },
-    {
-      id: 'custom-card',
-      title: t('walkthrough.customCard.title'),
-      description: t('walkthrough.customCard.description'),
-    },
-    {
-      id: 'collections',
-      title: t('walkthrough.collections.title'),
-      description: t('walkthrough.collections.description'),
-    },
-    {
-      id: 'review-button',
-      title: t('walkthrough.reviewButton.title'),
-      description: t('walkthrough.reviewButton.description'),
-    },
-    {
-      id: 'gallery-confirm',
-      title: t('walkthrough.galleryConfirm.title'),
-      description: t('walkthrough.galleryConfirm.description'),
+      id: 'find-text',
+      title: t('walkthrough.findText.title'),
+      description: t('walkthrough.findText.description', { language: learnLanguageName }),
     },
     {
       id: 'rotate',
@@ -308,6 +287,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   const CROP_HINT_BOX_HEIGHT = 116;
   const CROP_HINT_CURSOR_SIZE = 14;
   const cropHintOpenAnim = useRef(new Animated.Value(0)).current;
+  // Flash animation for find-text step yellow borders (gallery + camera)
+  const findTextBorderFlashAnim = useRef(new Animated.Value(0)).current;
   const showCropDragHint =
     isWalkthroughActive && currentStep?.id === 'crop' && cropModeActive && !hasCropSelection && !cropConfirmingRef.current;
 
@@ -360,6 +341,38 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     loop.start();
     return () => loop.stop();
   }, [showCropDragHint, cropHintOpenAnim]);
+
+  // Flash loop for find-text step (yellow borders pulse to draw attention)
+  useEffect(() => {
+    const onFindTextStep = isWalkthroughActive && currentStep?.id === 'find-text';
+    if (!onFindTextStep) {
+      findTextBorderFlashAnim.setValue(0);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(findTextBorderFlashAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(findTextBorderFlashAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [isWalkthroughActive, currentStep?.id, findTextBorderFlashAnim]);
+
+  // Opacity pulse: 1 -> 0.5 -> 1 so the border "flashes"
+  const findTextBorderFlashOpacity = findTextBorderFlashAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0.5],
+  });
+
   const cropHintBoxWidth = cropHintOpenAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, CROP_HINT_BOX_WIDTH],
@@ -437,13 +450,13 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   const { setWalkthroughPhase, hideProgressBar } = useOnboardingProgress();
 
   // Sync progress bar with walkthrough step (home vs card interaction phase)
-  // After removing review-cards and settings: home = indices 0–10, cardInteraction = 11+
+  // Home = indices 0–5 (camera, find-text, rotate, crop, highlight, confirm-highlight), cardInteraction = 6+
   useEffect(() => {
     if (isWalkthroughActive) {
-      if (currentStepIndex < 11) {
+      if (currentStepIndex < 6) {
         setWalkthroughPhase('home', currentStepIndex);
       } else {
-        setWalkthroughPhase('cardInteraction', currentStepIndex - 11);
+        setWalkthroughPhase('cardInteraction', currentStepIndex - 6);
       }
     }
   }, [isWalkthroughActive, currentStepIndex, setWalkthroughPhase]);
@@ -460,7 +473,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   const pendingFinalStepCompleteRef = useRef(false);
   const handleWalkthroughDone = useCallback(() => {
     logger.log('[handleWalkthroughDone] Called - completing walkthrough; onWalkthroughComplete will run after overlay closes');
-    setWalkthroughPhase('cardInteraction', 5); // step 28+5 = 33 = last step
+    setWalkthroughPhase('cardInteraction', 4); // card phase has 5 steps (0–4); 29+4 = 33 = last step
     setWalkthroughJustCompleted(true);
     walkthroughEverEndedRef.current = true;
     pendingFinalStepCompleteRef.current = true;
@@ -491,18 +504,12 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     walkthroughSteps.forEach(step => {
       registerStep({
         ...step,
-        targetRef: 
-          step.id === 'camera' ? cameraButtonRef :
-          step.id === 'gallery' ? galleryButtonRef :
-          step.id === 'gallery-confirm' ? galleryButtonRef :
-          step.id === 'flashcards' ? flashcardsButtonRef :
-          step.id === 'custom-card' ? customCardButtonRef :
+        targetRef:
+          step.id === 'find-text' ? cameraGalleryRowRef :
           step.id === 'rotate' ? rotateButtonRef :
           step.id === 'crop' ? cropButtonRef :
           step.id === 'highlight' ? highlightButtonRef :
           step.id === 'confirm-highlight' ? checkmarkButtonRef :
-          step.id === 'collections' ? collectionsButtonRef :
-          step.id === 'review-button' ? reviewButtonRef :
           step.id === 'image-button' ? imageButtonRef :
           undefined,
       });
@@ -515,7 +522,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     if (continueWalkthrough && !continueWalkthroughHandledRef.current && !isWalkthroughActive) {
       continueWalkthroughHandledRef.current = true;
       setTimeout(() => {
-        startWalkthroughAtStep(11); // flip-card is index 11 (after removing review-cards and settings)
+        startWalkthroughAtStep(5); // flip-card is index 5 (after find-text, rotate, crop, highlight, confirm-highlight)
       }, 500);
     }
   }, [continueWalkthrough, isWalkthroughActive, startWalkthroughAtStep]);
@@ -529,6 +536,28 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       setHideWalkthroughOverlay(false);
     }
   }, [isWalkthroughActive, currentStep?.id]);
+
+  // When entering find-text step (e.g. from previousStep), show the "Your first card" modal again
+  const previousWalkthroughStepIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!currentStep?.id) return;
+    if (currentStep.id === 'find-text' && previousWalkthroughStepIdRef.current !== 'find-text') {
+      setFindTextIntroDismissed(false);
+    }
+    previousWalkthroughStepIdRef.current = currentStep.id;
+  }, [currentStep?.id]);
+
+  // Expose skip handler for parent's find-text Skip button; notify parent when find-text Skip should be visible
+  useEffect(() => {
+    walkthroughSkipRef && (walkthroughSkipRef.current = handleSkipWalkthrough);
+    return () => {
+      walkthroughSkipRef && (walkthroughSkipRef.current = null);
+    };
+  }, [handleSkipWalkthrough, walkthroughSkipRef]);
+  useEffect(() => {
+    const show = Boolean(isWalkthroughActive && currentStep?.id === 'find-text' && findTextIntroDismissed);
+    onFindTextSkipVisibilityChange?.(show);
+  }, [isWalkthroughActive, currentStep?.id, findTextIntroDismissed, onFindTextSkipVisibilityChange]);
 
   // Start walkthrough on first launch or after reset (only after splash and post-onboarding loading are dismissed)
   useEffect(() => {
@@ -572,7 +601,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   const isNavigatingToFlashcardsRef = useRef<boolean>(false);
   const [isNavigatingToFlashcards, setIsNavigatingToFlashcards] = useState(false);
   const isEditorWalkthroughStep = currentStep?.id === 'rotate' || currentStep?.id === 'crop' || currentStep?.id === 'highlight' || currentStep?.id === 'back-button';
-  const galleryStepIdForHighlight = currentStep?.id === 'gallery-confirm' ? 'gallery' : currentStep?.id;
+  const galleryStepIdForHighlight = currentStep?.id === 'find-text' ? 'find-text' : currentStep?.id;
 
   // Reset the gallery auto-advance guard when walkthrough is inactive
   useEffect(() => {
@@ -634,7 +663,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
 
   // Auto-advance from gallery step to rotate once an image is loaded, but ensure editor buttons are measured first to avoid overlay flicker
   useEffect(() => {
-    if (!isWalkthroughActive || !capturedImage || currentStep?.id !== 'gallery-confirm' || hasAdvancedFromGalleryRef.current) {
+    if (!isWalkthroughActive || !capturedImage || currentStep?.id !== 'find-text' || hasAdvancedFromGalleryRef.current) {
       return;
     }
 
@@ -671,18 +700,12 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     if (!hasMeasuredRef.current) {
       const measureButtons = () => {
         // Measure all buttons to have layouts ready
-        measureButton(cameraButtonRef, 'camera', updateStepLayout);
-        measureButton(galleryButtonRef, 'gallery', updateStepLayout);
-        measureButton(galleryButtonRef, 'gallery-confirm', updateStepLayout);
-        measureButton(flashcardsButtonRef, 'flashcards', updateStepLayout);
-        measureButton(customCardButtonRef, 'custom-card', updateStepLayout);
+        measureButton(cameraGalleryRowRef, 'find-text', updateStepLayout);
         if (capturedImage) {
           measureButton(rotateButtonRef, 'rotate', updateStepLayout);
           measureButton(cropButtonRef, 'crop', updateStepLayout);
           measureButton(highlightButtonRef, 'highlight', updateStepLayout);
         }
-        measureButton(collectionsButtonRef, 'collections', updateStepLayout);
-        measureButton(reviewButtonRef, 'review-button', updateStepLayout);
         measureButton(imageButtonRef, 'image-button', updateStepLayout);
       };
 
@@ -705,16 +728,10 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       const currentStepId = walkthroughSteps[currentStepIndex]?.id;
       if (currentStepId) {
         const refMap: Record<string, React.RefObject<View>> = {
-          'camera': cameraButtonRef,
-          'gallery': galleryButtonRef,
-          'gallery-confirm': galleryButtonRef,
-          'flashcards': flashcardsButtonRef,
-          'custom-card': customCardButtonRef,
+          'find-text': cameraGalleryRowRef,
           'rotate': rotateButtonRef,
           'crop': cropButtonRef,
           'highlight': highlightButtonRef,
-          'collections': collectionsButtonRef,
-          'review-button': reviewButtonRef,
           'image-button': imageButtonRef,
         };
         const ref = refMap[currentStepId];
@@ -1720,12 +1737,10 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     }
   };
 
-  // Walkthrough Next handler: for gallery-confirm without an image, trigger pickImage instead of advancing
+  // Walkthrough Next handler: on find-text, Continue dismisses the modal so user can tap gallery or camera
   const handleWalkthroughNext = useCallback(() => {
-    if (currentStep?.id === 'gallery-confirm' && !capturedImage) {
-      if (canCreateFlashcard && isConnected && !localProcessing && !isImageProcessing) {
-        pickImage();
-      }
+    if (currentStep?.id === 'find-text' && !capturedImage) {
+      setFindTextIntroDismissed(true); // Hide "Your first card" modal; user taps gallery or camera next
       return;
     }
     if (currentStep?.id === 'highlight') {
@@ -2719,12 +2734,16 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'flashcards')}
               />
             </View>
+            {/* Camera + Gallery row (wrap for find-text step so modal appears above both). Skip for find-text is rendered by parent above progress bar. */}
+            <View style={styles.cameraGalleryRowWrapper}>
+            <View ref={cameraGalleryRowRef} collapsable={false} style={styles.cameraGalleryRow}>
             {/* Gallery Button */}
+            <Animated.View style={isWalkthroughActive && currentStep?.id === 'find-text' ? { opacity: findTextBorderFlashOpacity } : undefined}>
             <WalkthroughTarget
               targetRef={galleryButtonRef} 
               stepId="gallery"
               currentStepId={currentStep?.id}
-              activeIds={['gallery-confirm']}
+              activeIds={['find-text']}
               isWalkthroughActive={isWalkthroughActive}
               highlightStyle={styles.highlightedButtonWrapper}
               dimStyle={styles.dimmedToolbarButton}
@@ -2733,46 +2752,47 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
               <PokedexButton
                 onPress={(canCreateFlashcard && !isAPILimitExhausted && isConnected) ? pickImage : showUpgradeAlert}
                 icon={isWalkthroughActive ? "images" : ((isAPILimitExhausted || !canCreateFlashcard || !isConnected || isImageProcessing || localProcessing) ? "lock-closed" : "images")}
-                iconColor={
-                  isWalkthroughActive && (currentStep?.id === 'gallery' || currentStep?.id === 'gallery-confirm')
-                    ? '#FBBF24' // Warm amber for highlighted
-                    : isWalkthroughActive
-                    ? '#94A3B8' // Slate grey for non-highlighted during walkthrough
-                    : '#000000' // Black icon color
-                }
+                iconColor="#000000"
                 color="grey"
                 size="medium"
                 shape="square"
                 style={styles.rowButton}
                 disabled={
                   isAPILimitExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing ||
-                  (isWalkthroughActive && currentStep?.id !== 'gallery' && currentStep?.id !== 'gallery-confirm')
+                  (isWalkthroughActive && currentStep?.id !== 'find-text')
                 }
                 darkDisabled={isAPILimitExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
               />
             </WalkthroughTarget>
+            </Animated.View>
             {/* Camera Button (rightmost) */}
-            <View 
-              ref={cameraButtonRef} 
+<Animated.View style={isWalkthroughActive && currentStep?.id === 'find-text' ? { opacity: findTextBorderFlashOpacity } : undefined}>
+            <View
+              ref={cameraButtonRef}
               collapsable={false} 
-              pointerEvents={isWalkthroughActive && currentStep?.id !== 'camera' ? 'none' : 'auto'}
-              style={isWalkthroughActive && currentStep?.id === 'camera' ? styles.highlightedButtonWrapper : null}
+              pointerEvents={isWalkthroughActive && currentStep?.id !== 'find-text' ? 'none' : 'auto'}
+              style={isWalkthroughActive && currentStep?.id === 'find-text' ? styles.highlightedButtonWrapper : null}
             >
-              {isWalkthroughActive ? (
-                // During walkthrough, always show camera icon
+              {isWalkthroughActive && currentStep?.id !== 'find-text' ? (
+                // During other steps, show dummy camera so user doesn't tap; on find-text use real CameraButton
                 <PokedexButton
-                  onPress={() => {}} // No action during walkthrough
+                  onPress={() => {}}
                   icon="camera"
-                  iconColor={
-                    currentStep?.id === 'camera' 
-                      ? '#FBBF24' // Warm amber for highlighted
-                      : '#94A3B8' // Slate grey for non-highlighted during walkthrough
-                  }
+                  iconColor="#94A3B8"
                   color="grey"
                   size="medium"
                   shape="square"
                   style={styles.rowButton}
-                  disabled={currentStep?.id !== 'camera'}
+                  disabled={true}
+                />
+              ) : isWalkthroughActive && currentStep?.id === 'find-text' ? (
+                <CameraButton
+                  onPhotoCapture={handlePhotoCapture}
+                  style={styles.rowButton}
+                  onProcessingStateChange={setIsImageProcessing}
+                  disabled={isAPILimitExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
+                  onDisabledPress={showUpgradeAlert}
+                  darkDisabled={isAPILimitExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
                 />
               ) : isImageProcessing || localProcessing || !isConnected ? (
                 <PokedexButton
@@ -2796,6 +2816,9 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                   darkDisabled={isAPILimitExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
                 />
               )}
+            </View>
+            </Animated.View>
+            </View>
             </View>
           </View>
         </>
@@ -3245,7 +3268,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       {/* Walkthrough Overlay - completely excluded from tree when navigating or after walkthrough ends to prevent native Modal flash */}
       {!walkthroughOverlayDismissed && !isNavigatingToFlashcards && !isNavigatingToFlashcardsRef.current && (
         <WalkthroughOverlay
-          visible={isWalkthroughActive && !hideWalkthroughOverlay && !isImageProcessing && !isGlobalOverlayVisible}
+          visible={isWalkthroughActive && !hideWalkthroughOverlay && !isImageProcessing && !isGlobalOverlayVisible && !(currentStep?.id === 'find-text' && findTextIntroDismissed)}
           currentStep={currentStep}
           currentStepIndex={currentStepIndex}
           totalSteps={totalSteps}
@@ -3737,6 +3760,11 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     right: 50,
     flexDirection: 'column',
   },
+  cameraGalleryRowWrapper: {},
+  cameraGalleryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   buttonRow: {
     position: 'absolute',
     bottom: 25, // Adjusted from 40 to ensure buttons are above Pokedex bottom decorations
@@ -3751,18 +3779,17 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     width: 65, // Keep the button size
     height: 65, // Keep the button size
   },
+  // Same dimensions as rowButton (65x65) + marginHorizontal 12 so both gallery and camera borders match
   highlightedButtonWrapper: {
+    width: 89,  // 65 + 12 + 12
+    height: 65,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: 'rgba(255, 200, 0, 0.9)',
-    shadowColor: '#FFFF00',
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 3,
+    borderColor: '#FBBF24',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   gridButton: {
     marginHorizontal: 0,

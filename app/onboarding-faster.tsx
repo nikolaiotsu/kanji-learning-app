@@ -14,24 +14,17 @@ import { useTranslation } from 'react-i18next';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useOnboardingVideo } from './context/OnboardingVideosContext';
 import { useEvent } from 'expo';
-import { useOnboarding } from './context/OnboardingContext';
 import { useOnboardingProgress } from './context/OnboardingProgressContext';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from './constants/colors';
 import { FONTS } from './constants/typography';
-import LoadingVideoScreen from './components/LoadingVideoScreen';
 import OnboardingProgressBar from './components/shared/OnboardingProgressBar';
 
 const guytypingVideoSource = require('../assets/guytyping1.mp4');
 
 export default function OnboardingFasterScreen() {
   const { t } = useTranslation();
-  const { setHasCompletedOnboarding } = useOnboarding();
   const { setOnboardingStep } = useOnboardingProgress();
-
-  useEffect(() => {
-    setOnboardingStep('onboarding-faster');
-  }, [setOnboardingStep]);
   const [hasError, setHasError] = useState(false);
 
   const preloadedPlayer = useOnboardingVideo('guytyping');
@@ -40,6 +33,10 @@ export default function OnboardingFasterScreen() {
     p.muted = true;
   });
   const player = preloadedPlayer ?? localPlayer;
+
+  useEffect(() => {
+    setOnboardingStep('onboarding-faster');
+  }, [setOnboardingStep]);
 
   useEffect(() => {
     player.play();
@@ -75,22 +72,13 @@ export default function OnboardingFasterScreen() {
         <OnboardingProgressBar />
         <View style={styles.content}>
           <View style={styles.textBlock}>
-            <View style={styles.titleRow}>
-              <View style={styles.titleLogoWrap}>
-                <LoadingVideoScreen compact />
-              </View>
-              <Text style={styles.titleText}>{t('onboarding.fastTitleSuffix')}</Text>
-            </View>
+            <Text style={styles.titleText}>{t('onboarding.fastTitle')}</Text>
             <View style={styles.bulletRow}>
               <View style={styles.bullet} />
               <Text style={styles.subtitle}>
                 {t('onboarding.fastBullet')}
               </Text>
             </View>
-          </View>
-          <View style={styles.arrowContainer}>
-            <View style={styles.arrowStem} />
-            <View style={styles.arrowHead} />
           </View>
           <View style={styles.videoSection}>
             {(hasError || status === 'error') ? (
@@ -144,20 +132,13 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     marginBottom: 24,
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  titleLogoWrap: {
-    marginRight: 10,
-  },
   titleText: {
     fontFamily: FONTS.sansBold,
     fontSize: 27,
     fontWeight: '700',
     color: COLORS.text,
     letterSpacing: -0.5,
+    marginBottom: 20,
   },
   bulletRow: {
     flexDirection: 'row',
@@ -179,33 +160,6 @@ const styles = StyleSheet.create({
     textAlign: 'left',
     lineHeight: 30,
     opacity: 0.9,
-  },
-  arrowContainer: {
-    alignSelf: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  arrowStem: {
-    width: 2,
-    height: 14,
-    backgroundColor: COLORS.primary,
-    borderRadius: 1,
-  },
-  arrowHead: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 7,
-    borderRightWidth: 7,
-    borderTopWidth: 10,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderTopColor: COLORS.primary,
-    marginTop: 1,
   },
   videoSection: {
     marginBottom: 32,

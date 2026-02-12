@@ -92,10 +92,10 @@
     "continueAsGuest": "Continue as Guest"
   },
   "onboarding": {
-    "welcomeTitle": "Welcome to Worddex",
+    "welcomeTitle": "Thank you for downloading WordDex!",
     "welcomeSubtitle1": "Turn the world into your classroom.",
     "welcomeSubtitle2": "Scan any word to unlock its meaning, context, and usage — save it instantly as a flashcard.",
-    "getStarted": "Get Started",
+    "getStarted": "Continue",
     "alreadyHaveAccount": "Already have an account?",
     "signIn": "Sign in",
     "languageTitle1": "What language do you speak?",
@@ -103,12 +103,15 @@
     "languageContinue": "Continue",
     "selectLanguageSpeak": "Select language",
     "selectLanguageLearn": "Select language to learn",
-    "whyTitle": "Why are you learning a new language?",
+    "whyTitle": "Why are you learning {{language}}?",
+    "newLanguage": "a new language",
     "whyWork": "For work or school",
     "whyTravel": "For travel or daily life",
     "whyPeople": "For people I care about",
-    "whyCta": "Here's how WordDex can help...",
-    "timeTitle": "How much time can you commit to studying everyday?",
+    "whyFun": "Just for fun",
+    "whyOther": "Other",
+    "whyCta": "Continue",
+    "timeTitle": "What's your daily learning goal?",
     "time5Min": "5 min / day",
     "time10Min": "10 min / day",
     "time15Min": "15 min / day",
@@ -117,17 +120,19 @@
     "timeRegular": "Regular",
     "timeSerious": "Serious",
     "timeIntense": "Intense",
-    "timeCta": "I'm committed",
-    "fastTitleSuffix": "is...fast.",
-    "fastBullet": "Traditional flashcard apps require all manual input.",
-    "fastCta": "There's a faster way",
+    "timeCta": "Continue",
+    "fastTitle": "Here's how WordDex can help!",
+    "fastBullet": "Instead of manually typing text to make flashcards...",
+    "fastCta": "Continue",
+    "relevantTitle": "Learn what YOU need",
     "relevantTitleSuffix": "is...relevant.",
-    "relevantBullet": "Course apps teach sentences you'll probably never use",
-    "relevantCta": "What if you chose the content?",
+    "relevantBullet": "Instead of memorizing phrases you'll never use...",
+    "relevantCta": "Continue",
+    "empoweringTitle": "Scan. Learn. Done.",
     "empoweringTitleSuffix": "is...empowering.",
-    "empoweringBullet1": "Research shows: meaningful context accelerates learning.",
+    "empoweringBullet1": "Let's make your first card and go on a little tour!",
     "empoweringBullet2": "With WordDex, your world becomes your classroom. Explore without limits!",
-    "empoweringCta": "See it in action!"
+    "empoweringCta": "Continue"
   },
   "badges": {
     "title": "Your Badges"
@@ -465,6 +470,11 @@
     "camera": {
       "title": "Take Picture",
       "description": "Snap any text. Watch it become a flashcard."
+    },
+    "findText": {
+      "title": "Your first card awaits",
+      "description": "Choose any {{language}} text around you. Start learning from YOUR materials",
+      "languageFallback": "a language"
     },
     "gallery": {
       "title": "Gallery",

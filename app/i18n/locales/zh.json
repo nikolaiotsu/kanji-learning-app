@@ -88,7 +88,19 @@
     "welcomeSubtitle2": "扫描的每个单词都会即时显示语法、语境和同义词。",
     "getStarted": "开始使用",
     "alreadyHaveAccount": "已有账户？",
-    "signIn": "登录"
+    "signIn": "登录",
+    "whyTitle": "你为什么学习{{language}}？",
+    "newLanguage": "新语言",
+    "whyWork": "为了工作或学业",
+    "whyTravel": "为了旅行或日常生活",
+    "whyPeople": "为了在乎的人",
+    "whyFun": "只是为了好玩",
+    "whyOther": "其他",
+    "whyCta": "继续",
+    "timeCta": "继续",
+    "fastCta": "继续",
+    "relevantCta": "继续",
+    "empoweringCta": "继续"
   },
   "badges": {
     "title": "您的徽章"

@@ -88,7 +88,19 @@
     "welcomeSubtitle2": "كل كلمة تمسحها تكشف القواعد والسياق والمرادفات — فوراً.",
     "getStarted": "ابدأ",
     "alreadyHaveAccount": "لديك حساب بالفعل؟",
-    "signIn": "تسجيل الدخول"
+    "signIn": "تسجيل الدخول",
+    "whyTitle": "لماذا تتعلم {{language}}؟",
+    "newLanguage": "لغة جديدة",
+    "whyWork": "للعمل أو الدراسة",
+    "whyTravel": "للسفر أو الحياة اليومية",
+    "whyPeople": "للأشخاص الذين أهتم بهم",
+    "whyFun": "للمتعة فقط",
+    "whyOther": "أخرى",
+    "whyCta": "متابعة",
+    "timeCta": "متابعة",
+    "fastCta": "متابعة",
+    "relevantCta": "متابعة",
+    "empoweringCta": "متابعة"
   },
   "badges": {
     "title": "شاراتك"

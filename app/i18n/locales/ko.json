@@ -88,7 +88,19 @@
     "welcomeSubtitle2": "스캔한 모든 단어에서 문법, 맥락, 동의어가 즉시 표시됩니다.",
     "getStarted": "시작하기",
     "alreadyHaveAccount": "이미 계정이 있으신가요?",
-    "signIn": "로그인"
+    "signIn": "로그인",
+    "whyTitle": "{{language}}를 왜 배우시나요?",
+    "newLanguage": "새로운 언어",
+    "whyWork": "일이나 공부를 위해",
+    "whyTravel": "여행이나 일상 생활을 위해",
+    "whyPeople": "소중한 사람들을 위해",
+    "whyFun": "그냥 재미로",
+    "whyOther": "기타",
+    "whyCta": "계속",
+    "timeCta": "계속",
+    "fastCta": "계속",
+    "relevantCta": "계속",
+    "empoweringCta": "계속"
   },
   "badges": {
     "title": "나의 배지"

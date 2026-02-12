@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import KanjiScanner from './components/camera/KanjiScanner';
 import PokedexLayout from './components/shared/PokedexLayout';
 import SignInPrompt, { getSignInPromptDismissed } from './components/auth/SignInPrompt';
@@ -9,6 +10,8 @@ import { useAuth } from './context/AuthContext';
 import { useTransitionLoading } from './context/TransitionLoadingContext';
 import { useBadge } from './context/BadgeContext';
 import OnboardingProgressBar from './components/shared/OnboardingProgressBar';
+import { COLORS } from './constants/colors';
+import { FONTS } from './constants/typography';
 
 import { logger } from './utils/logger';
 
@@ -19,6 +22,7 @@ const LOADING_FADE_DURATION_MS = 350;
 const worddexLogo = require('../assets/images/worddexlogo.png'); // Adjusted path
 
 export default function App() {
+  const { t } = useTranslation();
   const { user, isGuest, setGuestMode } = useAuth();
   const { setShowTransitionLoading } = useTransitionLoading();
   const { pendingBadge } = useBadge();
@@ -31,6 +35,8 @@ export default function App() {
   const containerRef = useRef<View>(null);
   const containerYRef = useRef<number | null>(null);
   const [progressBarTop, setProgressBarTop] = useState(4);
+  const [showFindTextSkip, setShowFindTextSkip] = useState(false);
+  const walkthroughSkipRef = useRef<(() => void) | null>(null);
 
   const handleHeaderLayout = useCallback((headerY: number) => {
     const cy = containerYRef.current;
@@ -140,6 +146,16 @@ export default function App() {
           style={styles.container}
           onLayout={handleContainerLayout}
         >
+          {/* Skip above progress bar: render first and position so bottom of Skip sits above top of bar */}
+          {showFindTextSkip && (
+            <TouchableOpacity
+              style={[styles.findTextSkipButton, { top: Math.max(0, progressBarTop - 44) }]}
+              onPress={() => walkthroughSkipRef.current?.()}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.findTextSkipText}>{t('common.skip')}</Text>
+            </TouchableOpacity>
+          )}
           <OnboardingProgressBar topOffset={progressBarTop} />
           <KanjiScanner
             onCardSwipe={handleCardSwipe}
@@ -150,6 +166,8 @@ export default function App() {
             isSignInPromptVisible={showSignInPrompt}
             continueWalkthrough={params.continueWalkthrough === 'true'}
             onHeaderLayout={handleHeaderLayout}
+            onFindTextSkipVisibilityChange={setShowFindTextSkip}
+            walkthroughSkipRef={walkthroughSkipRef}
           />
         </View>
       </PokedexLayout>
@@ -172,5 +190,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     // Remove all shading effects
+  },
+  findTextSkipButton: {
+    position: 'absolute',
+    left: 16,
+    zIndex: 1210,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  findTextSkipText: {
+    fontFamily: FONTS.sansMedium,
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
   },
 });

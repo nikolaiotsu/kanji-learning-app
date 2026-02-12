@@ -19,7 +19,6 @@ import { useOnboardingProgress } from './context/OnboardingProgressContext';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from './constants/colors';
 import { FONTS } from './constants/typography';
-import LoadingVideoScreen from './components/LoadingVideoScreen';
 import OnboardingProgressBar from './components/shared/OnboardingProgressBar';
 
 const guygettingburiedVideoSource = require('../assets/guygettingburied.mp4');
@@ -75,22 +74,13 @@ export default function OnboardingRelevantScreen() {
         <OnboardingProgressBar />
         <View style={styles.content}>
           <View style={styles.textBlock}>
-            <View style={styles.titleRow}>
-              <View style={styles.titleLogoWrap}>
-                <LoadingVideoScreen compact />
-              </View>
-              <Text style={styles.titleText}>{t('onboarding.relevantTitleSuffix')}</Text>
-            </View>
+            <Text style={styles.titleText}>{t('onboarding.relevantTitle')}</Text>
             <View style={styles.bulletRow}>
               <View style={styles.bullet} />
               <Text style={styles.subtitle}>
                 {t('onboarding.relevantBullet')}
               </Text>
             </View>
-          </View>
-          <View style={styles.arrowContainer}>
-            <View style={styles.arrowStem} />
-            <View style={styles.arrowHead} />
           </View>
           <View style={styles.videoSection}>
             {(hasError || status === 'error') ? (
@@ -144,20 +134,13 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     marginBottom: 24,
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  titleLogoWrap: {
-    marginRight: 10,
-  },
   titleText: {
     fontFamily: FONTS.sansBold,
     fontSize: 27,
     fontWeight: '700',
     color: COLORS.text,
     letterSpacing: -0.5,
+    marginBottom: 20,
   },
   bulletRow: {
     flexDirection: 'row',
@@ -179,33 +162,6 @@ const styles = StyleSheet.create({
     textAlign: 'left',
     lineHeight: 30,
     opacity: 0.9,
-  },
-  arrowContainer: {
-    alignSelf: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  arrowStem: {
-    width: 2,
-    height: 14,
-    backgroundColor: COLORS.primary,
-    borderRadius: 1,
-  },
-  arrowHead: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 7,
-    borderRightWidth: 7,
-    borderTopWidth: 10,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderTopColor: COLORS.primary,
-    marginTop: 1,
   },
   videoSection: {
     marginBottom: 32,

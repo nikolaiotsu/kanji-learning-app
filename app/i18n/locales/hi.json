@@ -88,7 +88,19 @@
     "welcomeSubtitle2": "आपके स्कैन किए गए हर शब्द से व्याकरण, संदर्भ और समानार्थी तुरंत मिलते हैं।",
     "getStarted": "शुरू करें",
     "alreadyHaveAccount": "पहले से अकाउंट है?",
-    "signIn": "साइन इन करें"
+    "signIn": "साइन इन करें",
+    "whyTitle": "आप {{language}} क्यों सीख रहे हैं?",
+    "newLanguage": "नई भाषा",
+    "whyWork": "काम या स्कूल के लिए",
+    "whyTravel": "यात्रा या रोज़मर्रा की ज़िंदगी के लिए",
+    "whyPeople": "उन लोगों के लिए जिनकी मुझे परवाह है",
+    "whyFun": "बस मज़े के लिए",
+    "whyOther": "अन्य",
+    "whyCta": "जारी रखें",
+    "timeCta": "जारी रखें",
+    "fastCta": "जारी रखें",
+    "relevantCta": "जारी रखें",
+    "empoweringCta": "जारी रखें"
   },
   "badges": {
     "title": "आपके बैज"

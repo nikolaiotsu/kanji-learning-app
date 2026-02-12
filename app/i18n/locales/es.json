@@ -88,7 +88,19 @@
     "welcomeSubtitle2": "Cada palabra que escaneas revela gramática, contexto y sinónimos al instante.",
     "getStarted": "Empezar",
     "alreadyHaveAccount": "¿Ya tienes una cuenta?",
-    "signIn": "Iniciar sesión"
+    "signIn": "Iniciar sesión",
+    "whyTitle": "¿Por qué estás aprendiendo {{language}}?",
+    "newLanguage": "un nuevo idioma",
+    "whyWork": "Para el trabajo o los estudios",
+    "whyTravel": "Para viajar o la vida diaria",
+    "whyPeople": "Por las personas que me importan",
+    "whyFun": "Solo por diversión",
+    "whyOther": "Otro",
+    "whyCta": "Continuar",
+    "timeCta": "Continuar",
+    "fastCta": "Continuar",
+    "relevantCta": "Continuar",
+    "empoweringCta": "Continuar"
   },
   "badges": {
     "title": "Tus Insignias"

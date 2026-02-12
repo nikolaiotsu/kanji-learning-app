@@ -88,7 +88,19 @@
     "welcomeSubtitle2": "Chaque mot que vous scannez révèle grammaire, contexte et synonymes — instantanément.",
     "getStarted": "Commencer",
     "alreadyHaveAccount": "Déjà un compte ?",
-    "signIn": "Se connecter"
+    "signIn": "Se connecter",
+    "whyTitle": "Pourquoi apprenez-vous {{language}} ?",
+    "newLanguage": "une nouvelle langue",
+    "whyWork": "Pour le travail ou les études",
+    "whyTravel": "Pour voyager ou la vie quotidienne",
+    "whyPeople": "Pour les personnes qui comptent pour moi",
+    "whyFun": "Juste pour le plaisir",
+    "whyOther": "Autre",
+    "whyCta": "Continuer",
+    "timeCta": "Continuer",
+    "fastCta": "Continuer",
+    "relevantCta": "Continuer",
+    "empoweringCta": "Continuer"
   },
   "badges": {
     "title": "Vos Badges"

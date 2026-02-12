@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 
-const TOTAL_STEPS = 35;
+const TOTAL_STEPS = 34;
 // Onboarding: 0-6 (7 steps)
-// Home walkthrough: 7-19 (13 steps)
+// Home walkthrough: 7-15 (9 steps; flashcards and custom-card modals removed)
 // Flashcard walkthrough: 20-28 (9 steps)
-// Card interaction walkthrough: 29-34 (6 steps)
+// Card interaction walkthrough: 29-33 (5 steps)
 
 const ONBOARDING_STEP_MAP: Record<string, number> = {
   onboarding: 0,

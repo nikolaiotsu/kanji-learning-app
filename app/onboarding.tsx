@@ -49,17 +49,17 @@ export default function OnboardingScreen() {
         <OnboardingProgressBar />
         <View style={styles.content}>
           <View style={styles.videoSection}>
-            <LoadingVideoScreen compact />
+            <LoadingVideoScreen compact usePreloaded={false} />
           </View>
           <View style={styles.textBlock}>
             <Text style={styles.title}>{t('onboarding.welcomeTitle')}</Text>
             <View style={styles.bulletRow}>
               <View style={styles.bullet} />
-              <Text style={styles.subtitle}>{t('onboarding.welcomeSubtitle1')}</Text>
+              <Text style={styles.subtitle}>{t('onboarding.welcomeSubtitle2')}</Text>
             </View>
             <View style={styles.bulletRow}>
               <View style={styles.bullet} />
-              <Text style={styles.subtitle}>{t('onboarding.welcomeSubtitle2')}</Text>
+              <Text style={styles.subtitle}>{t('onboarding.welcomeSubtitle1')}</Text>
             </View>
           </View>
           <TouchableOpacity

@@ -45,6 +45,8 @@ interface WalkthroughOverlayProps {
   allowTouchThrough?: boolean;
   /** Called when the overlay has finished its close animation and unmounted. Use to coordinate showing the next modal (e.g. sign-in prompt). */
   onClosed?: () => void;
+  /** When true, only show dimmed background and skip button (no tooltip/modal content). Used e.g. after "Your first card" Continue so user can tap gallery/photo. */
+  hideTooltip?: boolean;
 }
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -64,6 +66,7 @@ export default function WalkthroughOverlay({
   hideNextButton = false,
   allowTouchThrough = false,
   onClosed,
+  hideTooltip = false,
 }: WalkthroughOverlayProps) {
   const { t } = useTranslation();
   const onClosedRef = useRef(onClosed);
@@ -121,12 +124,13 @@ export default function WalkthroughOverlay({
   const isSwipeLeftInstructionStep = currentStep?.id === 'swipe-left-instruction';
   const isSwipeRightInstructionStep = currentStep?.id === 'swipe-right-instruction';
   const isFinalSavePromptStep = currentStep?.id === 'final-save-prompt';
+  const isFindTextStep = currentStep?.id === 'find-text';
   // Card interaction steps: stronger shadow so tooltip doesn't blend with the card
   const cardInteractionStepIds = ['flip-card', 'image-button', 'swipe-left-instruction', 'swipe-right-instruction'];
   const isCardInteractionStep = currentStep?.id ? cardInteractionStepIds.includes(currentStep.id) : false;
   // Note: final-save-prompt is NOT in canUseFallback - it requires actual button measurement
   const isFlipCardStep = currentStep?.id === 'flip-card';
-  const centeredModalSteps = isCongratulationsStep || isGoHomePromptStep || isFinalCongratulationsStep || isSwipeLeftInstructionStep || isSwipeRightInstructionStep || isFlipCardStep;
+  const centeredModalSteps = isCongratulationsStep || isGoHomePromptStep || isFinalCongratulationsStep || isSwipeLeftInstructionStep || isSwipeRightInstructionStep || isFlipCardStep || isFindTextStep;
   const canUseFallback = isCollectionsStep || isReviewButtonStep || isChooseTranslationStep || centeredModalSteps;
   const isLayoutReady = targetLayout || canUseFallback;
 
@@ -234,7 +238,7 @@ export default function WalkthroughOverlay({
   const layout = targetLayout || { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2, width: 100, height: 50 };
 
   // Center tooltip horizontally
-  // collections, review-button, choose-translation, congratulations, go-home-prompt, final-congratulations ALWAYS center
+  // collections, review-button, choose-translation, congratulations, go-home-prompt, final-congratulations, find-text ALWAYS center
   // All other steps (including final-save-prompt) position over the measured button
   const alwaysCenterSteps = isCollectionsStep || isReviewButtonStep || isChooseTranslationStep || centeredModalSteps;
   
@@ -306,73 +310,85 @@ export default function WalkthroughOverlay({
           />
         </Animated.View>
 
-        {/* Tooltip box positioned above the button */}
-        <Animated.View
-          style={[
-            styles.tooltipContainer,
-            isCardInteractionStep && styles.tooltipContainerCardStep,
-            {
-              left: tooltipLeft,
-              top: tooltipTop,
-              width: TOOLTIP_WIDTH,
-              opacity: combinedOpacity,
-              transform: centeredModalSteps ? [{ translateY: floatTranslateY }] : [],
-            },
-          ]}
-        >
-          {/* Skip button on the left */}
-          <TouchableOpacity
-            style={styles.skipButton}
-            onPress={onSkip}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        {/* When hideTooltip, only show Skip in top-right; otherwise show full tooltip */}
+        {hideTooltip ? (
+          <Animated.View style={[styles.skipButtonStandaloneWrap, { opacity: combinedOpacity }]}>
+            <TouchableOpacity
+              style={styles.skipButtonStandalone}
+              onPress={onSkip}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.skipButtonText}>{t('common.skip')}</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        ) : (
+          <Animated.View
+            style={[
+              styles.tooltipContainer,
+              isCardInteractionStep && styles.tooltipContainerCardStep,
+              {
+                left: tooltipLeft,
+                top: tooltipTop,
+                width: TOOLTIP_WIDTH,
+                opacity: combinedOpacity,
+                transform: centeredModalSteps ? [{ translateY: floatTranslateY }] : [],
+              },
+            ]}
           >
-            <Text style={styles.skipButtonText}>{t('common.skip')}</Text>
-          </TouchableOpacity>
+            {/* Skip button on the left */}
+            <TouchableOpacity
+              style={styles.skipButton}
+              onPress={onSkip}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.skipButtonText}>{t('common.skip')}</Text>
+            </TouchableOpacity>
 
-          {/* Tooltip content */}
-          <View style={styles.tooltipContent}>
-            <Text style={styles.tooltipTitle}>{currentStep.title}</Text>
-            <Text style={styles.tooltipDescription}>{currentStep.description}</Text>
+            {/* Tooltip content */}
+            <View style={styles.tooltipContent}>
+              <Text style={styles.tooltipTitle}>{currentStep.title}</Text>
+              <Text style={styles.tooltipDescription}>{currentStep.description}</Text>
 
-            {/* Action buttons - hidden when hideNextButton (user must complete action to advance) */}
-            {!hideNextButton && (
-              <View style={styles.actionButtons}>
-                {/* Back button - hidden on congratulations, go-home-prompt, and final-congratulations steps */}
-                {!centeredModalSteps && (
-                  <TouchableOpacity
-                    style={[styles.backButton, isFirstStep && styles.backButtonDisabled]}
-                    onPress={onPrevious}
-                    disabled={isFirstStep}
-                  >
-                    <Ionicons name="chevron-back" size={16} color={isFirstStep ? COLORS.darkGray : COLORS.primary} />
-                    <Text style={[styles.backButtonText, isFirstStep && styles.backButtonTextDisabled]}>{t('common.back')}</Text>
-                  </TouchableOpacity>
-                )}
+              {/* Action buttons - hidden when hideNextButton (user must complete action to advance) */}
+              {!hideNextButton && (
+                <View style={styles.actionButtons}>
+                  {/* Back button - hidden on congratulations, go-home-prompt, and final-congratulations steps */}
+                  {!centeredModalSteps && (
+                    <TouchableOpacity
+                      style={[styles.backButton, isFirstStep && styles.backButtonDisabled]}
+                      onPress={onPrevious}
+                      disabled={isFirstStep}
+                    >
+                      <Ionicons name="chevron-back" size={16} color={isFirstStep ? COLORS.darkGray : COLORS.primary} />
+                      <Text style={[styles.backButtonText, isFirstStep && styles.backButtonTextDisabled]}>{t('common.back')}</Text>
+                    </TouchableOpacity>
+                  )}
 
-                {/* Next/Done button */}
-                {isEffectivelyLastStep ? (
-                  <TouchableOpacity style={styles.doneButton} onPress={onDone}>
-                    <View style={styles.ctaButtonContent}>
-                      <Text style={styles.doneButtonText} numberOfLines={1} adjustsFontSizeToFit>
-                        {customNextLabel || t('common.done')}
-                      </Text>
-                      <Ionicons name="chevron-forward" size={22} color="#000" style={styles.ctaButtonArrow} />
-                    </View>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity style={styles.nextButton} onPress={onNext}>
-                    <View style={styles.ctaButtonContent}>
-                      <Text style={styles.nextButtonText} numberOfLines={1} adjustsFontSizeToFit>
-                        {customNextLabel || t('common.continue')}
-                      </Text>
-                      <Ionicons name="chevron-forward" size={22} color="#000" style={styles.ctaButtonArrow} />
-                    </View>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
-          </View>
-        </Animated.View>
+                  {/* Next/Done button */}
+                  {isEffectivelyLastStep ? (
+                    <TouchableOpacity style={styles.doneButton} onPress={onDone}>
+                      <View style={styles.ctaButtonContent}>
+                        <Text style={styles.doneButtonText} numberOfLines={1} adjustsFontSizeToFit>
+                          {customNextLabel || t('common.done')}
+                        </Text>
+                        <Ionicons name="chevron-forward" size={22} color="#000" style={styles.ctaButtonArrow} />
+                      </View>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity style={styles.nextButton} onPress={onNext}>
+                      <View style={styles.ctaButtonContent}>
+                        <Text style={styles.nextButtonText} numberOfLines={1} adjustsFontSizeToFit>
+                          {customNextLabel || t('common.continue')}
+                        </Text>
+                        <Ionicons name="chevron-forward" size={22} color="#000" style={styles.ctaButtonArrow} />
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+            </View>
+          </Animated.View>
+        )}
       </View>
     </Modal>
   );
@@ -417,6 +433,16 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 8,
   },
+  skipButtonStandaloneWrap: {
+    position: 'absolute',
+    top: 56,
+    right: 16,
+    zIndex: 10,
+  },
+  skipButtonStandalone: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
   skipButtonText: {
     fontFamily: FONTS.sansMedium,
     color: COLORS.textSecondary,
@@ -444,6 +470,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    alignSelf: 'stretch',
   },
   backButton: {
     flexDirection: 'row',
@@ -476,6 +503,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    flex: 1,
+    minWidth: 0,
   },
   ctaButtonContent: {
     flexDirection: 'row',
@@ -500,6 +529,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    flex: 1,
+    minWidth: 0,
   },
   doneButtonText: {
     fontFamily: FONTS.sansSemiBold,

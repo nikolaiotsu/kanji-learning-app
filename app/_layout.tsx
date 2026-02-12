@@ -91,12 +91,26 @@ function RootLayoutContent() {
   const [isLoadingVisible, setIsLoadingVisible] = useState(true);
   const [hasContentMounted, setHasContentMounted] = useState(false);
   const [showTransitionOverlay, setShowTransitionOverlay] = useState(false);
+  const [splashHidden, setSplashHidden] = useState(false);
   const loadingOpacity = useRef(new Animated.Value(1)).current;
   const fadeInOpacity = useRef(new Animated.Value(0)).current;
   const transitionOpacity = useRef(new Animated.Value(0)).current;
   const loadingStartTimeRef = useRef(Date.now());
   const { i18n } = useTranslation();
   const { showTransitionLoading, setShowTransitionLoading } = useTransitionLoading();
+
+  // Hide native splash and only then show our loading overlay so the app icon
+  // (with the memo/scanner graphic) never overlaps the loading video
+  useEffect(() => {
+    (async () => {
+      try {
+        await SplashScreen.hideAsync();
+      } catch {
+        // Splash may already be hidden
+      }
+      setSplashHidden(true);
+    })();
+  }, []);
 
   const [fontsLoaded] = useFonts({
     DMSans_400Regular,
@@ -297,7 +311,7 @@ function RootLayoutContent() {
             </View>
           )}
       </AppReadyProvider>
-      {(isLoadingVisible || showTransitionOverlay) && (
+      {splashHidden && (isLoadingVisible || showTransitionOverlay) && (
         <Animated.View
           style={[
             styles.loadingOverlay,
@@ -334,11 +348,6 @@ export default function RootLayout() {
   useEffect(() => {
     const unsubscribe = initializeSyncManager();
     return () => unsubscribe();
-  }, []);
-
-  // Hide native splash immediately — React has already committed; our loading overlay is in the tree
-  useEffect(() => {
-    SplashScreen.hideAsync();
   }, []);
 
   return (

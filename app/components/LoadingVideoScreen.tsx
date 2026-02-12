@@ -22,12 +22,24 @@ type LoadingVideoScreenProps = {
   compact?: boolean;
   /** If false, do not show any text (e.g. for app startup — video only). Default true. */
   showMessage?: boolean;
+  /**
+   * If false, use only a local player (do not use the preloaded context player).
+   * Use this on the first onboarding screen so it never shares a player with the loading overlay —
+   * one player attached to two VideoViews causes freezes on some platforms.
+   * Default true (use preloaded when available).
+   */
+  usePreloaded?: boolean;
 };
 
 const FLOAT_DISTANCE = 6;
 const FLOAT_DURATION = 1200;
 
-export default function LoadingVideoScreen({ message, compact = false, showMessage = true }: LoadingVideoScreenProps) {
+export default function LoadingVideoScreen({
+  message,
+  compact = false,
+  showMessage = true,
+  usePreloaded = true,
+}: LoadingVideoScreenProps) {
   const [hasError, setHasError] = useState(false);
   const floatAnim = useRef(new Animated.Value(0)).current;
   const preloadedPlayer = useLoadingVideoPlayer();
@@ -36,7 +48,7 @@ export default function LoadingVideoScreen({ message, compact = false, showMessa
     p.muted = true;
     // Playback started in useEffect below so we can pause on unmount
   });
-  const player = preloadedPlayer ?? localPlayer;
+  const player = usePreloaded && preloadedPlayer ? preloadedPlayer : localPlayer;
 
   // Start playback when this screen is visible; pause when unmounted to save battery
   useEffect(() => {
