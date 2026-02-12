@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, ActivityIndicator, Dimensions, Animated, ScrollView, Image } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, ActivityIndicator, Dimensions, Animated, Easing, ScrollView, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -95,6 +95,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady, onWalkthroug
   const [showTextInputModal, setShowTextInputModal] = useState(false);
   const [inputText, setInputText] = useState('');
   const [hasHighlightSelection, setHasHighlightSelection] = useState(false);
+  const [highlightDrawing, setHighlightDrawing] = useState(false);
   const [hideWalkthroughOverlay, setHideWalkthroughOverlay] = useState(false);
   const [highlightRegion, setHighlightRegion] = useState<{
     x: number;
@@ -198,6 +199,7 @@ const checkmarkButtonRef = useRef<View>(null);
 const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the second prompt
   const flipButtonRef = useRef<View>(null);
   const imageButtonRef = useRef<View>(null);
+  const cropConfirmingRef = useRef(false);
 
   // Define walkthrough steps (starting from rightmost button: camera)
   const walkthroughSteps: WalkthroughStep[] = [
@@ -300,6 +302,137 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     registerStep,
     updateStepLayout,
   } = useWalkthrough(walkthroughSteps);
+
+  // Crop hint (walkthrough): box opens like a cursor dragging from top-left to bottom-right
+  const CROP_HINT_BOX_WIDTH = 160;
+  const CROP_HINT_BOX_HEIGHT = 116;
+  const CROP_HINT_CURSOR_SIZE = 14;
+  const cropHintOpenAnim = useRef(new Animated.Value(0)).current;
+  const showCropDragHint =
+    isWalkthroughActive && currentStep?.id === 'crop' && cropModeActive && !hasCropSelection && !cropConfirmingRef.current;
+
+  // Rainbow cycle for crop hint (same as ImageHighlighter crop box)
+  const cropHintRainbowAnim = useRef(new Animated.Value(0)).current;
+  const CROP_HINT_RAINBOW_COLORS = ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#8B00FF', '#FF0000'];
+  const cropHintRainbowColor = cropHintRainbowAnim.interpolate({
+    inputRange: [0, 0.17, 0.33, 0.5, 0.67, 0.83, 1],
+    outputRange: CROP_HINT_RAINBOW_COLORS,
+  });
+  useEffect(() => {
+    if (!showCropDragHint) return;
+    const loop = Animated.loop(
+      Animated.timing(cropHintRainbowAnim, {
+        toValue: 1,
+        duration: 2000,
+        easing: Easing.linear,
+        useNativeDriver: false,
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [showCropDragHint, cropHintRainbowAnim]);
+
+  useEffect(() => {
+    if (!showCropDragHint) {
+      cropHintOpenAnim.setValue(0);
+      return;
+    }
+    const openDuration = 1200;
+    const closeDuration = 800;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(cropHintOpenAnim, {
+          toValue: 1,
+          duration: openDuration,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: false,
+        }),
+        Animated.delay(400),
+        Animated.timing(cropHintOpenAnim, {
+          toValue: 0,
+          duration: closeDuration,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: false,
+        }),
+        Animated.delay(300),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [showCropDragHint, cropHintOpenAnim]);
+  const cropHintBoxWidth = cropHintOpenAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, CROP_HINT_BOX_WIDTH],
+  });
+  const cropHintBoxHeight = cropHintOpenAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, CROP_HINT_BOX_HEIGHT],
+  });
+  const cropHintCursorLeft = cropHintOpenAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, CROP_HINT_BOX_WIDTH - CROP_HINT_CURSOR_SIZE],
+  });
+  const cropHintCursorTop = cropHintOpenAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, CROP_HINT_BOX_HEIGHT - CROP_HINT_CURSOR_SIZE],
+  });
+
+  // Highlight hint (walkthrough): stroke that "draws" like the highlighter — same shape (pill) and rainbow as ImageHighlighter
+  const HIGHLIGHT_HINT_STROKE_WIDTH = 20; // same as ImageHighlighter STROKE_WIDTH
+  const HIGHLIGHT_HINT_STROKE_LENGTH = 140;
+  const highlightHintDrawAnim = useRef(new Animated.Value(0)).current;
+  const showHighlightDrawHint =
+    isWalkthroughActive && currentStep?.id === 'highlight' && highlightModeActive && !hasHighlightSelection && !highlightDrawing;
+  const highlightHintRainbowAnim = useRef(new Animated.Value(0)).current;
+  const highlightHintRainbowColor = highlightHintRainbowAnim.interpolate({
+    inputRange: [0, 0.17, 0.33, 0.5, 0.67, 0.83, 1],
+    outputRange: CROP_HINT_RAINBOW_COLORS,
+  });
+  useEffect(() => {
+    if (!showHighlightDrawHint) return;
+    const loop = Animated.loop(
+      Animated.timing(highlightHintRainbowAnim, {
+        toValue: 1,
+        duration: 2000,
+        easing: Easing.linear,
+        useNativeDriver: false,
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [showHighlightDrawHint, highlightHintRainbowAnim]);
+  useEffect(() => {
+    if (!showHighlightDrawHint) {
+      highlightHintDrawAnim.setValue(0);
+      return;
+    }
+    const drawDuration = 900;
+    const undrawDuration = 600;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(highlightHintDrawAnim, {
+          toValue: 1,
+          duration: drawDuration,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: false,
+        }),
+        Animated.delay(400),
+        Animated.timing(highlightHintDrawAnim, {
+          toValue: 0,
+          duration: undrawDuration,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: false,
+        }),
+        Animated.delay(300),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [showHighlightDrawHint, highlightHintDrawAnim]);
+  const highlightHintStrokeWidth = highlightHintDrawAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, HIGHLIGHT_HINT_STROKE_LENGTH],
+  });
 
   const { setWalkthroughPhase, hideProgressBar } = useOnboardingProgress();
 
@@ -1701,6 +1834,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
 
   const confirmCrop = () => {
     if (cropModeActive && hasCropSelection && imageHighlighterRef.current) {
+      cropConfirmingRef.current = true;
       logger.log('[KanjiScanner] Confirming crop...');
       imageHighlighterRef.current.applyCrop();
       // ImageHighlighter's applyCrop calls onRegionSelected, which is handleRegionSelected here.
@@ -2162,6 +2296,14 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       setHasCropSelection(false);
     }
   }, [cropModeActive, hasCropSelection]);
+
+  useEffect(() => {
+    if (!cropModeActive) cropConfirmingRef.current = false;
+  }, [cropModeActive]);
+
+  useEffect(() => {
+    if (!highlightModeActive) setHighlightDrawing(false);
+  }, [highlightModeActive]);
 
   // Clear highlight when the screen comes into focus and restore original image if needed
   useFocusEffect(
@@ -2673,8 +2815,55 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
               setIsImageProcessing(false);
               hideGlobalOverlay('imageLoaded');
             }}
+            onHighlightDrawingChange={setHighlightDrawing}
           />
-          
+          {/* Walkthrough: cursor-drag crop box hint — box opens as if user is dragging (non-blocking) */}
+          {showCropDragHint && (
+            <View pointerEvents="none" style={styles.cropHintOverlay}>
+              <View style={[styles.cropHintStage, { width: CROP_HINT_BOX_WIDTH, height: CROP_HINT_BOX_HEIGHT }]}>
+                <Animated.View
+                  style={[
+                    styles.cropHintBox,
+                    {
+                      width: cropHintBoxWidth,
+                      height: cropHintBoxHeight,
+                      borderColor: cropHintRainbowColor,
+                    },
+                  ]}
+                />
+                <Animated.View
+                  style={[
+                    styles.cropHintCursor,
+                    {
+                      left: cropHintCursorLeft,
+                      top: cropHintCursorTop,
+                      width: CROP_HINT_CURSOR_SIZE,
+                      height: CROP_HINT_CURSOR_SIZE,
+                      borderRadius: CROP_HINT_CURSOR_SIZE / 2,
+                      backgroundColor: cropHintRainbowColor,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          )}
+          {/* Walkthrough: highlight stroke hint — draws like the highlighter (same shape & rainbow, non-blocking) */}
+          {showHighlightDrawHint && (
+            <View pointerEvents="none" style={styles.cropHintOverlay}>
+              <Animated.View
+                style={[
+                  styles.highlightHintStroke,
+                  {
+                    width: highlightHintStrokeWidth,
+                    height: HIGHLIGHT_HINT_STROKE_WIDTH,
+                    borderRadius: HIGHLIGHT_HINT_STROKE_WIDTH / 2,
+                    backgroundColor: highlightHintRainbowColor,
+                  },
+                ]}
+              />
+            </View>
+          )}
+
       <View style={styles.toolbar}>
         {/* Back Button (far left) */}
         <PokedexButton
@@ -3099,6 +3288,42 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#000000', // Black screen behind uploaded image
+  },
+  cropHintOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  cropHintStage: {
+    position: 'relative',
+  },
+  cropHintBox: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    borderWidth: 2,
+    borderColor: '#FBBF24',
+    borderStyle: 'dashed',
+    borderRadius: 6,
+    backgroundColor: 'rgba(251, 191, 36, 0.08)',
+  },
+  cropHintCursor: {
+    position: 'absolute',
+    backgroundColor: '#FBBF24',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  highlightHintStroke: {
+    opacity: 0.7,
+    transform: [{ rotate: '-6deg' }],
   },
   errorContainer: {
     backgroundColor: 'rgba(255, 45, 85, 0.8)',

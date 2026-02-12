@@ -102,6 +102,8 @@ interface ImageHighlighterProps {
   }) => void;
   onRotationStateChange?: (state: ImageHighlighterRotationState) => void;
   onImageLoaded?: () => void; // Called when the image has finished loading and is visible
+  /** Called when the user starts or stops drawing a highlight stroke (so parent can hide hint animation). */
+  onHighlightDrawingChange?: (drawing: boolean) => void;
 }
 
 // Let's define a type for our crop box to ensure type consistency
@@ -118,6 +120,8 @@ const CROP_HANDLE_TOUCH_AREA = 40;
 const ROTATION_SMOOTHING_FACTOR = 0.4; // New, for smoothing rotation during drag
 const EDGE_TOLERANCE = 50; // pixels outside image boundary for starting highlights/crops
 const STROKE_WIDTH = 20; // Width of the highlighter stroke
+/** Horizontal dead zone (left and right) so accidental hand touches don't extend the highlight to the screen edge */
+const HIGHLIGHT_DEAD_ZONE_EDGE = 44;
 /** Extra width when building composite mask polygons so adjacent strokes overlap (no white streaks). Keep moderate to avoid including adjacent text. */
 const COMPOSITE_MASK_STROKE_INFLATION = 10;
 /** Pixels to expand each composite polygon outward (minimal—prioritize accuracy over capturing edge chars) */
@@ -144,6 +148,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   onRegionSelected,
   onRotationStateChange,
   onImageLoaded,
+  onHighlightDrawingChange,
 }, ref) => {
   const { t } = useTranslation();
   const panResponderViewRef = React.useRef<View>(null); // ADDED HERE
@@ -604,6 +609,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
     },
     clearHighlightBox: () => {
       setIsDrawing(false);
+      onHighlightDrawingChange?.(false);
       setStrokes([]);
       setCurrentStroke([]);
       // Also reset any detected regions that might be displayed
@@ -1177,16 +1183,20 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       else if (highlightModeActiveRef.current) {
         const preciseX = pageX - offset.x;
         const preciseY = pageY - offset.y;
-        
-        const containerMinX = 0;
-        const containerMaxX = (layout?.width || 0) - 1; 
+        const w = layout?.width || 0;
+        if (preciseX < HIGHLIGHT_DEAD_ZONE_EDGE || preciseX > w - HIGHLIGHT_DEAD_ZONE_EDGE) {
+          return;
+        }
+        const containerMinX = HIGHLIGHT_DEAD_ZONE_EDGE;
+        const containerMaxX = w - HIGHLIGHT_DEAD_ZONE_EDGE;
         const containerMinY = 0;
-        const containerMaxY = (layout?.height || 0) - 1; 
-                
+        const containerMaxY = (layout?.height || 0) - 1;
+
         const clampedX = Math.max(containerMinX, Math.min(containerMaxX, preciseX));
         const clampedY = Math.max(containerMinY, Math.min(containerMaxY, preciseY));
-        
+
         setIsDrawing(true);
+        onHighlightDrawingChange?.(true);
         setCurrentStroke([{ x: clampedX, y: clampedY }]);
         lastPointTimeRef.current = Date.now();
       }
@@ -1315,15 +1325,15 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         }
         const preciseX = pageX - offset.x;
         const preciseY = pageY - offset.y;
-        
-        const containerMinX = 0;
-        const containerMaxX = (layout?.width || 0) - 1;
+        const w = layout?.width || 0;
+        const containerMinX = HIGHLIGHT_DEAD_ZONE_EDGE;
+        const containerMaxX = w - HIGHLIGHT_DEAD_ZONE_EDGE;
         const containerMinY = 0;
         const containerMaxY = (layout?.height || 0) - 1;
-        
+
         const clampedX = Math.max(containerMinX, Math.min(containerMaxX, preciseX));
         const clampedY = Math.max(containerMinY, Math.min(containerMaxY, preciseY));
-        
+
         setCurrentStroke(prev => [...prev, { x: clampedX, y: clampedY }]);
       }
     },
@@ -1369,7 +1379,8 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       
       if (isDrawingRef.current && highlightModeActiveRef.current) {
         setIsDrawing(false);
-        
+        onHighlightDrawingChange?.(false);
+
         const finalPreciseX = pageX - offset.x;
         const finalPreciseY = pageY - offset.y;
         
@@ -1468,7 +1479,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         });
       }
     },
-  }), [calculateAngleFromRefs, onRegionSelected]); // Minimal dependencies - refs handle the rest
+  }), [calculateAngleFromRefs, onRegionSelected, onHighlightDrawingChange]);
 
   // Helper function to convert points array to smooth SVG path using quadratic bezier curves
   const pointsToSVGPath = (points: Point[]): string => {
@@ -2234,6 +2245,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     borderWidth: 3,
     borderStyle: 'dashed',
+    borderRadius: 10,
     backgroundColor: 'rgba(200, 200, 200, 0.2)',
     pointerEvents: 'none',
   },
