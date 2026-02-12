@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Modal,
   TouchableOpacity,
   useWindowDimensions,
   Animated,
@@ -36,6 +35,14 @@ export async function getSignInPromptDismissed(): Promise<boolean> {
   return value === 'true';
 }
 
+/**
+ * SignInPrompt rendered as an absolute-positioned overlay instead of a native <Modal>.
+ *
+ * This avoids the well-known iOS issue where dismissing a native Modal briefly flashes
+ * a cached snapshot of whatever was behind it (e.g. the walkthrough "You're all set" step).
+ * By using a plain View overlay, we stay entirely in React's rendering layer and
+ * never enter the native modal stack at all.
+ */
 export default function SignInPrompt({
   visible,
   onDismiss,
@@ -46,7 +53,7 @@ export default function SignInPrompt({
   const { width } = useWindowDimensions();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // Fade in on mount (entrance animation only; exit is instant via animationType="none")
+  // Fade in when becoming visible
   useEffect(() => {
     if (visible) {
       fadeAnim.setValue(0);
@@ -64,71 +71,65 @@ export default function SignInPrompt({
   };
 
   const handleContinueAsGuest = () => {
-    // Dismiss modal immediately so it doesn't stay visible during async work
-    onDismiss();
     onContinueAsGuest();
-    setSignInPromptDismissed(true); // Persist in background; no need to block UI
+    onDismiss();
+    setSignInPromptDismissed(true);
   };
 
   if (!visible) return null;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      onRequestClose={onDismiss}
-    >
-      <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
-        <View style={[styles.card, { maxWidth: Math.min(width - 32, 360) }]}>
-          <Text style={styles.title}>
-            {t('signInPrompt.title', 'Create an Account')}
+    <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
+      <View style={[styles.card, { maxWidth: Math.min(width - 32, 360) }]}>
+        <Text style={styles.title}>
+          {t('signInPrompt.title', 'Create an Account')}
+        </Text>
+        <Text style={styles.subtitle}>
+          {t('signInPrompt.subtitle', 'Sign up to sync your cards across devices and never lose your progress.')}
+        </Text>
+        <View style={styles.bullets}>
+          <Text style={styles.bulletText}>
+            {t('signInPrompt.benefit1', '• Sync cards across all your devices')}
           </Text>
-          <Text style={styles.subtitle}>
-            {t('signInPrompt.subtitle', 'Sign up to sync your cards across devices and never lose your progress.')}
+          <Text style={styles.bulletText}>
+            {t('signInPrompt.benefit2', '• Backup your collection in the cloud')}
           </Text>
-          <View style={styles.bullets}>
-            <Text style={styles.bulletText}>
-              {t('signInPrompt.benefit1', '• Sync cards across all your devices')}
-            </Text>
-            <Text style={styles.bulletText}>
-              {t('signInPrompt.benefit2', '• Backup your collection in the cloud')}
-            </Text>
-            <Text style={styles.bulletText}>
-              {t('signInPrompt.benefit3', '• Pick up where you left off anytime')}
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={handleSignUp}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.primaryButtonText}>
-              {t('signInPrompt.signUp', 'Sign Up')}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={handleContinueAsGuest}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.secondaryButtonText}>
-              {t('signInPrompt.continueAsGuest', 'Continue as Guest')}
-            </Text>
-          </TouchableOpacity>
+          <Text style={styles.bulletText}>
+            {t('signInPrompt.benefit3', '• Pick up where you left off anytime')}
+          </Text>
         </View>
-      </Animated.View>
-    </Modal>
+        <TouchableOpacity
+          style={styles.primaryButton}
+          onPress={handleSignUp}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.primaryButtonText}>
+            {t('signInPrompt.signUp', 'Sign Up')}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          onPress={handleContinueAsGuest}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.secondaryButtonText}>
+            {t('signInPrompt.continueAsGuest', 'Continue as Guest')}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
+    zIndex: 9999,
+    elevation: 9999,
   },
   card: {
     backgroundColor: COLORS.surface,

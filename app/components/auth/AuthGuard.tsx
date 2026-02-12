@@ -67,8 +67,10 @@ export const AuthGuard = ({ children }: { children: React.ReactNode }) => {
     }
 
     // User is authenticated but tries to access login/signup/reset-password → go home (onboarding allowed for beta testing)
+    // Dismiss any modals/stack so home is shown as a normal screen (not as a modal from bottom), which also fixes card gestures.
     if (user && AUTH_ONLY_REDIRECT_SEGMENTS.includes(currentSegment)) {
       logger.log('🔐 [AuthGuard] User authenticated, redirecting from auth route to /');
+      router.dismissAll();
       router.replace('/');
       return;
     }
@@ -80,7 +82,7 @@ export const AuthGuard = ({ children }: { children: React.ReactNode }) => {
     }
 
     // First-time user: not authenticated and has not completed onboarding → show onboarding
-    const onboardingSegments = ['onboarding', 'onboarding-language', 'onboarding-why', 'onboarding-faster', 'onboarding-relevant', 'onboarding-educational'];
+    const onboardingSegments = ['onboarding', 'onboarding-language', 'onboarding-why', 'onboarding-time', 'onboarding-faster', 'onboarding-relevant', 'onboarding-educational'];
     if (!user && hasCompletedOnboarding === false && !onboardingSegments.includes(currentSegment)) {
       logger.log('🔐 [AuthGuard] First-time user, redirecting to /onboarding');
       router.replace('/onboarding');

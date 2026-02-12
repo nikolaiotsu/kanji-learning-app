@@ -79,7 +79,9 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   
   // Image fade animation
   const imageFadeAnim = useRef(new Animated.Value(0)).current;
-  
+  // Float animation for flip-card walkthrough arrows
+  const flipArrowFloatAnim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
     if (isSrsModeActive) {
       // Start rainbow animation
@@ -380,6 +382,39 @@ const readingsText = flashcard.readingsText;
       onPanResponderRelease: handleFlipGestureRelease,
     })
   ).current;
+
+  // Float animation for flip inward arrows (only when on flip-card walkthrough step)
+  useEffect(() => {
+    if (!isWalkthroughActive || currentWalkthroughStepId !== 'flip-card') {
+      flipArrowFloatAnim.setValue(0);
+      return;
+    }
+    const floatLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(flipArrowFloatAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(flipArrowFloatAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    floatLoop.start();
+    return () => floatLoop.stop();
+  }, [isWalkthroughActive, currentWalkthroughStepId, flipArrowFloatAnim]);
+
+  const flipArrowFloatTranslateY = useMemo(
+    () =>
+      flipArrowFloatAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, -10],
+      }),
+    [flipArrowFloatAnim]
+  );
 
   const rightEdgePanResponder = useRef(
     PanResponder.create({
@@ -792,9 +827,34 @@ const readingsText = flashcard.readingsText;
                 />
               )}
             </View>
+            {/* Full-height yellow highlight for flip walkthrough (fills lower part too); touch zones sit on top */}
+            {isWalkthroughActive && currentWalkthroughStepId === 'flip-card' && (
+              <View style={styles.flipZoneFullHeightHighlightContainer} pointerEvents="none">
+                <View style={[styles.flipZoneFullHeightHighlight, styles.flipZoneFullHeightHighlightLeft]} />
+                <View style={[styles.flipZoneFullHeightHighlight, styles.flipZoneFullHeightHighlightRight]} />
+                <Animated.View style={[styles.flipZoneArrowWrap, styles.flipZoneArrowLeft, { transform: [{ translateY: flipArrowFloatTranslateY }] }]}>
+                  <Ionicons name="chevron-forward" size={28} color="#1a1a1a" />
+                </Animated.View>
+                <Animated.View style={[styles.flipZoneArrowWrap, styles.flipZoneArrowRight, { transform: [{ translateY: flipArrowFloatTranslateY }] }]}>
+                  <Ionicons name="chevron-back" size={28} color="#1a1a1a" />
+                </Animated.View>
+              </View>
+            )}
             {/* Edge flip zones - swipe inward from left or right edge to flip */}
-            <View style={styles.leftEdgeZone} {...leftEdgePanResponder.panHandlers} />
-            <View style={styles.rightEdgeZone} {...rightEdgePanResponder.panHandlers} />
+            <View
+              style={[
+                styles.leftEdgeZone,
+                isWalkthroughActive && currentWalkthroughStepId === 'flip-card' && styles.flipZoneWalkthroughHighlight,
+              ]}
+              {...leftEdgePanResponder.panHandlers}
+            />
+            <View
+              style={[
+                styles.rightEdgeZone,
+                isWalkthroughActive && currentWalkthroughStepId === 'flip-card' && styles.flipZoneWalkthroughHighlight,
+              ]}
+              {...rightEdgePanResponder.panHandlers}
+            />
             </View>
           </View>
         </Animated.View>
@@ -1001,9 +1061,34 @@ const readingsText = flashcard.readingsText;
                 />
               )}
             </View>
+            {/* Full-height yellow highlight for flip walkthrough (fills lower part too); touch zones sit on top */}
+            {isWalkthroughActive && currentWalkthroughStepId === 'flip-card' && (
+              <View style={styles.flipZoneFullHeightHighlightContainer} pointerEvents="none">
+                <View style={[styles.flipZoneFullHeightHighlight, styles.flipZoneFullHeightHighlightLeft]} />
+                <View style={[styles.flipZoneFullHeightHighlight, styles.flipZoneFullHeightHighlightRight]} />
+                <Animated.View style={[styles.flipZoneArrowWrap, styles.flipZoneArrowLeft, { transform: [{ translateY: flipArrowFloatTranslateY }] }]}>
+                  <Ionicons name="chevron-forward" size={28} color="#1a1a1a" />
+                </Animated.View>
+                <Animated.View style={[styles.flipZoneArrowWrap, styles.flipZoneArrowRight, { transform: [{ translateY: flipArrowFloatTranslateY }] }]}>
+                  <Ionicons name="chevron-back" size={28} color="#1a1a1a" />
+                </Animated.View>
+              </View>
+            )}
             {/* Edge flip zones - swipe inward from left or right edge to flip */}
-            <View style={styles.leftEdgeZone} {...leftEdgePanResponder.panHandlers} />
-            <View style={styles.rightEdgeZone} {...rightEdgePanResponder.panHandlers} />
+            <View
+              style={[
+                styles.leftEdgeZone,
+                isWalkthroughActive && currentWalkthroughStepId === 'flip-card' && styles.flipZoneWalkthroughHighlight,
+              ]}
+              {...leftEdgePanResponder.panHandlers}
+            />
+            <View
+              style={[
+                styles.rightEdgeZone,
+                isWalkthroughActive && currentWalkthroughStepId === 'flip-card' && styles.flipZoneWalkthroughHighlight,
+              ]}
+              {...rightEdgePanResponder.panHandlers}
+            />
             </View>
           </View>
         </Animated.View>
@@ -1175,6 +1260,44 @@ const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean
     bottom: 64, // Stop above action buttons so they remain tappable
     width: 50,
     zIndex: 20,
+  },
+  flipZoneWalkthroughHighlight: {
+    backgroundColor: 'rgba(251, 191, 36, 0.45)',
+  },
+  flipZoneFullHeightHighlightContainer: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 19,
+  },
+  flipZoneFullHeightHighlight: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 50,
+    backgroundColor: 'rgba(251, 191, 36, 0.45)',
+  },
+  flipZoneFullHeightHighlightLeft: {
+    left: 0,
+  },
+  flipZoneFullHeightHighlightRight: {
+    right: 0,
+  },
+  flipZoneArrowWrap: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  flipZoneArrowLeft: {
+    left: 0,
+  },
+  flipZoneArrowRight: {
+    right: 0,
   },
   scrollContainer: {
     flex: 1,

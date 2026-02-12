@@ -2121,7 +2121,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
 
         {/* Walkthrough Overlay */}
         <WalkthroughOverlay
-          visible={isWalkthroughActive && !hideWalkthroughOverlay}
+          visible={isWalkthroughActive && !hideWalkthroughOverlay && currentStep?.id !== 'choose-translation'}
           currentStep={currentStep}
           currentStepIndex={currentStepIndex}
           totalSteps={totalSteps}

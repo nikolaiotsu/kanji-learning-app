@@ -122,45 +122,53 @@ export default function App() {
   // This ensures instant visibility when navigating back (no delay)
 
   return (
-    <PokedexLayout 
-      logoSource={logoUri ? { uri: logoUri } : worddexLogo}
-      logoVisible={logoVisible}
-      showLights={true}
-      logoStyle={{ 
-        width: 80,
-        height: 65,
-        right: 20,
-        top: 0
-      }}
-      triggerLightAnimation={triggerLightAnimation}
-    >
-      <View
-        ref={containerRef}
-        style={styles.container}
-        onLayout={handleContainerLayout}
+    <View style={styles.root}>
+      <PokedexLayout 
+        logoSource={logoUri ? { uri: logoUri } : worddexLogo}
+        logoVisible={logoVisible}
+        showLights={true}
+        logoStyle={{ 
+          width: 80,
+          height: 65,
+          right: 20,
+          top: 0
+        }}
+        triggerLightAnimation={triggerLightAnimation}
       >
-        <OnboardingProgressBar topOffset={progressBarTop} />
-        <KanjiScanner
-          onCardSwipe={handleCardSwipe}
-          onContentReady={handleContentReady}
-          onWalkthroughComplete={handleWalkthroughComplete}
-          canStartWalkthrough={canStartWalkthrough}
-          blockTouchesBeforeWalkthrough={params.walkthrough === 'true' && canStartWalkthrough}
-          isSignInPromptVisible={showSignInPrompt}
-          continueWalkthrough={params.continueWalkthrough === 'true'}
-          onHeaderLayout={handleHeaderLayout}
-        />
-      </View>
+        <View
+          ref={containerRef}
+          style={styles.container}
+          onLayout={handleContainerLayout}
+        >
+          <OnboardingProgressBar topOffset={progressBarTop} />
+          <KanjiScanner
+            onCardSwipe={handleCardSwipe}
+            onContentReady={handleContentReady}
+            onWalkthroughComplete={handleWalkthroughComplete}
+            canStartWalkthrough={canStartWalkthrough}
+            blockTouchesBeforeWalkthrough={params.walkthrough === 'true' && canStartWalkthrough}
+            isSignInPromptVisible={showSignInPrompt}
+            continueWalkthrough={params.continueWalkthrough === 'true'}
+            onHeaderLayout={handleHeaderLayout}
+          />
+        </View>
+      </PokedexLayout>
+      {/* SignInPrompt is rendered OUTSIDE PokedexLayout as an absolute overlay
+          so it covers the full screen. Using a View overlay instead of a native
+          <Modal> eliminates the iOS snapshot-flashing issue entirely. */}
       <SignInPrompt
         visible={showSignInPrompt}
         onDismiss={() => setShowSignInPrompt(false)}
         onContinueAsGuest={handleContinueAsGuest}
       />
-    </PokedexLayout>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     // Remove all shading effects

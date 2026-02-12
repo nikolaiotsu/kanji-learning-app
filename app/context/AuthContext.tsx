@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { Alert } from 'react-native';
+import { Alert, InteractionManager } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Session, User } from '@supabase/supabase-js';
 import * as authService from '../services/authService';
@@ -60,12 +60,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   const setGuestMode = async (value: boolean) => {
+    // Set React state synchronously first so AuthGuard sees the change immediately
+    // (prevents brief redirect to /login before async storage write completes)
+    setIsGuestState(value);
     try {
       await AsyncStorage.setItem(GUEST_MODE_STORAGE_KEY, value ? 'true' : 'false');
-      setIsGuestState(value);
     } catch (e) {
       logger.error('Failed to persist guest mode:', e);
-      setIsGuestState(value);
     }
   };
 
@@ -176,40 +177,45 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         
         // For SIGNED_IN events, we need to complete migration BEFORE setting user state.
         // Otherwise UI components will fetch cards before migration finishes.
+        // Defer with InteractionManager so we don't block the UI when returning from OAuth browser.
         if (event === 'SIGNED_IN' && session?.user) {
-          logger.log('🔐 [AuthContext] SIGNED_IN - checking for guest data migration first...');
+          logger.log('🔐 [AuthContext] SIGNED_IN - deferring guest data migration...');
           setSession(session);
           setIsOfflineMode(false);
-          // Keep isLoading true until migration completes
-          
-          await clearGuestMode();
-          await storeUserIdOffline(session.user.id);
-          
-          const hadLocal = await hasLocalDataToMigrate();
-          if (hadLocal) {
-            try {
-              logger.log('🔄 [AuthContext] Migrating guest data before setting user state...');
-              await migrateLocalDataToSupabase(session.user.id);
-              Alert.alert('Synced', 'Your cards have been synced to your account.');
-            } catch (migErr) {
-              const msg = migErr instanceof Error ? migErr.message : String(migErr);
-              logger.error('Migration on sign-in failed:', msg, migErr);
-              Alert.alert(
-                'Sync issue',
-                'Guest cards could not be synced to your account. You can try again later or use your existing cards. ' + (msg ? `(${msg})` : '')
-              );
-            }
-          }
-          
-          // NOW set user state - UI will fetch cards after migration is done
-          logger.log('🔐 [AuthContext] Migration complete, setting user state...');
-          setUser(session.user);
-          setIsLoading(false);
-          logger.log('✅ [AuthContext] Auth state updated (after migration)');
-          
-          logger.log('🔄 [AuthContext] User signed in via auth state change, syncing cache...');
-          syncAllUserData().catch(err => {
-            logger.error('❌ [AuthContext] Failed to sync user data after auth state change:', err);
+          const signedInUser = session.user;
+
+          InteractionManager.runAfterInteractions(() => {
+            (async () => {
+              try {
+                await clearGuestMode();
+                await storeUserIdOffline(signedInUser.id);
+                const hadLocal = await hasLocalDataToMigrate();
+                if (hadLocal) {
+                  try {
+                    logger.log('🔄 [AuthContext] Migrating guest data before setting user state...');
+                    await migrateLocalDataToSupabase(signedInUser.id);
+                    Alert.alert('Synced', 'Your cards have been synced to your account.');
+                  } catch (migErr) {
+                    const msg = migErr instanceof Error ? migErr.message : String(migErr);
+                    logger.error('Migration on sign-in failed:', msg, migErr);
+                    Alert.alert(
+                      'Sync issue',
+                      'Guest cards could not be synced to your account. You can try again later or use your existing cards. ' + (msg ? `(${msg})` : '')
+                    );
+                  }
+                }
+                logger.log('🔐 [AuthContext] Migration complete, setting user state...');
+              } catch (err) {
+                logger.error('🔐 [AuthContext] Error during sign-in migration/setup:', err);
+              } finally {
+                setUser(signedInUser);
+                setIsLoading(false);
+                logger.log('✅ [AuthContext] Auth state updated (after migration)');
+                syncAllUserData().catch(syncErr => {
+                  logger.error('❌ [AuthContext] Failed to sync user data after auth state change:', syncErr);
+                });
+              }
+            })();
           });
         } else {
           // For all other events (SIGNED_OUT, TOKEN_REFRESHED, etc.), set state immediately

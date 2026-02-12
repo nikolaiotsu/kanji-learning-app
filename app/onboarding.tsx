@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: FONTS.sansBold,
-    fontSize: 34,
+    fontSize: 31,
     fontWeight: '700',
     color: COLORS.text,
     textAlign: 'left',
@@ -133,9 +133,9 @@ const styles = StyleSheet.create({
   subtitle: {
     fontFamily: FONTS.sans,
     flex: 1,
-    fontSize: 22,
+    fontSize: 20,
     color: COLORS.text,
-    lineHeight: 32,
+    lineHeight: 30,
     opacity: 0.9,
   },
   button: {

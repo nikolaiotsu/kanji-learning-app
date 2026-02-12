@@ -46,6 +46,8 @@ import { hasEnergyBarsRemaining } from '../../utils/walkthroughEnergyCheck';
 
 import { logger } from '../../utils/logger';
 import * as Haptics from 'expo-haptics';
+
+
 interface KanjiScannerProps {
   onCardSwipe?: () => void;
   onContentReady?: (isReady: boolean) => void;
@@ -317,6 +319,10 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   const [walkthroughJustCompleted, setWalkthroughJustCompleted] = useState(false);
   // Once walkthrough has ended (completed or skipped), never show the pre-walkthrough touch block again
   const walkthroughEverEndedRef = useRef(false);
+  // When true, the WalkthroughOverlay has fully closed and been removed from the tree.
+  // This prevents the native iOS Modal stack from flashing stale overlay content
+  // when a later modal (e.g. SignInPrompt) is dismissed.
+  const [walkthroughOverlayDismissed, setWalkthroughOverlayDismissed] = useState(false);
   // When user taps Done on final step, we defer onWalkthroughComplete until overlay has finished closing (avoids modal flash)
   const pendingFinalStepCompleteRef = useRef(false);
   const handleWalkthroughDone = useCallback(() => {
@@ -329,8 +335,12 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     hideProgressBar();
   }, [completeWalkthrough, setWalkthroughPhase, hideProgressBar]);
   const handleWalkthroughOverlayClosed = useCallback(() => {
+    // Only unmount the overlay when we're actually ending the walkthrough (user tapped Done on final step).
     if (pendingFinalStepCompleteRef.current) {
       pendingFinalStepCompleteRef.current = false;
+      setWalkthroughOverlayDismissed(true);
+      // SignInPrompt is now a regular View overlay (not a native Modal), so there's no
+      // native modal stacking issue. We can notify the parent immediately.
       logger.log('[KanjiScanner] Walkthrough overlay closed - calling onWalkthroughComplete with fromFinalStep: true');
       onWalkthroughComplete?.({ fromFinalStep: true });
     }
@@ -338,6 +348,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
 
   const handleSkipWalkthrough = useCallback(() => {
     walkthroughEverEndedRef.current = true;
+    setWalkthroughOverlayDismissed(true);
     hideProgressBar();
     skipWalkthrough();
   }, [skipWalkthrough, hideProgressBar]);
@@ -2538,7 +2549,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 size="medium"
                 shape="square"
                 style={styles.rowButton}
-                disabled={!isConnected || localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'custom-card')}
+                disabled={isAPILimitExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'custom-card')}
                 darkDisabled={isAPILimitExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
               />
             </View>
@@ -2592,7 +2603,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 shape="square"
                 style={styles.rowButton}
                 disabled={
-                  !isConnected || localProcessing || isImageProcessing ||
+                  isAPILimitExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing ||
                   (isWalkthroughActive && currentStep?.id !== 'gallery' && currentStep?.id !== 'gallery-confirm')
                 }
                 darkDisabled={isAPILimitExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
@@ -3042,10 +3053,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Walkthrough Overlay - completely excluded from tree when navigating to prevent flash */}
-      {/* Debug log for walkthrough visibility */}
-      {(() => { console.log('[DEBUG KanjiScanner Walkthrough] visible check:', { isWalkthroughActive, hideWalkthroughOverlay, isNavigatingToFlashcards, isNavigatingRef: isNavigatingToFlashcardsRef.current, shouldRender: !isNavigatingToFlashcards && !isNavigatingToFlashcardsRef.current, currentStepId: currentStep?.id }); return null; })()}
-      {!isNavigatingToFlashcards && !isNavigatingToFlashcardsRef.current && (
+      {/* Walkthrough Overlay - completely excluded from tree when navigating or after walkthrough ends to prevent native Modal flash */}
+      {!walkthroughOverlayDismissed && !isNavigatingToFlashcards && !isNavigatingToFlashcardsRef.current && (
         <WalkthroughOverlay
           visible={isWalkthroughActive && !hideWalkthroughOverlay && !isImageProcessing && !isGlobalOverlayVisible}
           currentStep={currentStep}

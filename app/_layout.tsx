@@ -276,6 +276,7 @@ function RootLayoutContent() {
                               <Stack.Screen name="onboarding" options={{ headerShown: false }} />
                               <Stack.Screen name="onboarding-language" options={{ headerShown: false }} />
                               <Stack.Screen name="onboarding-why" options={{ headerShown: false }} />
+                              <Stack.Screen name="onboarding-time" options={{ headerShown: false }} />
                               <Stack.Screen name="onboarding-faster" options={{ headerShown: false }} />
                               <Stack.Screen name="onboarding-relevant" options={{ headerShown: false }} />
                               <Stack.Screen name="onboarding-educational" options={{ headerShown: false }} />

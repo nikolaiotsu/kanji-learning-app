@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: FONTS.sansBold,
-    fontSize: 24,
+    fontSize: 27,
     fontWeight: '700',
     color: COLORS.text,
     textAlign: 'left',
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
   },
   languageButtonText: {
     fontFamily: FONTS.sansMedium,
-    fontSize: 15,
+    fontSize: 20,
     color: COLORS.text,
     fontWeight: '500',
   },
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontFamily: FONTS.sansBold,
-    fontSize: 17,
+    fontSize: 22,
     fontWeight: 'bold',
     color: COLORS.text,
   },
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
   },
   languageText: {
     fontFamily: FONTS.sans,
-    fontSize: 15,
+    fontSize: 20,
     color: COLORS.text,
   },
   selectedLanguageText: {

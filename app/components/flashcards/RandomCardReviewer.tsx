@@ -2798,7 +2798,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                   <Ionicons name="refresh" size={80} color={COLORS.text} />
                 </Animated.View>
               )}
-              {/* Walkthrough: translucent yellow swipe hint (arrow animation) when on swipe-left or swipe-right step */}
+              {/* Walkthrough: yellow on whole card except the flip zones (left/right 50px) */}
               {isWalkthroughActive && (currentWalkthroughStepId === 'swipe-left-instruction' || currentWalkthroughStepId === 'swipe-right-instruction') && (
                 <Animated.View
                   style={[styles.swipeOverlay, styles.walkthroughSwipeHintOverlay]}
@@ -3144,8 +3144,19 @@ const createStyles = (
   swipeOverlayLeft: {
     backgroundColor: COLORS.secondary,
   },
+  /** Whole card except flip zones (left 50px + right 50px) — swipe gesture area only */
   walkthroughSwipeHintOverlay: {
-    backgroundColor: 'rgba(251, 191, 36, 0.38)',
+    position: 'absolute',
+    left: 50,
+    right: 50,
+    top: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(251, 191, 36, 0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    zIndex: 100,
+    elevation: 100,
   },
   transitionLoadingOverlay: {
     ...StyleSheet.absoluteFillObject,

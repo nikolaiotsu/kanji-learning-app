@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   },
   titleText: {
     fontFamily: FONTS.sansBold,
-    fontSize: 24,
+    fontSize: 27,
     fontWeight: '700',
     color: COLORS.text,
     letterSpacing: -0.5,
@@ -174,10 +174,10 @@ const styles = StyleSheet.create({
   subtitle: {
     fontFamily: FONTS.sans,
     flex: 1,
-    fontSize: 18,
+    fontSize: 20,
     color: COLORS.text,
     textAlign: 'left',
-    lineHeight: 26,
+    lineHeight: 30,
     opacity: 0.9,
   },
   arrowContainer: {

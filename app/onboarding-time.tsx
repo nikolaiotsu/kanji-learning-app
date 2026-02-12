@@ -17,19 +17,20 @@ import { FONTS } from './constants/typography';
 import LoadingVideoScreen from './components/LoadingVideoScreen';
 import OnboardingProgressBar from './components/shared/OnboardingProgressBar';
 
-const REASON_OPTIONS = [
-  { id: 'work', emoji: '💼', labelKey: 'onboarding.whyWork' },
-  { id: 'travel', emoji: '✈️', labelKey: 'onboarding.whyTravel' },
-  { id: 'people', emoji: '❤️', labelKey: 'onboarding.whyPeople' },
+const TIME_OPTIONS = [
+  { id: '5', timeKey: 'onboarding.time5Min', labelKey: 'onboarding.timeCasual' },
+  { id: '10', timeKey: 'onboarding.time10Min', labelKey: 'onboarding.timeRegular' },
+  { id: '15', timeKey: 'onboarding.time15Min', labelKey: 'onboarding.timeSerious' },
+  { id: '20', timeKey: 'onboarding.time20Min', labelKey: 'onboarding.timeIntense' },
 ];
 
-export default function OnboardingWhyScreen() {
+export default function OnboardingTimeScreen() {
   const { t } = useTranslation();
   const { setOnboardingStep } = useOnboardingProgress();
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
-    setOnboardingStep('onboarding-why');
+    setOnboardingStep('onboarding-time');
   }, [setOnboardingStep]);
 
   useEffect(() => {
@@ -38,20 +39,8 @@ export default function OnboardingWhyScreen() {
     }
   }, []);
 
-  const toggleOption = (id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
-
   const handleContinue = () => {
-    router.push('/onboarding-time');
+    router.push('/onboarding-faster');
   };
 
   return (
@@ -64,17 +53,19 @@ export default function OnboardingWhyScreen() {
             <LoadingVideoScreen compact />
           </View>
           <View style={styles.textBlock}>
-            <Text style={styles.title}>{t('onboarding.whyTitle')}</Text>
-            {REASON_OPTIONS.map((option) => {
-              const isSelected = selected.has(option.id);
+            <Text style={styles.title}>{t('onboarding.timeTitle')}</Text>
+            {TIME_OPTIONS.map((option) => {
+              const isSelected = selectedId === option.id;
               return (
                 <TouchableOpacity
                   key={option.id}
                   style={[styles.optionButton, isSelected && styles.optionButtonSelected]}
-                  onPress={() => toggleOption(option.id)}
+                  onPress={() => setSelectedId(option.id)}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.optionEmoji}>{option.emoji}</Text>
+                  <Text style={[styles.optionTime, isSelected && styles.optionTimeSelected]}>
+                    {t(option.timeKey)}
+                  </Text>
                   <Text style={[styles.optionLabel, isSelected && styles.optionLabelSelected]}>
                     {t(option.labelKey)}
                   </Text>
@@ -83,12 +74,13 @@ export default function OnboardingWhyScreen() {
             })}
           </View>
           <TouchableOpacity
-            style={styles.button}
+            style={[styles.button, !selectedId && styles.buttonDisabled]}
             onPress={handleContinue}
             activeOpacity={0.8}
+            disabled={!selectedId}
           >
             <View style={styles.buttonContent}>
-              <Text style={styles.buttonText}>{t('onboarding.whyCta')}</Text>
+              <Text style={styles.buttonText}>{t('onboarding.timeCta')}</Text>
               <Ionicons name="chevron-forward" size={22} color={COLORS.text} style={styles.buttonArrow} />
             </View>
           </TouchableOpacity>
@@ -133,6 +125,7 @@ const styles = StyleSheet.create({
   optionButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: COLORS.background,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -145,15 +138,21 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
     backgroundColor: COLORS.primary + '22',
   },
-  optionEmoji: {
-    fontSize: 22,
-    marginRight: 12,
-  },
-  optionLabel: {
+  optionTime: {
     fontFamily: FONTS.sansMedium,
     fontSize: 20,
     color: COLORS.text,
     fontWeight: '500',
+  },
+  optionTimeSelected: {
+    fontFamily: FONTS.sansSemiBold,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  optionLabel: {
+    fontFamily: FONTS.sans,
+    fontSize: 20,
+    color: COLORS.textSecondary,
   },
   optionLabelSelected: {
     fontFamily: FONTS.sansSemiBold,
@@ -173,6 +172,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 8,
     elevation: 6,
+  },
+  buttonDisabled: {
+    opacity: 0.5,
   },
   buttonContent: {
     flexDirection: 'row',

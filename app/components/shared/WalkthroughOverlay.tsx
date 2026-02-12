@@ -428,16 +428,16 @@ const styles = StyleSheet.create({
   },
   tooltipTitle: {
     fontFamily: FONTS.sansBold,
-    fontSize: 20,
+    fontSize: 26,
     fontWeight: '700',
     color: COLORS.text,
     marginBottom: 8,
   },
   tooltipDescription: {
     fontFamily: FONTS.sans,
-    fontSize: 16,
+    fontSize: 20,
     color: COLORS.textSecondary,
-    lineHeight: 24,
+    lineHeight: 30,
     marginBottom: 16,
   },
   actionButtons: {

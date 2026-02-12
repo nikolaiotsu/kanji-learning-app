@@ -1,18 +1,19 @@
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 
-const TOTAL_STEPS = 34;
-// Onboarding: 0-5 (6 steps)
-// Home walkthrough: 6-18 (13 steps)
-// Flashcard walkthrough: 19-27 (9 steps)
-// Card interaction walkthrough: 28-33 (6 steps)
+const TOTAL_STEPS = 35;
+// Onboarding: 0-6 (7 steps)
+// Home walkthrough: 7-19 (13 steps)
+// Flashcard walkthrough: 20-28 (9 steps)
+// Card interaction walkthrough: 29-34 (6 steps)
 
 const ONBOARDING_STEP_MAP: Record<string, number> = {
   onboarding: 0,
   'onboarding-language': 1,
   'onboarding-why': 2,
-  'onboarding-faster': 3,
-  'onboarding-relevant': 4,
-  'onboarding-educational': 5,
+  'onboarding-time': 3,
+  'onboarding-faster': 4,
+  'onboarding-relevant': 5,
+  'onboarding-educational': 6,
 };
 
 type WalkthroughPhase = 'home' | 'flashcards' | 'cardInteraction';
@@ -48,7 +49,7 @@ export function OnboardingProgressProvider({ children }: { children: React.React
   }, []);
 
   const setWalkthroughPhase = useCallback((phase: WalkthroughPhase, stepIndex: number) => {
-    const baseStep = phase === 'home' ? 6 : phase === 'flashcards' ? 19 : 28;
+    const baseStep = phase === 'home' ? 7 : phase === 'flashcards' ? 20 : 29;
     const absoluteStep = baseStep + stepIndex;
     setCurrentStep(Math.min(absoluteStep, TOTAL_STEPS - 1));
     setIsProgressBarVisible(true);
