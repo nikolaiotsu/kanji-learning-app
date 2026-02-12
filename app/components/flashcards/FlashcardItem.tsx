@@ -44,6 +44,8 @@ interface FlashcardItemProps {
   /** Walkthrough state for highlighting buttons during card interaction steps */
   isWalkthroughActive?: boolean;
   currentWalkthroughStepId?: string;
+  /** When true, show a flip button beside the image button and disable edge flip gesture (e.g. in Your Collections where cards swipe left/right) */
+  showFlipButton?: boolean;
 }
 
 const FlashcardItem: React.FC<FlashcardItemProps> = ({ 
@@ -66,6 +68,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   imageButtonRef,
   isWalkthroughActive = false,
   currentWalkthroughStepId,
+  showFlipButton = false,
 }) => {
   const { t } = useTranslation();
   const { targetLanguage } = useSettings();
@@ -275,13 +278,26 @@ const readingsText = flashcard.readingsText;
     setNeedsRomanization(readingsText.length > 0);
   }, [flashcard.readingsText]);
 
-  // Function to handle card flipping
+  // Function to handle card flipping (used by edge gesture; respects disableTouchHandling)
   const handleFlip = () => {
     if (disableTouchHandling) return;
     
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
     // Animate the flip
+    Animated.timing(flipAnim, {
+      toValue: isFlipped ? 0 : 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      setIsFlipped(!isFlipped);
+      onFlip?.();
+    });
+  };
+
+  // Flip via button (used when showFlipButton is true; always flips regardless of disableTouchHandling)
+  const handleFlipButtonPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Animated.timing(flipAnim, {
       toValue: isFlipped ? 0 : 1,
       duration: 300,
@@ -800,6 +816,19 @@ const readingsText = flashcard.readingsText;
             </ScrollView>
             {/* Bottom right actions - flip with front */}
             <View style={styles.bottomRightActionsContainer}>
+              {showFlipButton && (
+                <View ref={flipButtonRef} collapsable={false}>
+                  <PokedexButton
+                    onPress={handleFlipButtonPress}
+                    materialIcon="flip"
+                    iconColor="black"
+                    color="grey"
+                    size="small"
+                    shape="square"
+                    style={styles.flashcardActionButton}
+                  />
+                </View>
+              )}
               {flashcard.imageUrl && (
                 <View ref={imageButtonRef} collapsable={false}>
                   <PokedexButton
@@ -1036,6 +1065,17 @@ const readingsText = flashcard.readingsText;
             )}
             {/* Bottom right actions - flip with back */}
             <View style={styles.bottomRightActionsContainer}>
+              {showFlipButton && (
+                <PokedexButton
+                  onPress={handleFlipButtonPress}
+                  materialIcon="flip"
+                  iconColor="black"
+                  color="grey"
+                  size="small"
+                  shape="square"
+                  style={styles.flashcardActionButton}
+                />
+              )}
               {flashcard.imageUrl && (
                 <PokedexButton
                   onPress={toggleShowImage}

@@ -920,6 +920,8 @@ export default function SavedFlashcardsScreen() {
         disableBackdropOverlay={true}
         useScreenBackground={true}
         onImageLoadFailed={handleImageLoadFailed}
+        disableTouchHandling={true}
+        showFlipButton={true}
       />
     );
   };

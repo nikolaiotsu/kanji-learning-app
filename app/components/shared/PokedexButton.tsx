@@ -8,7 +8,7 @@ import {
   View
 } from 'react-native';
 import { COLORS } from '../../constants/colors';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import { createPokedexTextStyle } from '../../utils/styleUtils';
 import * as Haptics from 'expo-haptics';
 
@@ -17,6 +17,7 @@ interface PokedexButtonProps {
   title?: string;
   icon?: keyof typeof Ionicons.glyphMap;
   materialCommunityIcon?: keyof typeof MaterialCommunityIcons.glyphMap;
+  materialIcon?: keyof typeof MaterialIcons.glyphMap;
   style?: ViewStyle;
   textStyle?: TextStyle;
   color?: string;
@@ -32,6 +33,7 @@ export default function PokedexButton({
   title,
   icon,
   materialCommunityIcon,
+  materialIcon,
   style,
   textStyle,
   color,
@@ -142,7 +144,7 @@ export default function PokedexButton({
         
         {/* Button content */}
         <View style={[styles.buttonContent, !title && styles.iconOnlyContent]}>
-          {icon && !materialCommunityIcon && (
+          {icon && !materialCommunityIcon && !materialIcon && (
             <Ionicons 
               name={icon} 
               size={currentSize.iconSize} 
@@ -150,9 +152,17 @@ export default function PokedexButton({
               style={[styles.icon, !title && { marginRight: 0 }]} 
             />
           )}
-          {materialCommunityIcon && (
+          {materialCommunityIcon && !materialIcon && (
             <MaterialCommunityIcons
               name={materialCommunityIcon}
+              size={currentSize.iconSize}
+              color={iconColor}
+              style={[styles.icon, !title && { marginRight: 0 }]}
+            />
+          )}
+          {materialIcon && (
+            <MaterialIcons
+              name={materialIcon}
               size={currentSize.iconSize}
               color={iconColor}
               style={[styles.icon, !title && { marginRight: 0 }]}
