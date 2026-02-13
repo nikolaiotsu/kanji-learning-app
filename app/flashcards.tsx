@@ -54,6 +54,7 @@ import { COLORS } from './constants/colors';
 import { FONTS } from './constants/typography';
 import { FontAwesome6 } from '@expo/vector-icons';
 import PokedexLayout from './components/shared/PokedexLayout';
+import PokedexButton from './components/shared/PokedexButton';
 import OnboardingProgressBar from './components/shared/OnboardingProgressBar';
 import FuriganaText from './components/shared/FuriganaText';
 import { useFlashcardCounter } from './context/FlashcardCounterContext';
@@ -1457,6 +1458,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
   return (
     <PokedexLayout 
       variant="flashcards"
+      compactLights
       loadingProgress={processingProgress}
       isProcessing={isLoading}
       processingFailed={processingFailed}
@@ -1475,17 +1477,14 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
             {/* Show image thumbnail and preview button if image is available */}
             {imageUri && (
               <View style={styles.imagePreviewContainer}>
-                <TouchableOpacity 
-                  style={styles.previewButton}
+                <PokedexButton
                   onPress={toggleImagePreview}
-                >
-                  <FontAwesome6 
-                    name="image" 
-                    size={24} 
-                    color="black" 
-                  />
-                </TouchableOpacity>
-              
+                  icon="image"
+                  color="grey"
+                  size="small"
+                  shape="square"
+                  style={styles.previewImageButton}
+                />
                 {showImagePreview && (
                   <View style={styles.imagePreviewWrap}>
                     <Image 
@@ -1982,13 +1981,21 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                         style={styles.modalCancelButton} 
                         onPress={handleCancelEdit}
                       >
-                        <Text style={styles.modalButtonText}>{t('common.cancel')}</Text>
+                        <View style={[styles.flashcardButtonFill, { backgroundColor: 'rgba(255, 255, 255, 0.15)' }]} />
+                        <View style={styles.flashcardButtonTopHighlight} />
+                        <View style={styles.modalButtonContent}>
+                          <Text style={styles.modalButtonText}>{t('common.cancel')}</Text>
+                        </View>
                       </TouchableOpacity>
                       <TouchableOpacity 
                         style={styles.modalSaveButton} 
                         onPress={handleSaveEdit}
                       >
-                        <Text style={styles.modalButtonText}>{t('common.save')}</Text>
+                        <View style={[styles.flashcardButtonFill, { backgroundColor: 'rgba(255, 255, 255, 0.15)' }]} />
+                        <View style={styles.flashcardButtonTopHighlight} />
+                        <View style={styles.modalButtonContent}>
+                          <Text style={styles.modalButtonText}>{t('common.save')}</Text>
+                        </View>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -2094,7 +2101,11 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                           setIsManualOperation(false); // Reset manual operation flag
                         }}
                       >
-                        <Text style={styles.modalButtonText}>{t('common.cancel')}</Text>
+                        <View style={[styles.flashcardButtonFill, { backgroundColor: 'rgba(255, 255, 255, 0.15)' }]} />
+                        <View style={styles.flashcardButtonTopHighlight} />
+                        <View style={styles.modalButtonContent}>
+                          <Text style={styles.modalButtonText}>{t('common.cancel')}</Text>
+                        </View>
                       </TouchableOpacity>
                       <TouchableOpacity 
                         style={styles.modalSaveButton} 
@@ -2103,7 +2114,11 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                           setIsManualOperation(false); // Reset manual operation flag
                         }}
                       >
-                        <Text style={styles.modalButtonText}>{t('common.save')}</Text>
+                        <View style={[styles.flashcardButtonFill, { backgroundColor: 'rgba(255, 255, 255, 0.15)' }]} />
+                        <View style={styles.flashcardButtonTopHighlight} />
+                        <View style={styles.modalButtonContent}>
+                          <Text style={styles.modalButtonText}>{t('common.save')}</Text>
+                        </View>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -2543,29 +2558,53 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 20,
     paddingBottom: 20,
+    gap: 12,
   },
   modalCancelButton: {
-    backgroundColor: COLORS.mediumSurface,
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
     flex: 1,
-    marginRight: 10,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 8,
+    backgroundColor: 'transparent',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
   },
   modalSaveButton: {
-    backgroundColor: COLORS.mediumSurface,
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
     flex: 1,
-    marginLeft: 10,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 8,
+    backgroundColor: 'transparent',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+  },
+  modalButtonContent: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
   },
   modalButtonText: {
     color: 'white',
+    fontFamily: FONTS.sansBold,
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 14,
   },
   imagePreviewContainer: {
     marginTop: 10,
@@ -2580,15 +2619,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  previewButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(128, 128, 128, 0.5)', // Translucent grey background
-    padding: 10,
-    borderRadius: 10,
-    alignSelf: 'flex-start',
+  previewImageButton: {
+    marginVertical: 0,
     marginBottom: 10,
-    justifyContent: 'center',
+    alignSelf: 'flex-start',
   },
   previewImage: {
     width: '100%',

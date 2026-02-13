@@ -502,7 +502,8 @@
     },
     "rotate": {
       "title": "Rotate Image",
-      "description": "Tilted photo? Straighten it out here."
+      "description": "Tilted photo? Straighten it out here.",
+      "cta": "Rotate"
     },
     "crop": {
       "title": "Crop Image",

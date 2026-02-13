@@ -209,6 +209,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   const flipButtonRef = useRef<View>(null);
   const imageButtonRef = useRef<View>(null);
   const cropConfirmingRef = useRef(false);
+  /** Tracks whether current image came from camera or gallery; used to vary rotate step (camera = enter rotate, gallery = skip to crop). */
+  const imageSourceRef = useRef<'camera' | 'gallery' | null>(null);
 
   // Define walkthrough steps (first step: "Your first card" modal, then find-text action = gallery/photo)
   const walkthroughSteps: WalkthroughStep[] = [
@@ -445,6 +447,50 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   const highlightHintStrokeWidth = highlightHintDrawAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, HIGHLIGHT_HINT_STROKE_LENGTH],
+  });
+
+  // Rotate hint (walkthrough): spinning circular arrow to suggest "drag to rotate"; hide once user starts rotating
+  const showRotateHint =
+    isWalkthroughActive && currentStep?.id === 'rotate' && rotateModeActive && !currentRotationUIState?.hasRotated;
+  const rotateHintSpinAnim = useRef(new Animated.Value(0)).current;
+  const rotateHintRainbowAnim = useRef(new Animated.Value(0)).current;
+  const rotateHintRainbowColor = rotateHintRainbowAnim.interpolate({
+    inputRange: [0, 0.17, 0.33, 0.5, 0.67, 0.83, 1],
+    outputRange: CROP_HINT_RAINBOW_COLORS,
+  });
+  useEffect(() => {
+    if (!showRotateHint) return;
+    const loop = Animated.loop(
+      Animated.timing(rotateHintRainbowAnim, {
+        toValue: 1,
+        duration: 2000,
+        easing: Easing.linear,
+        useNativeDriver: false,
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [showRotateHint, rotateHintRainbowAnim]);
+  useEffect(() => {
+    if (!showRotateHint) {
+      rotateHintSpinAnim.setValue(0);
+      return;
+    }
+    const spinDuration = 1500;
+    const loop = Animated.loop(
+      Animated.timing(rotateHintSpinAnim, {
+        toValue: 1,
+        duration: spinDuration,
+        easing: Easing.inOut(Easing.ease),
+        useNativeDriver: false,
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [showRotateHint, rotateHintSpinAnim]);
+  const rotateHintRotationDeg = rotateHintSpinAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
   });
 
   const { setWalkthroughPhase, hideProgressBar } = useOnboardingProgress();
@@ -857,8 +903,9 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     router.push('/settings');
   };
 
-  const handlePhotoCapture = (imageInfo: CapturedImage | null) => {
+  const handlePhotoCapture = (imageInfo: CapturedImage | null, source?: 'camera' | 'gallery') => {
     if (imageInfo) {
+      if (source) imageSourceRef.current = source;
       logger.log('[KanjiScanner] New image received (camera/gallery), updating view');
       setCapturedImage(imageInfo);
       setOriginalImage(imageInfo); // Also store as original image
@@ -870,6 +917,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       const memoryManager = MemoryManager.getInstance();
       memoryManager.markAsOriginalImage(imageInfo.uri);
     } else {
+      imageSourceRef.current = null;
       setCapturedImage(null);
       setOriginalImage(null);
       setImageHistory([]);
@@ -1135,11 +1183,10 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           memoryManager.trackProcessedImage(asset.uri);
           memoryManager.markAsOriginalImage(asset.uri);
 
-          handlePhotoCapture({
-            uri: asset.uri,
-            width: assetWidth,
-            height: assetHeight,
-          });
+          handlePhotoCapture(
+            { uri: asset.uri, width: assetWidth, height: assetHeight },
+            'gallery'
+          );
           
           // Note: setIsImageProcessing(false) and hideGlobalOverlay are now called
           // by ImageHighlighter's onImageLoaded callback to prevent flicker
@@ -1233,11 +1280,14 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
         memoryManager.trackProcessedImage(processedImage.uri);
         memoryManager.markAsOriginalImage(processedImage.uri);
 
-        handlePhotoCapture({
-          uri: processedImage.uri,
-          width: processedImage.width,
-          height: processedImage.height,
-        });
+        handlePhotoCapture(
+          {
+            uri: processedImage.uri,
+            width: processedImage.width,
+            height: processedImage.height,
+          },
+          'gallery'
+        );
         
         // Note: setIsImageProcessing(false) and hideGlobalOverlay are now called
         // by ImageHighlighter's onImageLoaded callback to prevent flicker
@@ -1266,6 +1316,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   };
 
   const resetEditorStateForWalkthrough = useCallback(() => {
+    imageSourceRef.current = null;
     setCapturedImage(null);
     setOriginalImage(null);
     setImageHistory([]);
@@ -1780,6 +1831,24 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       setHideWalkthroughOverlay(true);
       return;
     }
+    if (currentStep?.id === 'rotate' && imageSourceRef.current === 'camera') {
+      // Image from camera: enter rotate mode so user can straighten (like crop/highlight steps)
+      if (highlightModeActive) {
+        setHighlightModeActive(false);
+        setHasHighlightSelection(false);
+        setHighlightRegion(null);
+        imageHighlighterRef.current?.clearHighlightBox?.();
+      }
+      if (cropModeActive) {
+        setCropModeActive(false);
+        imageHighlighterRef.current?.toggleCropMode();
+        imageHighlighterRef.current?.clearCropBox?.();
+      }
+      setRotateModeActive(true);
+      imageHighlighterRef.current?.toggleRotateMode();
+      setHideWalkthroughOverlay(true);
+      return;
+    }
     // flip-card, image-button, swipe-left-instruction, swipe-right-instruction: only advance via user action (handled by RandomCardReviewer)
     if (currentStep?.id === 'flip-card' || currentStep?.id === 'image-button' || currentStep?.id === 'swipe-left-instruction' || currentStep?.id === 'swipe-right-instruction') {
       return;
@@ -1815,7 +1884,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     // If we're in walkthrough mode during highlight or crop phase, show confirmation dialog
     // Note: We check for highlight, confirm-highlight, and crop steps, and don't require hideWalkthroughOverlay
     // because the user might press X while the walkthrough overlay is still visible
-    if (isWalkthroughActive && (currentStep?.id === 'highlight' || currentStep?.id === 'confirm-highlight' || currentStep?.id === 'crop')) {
+    if (isWalkthroughActive && (currentStep?.id === 'highlight' || currentStep?.id === 'confirm-highlight' || currentStep?.id === 'crop' || currentStep?.id === 'rotate' || rotateModeActive)) {
       Alert.alert(
         t('walkthrough.endWalkthroughTitle', 'End Walkthrough?'),
         t('walkthrough.endWalkthroughMessage', 'Pressing x will take you out of the walkthrough. Are you sure?'),
@@ -1837,7 +1906,15 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       return;
     }
 
-    if (highlightModeActive) {
+    if (rotateModeActive) {
+      imageHighlighterRef.current?.cancelRotationChanges(); // 1. IH reverts visual rotation & clears its session
+      imageHighlighterRef.current?.toggleRotateMode();    // 2. IH formally exits rotate mode
+      setRotateModeActive(false);                           // 3. KS updates its state (triggers effect cleanup)
+      if (isWalkthroughActive && currentStep?.id === 'rotate') {
+        setHideWalkthroughOverlay(false); // Show rotate step modal again so user can Continue or Back
+      }
+      logger.log('[KanjiScanner] Rotate mode cancelled');
+    } else if (highlightModeActive) {
       setHighlightModeActive(false);
       setHasHighlightSelection(false);
       setHighlightRegion(null);
@@ -1848,11 +1925,6 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       imageHighlighterRef.current?.toggleCropMode(); // Syncs IH internal mode & clears box
       imageHighlighterRef.current?.clearCropBox?.(); 
       logger.log('[KanjiScanner] Crop mode cancelled');
-    } else if (rotateModeActive) {
-      imageHighlighterRef.current?.cancelRotationChanges(); // 1. IH reverts visual rotation & clears its session
-      imageHighlighterRef.current?.toggleRotateMode();    // 2. IH formally exits rotate mode
-      setRotateModeActive(false);                           // 3. KS updates its state (triggers effect cleanup)
-      logger.log('[KanjiScanner] Rotate mode cancelled');
     }
   };
 
@@ -1979,9 +2051,9 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   // Restore the handleCancel function which was accidentally removed
   const handleCancel = async () => {
     // If we're in walkthrough mode during highlight, confirm-highlight, or crop phase, show confirmation dialog
-    // Note: We check for 'highlight', 'confirm-highlight', and 'crop' steps, and don't require hideWalkthroughOverlay
+    // Note: We check for 'highlight', 'confirm-highlight', 'crop', and 'rotate' steps, and don't require hideWalkthroughOverlay
     // because the user might press cancel while the walkthrough overlay is still visible
-    if (isWalkthroughActive && (currentStep?.id === 'highlight' || currentStep?.id === 'confirm-highlight' || currentStep?.id === 'crop')) {
+    if (isWalkthroughActive && (currentStep?.id === 'highlight' || currentStep?.id === 'confirm-highlight' || currentStep?.id === 'crop' || currentStep?.id === 'rotate' || rotateModeActive)) {
       Alert.alert(
         t('walkthrough.endWalkthroughTitle', 'End Walkthrough?'),
         t('walkthrough.endWalkthroughMessage', 'Pressing x or the back button will take you out of the walkthrough. Are you sure?'),
@@ -2499,7 +2571,11 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       imageHighlighterRef.current?.toggleRotateMode(); // Explicitly exit rotate mode in ImageHighlighter
       setRotateModeActive(false); // Exit rotate mode in KanjiScanner state
       setLocalProcessing(false);
-      
+      // If we were in walkthrough rotate step (camera flow), advance to crop
+      if (isWalkthroughActive && currentStep?.id === 'rotate') {
+        nextStep();
+        setHideWalkthroughOverlay(false);
+      }
       // Clean up memory after rotation operation
       try {
         const memoryManager = MemoryManager.getInstance();
@@ -2796,7 +2872,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 />
               ) : isWalkthroughActive && currentStep?.id === 'find-text' ? (
                 <CameraButton
-                  onPhotoCapture={handlePhotoCapture}
+                  onPhotoCapture={(info) => handlePhotoCapture(info, 'camera')}
                   style={styles.rowButton}
                   onProcessingStateChange={setIsImageProcessing}
                   disabled={isAPILimitExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
@@ -2817,7 +2893,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 />
               ) : (
                 <CameraButton 
-                  onPhotoCapture={handlePhotoCapture} 
+                  onPhotoCapture={(info) => handlePhotoCapture(info, 'camera')}
                   style={styles.rowButton}
                   onProcessingStateChange={setIsImageProcessing}
                   disabled={isAPILimitExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
@@ -2895,6 +2971,22 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
               />
             </View>
           )}
+          {/* Walkthrough: rotate hint — spinning circular arrow to suggest "drag to rotate" */}
+          {showRotateHint && (
+            <View pointerEvents="none" style={styles.cropHintOverlay}>
+              <Animated.View
+                style={[
+                  styles.rotateHintIconWrap,
+                  {
+                    transform: [{ rotate: rotateHintRotationDeg }],
+                    borderColor: rotateHintRainbowColor,
+                  },
+                ]}
+              >
+                <Ionicons name="refresh" size={48} color="#FFFFFF" />
+              </Animated.View>
+            </View>
+          )}
 
       <View style={styles.toolbar}>
         {/* Back Button (far left) */}
@@ -2913,11 +3005,11 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
 
             {/* Center Controls Column */}
             <View style={styles.toolbarCenterControls}>
-              {/* Image History Undo/Redo Buttons (Top row in center) */}
+              {/* Image History Undo/Redo Buttons - translucent overlay above mode buttons, no layout displacement */}
               {!localProcessing && 
                (!highlightModeActive && !cropModeActive && !rotateModeActive) && 
                (imageHistory.length > 0 || forwardHistory.length > 0) && (
-                <View style={[styles.toolbarButtonGroup, styles.historyButtonsContainer]}>
+                <View style={[styles.toolbarButtonGroup, styles.historyButtonsOverlay]}>
                   <PokedexButton
                     onPress={handleBackToPreviousImage}
                     icon="arrow-undo"
@@ -2939,7 +3031,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 </View>
               )}
 
-              {/* Mode Activation / Confirmation Buttons (Bottom row in center or replaces history) */}
+              {/* Mode Activation / Confirmation Buttons (Bottom row in center) */}
               <View style={styles.toolbarButtonGroup}>
                 {/* Mode Activation Buttons (Highlight, Crop, Rotate) */}
                 {!highlightModeActive && !cropModeActive && !rotateModeActive && !localProcessing && !isNavigating && (
@@ -3288,6 +3380,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           customNextLabel={
             currentStep?.id === 'crop' ? t('walkthrough.crop.cta') :
             currentStep?.id === 'highlight' ? t('walkthrough.highlight.cta') :
+            currentStep?.id === 'rotate' && imageSourceRef.current === 'camera' ? t('walkthrough.rotate.cta') :
             currentStep?.id === 'confirm-highlight' ? t('common.continue') :
             currentStep?.id === 'final-congratulations' ? t('walkthrough.finalCongratulations.buttonLabel') :
             undefined
@@ -3356,6 +3449,15 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
   highlightHintStroke: {
     opacity: 0.7,
     transform: [{ rotate: '-6deg' }],
+  },
+  rotateHintIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    opacity: 0.9,
   },
   errorContainer: {
     backgroundColor: 'rgba(255, 45, 85, 0.8)',
@@ -3750,16 +3852,22 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     paddingVertical: 10,
   },
   toolbarCenterControls: {
+    position: 'relative',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: 8,
-    minHeight: 104, // Reserve space for max content (history row + mode row) to prevent layout shift when switching between crop confirm and mode buttons
   },
   toolbarButtonGroup: {
     flexDirection: 'row',
     gap: 10,
   },
-  historyButtonsContainer: {
+  historyButtonsOverlay: {
+    position: 'absolute',
+    bottom: '100%',
+    left: 0,
+    right: 0,
+    marginBottom: 8,
+    justifyContent: 'center',
+    opacity: 0.65,
   },
   toolbarFarButton: {
   },
