@@ -1000,6 +1000,7 @@ export default function SavedFlashcardsScreen() {
       variant="flashcards"
       triggerLightAnimation={triggerLightAnimation}
       lightPeakScale={0.55}
+      compactLights
     >
       <SafeAreaView style={styles.container}>
         {/* Custom Header */}

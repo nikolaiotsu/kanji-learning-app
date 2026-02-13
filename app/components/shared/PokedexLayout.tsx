@@ -29,6 +29,8 @@ interface PokedexLayoutProps {
   triggerLightAnimation?: number;
   /** Scale for peak light intensity when lights animate (e.g. on swipe). 0-1; default 1. Use <1 on collections to tone down. */
   lightPeakScale?: number;
+  /** When true, main (yellow) light uses same size as the three small lights (e.g. on Your Collections screen). */
+  compactLights?: boolean;
   textureVariant?: 'gradient' | 'subtle' | 'modern' | 'radial' | 'liquid' | 'default';
   // Progressive loading props
   loadingProgress?: number; // 0-4 indicating checkpoint (3 small lights for flashcards)
@@ -47,6 +49,7 @@ export default memo(function PokedexLayout({
   logoVisible = true,
   triggerLightAnimation = 0,
   lightPeakScale = 1,
+  compactLights = false,
   textureVariant = 'liquid',
   loadingProgress = 0,
   isProcessing = false,
@@ -343,10 +346,11 @@ export default memo(function PokedexLayout({
           
           {variant === 'flashcards' ? (
             <>
-              {/* Flashcards Variant: Circular main light (same shape as main screen) */}
+              {/* Flashcards Variant: Circular main light (same shape as main screen; compact = same size as small lights) */}
               <Animated.View 
                 style={[
                   styles.mainLight,
+                  compactLights && styles.mainLightCompact,
                   mainLightAnimatedStyle,
                   { zIndex: 10 }
                 ]}
@@ -355,9 +359,9 @@ export default memo(function PokedexLayout({
                   colors={[mainLightBaseColor, mainLightInnerColor]}
                   start={{ x: 0.2, y: 0 }}
                   end={{ x: 0.8, y: 1 }}
-                  style={[StyleSheet.absoluteFill, { borderRadius: 22.5 }]}
+                  style={[StyleSheet.absoluteFill, { borderRadius: compactLights ? 9 : 22.5 }]}
                 />
-                <View style={styles.mainLightInnerShadow} />
+                <View style={[styles.mainLightInnerShadow, compactLights && styles.mainLightInnerShadowCompact]} />
               </Animated.View>
               <View style={styles.flashcardsSmallLightContainer}>
                 {smallLightColors.map((color, index) => renderSmallLight(color, index))}
@@ -485,6 +489,13 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
+  mainLightCompact: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    marginRight: 6,
+    borderWidth: 1,
+  },
   mainLightRing: {
     position: 'absolute',
     width: 38,
@@ -513,6 +524,10 @@ const styles = StyleSheet.create({
     borderLeftColor: 'rgba(0, 0, 0, 0.22)',
     borderRightColor: 'rgba(255, 255, 255, 0.12)',
     borderBottomColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  mainLightInnerShadowCompact: {
+    borderRadius: 9,
+    borderWidth: 2,
   },
   pulseIndicator: {
     position: 'absolute',

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, ActivityIndicator, Dimensions, Animated, Easing, ScrollView, Image } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, ActivityIndicator, Dimensions, Animated, Easing, ScrollView, Image, LayoutAnimation } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -1321,7 +1321,10 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     }
 
     if (isWalkthroughActive && isRotateStep) {
-      // From rotate, go back to gallery-confirm/home and exit editor
+      // From rotate, go back to gallery-confirm/home and exit editor.
+      // Set find-text intro visible again *before* changing step so the "Your first card awaits"
+      // modal stays visible and never gets a visible=false flicker (which would leave it faded).
+      setFindTextIntroDismissed(false);
       hasAdvancedFromGalleryRef.current = false;
       resetEditorStateForWalkthrough();
       previousStep();
@@ -1422,6 +1425,10 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           
           logger.log('[KanjiScanner] Crop applied. New image:', processedUri, 'New Dims:', imageInfo);
           logger.log('[KanjiScanner] Original image remains:', originalImage?.uri);
+
+          // Animate layout changes so image transition is smooth (prevents jump/reposition)
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+
           setCapturedImage({
             uri: processedUri,
             width: imageInfo.width,
@@ -1789,6 +1796,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   const skipWalkthroughFromHighlight = async () => {
     logger.log('[KanjiScanner] User confirmed walkthrough cancellation during highlight phase');
     walkthroughEverEndedRef.current = true;
+    setWalkthroughOverlayDismissed(true);
+    hideProgressBar();
     // Reset walkthrough-related states first
     setHideWalkthroughOverlay(false);
     setHighlightModeActive(false);
@@ -3744,6 +3753,7 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     flexDirection: 'column',
     alignItems: 'center',
     gap: 8,
+    minHeight: 104, // Reserve space for max content (history row + mode row) to prevent layout shift when switching between crop confirm and mode buttons
   },
   toolbarButtonGroup: {
     flexDirection: 'row',
