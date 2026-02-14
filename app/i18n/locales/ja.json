@@ -509,7 +509,7 @@
     },
     "findText": {
       "title": "最初のカードを作ろう",
-      "description": "身の回りにある{{language}}のテキストを選んでください。あなたの教材から学習を始めましょう",
+      "description": "身の回りにある{{language}}のテキストを選んでください。あなたの生活から学ぼう",
       "languageFallback": "言語"
     },
     "gallery": {

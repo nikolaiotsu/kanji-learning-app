@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, StatusBar, Platform } from 'react-native';
-import { useContentPadding } from './hooks/useContentPadding';
+import { View, StyleSheet, Text, TouchableOpacity, StatusBar, Platform, ScrollView } from 'react-native';
+import { useOnboardingLayout } from './hooks/useOnboardingLayout';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { router } from 'expo-router';
@@ -20,7 +20,7 @@ import LoadingVideoScreen from './components/LoadingVideoScreen';
  */
 export default function OnboardingScreen() {
   const { t } = useTranslation();
-  const { paddingHorizontal } = useContentPadding();
+  const { paddingHorizontal, contentPaddingTop } = useOnboardingLayout();
   const { setHasCompletedOnboarding } = useOnboarding();
   const { setOnboardingStep, hideProgressBar } = useOnboardingProgress();
 
@@ -49,7 +49,14 @@ export default function OnboardingScreen() {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <OnboardingProgressBar />
-        <View style={[styles.content, { paddingHorizontal }]}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={[
+            styles.content,
+            { paddingHorizontal, paddingTop: contentPaddingTop, paddingBottom: 24 },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.videoSection}>
             <LoadingVideoScreen compact usePreloaded={false} />
           </View>
@@ -81,7 +88,7 @@ export default function OnboardingScreen() {
               </Text>
             </Text>
           </View>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     </View>
   );
@@ -95,8 +102,11 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  content: {
+  scrollView: {
     flex: 1,
+  },
+  content: {
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'stretch',
   },

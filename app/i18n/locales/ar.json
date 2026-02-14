@@ -509,7 +509,7 @@
     },
     "findText": {
       "title": "بطاقتك الأولى في انتظارك",
-      "description": "اختر أي نص بـ{{language}} من حولك. ابدأ التعلم من موادك الخاصة",
+      "description": "اختر أي نص بـ{{language}} من حولك. تعلم من حياتك",
       "languageFallback": "لغة"
     },
     "gallery": {

@@ -5,6 +5,7 @@ import { Flashcard } from '../types/Flashcard';
 import { useAuth } from '../context/AuthContext';
 import { AppState } from 'react-native';
 import { useNetworkState, isNetworkError } from '../services/networkManager';
+import { onDataSynced } from '../services/syncManager';
 
 import { logger } from '../utils/logger';
 // Enhanced loading states for better UX
@@ -194,6 +195,16 @@ export const useRandomCardReview = (onSessionFinishing?: () => void) => {
   // Initial load on mount and when user changes (no user = fetch local for guest/intro state)
   useEffect(() => {
     fetchAllFlashcards();
+  }, [user, fetchAllFlashcards]);
+
+  // Refetch when sync completes (e.g. after guest→user migration) so cards load immediately
+  useEffect(() => {
+    if (!user) return;
+    const unsubscribe = onDataSynced(() => {
+      logger.log('🔄 [Hook] Data synced, refetching flashcards');
+      fetchAllFlashcards(true);
+    });
+    return unsubscribe;
   }, [user, fetchAllFlashcards]);
 
   // Refresh data when app comes to foreground

@@ -11,6 +11,13 @@ const PADDING_BELOW_SAFE_AREA = 8;
 /** Use when bar is inside app layout (e.g. PokedexLayout). Single place to adjust if header/layout changes. */
 export const ONBOARDING_PROGRESS_BAR_APP_TOP_OFFSET = 16;
 
+/**
+ * Minimum paddingTop for content below the progress bar.
+ * = PADDING_BELOW_SAFE_AREA + PROGRESS_BAR_HEIGHT + gap (8px).
+ * Use in onboarding screens to prevent loading animation from overlapping the bar on small screens.
+ */
+export const ONBOARDING_PROGRESS_BAR_RESERVED_TOP = PADDING_BELOW_SAFE_AREA + PROGRESS_BAR_HEIGHT + 8;
+
 type OnboardingProgressBarProps = {
   /**
    * When set, use this value as `top` (e.g. app view where container is already below safe area).

@@ -502,7 +502,7 @@
     },
     "findText": {
       "title": "你的第一张卡片在等你",
-      "description": "选择你周围任何{{language}}文字。从你的材料开始学习",
+      "description": "选择你周围任何{{language}}文字。从你的生活中学习",
       "languageFallback": "一种语言"
     },
     "gallery": {

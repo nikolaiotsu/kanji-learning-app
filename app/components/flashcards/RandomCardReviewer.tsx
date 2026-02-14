@@ -19,7 +19,7 @@ import { useBadge } from '../../context/BadgeContext';
 import { useSwipeCounter } from '../../context/SwipeCounterContext';
 import { useNetworkState } from '../../services/networkManager';
 import OfflineBanner from '../shared/OfflineBanner';
-import { registerSyncCallback, unregisterSyncCallback } from '../../services/syncManager';
+import { registerSyncCallback, unregisterSyncCallback, onDataSynced } from '../../services/syncManager';
 import { useFocusEffect } from 'expo-router';
 import { filterDueCards, calculateNextReviewDate, getNewBoxOnCorrect, getNewBoxOnIncorrect } from '../../constants/leitner';
 
@@ -877,7 +877,15 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         }
         setSelectedDeckIds(validDeckIds);
       } else {
-        setSelectedDeckIds([]);
+        // Guest→user transition: no stored preference for new user (e.g. after signup).
+        // Default to first deck so migrated cards load immediately in the reviewer.
+        if (existingDecks.length > 0 && user?.id) {
+          const defaultIds = [existingDecks[0].id];
+          await AsyncStorage.setItem(userStorageKey, JSON.stringify(defaultIds));
+          setSelectedDeckIds(defaultIds);
+        } else {
+          setSelectedDeckIds([]);
+        }
       }
     } catch (error) {
       logger.error('Error loading selected deck IDs from AsyncStorage:', error);
@@ -890,6 +898,14 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   useEffect(() => {
     loadSelectedDeckIds();
   }, [loadSelectedDeckIds]);
+
+  // Re-load deck selection when sync completes (e.g. after guest→user migration)
+  // so we can default to first deck once migrated decks are available
+  useEffect(() => {
+    if (!user || isGuest) return;
+    const unsubscribe = onDataSynced(loadSelectedDeckIds);
+    return unsubscribe;
+  }, [user, isGuest, loadSelectedDeckIds]);
 
   // Re-load selected deck IDs when screen gains focus (e.g. returning from flashcards after saving)
   useFocusEffect(

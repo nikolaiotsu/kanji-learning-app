@@ -7,8 +7,9 @@ import {
   StatusBar,
   Platform,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
-import { useContentPadding } from './hooks/useContentPadding';
+import { useOnboardingLayout } from './hooks/useOnboardingLayout';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -30,7 +31,7 @@ const guyflyingVideoSource = require('../assets/guyflying.mp4');
 
 export default function OnboardingEducationalScreen() {
   const { t } = useTranslation();
-  const { paddingHorizontal } = useContentPadding();
+  const { paddingHorizontal, contentPaddingTop } = useOnboardingLayout();
   const { setHasCompletedOnboarding } = useOnboarding();
   const { setOnboardingStep } = useOnboardingProgress();
 
@@ -87,7 +88,14 @@ export default function OnboardingEducationalScreen() {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <OnboardingProgressBar />
-        <View style={[styles.content, { paddingHorizontal }]}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={[
+            styles.content,
+            { paddingHorizontal, paddingTop: contentPaddingTop, paddingBottom: 24 },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.textBlock}>
             <View style={styles.titleRow}>
               <Text
@@ -135,7 +143,7 @@ export default function OnboardingEducationalScreen() {
               <Ionicons name="chevron-forward" size={22} color={COLORS.text} style={styles.buttonArrow} />
             </View>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     </View>
   );
@@ -149,8 +157,11 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  content: {
+  scrollView: {
     flex: 1,
+  },
+  content: {
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'stretch',
   },

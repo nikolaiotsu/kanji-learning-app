@@ -14,6 +14,28 @@ import { Flashcard } from '../types/Flashcard';
 let isSyncing = false;
 let syncCallbacks: Array<() => Promise<void>> = [];
 let syncStatusCallbacks: Array<(status: boolean) => void> = [];
+let dataSyncedCallbacks: Array<() => void> = [];
+
+/**
+ * Register a callback to be notified when user data has been synced (e.g. after migration).
+ * Use this to trigger refetches so UI shows freshly migrated/synced data.
+ */
+export const onDataSynced = (callback: () => void): (() => void) => {
+  dataSyncedCallbacks.push(callback);
+  return () => {
+    dataSyncedCallbacks = dataSyncedCallbacks.filter(cb => cb !== callback);
+  };
+};
+
+const notifyDataSynced = () => {
+  for (const cb of dataSyncedCallbacks) {
+    try {
+      cb();
+    } catch (err) {
+      logger.error('Error in data synced callback:', err);
+    }
+  }
+};
 
 /**
  * Register a sync callback to be called when network becomes available
@@ -203,6 +225,7 @@ export const syncAllUserData = async (): Promise<boolean> => {
     }
     
     logger.log('✅ [SyncManager] Comprehensive data sync complete');
+    notifyDataSynced();
     return true;
   } catch (error) {
     logger.error('❌ [SyncManager] Error during comprehensive sync:', error);

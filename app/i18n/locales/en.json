@@ -506,7 +506,7 @@
     },
     "findText": {
       "title": "Your first card awaits",
-      "description": "Choose any {{language}} text around you. Start learning from YOUR materials",
+      "description": "Choose any {{language}} text around you. Start learning from YOUR life.",
       "languageFallback": "a language"
     },
     "gallery": {

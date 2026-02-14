@@ -272,6 +272,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   // Sign up function
+  // CRITICAL: When guest has local data, run migration BEFORE setting user so UI fetches
+  // the migrated data (same flow as SIGNED_IN auth listener). Otherwise cards won't load.
   const signUp = async (email: string, password: string) => {
     setIsLoading(true);
     try {
@@ -279,15 +281,34 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const data = await authService.signUp(email, password);
       
       if (data?.session) {
-        logger.log('✅ [AuthContext] User signed up, setting session');
+        const signedInUser = data.session.user;
         setSession(data.session);
-        setUser(data.session.user);
         
-        // Trigger proactive cache sync after successful signup
-        logger.log('🔄 [AuthContext] Triggering proactive cache sync...');
-        syncAllUserData().catch(err => {
+        // Run guest migration BEFORE setting user (matches getInitialSession + SIGNED_IN flow)
+        // so that syncAllUserData fetches migrated data and UI doesn't render with empty state
+        await clearGuestMode();
+        await storeUserIdOffline(signedInUser.id);
+        const hadLocal = await hasLocalDataToMigrate();
+        if (hadLocal) {
+          try {
+            logger.log('🔄 [AuthContext] Migrating guest data before setting user (signUp)...');
+            await migrateLocalDataToSupabase(signedInUser.id);
+            Alert.alert(t('sync.syncedTitle'), t('sync.syncedMessage'));
+          } catch (migErr) {
+            const msg = migErr instanceof Error ? migErr.message : String(migErr);
+            logger.error('Migration on signUp failed:', msg, migErr);
+            Alert.alert(
+              'Sync issue',
+              'Guest cards could not be synced to your account. You can try again later or use your existing cards. ' + (msg ? `(${msg})` : '')
+            );
+          }
+        }
+        
+        logger.log('🔐 [AuthContext] Migration complete, setting user state...');
+        setUser(signedInUser);
+        logger.log('🔄 [AuthContext] Syncing cache after signUp...');
+        await syncAllUserData().catch(err => {
           logger.error('❌ [AuthContext] Failed to sync user data after signup:', err);
-          // Don't throw - signup was successful, sync is just a bonus
         });
       }
       
