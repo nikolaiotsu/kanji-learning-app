@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { Alert, InteractionManager } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Session, User } from '@supabase/supabase-js';
 import * as authService from '../services/authService';
@@ -40,6 +41,7 @@ type AuthProviderProps = {
 
 // Auth Provider component
 export const AuthProvider = ({ children }: AuthProviderProps) => {
+  const { t } = useTranslation();
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -122,13 +124,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             try {
               logger.log('🔄 [AuthContext] Migrating guest data on app start...');
               await migrateLocalDataToSupabase(session.user.id);
-              Alert.alert('Synced', 'Your cards have been synced to your account.');
+              Alert.alert(t('sync.syncedTitle'), t('sync.syncedMessage'));
             } catch (migErr) {
               const msg = migErr instanceof Error ? migErr.message : String(migErr);
               logger.error('Migration on app start failed:', msg, migErr);
               Alert.alert(
-                'Sync issue',
-                'Guest cards could not be synced to your account. You can try again later or use your existing cards. ' + (msg ? `(${msg})` : '')
+                t('sync.issueTitle'),
+                t('sync.issueMessage') + (msg ? ` (${msg})` : '')
               );
             }
           }
@@ -194,7 +196,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                   try {
                     logger.log('🔄 [AuthContext] Migrating guest data before setting user state...');
                     await migrateLocalDataToSupabase(signedInUser.id);
-                    Alert.alert('Synced', 'Your cards have been synced to your account.');
+                    Alert.alert(t('sync.syncedTitle'), t('sync.syncedMessage'));
                   } catch (migErr) {
                     const msg = migErr instanceof Error ? migErr.message : String(migErr);
                     logger.error('Migration on sign-in failed:', msg, migErr);

@@ -105,6 +105,12 @@
       "invalidEmailFormat": "Inserisci un indirizzo email valido (es. name@example.com)."
     }
   },
+  "sync": {
+    "syncedTitle": "Sincronizzato",
+    "syncedMessage": "Le tue schede sono state sincronizzate con il tuo account.",
+    "issueTitle": "Problema di sincronizzazione",
+    "issueMessage": "Impossibile sincronizzare le schede ospite con il tuo account. Puoi riprovare più tardi o usare le schede esistenti."
+  },
   "signInPrompt": {
     "title": "Crea un account",
     "subtitle": "Accelera il tuo apprendimento accedendo per ottenere maggiore accesso alle funzionalità di WordDex:",
@@ -187,6 +193,9 @@
     }
   },
   "flashcard": {
+    "apiUnavailableTitle": "Servizio non disponibile",
+    "apiUnavailableMessage": "Il servizio di traduzione non è temporaneamente disponibile. Riprova più tardi.",
+
     "translate": {
       "languageMismatch": "Disallineamento Lingua",
       "languageMismatchMessage": "Il testo non sembra ancora essere in {{language}}. Prova con un testo diverso o cambia le impostazioni della lingua forzata."

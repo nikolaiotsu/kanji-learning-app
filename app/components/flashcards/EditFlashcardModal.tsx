@@ -184,21 +184,31 @@ const readingsText = flashcard.readingsText;
       // Get subscription plan from context to pass to API function
       const subscriptionPlan = await getCurrentSubscriptionPlan(subscription?.plan);
       const result = await processWithClaude(originalText, targetLanguage, forcedDetectionLanguage, undefined, false, subscriptionPlan);
+
+      if (result.errorCode) {
+        Alert.alert(
+          t('flashcard.apiUnavailableTitle'),
+          t('flashcard.apiUnavailableMessage'),
+          [{ text: t('common.ok'), style: 'default' }]
+        );
+        setError(t('flashcard.edit.retranslateFailed'));
+        return;
+      }
       
       if (result.translatedText) {
         setTranslatedText(result.translatedText);
         
         if (needsRomanization) {
-setReadingsText(result.readingsText);
+          setReadingsText(result.readingsText);
 
           if (!result.readingsText) {
             setError(t('flashcard.edit.romanizationFailed'));
           }
         }
-              } else {
-          setError(t('flashcard.edit.retranslateFailed'));
-        }
-      } catch (err) {
+      } else {
+        setError(t('flashcard.edit.retranslateFailed'));
+      }
+    } catch (err) {
         logger.error('Error processing with Claude:', err);
         setError(t('flashcard.edit.retranslateFailed'));
       } finally {

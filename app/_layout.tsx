@@ -29,6 +29,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { useTranslation } from 'react-i18next';
+import { useContentPadding } from './hooks/useContentPadding';
 import { useAuth } from './context/AuthContext';
 import { useOnboarding } from './context/OnboardingContext';
 import { initializeSyncManager } from './services/syncManager';
@@ -102,6 +103,7 @@ function RootLayoutContent() {
   const loadingStartTimeRef = useRef(Date.now());
   const { i18n } = useTranslation();
   const { showTransitionLoading, setShowTransitionLoading } = useTransitionLoading();
+  const { paddingHorizontal } = useContentPadding();
 
   // Hide native splash and only then show our loading overlay so the app icon
   // (with the memo/scanner graphic) never overlaps the loading video
@@ -341,7 +343,7 @@ function RootLayoutContent() {
           ]}
           pointerEvents={hasContentMounted && !showTransitionOverlay ? 'none' : 'auto'}
         >
-          <Animated.View style={{ opacity: fadeInOpacity }}>
+          <Animated.View style={[{ opacity: fadeInOpacity }, { paddingHorizontal }]}>
             <LoadingVideoScreen compact />
           </Animated.View>
         </Animated.View>

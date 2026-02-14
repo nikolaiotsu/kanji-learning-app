@@ -8,6 +8,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
+import { useContentPadding } from './hooks/useContentPadding';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -29,6 +30,7 @@ const guyflyingVideoSource = require('../assets/guyflying.mp4');
 
 export default function OnboardingEducationalScreen() {
   const { t } = useTranslation();
+  const { paddingHorizontal } = useContentPadding();
   const { setHasCompletedOnboarding } = useOnboarding();
   const { setOnboardingStep } = useOnboardingProgress();
 
@@ -85,10 +87,15 @@ export default function OnboardingEducationalScreen() {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <OnboardingProgressBar />
-        <View style={styles.content}>
+        <View style={[styles.content, { paddingHorizontal }]}>
           <View style={styles.textBlock}>
             <View style={styles.titleRow}>
-              <Text style={styles.titleText}>{t('onboarding.empoweringTitle')}</Text>
+              <Text
+                style={styles.titleText}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+              >{t('onboarding.empoweringTitle')}</Text>
               <View style={styles.titleLogoWrap}>
                 <LoadingVideoScreen compact />
               </View>
@@ -144,7 +151,6 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 28,
     justifyContent: 'center',
     alignItems: 'stretch',
   },
@@ -156,7 +162,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
-    alignSelf: 'flex-start',
+    alignSelf: 'stretch',
   },
   titleText: {
     fontFamily: FONTS.sansBold,
@@ -165,6 +171,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     letterSpacing: -0.5,
     marginRight: 10,
+    flex: 1,
   },
   titleLogoWrap: {
     flexShrink: 0,
@@ -194,6 +201,7 @@ const styles = StyleSheet.create({
   },
   videoSection: {
     marginBottom: 32,
+    paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },

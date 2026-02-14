@@ -105,6 +105,12 @@
       "pleaseTryAgain": "يرجى المحاولة مرة أخرى"
     }
   },
+  "sync": {
+    "syncedTitle": "تمت المزامنة",
+    "syncedMessage": "تم مزامنة بطاقاتك مع حسابك.",
+    "issueTitle": "مشكلة في المزامنة",
+    "issueMessage": "تعذر مزامنة بطاقات الضيف مع حسابك. يمكنك المحاولة لاحقاً أو استخدام بطاقاتك الموجودة."
+  },
   "signInPrompt": {
     "title": "إنشاء حساب",
     "subtitle": "سرّع تعلمك بتسجيل الدخول للحصول على المزيد من ميزات WordDex:",
@@ -187,6 +193,8 @@
     }
   },
   "flashcard": {
+    "apiUnavailableTitle": "الخدمة غير متاحة",
+    "apiUnavailableMessage": "خدمة الترجمة غير متاحة مؤقتاً. يرجى المحاولة لاحقاً.",
 
     "translate": {
       "languageMismatch": "عدم تطابق اللغة",

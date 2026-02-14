@@ -306,6 +306,9 @@ export interface LanguageMismatchInfo {
   confidence?: string;
 }
 
+/** Error code when the API returns without a valid translation (e.g. overloaded, network) */
+export type ClaudeApiErrorCode = 'API_OVERLOADED' | 'API_ERROR';
+
 export interface ClaudeResponse {
   readingsText: string;
   translatedText: string;
@@ -313,6 +316,8 @@ export interface ClaudeResponse {
   languageMismatch?: LanguageMismatchInfo;
   /** For beta testing: token usage for this API call (input + output = total) */
   tokenUsage?: { input: number; output: number; total: number };
+  /** Set when the API failed (e.g. 529 overload). UI should show a modal and not use translatedText. */
+  errorCode?: ClaudeApiErrorCode;
 }
 
 // Map for language code to name for prompts
@@ -4936,10 +4941,14 @@ Format your response as valid JSON with these exact keys:
     internalApiCallCount,
     internalRetryReasons: internalRetryReasons.join(', ')
   });
-  
+
+  const isOverloaded = lastError instanceof AxiosError && lastError.response?.status === 529;
+  const errorCode: ClaudeApiErrorCode = isOverloaded ? 'API_OVERLOADED' : 'API_ERROR';
+
   return {
     readingsText: '',
-    translatedText: 'Error processing text with Claude API. The service may be temporarily overloaded. Please try again later.'
+    translatedText: '',
+    errorCode,
   };
 }
 
@@ -6348,7 +6357,11 @@ async function processWithClaudeAndScopeFallback(
   
   // First, get the normal translation (pass subscription plan to avoid re-fetching)
   const translationResult = await processWithClaude(text, targetLanguage, forcedLanguage, onProgress, false, subscriptionPlan);
-  
+
+  if (translationResult.errorCode) {
+    logger.log('[WordScope Fallback] Translation failed with errorCode, returning');
+    return translationResult;
+  }
   if (translationResult.languageMismatch) {
     logger.log('[WordScope Fallback] Language mismatch detected, skipping scope analysis');
     return translationResult;

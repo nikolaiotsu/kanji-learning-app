@@ -8,6 +8,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
+import { useContentPadding } from './hooks/useContentPadding';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -24,6 +25,7 @@ const guytypingVideoSource = require('../assets/guytyping1.mp4');
 
 export default function OnboardingFasterScreen() {
   const { t } = useTranslation();
+  const { paddingHorizontal } = useContentPadding();
   const { setOnboardingStep } = useOnboardingProgress();
   const [hasError, setHasError] = useState(false);
 
@@ -70,7 +72,7 @@ export default function OnboardingFasterScreen() {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <OnboardingProgressBar />
-        <View style={styles.content}>
+        <View style={[styles.content, { paddingHorizontal }]}>
           <View style={styles.textBlock}>
             <Text style={styles.titleText}>{t('onboarding.fastTitle')}</Text>
             <View style={styles.bulletRow}>
@@ -124,7 +126,6 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 28,
     justifyContent: 'center',
     alignItems: 'stretch',
   },
@@ -163,6 +164,7 @@ const styles = StyleSheet.create({
   },
   videoSection: {
     marginBottom: 32,
+    paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },

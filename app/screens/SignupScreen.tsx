@@ -69,16 +69,7 @@ const SignupScreen = () => {
       });
       
       if (result?.session) {
-        logger.log('✅ [SignupScreen] User signed up and logged in');
-        Alert.alert(
-          'Welcome to WordDex!',
-          'Your account has been created successfully. You are now logged in and ready to start learning!',
-          [
-            { 
-              text: t('common.ok')
-            }
-          ]
-        );
+        logger.log('✅ [SignupScreen] User signed up and logged in - AuthGuard will redirect to home');
       }
     } catch (error: any) {
       logger.error('❌ [SignupScreen] Signup error:', error);

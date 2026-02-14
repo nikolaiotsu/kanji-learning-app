@@ -105,6 +105,12 @@
       "invalidEmailFormat": "Vui lòng nhập địa chỉ email hợp lệ (ví dụ: name@example.com)."
     }
   },
+  "sync": {
+    "syncedTitle": "Đã đồng bộ",
+    "syncedMessage": "Thẻ của bạn đã được đồng bộ với tài khoản.",
+    "issueTitle": "Lỗi đồng bộ",
+    "issueMessage": "Không thể đồng bộ thẻ khách với tài khoản của bạn. Bạn có thể thử lại sau hoặc sử dụng thẻ hiện có."
+  },
   "signInPrompt": {
     "title": "Tạo tài khoản",
     "subtitle": "Tăng tốc học tập bằng cách đăng nhập để truy cập nhiều tính năng của WordDex hơn:",
@@ -187,6 +193,9 @@
     }
   },
   "flashcard": {
+    "apiUnavailableTitle": "Dịch vụ không khả dụng",
+    "apiUnavailableMessage": "Dịch vụ dịch thuật tạm thời không khả dụng. Vui lòng thử lại sau.",
+
     "translate": {
       "languageMismatch": "Ngôn ngữ Không Khớp",
       "languageMismatchMessage": "Văn bản vẫn không có vẻ là {{language}}. Vui lòng thử với văn bản khác hoặc thay đổi cài đặt ngôn ngữ bắt buộc của bạn."

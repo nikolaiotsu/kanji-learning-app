@@ -105,6 +105,12 @@
       "pleaseTryAgain": "Por favor intenta de nuevo"
     }
   },
+  "sync": {
+    "syncedTitle": "Sincronizado",
+    "syncedMessage": "Tus tarjetas se han sincronizado con tu cuenta.",
+    "issueTitle": "Problema de sincronización",
+    "issueMessage": "No se pudieron sincronizar las tarjetas de invitado con tu cuenta. Puedes intentarlo más tarde o usar tus tarjetas existentes."
+  },
   "signInPrompt": {
     "title": "Crear una cuenta",
     "subtitle": "Acelera tu aprendizaje iniciando sesión para acceder a más funciones de WordDex:",
@@ -187,6 +193,8 @@
     }
   },
   "flashcard": {
+    "apiUnavailableTitle": "Servicio no disponible",
+    "apiUnavailableMessage": "El servicio de traducción no está disponible temporalmente. Por favor, inténtelo de nuevo más tarde.",
 
     "translate": {
       "languageMismatch": "Idioma no coincide",

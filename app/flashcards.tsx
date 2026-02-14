@@ -851,6 +851,21 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       setActualTargetLanguage(targetLanguage);
       
       const result = await runTranslationWithAutoSwitch(false, text);
+
+      // API returned an error (e.g. 529 overload) — show modal, don't treat as translation
+      if (result.errorCode) {
+        logger.log('❌ [Flashcards] API error:', result.errorCode);
+        setIsLoading(false);
+        setIsManualOperation(false);
+        setProcessingFailed(true);
+        setError('');
+        Alert.alert(
+          t('flashcard.apiUnavailableTitle'),
+          t('flashcard.apiUnavailableMessage'),
+          [{ text: t('common.ok'), style: 'default' }]
+        );
+        return;
+      }
       
       // Update API limit after successful call
       if (result.translatedText) {
@@ -894,11 +909,9 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
         }, 1500); // 1500ms delay to give green light proper visibility time
         
       } else {
-        // If we didn't get valid results, show the error message from the API
-        setError(result.translatedText || 'Failed to process text. Please try changing your language settings.');
+        // No translation and no errorCode (unexpected)
+        setError('Failed to process text. Please try changing your language settings.');
         setProcessingFailed(true);
-        
-        // For errors, complete immediately
         logger.log('❌ [Flashcards] Processing failed - setting isLoading to false immediately');
         setIsLoading(false);
         setIsManualOperation(false);
@@ -1270,6 +1283,21 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       
       // Progress callback
       const result = await runTranslationWithAutoSwitch(true, text);
+
+      // API returned an error (e.g. 529 overload) — show modal, don't treat as translation
+      if (result.errorCode) {
+        logger.log('❌ [Flashcards] WordScope API error:', result.errorCode);
+        setIsLoading(false);
+        setIsManualOperation(false);
+        setProcessingFailed(true);
+        setError('');
+        Alert.alert(
+          t('flashcard.apiUnavailableTitle'),
+          t('flashcard.apiUnavailableMessage'),
+          [{ text: t('common.ok'), style: 'default' }]
+        );
+        return;
+      }
       
       // Update API limit after successful call
       if (result.translatedText) {
@@ -1319,7 +1347,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
         }, 1500);
         
       } else {
-        setError(result.translatedText || 'Failed to process text. Please try changing your language settings.');
+        setError('Failed to process text. Please try changing your language settings.');
         setProcessingFailed(true);
         setIsLoading(false);
         setIsManualOperation(false);

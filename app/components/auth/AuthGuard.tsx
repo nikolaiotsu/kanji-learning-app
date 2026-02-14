@@ -67,10 +67,9 @@ export const AuthGuard = ({ children }: { children: React.ReactNode }) => {
     }
 
     // User is authenticated but tries to access login/signup/reset-password → go home (onboarding allowed for beta testing)
-    // Dismiss any modals/stack so home is shown as a normal screen (not as a modal from bottom), which also fixes card gestures.
     if (user && AUTH_ONLY_REDIRECT_SEGMENTS.includes(currentSegment)) {
       logger.log('🔐 [AuthGuard] User authenticated, redirecting from auth route to /');
-      router.dismissAll();
+      // Use replace only - dismissAll() causes "POP_TO_TOP was not handled" when login is the current screen (no stack to pop).
       router.replace('/');
       return;
     }

@@ -105,6 +105,12 @@
       "invalidEmailFormat": "Please enter a valid email address (e.g. name@example.com)."
     }
   },
+  "sync": {
+    "syncedTitle": "Synced",
+    "syncedMessage": "Your cards have been synced to your account.",
+    "issueTitle": "Sync issue",
+    "issueMessage": "Guest cards could not be synced to your account. You can try again later or use your existing cards."
+  },
   "signInPrompt": {
     "title": "Create an Account",
     "subtitle": "Accelerate your learning by signing in to get greater access to Worddex's features:",
@@ -187,6 +193,8 @@
     }
   },
   "flashcard": {
+    "apiUnavailableTitle": "Service Unavailable",
+    "apiUnavailableMessage": "The translation service is temporarily unavailable. Please try again later.",
 
     "translate": {
       "languageMismatch": "Language Mismatch",

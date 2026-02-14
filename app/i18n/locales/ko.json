@@ -105,6 +105,12 @@
       "pleaseTryAgain": "다시 시도해주세요"
     }
   },
+  "sync": {
+    "syncedTitle": "동기화 완료",
+    "syncedMessage": "카드가 계정에 동기화되었습니다.",
+    "issueTitle": "동기화 문제",
+    "issueMessage": "게스트 카드를 계정에 동기화할 수 없습니다. 나중에 다시 시도하거나 기존 카드를 사용하세요."
+  },
   "signInPrompt": {
     "title": "계정 만들기",
     "subtitle": "로그인하여 WordDex의 더 많은 기능을 이용하고 학습 속도를 높이세요:",
@@ -187,6 +193,8 @@
     }
   },
   "flashcard": {
+    "apiUnavailableTitle": "서비스를 사용할 수 없음",
+    "apiUnavailableMessage": "번역 서비스를 일시적으로 사용할 수 없습니다. 나중에 다시 시도해 주세요.",
 
     "translate": {
       "languageMismatch": "언어 불일치",

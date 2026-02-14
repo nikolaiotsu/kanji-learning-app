@@ -8,6 +8,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
+import { useContentPadding } from './hooks/useContentPadding';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -25,6 +26,7 @@ const guygettingburiedVideoSource = require('../assets/guygettingburied.mp4');
 
 export default function OnboardingRelevantScreen() {
   const { t } = useTranslation();
+  const { paddingHorizontal } = useContentPadding();
   const { setHasCompletedOnboarding } = useOnboarding();
   const { setOnboardingStep } = useOnboardingProgress();
 
@@ -72,7 +74,7 @@ export default function OnboardingRelevantScreen() {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <OnboardingProgressBar />
-        <View style={styles.content}>
+        <View style={[styles.content, { paddingHorizontal }]}>
           <View style={styles.textBlock}>
             <Text style={styles.titleText}>{t('onboarding.relevantTitle')}</Text>
             <View style={styles.bulletRow}>
@@ -126,7 +128,6 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 28,
     justifyContent: 'center',
     alignItems: 'stretch',
   },
@@ -165,6 +166,7 @@ const styles = StyleSheet.create({
   },
   videoSection: {
     marginBottom: 32,
+    paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },

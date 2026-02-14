@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, StatusBar, Platform } from 'react-native';
+import { useContentPadding } from './hooks/useContentPadding';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { router } from 'expo-router';
@@ -19,6 +20,7 @@ import LoadingVideoScreen from './components/LoadingVideoScreen';
  */
 export default function OnboardingScreen() {
   const { t } = useTranslation();
+  const { paddingHorizontal } = useContentPadding();
   const { setHasCompletedOnboarding } = useOnboarding();
   const { setOnboardingStep, hideProgressBar } = useOnboardingProgress();
 
@@ -47,7 +49,7 @@ export default function OnboardingScreen() {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <OnboardingProgressBar />
-        <View style={styles.content}>
+        <View style={[styles.content, { paddingHorizontal }]}>
           <View style={styles.videoSection}>
             <LoadingVideoScreen compact usePreloaded={false} />
           </View>
@@ -95,12 +97,12 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 28,
     justifyContent: 'center',
     alignItems: 'stretch',
   },
   videoSection: {
     marginBottom: 40,
+    paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },

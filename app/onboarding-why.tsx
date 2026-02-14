@@ -7,6 +7,7 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
+import { useContentPadding } from './hooks/useContentPadding';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -28,6 +29,7 @@ const REASON_OPTIONS = [
 
 export default function OnboardingWhyScreen() {
   const { t } = useTranslation();
+  const { paddingHorizontal } = useContentPadding();
   const { setOnboardingStep } = useOnboardingProgress();
   const { forcedDetectionLanguage } = useSettings();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -67,7 +69,7 @@ export default function OnboardingWhyScreen() {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <OnboardingProgressBar />
-        <View style={styles.content}>
+        <View style={[styles.content, { paddingHorizontal }]}>
           <View style={styles.videoSection}>
             <LoadingVideoScreen compact />
           </View>
@@ -91,9 +93,10 @@ export default function OnboardingWhyScreen() {
             })}
           </View>
           <TouchableOpacity
-            style={styles.button}
+            style={[styles.button, selected.size === 0 && styles.buttonDisabled]}
             onPress={handleContinue}
             activeOpacity={0.8}
+            disabled={selected.size === 0}
           >
             <View style={styles.buttonContent}>
               <Text style={styles.buttonText}>{t('onboarding.whyCta')}</Text>
@@ -116,12 +119,12 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 28,
     justifyContent: 'center',
     alignItems: 'stretch',
   },
   videoSection: {
     marginBottom: 32,
+    paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -167,6 +170,9 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.sansSemiBold,
     color: COLORS.primary,
     fontWeight: '600',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
   },
   button: {
     backgroundColor: COLORS.primary,

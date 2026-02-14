@@ -105,6 +105,12 @@
       "invalidEmailFormat": "Bitte gib eine gültige E-Mail-Adresse ein (z. B. name@example.com)."
     }
   },
+  "sync": {
+    "syncedTitle": "Synchronisiert",
+    "syncedMessage": "Deine Karten wurden mit deinem Konto synchronisiert.",
+    "issueTitle": "Synchronisierungsproblem",
+    "issueMessage": "Gast-Karten konnten nicht mit deinem Konto synchronisiert werden. Du kannst es später erneut versuchen oder deine vorhandenen Karten nutzen."
+  },
   "signInPrompt": {
     "title": "Konto erstellen",
     "subtitle": "Beschleunigen Sie Ihr Lernen, indem Sie sich anmelden und mehr WordDex-Funktionen nutzen:",
@@ -187,6 +193,9 @@
     }
   },
   "flashcard": {
+    "apiUnavailableTitle": "Dienst nicht verfügbar",
+    "apiUnavailableMessage": "Der Übersetzungsdienst ist vorübergehend nicht verfügbar. Bitte versuchen Sie es später erneut.",
+
     "translate": {
       "languageMismatch": "Sprachabweichung",
       "languageMismatchMessage": "Der Text scheint immer noch nicht in {{language}} zu sein. Bitte versuchen Sie es mit einem anderen Text oder ändern Sie Ihre erzwungenen Spracheinstellungen."

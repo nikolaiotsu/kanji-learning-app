@@ -105,6 +105,12 @@
       "pleaseTryAgain": "もう一度お試しください"
     }
   },
+  "sync": {
+    "syncedTitle": "同期完了",
+    "syncedMessage": "カードがアカウントに同期されました。",
+    "issueTitle": "同期エラー",
+    "issueMessage": "ゲストのカードをアカウントに同期できませんでした。後でもう一度お試しいただくか、既存のカードをご利用ください。"
+  },
   "signInPrompt": {
     "title": "アカウントを作成",
     "subtitle": "サインインしてWordDexの機能をフル活用しましょう:",
@@ -187,6 +193,8 @@
     }
   },
   "flashcard": {
+    "apiUnavailableTitle": "サービス利用不可",
+    "apiUnavailableMessage": "翻訳サービスが一時的に利用できません。しばらくしてからもう一度お試しください。",
 
     "translate": {
       "languageMismatch": "言語の不一致",

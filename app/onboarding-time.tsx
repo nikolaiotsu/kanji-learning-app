@@ -7,6 +7,7 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
+import { useContentPadding } from './hooks/useContentPadding';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -26,6 +27,7 @@ const TIME_OPTIONS = [
 
 export default function OnboardingTimeScreen() {
   const { t } = useTranslation();
+  const { paddingHorizontal } = useContentPadding();
   const { setOnboardingStep } = useOnboardingProgress();
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -48,7 +50,7 @@ export default function OnboardingTimeScreen() {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <OnboardingProgressBar />
-        <View style={styles.content}>
+        <View style={[styles.content, { paddingHorizontal }]}>
           <View style={styles.videoSection}>
             <LoadingVideoScreen compact />
           </View>
@@ -100,12 +102,12 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 28,
     justifyContent: 'center',
     alignItems: 'stretch',
   },
   videoSection: {
     marginBottom: 32,
+    paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },

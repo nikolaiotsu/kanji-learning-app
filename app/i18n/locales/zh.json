@@ -105,6 +105,12 @@
       "pleaseTryAgain": "请重试"
     }
   },
+  "sync": {
+    "syncedTitle": "已同步",
+    "syncedMessage": "您的卡片已同步到您的账户。",
+    "issueTitle": "同步问题",
+    "issueMessage": "访客的卡片无法同步到您的账户。您可以稍后重试或使用现有卡片。"
+  },
   "signInPrompt": {
     "title": "创建账户",
     "subtitle": "登录以加速学习,获得WordDex更多功能:",
@@ -187,6 +193,8 @@
     }
   },
   "flashcard": {
+    "apiUnavailableTitle": "服务不可用",
+    "apiUnavailableMessage": "翻译服务暂时不可用。请稍后再试。",
 
     "translate": {
       "languageMismatch": "语言不匹配",
