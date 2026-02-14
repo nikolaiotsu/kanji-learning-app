@@ -19,7 +19,8 @@ import { OnboardingVideosProvider } from './context/OnboardingVideosContext';
 import { AppReadyProvider } from './context/AppReadyContext';
 import { TransitionLoadingProvider, useTransitionLoading } from './context/TransitionLoadingContext';
 import { SignInPromptTriggerProvider } from './context/SignInPromptTriggerContext';
-import { StyleSheet, View, LogBox, Animated } from 'react-native';
+import { StyleSheet, View, LogBox, Animated, Platform, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from './constants/colors';
 import { FONTS } from './constants/typography';
 import TexturedBackground from './components/shared/TexturedBackground';
@@ -41,6 +42,9 @@ import {
 } from '@expo-google-fonts/dm-sans';
 
 import { logger } from './utils/logger';
+
+// Use fullScreenModal on iPad (avoids centered sheet), modal on iPhone (keeps swipe-down to dismiss)
+const modalPresentation = Platform.OS === 'ios' && Platform.isPad ? 'fullScreenModal' : 'modal';
 
 // Duration for the fade-in when the loading video first appears (ms)
 const LOADING_FADE_IN_DURATION = 350;
@@ -245,7 +249,7 @@ function RootLayoutContent() {
                                 options={{
                                   headerShown: false,
                                   gestureEnabled: true,
-                                  presentation: 'modal'
+                                  presentation: modalPresentation
                                 }}
                               />
                               <Stack.Screen
@@ -253,15 +257,24 @@ function RootLayoutContent() {
                                 options={{
                                   headerShown: false,
                                   gestureEnabled: true,
-                                  presentation: 'modal'
+                                  presentation: modalPresentation
                                 }}
                               />
                               <Stack.Screen 
                                 name="settings" 
-                                options={{ 
+                                options={({ navigation }) => ({ 
                                   title: 'Settings',
-                                  presentation: 'modal',
+                                  presentation: modalPresentation,
                                   gestureEnabled: true,
+                                  headerLeft: modalPresentation === 'fullScreenModal' ? () => (
+                                    <TouchableOpacity
+                                      onPress={() => navigation.goBack()}
+                                      style={{ marginLeft: 8, padding: 8 }}
+                                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                    >
+                                      <Ionicons name="close" size={28} color="#FFFFFF" />
+                                    </TouchableOpacity>
+                                  ) : undefined,
                                   headerStyle: {
                                     backgroundColor: COLORS.background,
                                   },
@@ -270,22 +283,31 @@ function RootLayoutContent() {
                                     fontFamily: FONTS.sansBold,
                                     fontWeight: 'bold',
                                   },
-                                }} 
+                                })} 
                               />
                               <Stack.Screen
                                 name="badges"
-                                options={{
+                                options={({ navigation }) => ({
                                   title: 'Your Badges',
                                   gestureEnabled: true,
-                                  presentation: 'modal',
+                                  presentation: modalPresentation,
                                   headerBackVisible: false,
+                                  headerLeft: modalPresentation === 'fullScreenModal' ? () => (
+                                    <TouchableOpacity
+                                      onPress={() => navigation.goBack()}
+                                      style={{ marginLeft: 8, padding: 8 }}
+                                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                    >
+                                      <Ionicons name="close" size={28} color="#FFFFFF" />
+                                    </TouchableOpacity>
+                                  ) : undefined,
                                   headerBackground: () => <HeaderTexturedBackground />,
                                   headerTintColor: '#FFFFFF',
                                   headerTitleStyle: {
                                     fontFamily: FONTS.sansBold,
                                     fontWeight: 'bold',
                                   },
-                                }}
+                                })}
                               />
                               <Stack.Screen name="onboarding" options={{ headerShown: false }} />
                               <Stack.Screen name="onboarding-language" options={{ headerShown: false }} />

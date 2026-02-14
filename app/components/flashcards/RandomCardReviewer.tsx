@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Animated, PanResponder, Dimensions, Alert, Easing, Modal } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Animated, PanResponder, Dimensions, Alert, Easing, Modal, ScrollView } from 'react-native';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -129,7 +129,11 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     reviewSessionCardsRef,    // Use refs for reliable card lookups
   } = useRandomCardReview(handleSessionFinishing);
 
-  // Internal spacing constants for card layout
+  // Calculate available space from parent (KanjiScanner provides maxHeight constraint)
+  const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+  const isSmallScreen = SCREEN_HEIGHT < 700; // iPhone SE (667pt) and similar compact devices
+  
+  // Internal spacing constants for card layout (unchanged - avoid overlap with buttons)
   const HEADER_HEIGHT = 45;
   const HEADER_TO_CARD_SPACING = 16;
   const CONTAINER_PADDING_TOP = 10;
@@ -137,10 +141,6 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   
   // Calculate total spacing overhead (controls area removed - that space goes to card)
   const TOTAL_SPACING_OVERHEAD = CONTAINER_PADDING_TOP + HEADER_HEIGHT + HEADER_TO_CARD_SPACING + CONTAINER_PADDING_BOTTOM;
-  
-  // Calculate available space from parent (KanjiScanner provides maxHeight constraint)
-  // Parent calculation: SCREEN_HEIGHT - ESTIMATED_TOP_SECTION - REVIEWER_TOP_OFFSET - BUTTON_ROW_HEIGHT - BOTTOM_CLEARANCE
-  const { height: SCREEN_HEIGHT } = Dimensions.get('window');
   const ESTIMATED_TOP_SECTION = insets.top + 55;
   const REVIEWER_TOP_OFFSET = 50;
   const BUTTON_HEIGHT = 65;
@@ -1383,6 +1383,9 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       isInitializing,
     });
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Defer state updates to next frame so TouchableOpacity press animation completes
+    // before view switch - prevents flicker on iPhone SE and similar devices
+    requestAnimationFrame(() => {
     // Reset delay states when refreshing
     setDelaySessionFinish(false);
     setIsTransitionLoading(false);
@@ -1404,6 +1407,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     // If filteredCards is empty, startReviewWithCards will clear the session but won't reset isSessionFinished
     // The initialization effect will then pick up cards when they become available
     startReviewWithCards(filteredCards, false);
+    });
   };
 
   const onKeepCard = () => {
@@ -1855,9 +1859,10 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     CONTAINER_PADDING_BOTTOM,
     HEADER_HEIGHT,
     HEADER_TO_CARD_SPACING,
-    CARD_STAGE_HEIGHT
+    CARD_STAGE_HEIGHT,
+    isSmallScreen
   ), [CONTAINER_PADDING_TOP, CONTAINER_PADDING_BOTTOM, HEADER_HEIGHT, 
-      HEADER_TO_CARD_SPACING, CARD_STAGE_HEIGHT]);
+      HEADER_TO_CARD_SPACING, CARD_STAGE_HEIGHT, isSmallScreen]);
 
   // Industry standard: Only show hook loading for initial data fetch
   if (loadingState === LoadingState.SKELETON_LOADING && isInitializing) {
@@ -2126,42 +2131,49 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           </View>
           <View style={styles.cardStage}>
             <View style={styles.noCardsContainer}>
-              {(() => {
-                const titleKey = 'review.noCardsInSelectionTitle';
-                const subKey = 'review.noCardsInSelectionSubtitle';
-                const titleT = t(titleKey);
-                const subT = t(subKey);
-                const resolvedTitle = titleT === titleKey ? t('review.noCardsInSelectionTitle') : titleT;
-                const resolvedSub = subT === subKey ? 'The selected collection(s) contain no cards. Choose a different collection or add cards.' : subT;
-                return (
-                  <>
-                    <Text style={styles.gettingStartedTitle}>{resolvedTitle}</Text>
-                    <Text style={styles.gettingStartedSubtitle}>{resolvedSub}</Text>
-                  </>
-                );
-              })()}
-              
-              <View style={styles.guideItemsContainer}>
-                <View style={styles.guideItem}>
-                  <Ionicons name="add" size={24} color={COLORS.primary} />
-                  <Text style={styles.guideItemText}>{t('review.gettingStarted.addCard')}</Text>
-                </View>
+              <ScrollView
+                style={styles.noCardsScrollView}
+                contentContainerStyle={styles.noCardsScrollContent}
+                showsVerticalScrollIndicator={true}
+                bounces={false}
+              >
+                {(() => {
+                  const titleKey = 'review.noCardsInSelectionTitle';
+                  const subKey = 'review.noCardsInSelectionSubtitle';
+                  const titleT = t(titleKey);
+                  const subT = t(subKey);
+                  const resolvedTitle = titleT === titleKey ? t('review.noCardsInSelectionTitle') : titleT;
+                  const resolvedSub = subT === subKey ? 'The selected collection(s) contain no cards. Choose a different collection or add cards.' : subT;
+                  return (
+                    <>
+                      <Text style={styles.gettingStartedTitle}>{resolvedTitle}</Text>
+                      <Text style={styles.gettingStartedSubtitle}>{resolvedSub}</Text>
+                    </>
+                  );
+                })()}
                 
-                <View style={styles.guideItem}>
-                  <MaterialCommunityIcons name="cards" size={24} color={COLORS.primary} />
-                  <Text style={styles.guideItemText}>{t('review.gettingStarted.viewCards')}</Text>
+                <View style={styles.guideItemsContainer}>
+                  <View style={styles.guideItem}>
+                    <Ionicons name="add" size={24} color={COLORS.primary} />
+                    <Text style={styles.guideItemText}>{t('review.gettingStarted.addCard')}</Text>
+                  </View>
+                  
+                  <View style={styles.guideItem}>
+                    <MaterialCommunityIcons name="cards" size={24} color={COLORS.primary} />
+                    <Text style={styles.guideItemText}>{t('review.gettingStarted.viewCards')}</Text>
+                  </View>
+                  
+                  <View style={styles.guideItem}>
+                    <Ionicons name="images" size={24} color={COLORS.primary} />
+                    <Text style={styles.guideItemText}>{t('review.gettingStarted.uploadImage')}</Text>
+                  </View>
+                  
+                  <View style={styles.guideItem}>
+                    <Ionicons name="camera" size={24} color={COLORS.primary} />
+                    <Text style={styles.guideItemText}>{t('review.gettingStarted.takePhoto')}</Text>
+                  </View>
                 </View>
-                
-                <View style={styles.guideItem}>
-                  <Ionicons name="images" size={24} color={COLORS.primary} />
-                  <Text style={styles.guideItemText}>{t('review.gettingStarted.uploadImage')}</Text>
-                </View>
-                
-                <View style={styles.guideItem}>
-                  <Ionicons name="camera" size={24} color={COLORS.primary} />
-                  <Text style={styles.guideItemText}>{t('review.gettingStarted.takePhoto')}</Text>
-                </View>
-              </View>
+              </ScrollView>
             </View>
           </View>
           {deckSelector}
@@ -2448,6 +2460,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 <TouchableOpacity 
                   style={styles.reviewAgainButton} 
                   onPress={onRefreshDeck}
+                  activeOpacity={1}
                 >
                   <Text style={styles.reviewAgainText}>{t('review.reviewAgain')}</Text>
                 </TouchableOpacity>
@@ -2879,7 +2892,8 @@ const createStyles = (
   containerPaddingBottom: number,
   headerHeight: number,
   headerToCardSpacing: number,
-  cardStageHeight: number
+  cardStageHeight: number,
+  isSmallScreen: boolean = false
 ) => StyleSheet.create({
   container: {
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -3008,12 +3022,12 @@ const createStyles = (
   },
   cardStage: {
     width: '100%',
-    minHeight: cardStageHeight, // Minimum height for readability
+    minHeight: cardStageHeight,
     maxHeight: cardStageHeight,
-    flex: 1, // Expand to fill available space
+    flex: 1,
     position: 'relative',
     justifyContent: 'center',
-    marginBottom: 12, // Spacing between card and deck selector
+    marginBottom: 12,
     overflow: 'hidden',
   },
   cardContainer: {
@@ -3046,13 +3060,12 @@ const createStyles = (
   },
   noCardsContainer: {
     width: '100%',
-    minHeight: cardStageHeight, // Minimum height for readability
-    flex: 1, // Expand to fill available space
-    alignItems: 'center',
-    justifyContent: 'center',
+    minHeight: cardStageHeight,
+    flex: 1,
     backgroundColor: COLORS.darkSurface,
     borderRadius: 15,
-    padding: 20,
+    padding: isSmallScreen ? 12 : 20,
+    overflow: 'hidden',
     elevation: 5,
     shadowColor: '#000',
     shadowOffset: {
@@ -3061,6 +3074,13 @@ const createStyles = (
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+  },
+  noCardsScrollView: {
+    flex: 1,
+    width: '100%',
+  },
+  noCardsScrollContent: {
+    paddingBottom: isSmallScreen ? 24 : 32,
   },
   noCardsText: {
     fontFamily: FONTS.sansBold,
@@ -3095,29 +3115,29 @@ const createStyles = (
   },
   gettingStartedTitle: {
     fontFamily: FONTS.sansBold,
-    fontSize: 22,
+    fontSize: isSmallScreen ? 18 : 22,
     fontWeight: 'bold',
     color: COLORS.text,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: isSmallScreen ? 6 : 8,
   },
   gettingStartedSubtitle: {
     fontFamily: FONTS.sans,
-    fontSize: 16,
+    fontSize: isSmallScreen ? 14 : 16,
     color: COLORS.lightGray,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: isSmallScreen ? 12 : 24,
   },
   guideItemsContainer: {
     width: '100%',
-    paddingHorizontal: 10,
+    paddingHorizontal: isSmallScreen ? 6 : 10,
   },
   guideItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginBottom: 8,
+    paddingVertical: isSmallScreen ? 8 : 12,
+    paddingHorizontal: isSmallScreen ? 12 : 16,
+    marginBottom: isSmallScreen ? 6 : 8,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 10,
     borderLeftWidth: 3,
@@ -3125,9 +3145,9 @@ const createStyles = (
   },
   guideItemText: {
     fontFamily: FONTS.sans,
-    fontSize: 15,
+    fontSize: isSmallScreen ? 14 : 15,
     color: COLORS.text,
-    marginLeft: 16,
+    marginLeft: isSmallScreen ? 12 : 16,
     flex: 1,
   },
   swipeOverlay: {

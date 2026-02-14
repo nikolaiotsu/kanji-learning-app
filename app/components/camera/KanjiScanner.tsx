@@ -2920,6 +2920,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
             imageUri={capturedImage.uri}
             imageWidth={capturedImage.width}
             imageHeight={capturedImage.height}
+            imageIsCropped={!!(originalImage && originalImage.uri !== capturedImage.uri)}
             highlightModeActive={highlightModeActive}
             onActivateHighlightMode={activateHighlightMode}
             onRegionSelected={handleRegionSelected}

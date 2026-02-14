@@ -86,6 +86,8 @@ interface ImageHighlighterProps {
   imageUri: string;
   imageWidth: number;
   imageHeight: number;
+  /** When true and on iPad, uses a larger highlighter stroke for faster word selection on cropped/zoomed images */
+  imageIsCropped?: boolean;
   highlightModeActive?: boolean;
   onActivateHighlightMode?: () => void;
   onRegionSelected?: (region: {
@@ -120,6 +122,8 @@ const CROP_HANDLE_TOUCH_AREA = 40;
 const ROTATION_SMOOTHING_FACTOR = 0.4; // New, for smoothing rotation during drag
 const EDGE_TOLERANCE = 50; // pixels outside image boundary for starting highlights/crops
 const STROKE_WIDTH = 20; // Width of the highlighter stroke
+/** Larger stroke on iPad when image is cropped—faster to highlight words on the larger display */
+const STROKE_WIDTH_IPAD_CROPPED = 36;
 /** Horizontal dead zone (left and right) so accidental hand touches don't extend the highlight to the screen edge */
 const HIGHLIGHT_DEAD_ZONE_EDGE = 44;
 /** Extra width when building composite mask polygons so adjacent strokes overlap (no white streaks). Keep moderate to avoid including adjacent text. */
@@ -143,6 +147,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   imageUri,
   imageWidth,
   imageHeight,
+  imageIsCropped = false,
   highlightModeActive = false,
   onActivateHighlightMode,
   onRegionSelected,
@@ -151,6 +156,9 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   onHighlightDrawingChange,
 }, ref) => {
   const { t } = useTranslation();
+  const effectiveStrokeWidth = (Platform.OS === 'ios' && Platform.isPad && imageIsCropped)
+    ? STROKE_WIDTH_IPAD_CROPPED
+    : STROKE_WIDTH;
   const panResponderViewRef = React.useRef<View>(null); // ADDED HERE
   const maskCaptureRef = useRef<View>(null);
   const compositeCaptureRef = useRef<View>(null);
@@ -643,7 +651,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         }));
         
         // Get polygon points for this stroke (includes stroke width)
-        const polygonPoints = strokeToFilledPolygon(imageRelativeStroke, STROKE_WIDTH);
+        const polygonPoints = strokeToFilledPolygon(imageRelativeStroke, effectiveStrokeWidth);
         if (!polygonPoints) continue;
         
         // Parse polygon points to find bounds in display coordinates
@@ -705,7 +713,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           x: p.x - displayImageOffsetX,
           y: p.y - displayImageOffsetY,
         }));
-        const polygonPoints = strokeToFilledPolygon(imageRelativeStroke, STROKE_WIDTH);
+        const polygonPoints = strokeToFilledPolygon(imageRelativeStroke, effectiveStrokeWidth);
         if (!polygonPoints) continue;
         
         const pairs = polygonPoints.split(' ').filter(p => p.includes(','));
@@ -753,7 +761,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       
       // ROW-BASED BOUNDING BOXES: Group strokes by their ORIGINAL center Y (not inflated)
       // This prevents strokes on different text lines from merging into one row
-      const compositeStrokeWidth = STROKE_WIDTH + COMPOSITE_MASK_STROKE_INFLATION;
+      const compositeStrokeWidth = effectiveStrokeWidth + COMPOSITE_MASK_STROKE_INFLATION;
       
       // Build per-stroke data: original centerY for grouping, asymmetric bounds for masking
       // HORIZONTAL: Use inflated bounds (captures full character width)
@@ -1463,7 +1471,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
                     detectedText: [],
                     rotation: rotationRef.current,
                     strokes: strokesImageRelative,
-                    strokeWidth: STROKE_WIDTH,
+                    strokeWidth: effectiveStrokeWidth,
                   };
 
                   // Defer callback to avoid state update conflicts
@@ -1479,7 +1487,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         });
       }
     },
-  }), [calculateAngleFromRefs, onRegionSelected, onHighlightDrawingChange]);
+  }), [calculateAngleFromRefs, onRegionSelected, onHighlightDrawingChange, effectiveStrokeWidth]);
 
   // Helper function to convert points array to smooth SVG path using quadratic bezier curves
   const pointsToSVGPath = (points: Point[]): string => {
@@ -1687,7 +1695,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
               key={`stroke-${index}`}
               d={pathData}
               stroke={rainbowColor}
-              strokeWidth={STROKE_WIDTH}
+              strokeWidth={effectiveStrokeWidth}
               strokeLinecap="round"
               strokeLinejoin="round"
               fill="none"
@@ -1701,7 +1709,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           <AnimatedPath
             d={pointsToSVGPath(currentStroke)}
             stroke={rainbowColor}
-            strokeWidth={STROKE_WIDTH}
+            strokeWidth={effectiveStrokeWidth}
             strokeLinecap="round"
             strokeLinejoin="round"
             fill="none"
@@ -2096,7 +2104,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         for (const stroke of imageRelativeStrokes) {
           if (stroke.length < 2) continue;
           
-          const polygonPoints = strokeToFilledPolygon(stroke, STROKE_WIDTH);
+          const polygonPoints = strokeToFilledPolygon(stroke, effectiveStrokeWidth);
           if (!polygonPoints) continue;
           
           const pairs = polygonPoints.split(' ').filter(p => p.includes(','));
@@ -2194,8 +2202,9 @@ const CORNER_BRACKET_SIZE = 24;
 const CORNER_BRACKET_STROKE = 2;
 const FRAME_COLOR = 'rgba(0, 140, 45, 0.4)';   // darker matrix green, translucent
 const CORNER_COLOR = 'rgba(0, 120, 40, 0.55)';  // darker matrix green (corners), translucent
-const ROTATE_CROSS_GUIDE_COLOR = 'rgba(255, 255, 255, 0.7)';
-const ROTATE_CROSS_GUIDE_STROKE = 2;
+/** Rotate cross guide: same green as stylized border, same thickness as corner brackets, more translucent */
+const ROTATE_CROSS_GUIDE_COLOR = 'rgba(0, 140, 45, 0.7)';
+const ROTATE_CROSS_GUIDE_STROKE = CORNER_BRACKET_STROKE;
 
 const styles = StyleSheet.create({
   container: {

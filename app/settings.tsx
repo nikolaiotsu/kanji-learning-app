@@ -503,7 +503,10 @@ export default function SettingsScreen() {
             <View style={styles.settingTextContainer}>
               <Text style={styles.settingLabel}>{t('settings.forceWordDexDetect')}</Text>
               <Text style={styles.settingDescription}>
-                {detectableLanguages[forcedDetectionLanguage as keyof typeof detectableLanguages]} {t('settings.tapToChange')}
+                {(t(`languageNames.${forcedDetectionLanguage}`, {
+                  defaultValue: detectableLanguages[forcedDetectionLanguage as keyof typeof detectableLanguages],
+                }) as string)}{' '}
+                {t('settings.tapToChange')}
               </Text>
             </View>
           </TouchableOpacity>
@@ -516,7 +519,10 @@ export default function SettingsScreen() {
             <View style={styles.settingTextContainer}>
               <Text style={styles.settingLabel}>{t('settings.translateTo')}</Text>
               <Text style={styles.settingDescription}>
-                {availableLanguages[targetLanguage as keyof typeof availableLanguages]} {t('settings.tapToChange')}
+                {(t(`languageNames.${targetLanguage}`, {
+                  defaultValue: availableLanguages[targetLanguage as keyof typeof availableLanguages],
+                }) as string)}{' '}
+                {t('settings.tapToChange')}
               </Text>
             </View>
           </TouchableOpacity>
@@ -925,7 +931,7 @@ export default function SettingsScreen() {
                       targetLanguage === item.code && styles.selectedLanguageText
                     ]}
                   >
-                    {item.name}
+                    {(t(`languageNames.${item.code}`, { defaultValue: item.name }) as string)}
                   </Text>
                   {targetLanguage === item.code && (
                     <Ionicons name="checkmark" size={24} color={COLORS.primary} />
@@ -975,7 +981,7 @@ export default function SettingsScreen() {
                       forcedDetectionLanguage === item.code && styles.selectedLanguageText
                     ]}
                   >
-                    {item.name}
+                    {(t(`languageNames.${item.code}`, { defaultValue: item.name }) as string)}
                   </Text>
                   {forcedDetectionLanguage === item.code && (
                     <Ionicons name="checkmark" size={24} color={COLORS.primary} />

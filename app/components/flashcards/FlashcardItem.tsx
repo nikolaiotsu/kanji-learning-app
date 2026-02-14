@@ -829,19 +829,6 @@ const readingsText = flashcard.readingsText;
                   />
                 </View>
               )}
-              {flashcard.imageUrl && (
-                <View ref={imageButtonRef} collapsable={false}>
-                  <PokedexButton
-                    onPress={toggleShowImage}
-                    icon="image"
-                    iconColor={isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? '#FBBF24' : 'black'}
-                    color={isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? '#FBBF24' : 'grey'}
-                    size="small"
-                    shape="square"
-                    style={StyleSheet.flatten([styles.flashcardActionButton, ...(isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? [styles.walkthroughHighlightedButton] : [])])}
-                  />
-                </View>
-              )}
               {flashcard.imageUrl && showRefreshButton && showImage && (
                 <PokedexButton
                   onPress={handleImageRetry}
@@ -854,6 +841,19 @@ const readingsText = flashcard.readingsText;
                   disabled={imageRetryCount >= MAX_RETRY_COUNT}
                   darkDisabled={imageRetryCount >= MAX_RETRY_COUNT}
                 />
+              )}
+              {flashcard.imageUrl && (
+                <View ref={imageButtonRef} collapsable={false}>
+                  <PokedexButton
+                    onPress={toggleShowImage}
+                    icon="image"
+                    iconColor={isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? '#FBBF24' : 'black'}
+                    color={isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? '#FBBF24' : 'grey'}
+                    size="small"
+                    shape="square"
+                    style={StyleSheet.flatten([styles.flashcardActionButton, ...(isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? [styles.walkthroughHighlightedButton] : [])])}
+                  />
+                </View>
               )}
             </View>
             {/* Full-height yellow highlight for flip walkthrough (fills lower part too); touch zones sit on top */}
@@ -1076,17 +1076,6 @@ const readingsText = flashcard.readingsText;
                   style={styles.flashcardActionButton}
                 />
               )}
-              {flashcard.imageUrl && (
-                <PokedexButton
-                  onPress={toggleShowImage}
-                  icon="image"
-                  iconColor={isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? '#FBBF24' : 'black'}
-                  color={isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? '#FBBF24' : 'grey'}
-                  size="small"
-                  shape="square"
-                  style={StyleSheet.flatten([styles.flashcardActionButton, ...(isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? [styles.walkthroughHighlightedButton] : [])])}
-                />
-              )}
               {flashcard.imageUrl && showRefreshButton && showImage && (
                 <PokedexButton
                   onPress={handleImageRetry}
@@ -1098,6 +1087,17 @@ const readingsText = flashcard.readingsText;
                   style={styles.flashcardActionButton}
                   disabled={imageRetryCount >= MAX_RETRY_COUNT}
                   darkDisabled={imageRetryCount >= MAX_RETRY_COUNT}
+                />
+              )}
+              {flashcard.imageUrl && (
+                <PokedexButton
+                  onPress={toggleShowImage}
+                  icon="image"
+                  iconColor={isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? '#FBBF24' : 'black'}
+                  color={isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? '#FBBF24' : 'grey'}
+                  size="small"
+                  shape="square"
+                  style={StyleSheet.flatten([styles.flashcardActionButton, ...(isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? [styles.walkthroughHighlightedButton] : [])])}
                 />
               )}
             </View>

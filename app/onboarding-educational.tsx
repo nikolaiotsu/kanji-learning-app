@@ -156,6 +156,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
+    alignSelf: 'flex-start',
   },
   titleText: {
     fontFamily: FONTS.sansBold,
@@ -163,7 +164,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.text,
     letterSpacing: -0.5,
-    flex: 1,
     marginRight: 10,
   },
   titleLogoWrap: {

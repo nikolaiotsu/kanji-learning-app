@@ -1,8 +1,18 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import * as InAppPurchases from 'expo-in-app-purchases';
-import Constants from 'expo-constants';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
+
+// expo-in-app-purchases requires native code and is NOT available in Expo Go.
+// Conditionally load it only when running in a development build or production.
+let InAppPurchases: typeof import('expo-in-app-purchases') | null = null;
+if (Constants.executionEnvironment !== ExecutionEnvironment.StoreClient) {
+  try {
+    InAppPurchases = require('expo-in-app-purchases');
+  } catch {
+    InAppPurchases = null;
+  }
+}
 import { SubscriptionContextType, SubscriptionState, SubscriptionPlan, IAPProduct } from '../../types';
 import { SUBSCRIPTION_PLANS, PRODUCT_IDS } from '../constants/config';
 import { useAuth } from './AuthContext';
@@ -50,7 +60,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     
     return () => {
       // Cleanup: disconnect IAP when component unmounts
-      if (!isDevelopment) {
+      if (!isDevelopment && InAppPurchases) {
         InAppPurchases.disconnectAsync().catch((err) => 
           logger.error('Error disconnecting IAP:', err)
         );
@@ -60,8 +70,8 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
   
   // Initialize In-App Purchases
   const initializeIAP = async () => {
-    if (isDevelopment) {
-      logger.log('Development mode: Skipping real IAP initialization');
+    if (isDevelopment || !InAppPurchases) {
+      logger.log('Development mode or Expo Go: Skipping real IAP initialization');
       return;
     }
     
@@ -71,7 +81,8 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
       logger.log('IAP connected successfully');
       
       // Set up purchase listener
-      InAppPurchases.setPurchaseListener(handlePurchaseUpdate);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- IAP types require expo-in-app-purchases which may be null in Expo Go
+      InAppPurchases.setPurchaseListener(handlePurchaseUpdate as any);
       
       // Fetch available products
       await fetchProducts();
@@ -83,13 +94,14 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
   
   // Fetch products from the App Store
   const fetchProducts = async () => {
+    if (!InAppPurchases) return;
     try {
       const productIds = [PRODUCT_IDS.PREMIUM_MONTHLY, PRODUCT_IDS.PREMIUM_YEARLY];
       logger.log('Fetching products:', productIds);
       
       const { responseCode, results } = await InAppPurchases.getProductsAsync(productIds);
       
-      if (responseCode === InAppPurchases.IAPResponseCode.OK && results) {
+      if (InAppPurchases && responseCode === InAppPurchases.IAPResponseCode.OK && results) {
         const products: IAPProduct[] = results.map((product: any) => ({
           productId: product.productId,
           price: product.price,
@@ -110,13 +122,14 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
   };
   
   // Handle purchase updates from the App Store (uses expo-in-app-purchases IAPQueryResponse<InAppPurchase>)
-  const handlePurchaseUpdate = (result: InAppPurchases.IAPQueryResponse<InAppPurchases.InAppPurchase>) => {
+  const handlePurchaseUpdate = (result: { responseCode: number; results?: Array<{ productId: string; transactionReceipt?: string; purchaseTime: number; acknowledged?: boolean; [key: string]: unknown }>; errorCode?: number }) => {
+    if (!InAppPurchases) return;
     const { responseCode, results, errorCode } = result;
     
     logger.log('Purchase update received:', { responseCode, errorCode });
     
-    if (responseCode === InAppPurchases.IAPResponseCode.OK && results) {
-      results.forEach(async (purchase: InAppPurchases.InAppPurchase) => {
+    if (InAppPurchases && responseCode === InAppPurchases.IAPResponseCode.OK && results) {
+      results.forEach(async (purchase) => {
         if (!purchase.acknowledged) {
           logger.log('Processing new purchase:', purchase.productId);
           
@@ -164,15 +177,15 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
           }
           
           // Acknowledge the purchase (important!)
-          await InAppPurchases.finishTransactionAsync(purchase, true);
+          if (InAppPurchases) await InAppPurchases.finishTransactionAsync(purchase as never, true);
           logger.log('Purchase acknowledged successfully');
         }
       });
-    } else if (responseCode === InAppPurchases.IAPResponseCode.USER_CANCELED) {
+    } else if (InAppPurchases && responseCode === InAppPurchases.IAPResponseCode.USER_CANCELED) {
       logger.log('User canceled the purchase');
       setError('Purchase was canceled');
     } else if (errorCode !== undefined) {
-      const errorMessage = typeof errorCode === 'number' ? InAppPurchases.IAPErrorCode[errorCode] ?? String(errorCode) : String(errorCode);
+      const errorMessage = InAppPurchases && typeof errorCode === 'number' ? InAppPurchases.IAPErrorCode[errorCode] ?? String(errorCode) : String(errorCode);
       logger.error('Purchase error:', errorMessage);
       setError(`Purchase failed: ${errorMessage}`);
     }
@@ -262,6 +275,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
       logger.log('Initiating real IAP purchase for:', productId);
       
       // Purchase the item
+      if (!InAppPurchases) return false;
       await InAppPurchases.purchaseItemAsync(productId);
       
       // The purchase result will be handled by the purchase listener
@@ -306,6 +320,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
       // Production mode: Restore from App Store
       logger.log('Restoring purchases from App Store...');
       
+      if (!InAppPurchases) return false;
       const { responseCode, results } = await InAppPurchases.getPurchaseHistoryAsync();
       
       if (responseCode === InAppPurchases.IAPResponseCode.OK && results && results.length > 0) {
