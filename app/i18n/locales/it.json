@@ -82,24 +82,56 @@
       "registrationFailed": "Registrazione fallita"
     }
   },
+  "signInPrompt": {
+    "title": "Crea un account",
+    "subtitle": "Accelera il tuo apprendimento accedendo per ottenere maggiore accesso alle funzionalità di WordDex:",
+    "benefit1": "• Utilizzo giornaliero maggiore",
+    "benefit2": "• Creazione illimitata di mazzi",
+    "benefit3": "• Ricarica l'energia gratuitamente",
+    "signUp": "Registrati",
+    "continueAsGuest": "Continua come ospite"
+  },
   "onboarding": {
-    "welcomeTitle": "Benvenuto in Worddex",
-    "welcomeSubtitle1": "Il modo più veloce per imparare il vocabolario dalla tua vita reale.",
-    "welcomeSubtitle2": "Ogni parola che scansioni rivela grammatica, contesto e sinonimi — istantaneamente.",
-    "getStarted": "Inizia",
+    "welcomeTitle": "Grazie per aver scaricato WordDex!",
+    "welcomeSubtitle1": "Trasforma il mondo nella tua aula.",
+    "welcomeSubtitle2": "Scansiona qualsiasi parola per scoprirne il significato, il contesto e l'uso — salvala istantaneamente come flashcard.",
+    "getStarted": "Continua",
     "alreadyHaveAccount": "Hai già un account?",
     "signIn": "Accedi",
+    "languageTitle1": "Che lingua parli?",
+    "languageTitle2": "Che lingua vuoi imparare?",
+    "languageContinue": "Continua",
+    "selectLanguageSpeak": "Seleziona lingua",
+    "selectLanguageLearn": "Seleziona lingua da imparare",
     "whyTitle": "Perché stai imparando {{language}}?",
     "newLanguage": "una nuova lingua",
     "whyWork": "Per lavoro o studio",
-    "whyTravel": "Per viaggiare o la vita quotidiana",
+    "whyTravel": "Per viaggi o vita quotidiana",
     "whyPeople": "Per le persone a cui tengo",
     "whyFun": "Solo per divertimento",
     "whyOther": "Altro",
     "whyCta": "Continua",
+    "timeTitle": "Qual è il tuo obiettivo di apprendimento giornaliero?",
+    "time5Min": "5 min / giorno",
+    "time10Min": "10 min / giorno",
+    "time15Min": "15 min / giorno",
+    "time20Min": "20 min / giorno",
+    "timeCasual": "Tranquillo",
+    "timeRegular": "Regolare",
+    "timeSerious": "Serio",
+    "timeIntense": "Intenso",
     "timeCta": "Continua",
+    "fastTitle": "Ecco come WordDex può aiutarti!",
+    "fastBullet": "Invece di digitare manualmente il testo per creare flashcard...",
     "fastCta": "Continua",
+    "relevantTitle": "Impara ciò di cui TU hai bisogno",
+    "relevantTitleSuffix": "è...rilevante.",
+    "relevantBullet": "Invece di memorizzare frasi che non userai mai...",
     "relevantCta": "Continua",
+    "empoweringTitle": "Scansiona. Impara. Fatto.",
+    "empoweringTitleSuffix": "è...empowerment.",
+    "empoweringBullet1": "Creiamo la tua prima carta e facciamo un piccolo tour!",
+    "empoweringBullet2": "Con WordDex, il tuo mondo diventa la tua aula. Esplora senza limiti!",
     "empoweringCta": "Continua"
   },
   "badges": {
@@ -294,13 +326,13 @@
     "resetSwipeInstructionsModal": "Reimposta finestra istruzioni scorrimento",
     "resetSwipeInstructionsSuccess": "Istruzioni di scorrimento reimpostate. Vai alla Home e apparirà la finestra \"Scorri a sinistra/destra\".",
     "resetSwipeInstructionsError": "Impossibile reimpostare le istruzioni di scorrimento.",
-    "showAppWalkthrough": "Mostra Tour App",
+    "showAppWalkthrough": "Mostra tutorial dell'app",
     "showAppWalkthroughDescription": "Riproduci il tutorial di onboarding per conoscere le funzionalità dell'app"
   },
   "review": {
     "remaining": "{{count}} rimanenti - scorri ← per rivedere di nuovo - scorri → per scartare",
-    "swipeInstructionsTitle": "Istruzioni per lo scorrimento",
-    "swipeInstructionsBody": "Scorri a sinistra ← per rivederlo, a destra → se hai ricordato la risposta. Tocca Revisione per iniziare a tracciare il tuo apprendimento con la ripetizione dilazionata!",
+    "swipeInstructionsTitle": "Istruzioni di scorrimento",
+    "swipeInstructionsBody": "Scorri a sinistra ← per vedere di nuovo la tua carta, a destra → se hai ricordato il retro della tua carta. Tocca Ripassa per iniziare a monitorare il tuo apprendimento con la ripetizione dilazionata!",
     "dontShowAgain": "Non mostrare più",
     "srsCounter": "{{reviewed}}/{{due}}({{total}})",
     "reviewMode": "Revisione",
@@ -326,10 +358,10 @@
     "noCardsInSelectionTitle": "Nessuna scheda da rivedere",
     "noCardsInSelectionSubtitle": "La collezione/i selezionata/e non contiene schede. Scegli una collezione diversa o aggiungi schede.",
     "gettingStarted": {
-      "title": "Inizia",
+      "title": "Per iniziare",
       "subtitle": "Crea la tua prima collezione:",
-      "addCard": "Crea una scheda personalizzata",
-      "viewCards": "Visualizza schede salvate",
+      "addCard": "Crea una carta personalizzata",
+      "viewCards": "Visualizza carte salvate",
       "uploadImage": "Carica immagine dalla galleria",
       "takePhoto": "Scatta una foto per scansionare testo"
     },
@@ -422,6 +454,8 @@
     "processingLimitReachedMessage": "L'area di testo selezionata è troppo grande o complessa. Prova a selezionare una sezione di testo più piccola.",
     "ocrErrorTitle": "Errore OCR",
     "ocrErrorMessage": "C'è stato un problema nel riconoscere il testo nell'area selezionata. Riprova.",
+    "ocrTimeoutTitle": "Sta impiegando troppo tempo",
+    "ocrTimeoutMessage": "Il riconoscimento del testo sta impiegando più del solito. Controlla la connessione e riprova, o seleziona un'area più piccola.",
     "rotationError": "Impossibile applicare la rotazione.",
     "permissionDenied": "Scusa, abbiamo bisogno dei permessi della fotocamera per far funzionare questo!",
     "failedToTakePhoto": "Scatto foto fallito"
@@ -437,6 +471,11 @@
     "camera": {
       "title": "Scatta Foto",
       "description": "Tocca qui per scattare una foto del testo che vuoi imparare. La fotocamera scannerà e creerà schede dalle tue foto."
+    },
+    "findText": {
+      "title": "La tua prima carta ti aspetta",
+      "description": "Scegli qualsiasi testo in {{language}} intorno a te. Inizia a imparare dai TUOI materiali",
+      "languageFallback": "una lingua"
     },
     "gallery": {
       "title": "Galleria",
@@ -471,38 +510,39 @@
       "description": "Proviamo a caricare un'immagine dalla galleria. Dopo averne scelta una, ti guideremo attraverso rotazione, ritaglio ed evidenziazione."
     },
     "rotate": {
-      "title": "Ruota Immagine",
-      "description": "Ruota la tua foto se necessario prima di ritagliare o evidenziare il testo."
+      "title": "Ruota immagine",
+      "description": "Foto inclinata? Raddrizzala qui.",
+      "cta": "Ruota"
     },
     "crop": {
-      "title": "Ritaglia Immagine",
-      "description": "Ritaglia la foto sull'area importante così elabori solo il testo di cui hai bisogno.",
+      "title": "Ritaglia immagine",
+      "description": "Ingrandisci ciò che conta. Ritaglia sul testo che vuoi.",
       "cta": "Ritaglia"
     },
     "highlight": {
-      "title": "Evidenzia Testo",
-      "description": "Proviamo a evidenziare del testo nell'immagine. Usa l'evidenziatore arcobaleno per evidenziare il testo che vuoi tradurre.",
+      "title": "Evidenzia testo",
+      "description": "Disegna un'evidenziazione sul testo che vuoi imparare. Facile!",
       "cta": "Evidenzia"
     },
     "confirmHighlight": {
-      "title": "Conferma Selezione",
-      "description": "L'evidenziazione arcobaleno circonda ordinatamente il testo che vuoi tradurre? Se sì, premi avanti, e poi il segno di spunta, se no, premi il pulsante indietro e riprova."
+      "title": "Conferma selezione",
+      "description": "Ti sembra giusto? Premi il segno di spunta. Vuoi rifare? Tocca indietro."
     },
     "translateButton": {
       "title": "Traduci",
-      "description": "Tocca qui per tradurre il tuo testo rilevato nella tua lingua di destinazione. La traduzione apparirà sotto insieme alle guide di pronuncia se applicabile."
+      "description": "Traduzione rapida. Fatto."
     },
     "wordscopeButton": {
       "title": "Wordscope",
-      "description": "Questo potente strumento fornisce sia traduzione CHE analisi dettagliata del testo - inclusa una scomposizione grammaticale, esempi di utilizzo, errori comuni, contesto e possibili sinonimi. È perfetto per un apprendimento più approfondito!"
+      "description": "Vuoi la storia completa? Wordscope ti mostra grammatica, esempi, uso — è tutto qui."
     },
     "editTextButton": {
-      "title": "Modifica Testo",
-      "description": "Tocca qui per modificare il testo rilevato nel caso ci siano parole che non ti servono o vuoi modificare prima di tradurre. Se tutto sembra a posto, vai avanti e tocca il pulsante traduci o Wordscope!"
+      "title": "Modifica testo",
+      "description": "Errore dello scanner? Correggi eventuali errori prima di tradurre."
     },
     "chooseTranslation": {
-      "title": "Pronto a Tradurre!",
-      "description": "Ora tocca Traduci per una traduzione rapida, o Wordscope per un'analisi più approfondita. Entrambi elaboreranno il tuo testo e lo prepareranno per il salvataggio come scheda!"
+      "title": "Pronto per tradurre!",
+      "description": "Tu scegli: Traduci (veloce) o Wordscope (approfondito)."
     },
     "saveButton": {
       "title": "Salva Scheda",
@@ -521,22 +561,46 @@
       "description": "Hai bisogno di cambiare il testo originale? Tocca qui per modificare il tuo input e ottenere una nuova traduzione."
     },
     "finalSavePrompt": {
-      "title": "Salva la Tua Prima Scheda!",
-      "description": "Ora tocca semplicemente questo pulsante per salvare la tua prima scheda nella tua collezione!"
+      "title": "Salva la tua prima flashcard!",
+      "description": "Ci siamo! Tocca per salvare la tua prima carta."
+    },
+    "goHomePrompt": {
+      "title": "Congratulazioni! 🎉",
+      "description": "Ce l'hai fatta! Prima flashcard salvata. E ora avanti con centinaia di altre. 🎉",
+      "buttonLabel": "Continua"
     },
     "congratulations": {
       "title": "Congratulazioni! 🎉",
       "description": "Hai salvato la tua prima scheda! Ecco a molte altre! Salute! 🥳"
     },
     "flipCard": {
-      "title": "Flip the Card",
-      "description": "Swipe inward from either edge of the card to flip it!"
+      "title": "Gira la carta",
+      "description": "Scorri verso l'interno da uno dei bordi della carta per girarla!"
     },
-    "continueWalkthrough": "No, Continua Tour",
-    "endWalkthrough": "Sì, Termina Tour",
+    "imageButton": {
+      "title": "Vedi l'immagine",
+      "description": "Attiva l'immagine per vedere la tua foto!"
+    },
+    "swipeLeftInstruction": {
+      "title": "Scorri a sinistra",
+      "description": "Scorri a sinistra se hai bisogno di più pratica."
+    },
+    "swipeRightInstruction": {
+      "title": "Scorri a destra",
+      "description": "Scorri a destra quando l'hai imparata!"
+    },
+    "finalCongratulations": {
+      "title": "Sei pronto! 🎉",
+      "description": "Ora sei pronto per catturare nuove parole da solo. Buon divertimento a collezionare e ripassare.",
+      "buttonLabel": "Continua"
+    },
+    "continueWalkthrough": "No, continua tutorial",
+    "endWalkthrough": "Sì, termina tutorial",
+    "endWalkthroughTitle": "Terminare il tutorial?",
+    "endWalkthroughMessage": "Premendo × o il pulsante indietro uscirai dal tutorial. Sei sicuro?",
     "noTextFoundTitle": "Ops!",
-    "noTextFoundMessage": "Assicurati che l'evidenziazione arcobaleno copra tutto il testo che vuoi tradurre. Riproviamo!",
-    "noEnergyTitle": "Barra Energia Vuota",
+    "noTextFoundMessage": "Assicurati che l'evidenziazione arcobaleno copra tutto il testo che vuoi tradurre. Proviamo di nuovo!",
+    "noEnergyTitle": "Barra energia vuota",
     "noEnergyMessage": "Per vedere il tutorial, la tua barra energia deve essere ricaricata. Il tutorial richiede chiamate API per dimostrare le funzionalità. Attendi che la tua energia giornaliera si ricarichi o passa a Premium per più energia."
   },
   "debug": {

@@ -455,6 +455,8 @@
     "processingLimitReachedMessage": "The selected text area is too large or complex. Please try selecting a smaller section of text.",
     "ocrErrorTitle": "OCR Error",
     "ocrErrorMessage": "There was a problem recognizing text in the selected area. Please try again.",
+    "ocrTimeoutTitle": "Taking Too Long",
+    "ocrTimeoutMessage": "Text recognition is taking longer than usual. Check your internet connection and try again, or select a smaller area.",
     "rotationError": "Could not apply rotation.",
     "permissionDenied": "Sorry, we need camera permissions to make this work!",
     "failedToTakePhoto": "Failed to take photo"

@@ -22,7 +22,7 @@ import { FONTS } from '../../constants/typography';
 import { PRODUCT_IDS } from '../../constants/config';
 import { CapturedImage, TextAnnotation, VisionApiResponse } from '../../../types';
 import { captureRef } from 'react-native-view-shot';
-import { detectJapaneseText, convertToOriginalImageCoordinates, cropImageToRegion, resizeImageToRegion } from '../../services/visionApi';
+import { detectJapaneseText, convertToOriginalImageCoordinates, cropImageToRegion, resizeImageToRegion, VisionOCRError, VISION_OCR_ERROR_CODES } from '../../services/visionApi';
 import { imageUriToBase64DataUri, convertStrokesToCropRelative } from '../../services/imageMaskUtils';
 import MaskedImageCapture from '../shared/MaskedImageCapture';
 import { ImageHighlighterRef, ImageHighlighterRotationState } from '../shared/ImageHighlighter';
@@ -1639,28 +1639,29 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       }
       
       await completeHighlightWithOcrResult(textRegions);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error processing highlight region:', error);
-      
+
+      const isTimeoutOrNetwork = error instanceof VisionOCRError &&
+        (error.code === VISION_OCR_ERROR_CODES.TIMEOUT || error.code === VISION_OCR_ERROR_CODES.NETWORK);
+
       // During walkthrough, show a friendly message and go back to highlight step
       if (isWalkthroughActive) {
         Alert.alert(
           t('walkthrough.noTextFoundTitle'),
           t('walkthrough.noTextFoundMessage'),
-          [{ 
+          [{
             text: t('common.ok'),
             onPress: () => {
-              // Reset overlay visibility so walkthrough shows again
               setHideWalkthroughOverlay(false);
               previousStep();
             }
           }]
         );
-      } else if (error.message && error.message.includes('timed out')) {
-        // Check if it's a timeout error from our OCR service
+      } else if (isTimeoutOrNetwork) {
         Alert.alert(
-          t('camera.processingLimitReachedTitle'),
-          t('camera.processingLimitReachedMessage'),
+          t('camera.ocrTimeoutTitle'),
+          t('camera.ocrTimeoutMessage'),
           [{ text: t('common.ok') }]
         );
       } else {

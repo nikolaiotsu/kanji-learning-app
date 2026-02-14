@@ -43,7 +43,7 @@
   },
   "auth": {
     "login": {
-      "title": "こんにちは、コレクター。",
+      "title": "こんにちは、\nコレクター。",
       "newUser": "初めてのご利用ですか？",
       "createAccount": "アカウント作成",
       "signInWithEmail": "メールで続ける",
@@ -82,47 +82,56 @@
       "pleaseTryAgain": "もう一度お試しください"
     }
   },
+  "signInPrompt": {
+    "title": "アカウントを作成",
+    "subtitle": "サインインしてWordDexの機能をフル活用しましょう:",
+    "benefit1": "• 1日の利用回数が増加",
+    "benefit2": "• デッキ作成が無制限",
+    "benefit3": "• デックスエナジーを無料で回復",
+    "signUp": "新規登録",
+    "continueAsGuest": "ゲストとして続ける"
+  },
   "onboarding": {
-    "welcomeTitle": "WordDexへようこそ",
-    "welcomeSubtitle1": "世界があなたの教室になる。",
-    "welcomeSubtitle2": "どんな言葉もスキャンするだけで、意味、文脈、使い方がわかり、すぐにフラッシュカードとして保存できます。",
+    "welcomeTitle": "WordDexをダウンロードいただきありがとうございます!",
+    "welcomeSubtitle1": "世界をあなたの教室に変えよう。",
+    "welcomeSubtitle2": "どんな言葉もスキャンして意味、文脈、使い方を理解し、すぐにフラッシュカードとして保存できます。",
     "getStarted": "続ける",
-    "alreadyHaveAccount": "すでにアカウントをお持ちですか?",
-    "signIn": "ログイン",
-    "languageTitle1": "母国語を選んでください",
-    "languageTitle2": "学びたい言語を選んでください",
+    "alreadyHaveAccount": "アカウントをお持ちの方は",
+    "signIn": "サインイン",
+    "languageTitle1": "あなたが話す言語は何ですか?",
+    "languageTitle2": "学びたい言語は何ですか?",
     "languageContinue": "続ける",
     "selectLanguageSpeak": "言語を選択",
-    "selectLanguageLearn": "学びたい言語を選択",
-    "whyTitle": "{{language}}を学ぶ理由は?",
+    "selectLanguageLearn": "学ぶ言語を選択",
+    "whyTitle": "なぜ{{language}}を学びますか?",
     "newLanguage": "新しい言語",
     "whyWork": "仕事や学業のため",
     "whyTravel": "旅行や日常生活のため",
     "whyPeople": "大切な人のため",
-    "whyFun": "ただ楽しいから",
+    "whyFun": "純粋に楽しいから",
     "whyOther": "その他",
     "whyCta": "続ける",
-    "timeTitle": "1日どれくらい勉強する時間をとれそう？",
-    "time5Min": "1日5分",
-    "time10Min": "1日10分",
-    "time15Min": "1日15分",
-    "time20Min": "1日20分",
-    "timeCasual": "気軽に",
-    "timeRegular": "しっかり",
-    "timeSerious": "本気で",
-    "timeIntense": "がっつり",
+    "timeTitle": "1日の学習目標は?",
+    "time5Min": "5分 / 日",
+    "time10Min": "10分 / 日",
+    "time15Min": "15分 / 日",
+    "time20Min": "20分 / 日",
+    "timeCasual": "のんびり",
+    "timeRegular": "定期的に",
+    "timeSerious": "本格的に",
+    "timeIntense": "集中的に",
     "timeCta": "続ける",
-    "fastTitle": "WordDexがお手伝いできること！",
-    "fastBullet": "テキストを手入力して単語帳を作る代わりに...",
+    "fastTitle": "WordDexがお手伝いします!",
+    "fastBullet": "フラッシュカードを手入力する代わりに...",
     "fastCta": "続ける",
-    "relevantTitle": "自分に必要なものを学ぶ",
+    "relevantTitle": "あなたに必要なことを学ぼう",
     "relevantTitleSuffix": "は...実用的。",
-    "relevantBullet": "語学コースアプリは、使わないフレーズばかり教えてくる。",
+    "relevantBullet": "使わないフレーズを暗記する代わりに...",
     "relevantCta": "続ける",
-    "empoweringTitle": "スキャン。学ぶ。完了。",
-    "empoweringTitleSuffix": "は...可能性を広げる。",
-    "empoweringBullet1": "少しツアーに行きましょう！",
-    "empoweringBullet2": "WordDexなら、あなたの世界が教室に。制限なく、自由に学べる!",
+    "empoweringTitle": "スキャン。学習。完了。",
+    "empoweringTitleSuffix": "は...力になる。",
+    "empoweringBullet1": "最初のカードを作って、簡単なツアーに参加しましょう!",
+    "empoweringBullet2": "WordDexがあれば、あなたの世界が教室になります。自由に探索しよう!",
     "empoweringCta": "続ける"
   },
   "badges": {
@@ -317,14 +326,14 @@
     "resetSwipeInstructionsModal": "スワイプ説明モーダルをリセット",
     "resetSwipeInstructionsSuccess": "スワイプ説明をリセットしました。ホームに移動すると「左/右にスワイプ」のモーダルが表示されます。",
     "resetSwipeInstructionsError": "スワイプ説明をリセットできませんでした。",
-    "showAppWalkthrough": "アプリチュートリアルを表示",
-    "showAppWalkthroughDescription": "アプリの機能について学ぶためのオンボーディングチュートリアルを再度再生します"
+    "showAppWalkthrough": "アプリのチュートリアルを表示",
+    "showAppWalkthroughDescription": "オンボーディングチュートリアルを再生してアプリの機能を学ぶ"
   },
   "review": {
     "remaining": "残り{{count}}枚 - 左スワイプでもう一度復習 - 右スワイプで進む",
-    "swipeInstructionsTitle": "スワイプの説明",
-    "swipeInstructionsBody": "もう一度見るには左←、覚えていたら右→にスワイプ。復習をタップして、間隔反復で学習を記録しよう！",
-    "dontShowAgain": "今後表示しない",
+    "swipeInstructionsTitle": "スワイプ方法",
+    "swipeInstructionsBody": "もう一度見たい場合は左にスワイプ←、カードの裏を覚えていたら右にスワイプ→。復習をタップして間隔反復学習を始めましょう!",
+    "dontShowAgain": "次回から表示しない",
     "srsCounter": "{{reviewed}}/{{due}}({{total}})",
     "reviewMode": "復習",
     "noCardsDue": "今日復習するカードはありません",
@@ -350,7 +359,7 @@
     "noCardsInSelectionSubtitle": "選択されたコレクションにはカードがありません。別のコレクションを選択するか、カードを追加してください。",
     "gettingStarted": {
       "title": "はじめに",
-      "subtitle": "最初のコレクションを作成：",
+      "subtitle": "最初のコレクションを作成:",
       "addCard": "カスタムカードを作成",
       "viewCards": "保存したカードを表示",
       "uploadImage": "ギャラリーから画像をアップロード",
@@ -444,6 +453,8 @@
     "processingLimitReachedMessage": "選択したテキスト領域が大きすぎるか複雑すぎます。より小さなテキスト部分を選択してください。",
     "ocrErrorTitle": "OCRエラー",
     "ocrErrorMessage": "選択した領域でテキストを認識できませんでした。もう一度お試しください。",
+    "ocrTimeoutTitle": "時間がかかっています",
+    "ocrTimeoutMessage": "認識に時間がかかっています。接続を確認するか、もう一度お試しください。または、より小さい範囲を選択してください。",
     "rotationError": "回転を適用できませんでした。",
     "permissionDenied": "申し訳ありませんが、カメラの権限が必要です！",
     "failedToTakePhoto": "写真の撮影に失敗しました"
@@ -464,6 +475,11 @@
     "camera": {
       "title": "写真を撮る",
       "description": "文字を撮るだけ。フラッシュカードの完成。"
+    },
+    "findText": {
+      "title": "最初のカードを作ろう",
+      "description": "身の回りにある{{language}}のテキストを選んでください。あなたの教材から学習を始めましょう",
+      "languageFallback": "言語"
     },
     "gallery": {
       "title": "ギャラリー",
@@ -499,12 +515,13 @@
     },
     "rotate": {
       "title": "画像を回転",
-      "description": "傾いた写真?ここでまっすぐに。"
+      "description": "写真が傾いていますか?ここで調整できます。",
+      "cta": "回転"
     },
     "crop": {
       "title": "画像をトリミング",
-      "description": "大事な部分をズームイン。学びたいテキストだけ切り取り。",
-      "cta": "切り取り"
+      "description": "必要な部分にズームイン。読みたいテキストにトリミングしましょう。",
+      "cta": "トリミング"
     },
     "highlight": {
       "title": "テキストをハイライト",
@@ -513,23 +530,23 @@
     },
     "confirmHighlight": {
       "title": "選択を確認",
-      "description": "いい感じ?チェックマークで確定。やり直したい?戻るをタップ。"
+      "description": "これでいいですか?チェックマークを押してください。やり直す場合は戻るをタップ。"
     },
     "translateButton": {
       "title": "翻訳",
-      "description": "さっと翻訳。完了。"
+      "description": "さっと翻訳。簡単。"
     },
     "wordscopeButton": {
       "title": "Wordscope",
-      "description": "もっと詳しく知りたい?ワードスコープで文法、例文、使い方まで全部わかる。"
+      "description": "詳しく知りたい?Wordscopeで文法、例文、使い方など、全部見られます。"
     },
     "editTextButton": {
       "title": "テキストを編集",
-      "description": "スキャンのミス?翻訳前にここで修正。"
+      "description": "スキャンミス?翻訳する前にエラーを修正できます。"
     },
     "chooseTranslation": {
-      "title": "翻訳の準備ができました！",
-      "description": "あなた次第:翻訳(クイック)またはワードスコープ(詳細)。"
+      "title": "翻訳の準備完了!",
+      "description": "選んでください:翻訳(クイック)またはWordscope(詳細)。"
     },
     "saveButton": {
       "title": "フラッシュカードを保存",
@@ -548,22 +565,46 @@
       "description": "元のテキストを変更して、新しい翻訳を取得。"
     },
     "finalSavePrompt": {
-      "title": "最初のフラッシュカードを保存しましょう！",
-      "description": "これで完成!タップして初めてのカードを保存しましょう。"
+      "title": "最初のフラッシュカードを保存!",
+      "description": "これです!タップして最初のカードを保存しましょう。"
+    },
+    "goHomePrompt": {
+      "title": "おめでとうございます! 🎉",
+      "description": "やりました!最初のフラッシュカードを保存しました。これからたくさん作りましょう。🎉",
+      "buttonLabel": "続ける"
     },
     "congratulations": {
       "title": "おめでとうございます！🎉",
       "description": "やったね!最初のフラッシュカードを保存できました。これから何百枚も作っていきましょう。🎉"
     },
     "flipCard": {
-      "title": "Flip the Card",
-      "description": "Swipe inward from either edge of the card to flip it!"
+      "title": "カードをめくる",
+      "description": "カードの端から内側にスワイプしてめくろう!"
     },
-    "continueWalkthrough": "いいえ、ウォークスルーを続ける",
-    "endWalkthrough": "はい、ウォークスルーを終了",
-    "noTextFoundTitle": "おっと！",
-    "noTextFoundMessage": "虹色のハイライトが翻訳したいテキスト全体をカバーしていることを確認してください。もう一度お試しください！",
-    "noEnergyTitle": "エネルギーが空です",
-    "noEnergyMessage": "チュートリアルを表示するには、エネルギーを補充する必要があります。チュートリアルでは機能を実演するためにAPI呼び出しが必要です。毎日のエネルギーが補充されるまでお待ちいただくか、プレミアムにアップグレードしてより多くのエネルギーを取得してください。"
+    "imageButton": {
+      "title": "画像を表示",
+      "description": "画像を切り替えて写真を確認しよう!"
+    },
+    "swipeLeftInstruction": {
+      "title": "左にスワイプ",
+      "description": "もう少し練習が必要な場合は左にスワイプ。"
+    },
+    "swipeRightInstruction": {
+      "title": "右にスワイプ",
+      "description": "覚えたら右にスワイプ!"
+    },
+    "finalCongratulations": {
+      "title": "準備完了! 🎉",
+      "description": "これで新しい言葉を自分で集められます。楽しく単語を集めて復習しましょう。",
+      "buttonLabel": "続ける"
+    },
+    "continueWalkthrough": "いいえ、チュートリアルを続ける",
+    "endWalkthrough": "はい、チュートリアルを終了",
+    "endWalkthroughTitle": "チュートリアルを終了しますか?",
+    "endWalkthroughMessage": "×または戻るボタンを押すとチュートリアルから抜けます。よろしいですか?",
+    "noTextFoundTitle": "おっと!",
+    "noTextFoundMessage": "虹色のハイライトが翻訳したいテキスト全体をカバーしているか確認してください。もう一度試してみましょう!",
+    "noEnergyTitle": "エナジーバーが空です",
+    "noEnergyMessage": "チュートリアルを見るには、エナジーバーを回復する必要があります。チュートリアルは機能のデモンストレーションのためにAPI呼び出しが必要です。1日のエナジー回復をお待ちいただくか、プレミアムにアップグレードしてより多くのエナジーを獲得してください。"
   }
 } 

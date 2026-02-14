@@ -8,6 +8,33 @@ import MemoryManager from './memoryManager';
 import { apiLogger, logVisionAPI, APIUsageMetrics } from './apiUsageLogger';
 
 import { logger } from '../utils/logger';
+
+/** Error codes for OCR so UI can show the right message (timeout vs network vs generic). */
+export const VISION_OCR_ERROR_CODES = {
+  TIMEOUT: 'VISION_TIMEOUT',
+  NETWORK: 'VISION_NETWORK',
+  API: 'VISION_API',
+  IMAGE_PREP: 'VISION_IMAGE_PREP',
+} as const;
+
+export type VisionOCRErrorCode = (typeof VISION_OCR_ERROR_CODES)[keyof typeof VISION_OCR_ERROR_CODES];
+
+/** Custom error for Vision OCR so callers can distinguish timeout/network vs other failures. */
+export class VisionOCRError extends Error {
+  code: VisionOCRErrorCode;
+  constructor(message: string, code: VisionOCRErrorCode) {
+    super(message);
+    this.name = 'VisionOCRError';
+    this.code = code;
+  }
+}
+
+function isNetworkError(error: unknown): boolean {
+  if (error instanceof TypeError) return true;
+  const msg = error instanceof Error ? error.message : String(error);
+  return /failed to fetch|network request failed|network error|load failed/i.test(msg);
+}
+
 interface VisionApiResponse {
   text: string;
   boundingBox: {
@@ -384,7 +411,7 @@ export async function detectJapaneseText(
     base64Image = await getBase64ForImage(imageUri);
   } catch (error) {
     logger.error('Error converting image to base64:', error);
-    throw new Error('Failed to prepare image for OCR');
+    throw new VisionOCRError('Failed to prepare image for OCR', VISION_OCR_ERROR_CODES.IMAGE_PREP);
   }
 
   if (!base64Image) {
@@ -484,7 +511,10 @@ export async function detectJapaneseText(
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      throw new Error(`Google Cloud Vision API returned status ${response.status}`);
+      throw new VisionOCRError(
+        `Google Cloud Vision API returned status ${response.status}`,
+        VISION_OCR_ERROR_CODES.API
+      );
     }
 
     const data = await response.json();
@@ -542,23 +572,40 @@ export async function detectJapaneseText(
     });
     
     return visionApiResponse;
-  } catch (error: any) {
-    // Log failed API call
+  } catch (error: unknown) {
+    clearTimeout(timeoutId);
     const apiError = error instanceof Error ? error : new Error(String(error));
+    const isTimeout = error instanceof Error && error.name === 'AbortError';
+    const isNetwork = isNetworkError(error);
     await logVisionAPI(metrics, false, undefined, apiError, {
       regionSize: region.width * region.height,
       isComplexRegion,
       isWideRegion,
-      errorType: error.name || 'unknown',
-      isTimeout: error.name === 'AbortError'
+      errorType: error instanceof Error ? error.name : 'unknown',
+      isTimeout,
+      isNetwork,
     });
 
-    if (error.name === 'AbortError') {
+    if (isTimeout) {
       logger.error('Vision API request timed out after', isComplexRegion ? '90' : '30', 'seconds');
-      throw new Error('Text recognition timed out. The selected region may be too complex.');
+      throw new VisionOCRError(
+        'Text recognition took too long. Check your connection and try again, or select a smaller area.',
+        VISION_OCR_ERROR_CODES.TIMEOUT
+      );
     }
+    if (isNetwork) {
+      logger.error('Vision API network error (slow or no connection):', error);
+      throw new VisionOCRError(
+        'Connection problem. Check your internet and try again.',
+        VISION_OCR_ERROR_CODES.NETWORK
+      );
+    }
+    if (error instanceof VisionOCRError) throw error;
     logger.error('Error calling Vision API:', error);
-    throw error;
+    throw new VisionOCRError(
+      apiError.message || 'Text recognition failed. Please try again.',
+      VISION_OCR_ERROR_CODES.API
+    );
   }
 }
 

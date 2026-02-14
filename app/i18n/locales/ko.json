@@ -82,25 +82,57 @@
       "pleaseTryAgain": "다시 시도해주세요"
     }
   },
+  "signInPrompt": {
+    "title": "계정 만들기",
+    "subtitle": "로그인하여 WordDex의 더 많은 기능을 이용하고 학습 속도를 높이세요:",
+    "benefit1": "• 일일 사용량 증가",
+    "benefit2": "• 무제한 덱 생성",
+    "benefit3": "• 무료로 에너지 충전",
+    "signUp": "가입하기",
+    "continueAsGuest": "게스트로 계속하기"
+  },
   "onboarding": {
-    "welcomeTitle": "Worddex에 오신 것을 환영합니다",
-    "welcomeSubtitle1": "실생활에서 어휘를 배우는 가장 빠른 방법.",
-    "welcomeSubtitle2": "스캔한 모든 단어에서 문법, 맥락, 동의어가 즉시 표시됩니다.",
-    "getStarted": "시작하기",
+    "welcomeTitle": "WordDex를 다운로드해 주셔서 감사합니다!",
+    "welcomeSubtitle1": "세상을 당신의 교실로 만드세요.",
+    "welcomeSubtitle2": "어떤 단어든 스캔하여 의미, 맥락, 사용법을 알아보고 즉시 플래시카드로 저장하세요.",
+    "getStarted": "계속하기",
     "alreadyHaveAccount": "이미 계정이 있으신가요?",
     "signIn": "로그인",
-    "whyTitle": "{{language}}를 왜 배우시나요?",
+    "languageTitle1": "어떤 언어를 사용하시나요?",
+    "languageTitle2": "어떤 언어를 배우고 싶으신가요?",
+    "languageContinue": "계속하기",
+    "selectLanguageSpeak": "언어 선택",
+    "selectLanguageLearn": "배울 언어 선택",
+    "whyTitle": "왜 {{language}}를 배우시나요?",
     "newLanguage": "새로운 언어",
-    "whyWork": "일이나 공부를 위해",
-    "whyTravel": "여행이나 일상 생활을 위해",
+    "whyWork": "업무나 학업을 위해",
+    "whyTravel": "여행이나 일상생활을 위해",
     "whyPeople": "소중한 사람들을 위해",
     "whyFun": "그냥 재미로",
     "whyOther": "기타",
-    "whyCta": "계속",
-    "timeCta": "계속",
-    "fastCta": "계속",
-    "relevantCta": "계속",
-    "empoweringCta": "계속"
+    "whyCta": "계속하기",
+    "timeTitle": "일일 학습 목표는 무엇인가요?",
+    "time5Min": "5분 / 일",
+    "time10Min": "10분 / 일",
+    "time15Min": "15분 / 일",
+    "time20Min": "20분 / 일",
+    "timeCasual": "가볍게",
+    "timeRegular": "규칙적으로",
+    "timeSerious": "진지하게",
+    "timeIntense": "집중적으로",
+    "timeCta": "계속하기",
+    "fastTitle": "WordDex가 도와드릴 수 있어요!",
+    "fastBullet": "플래시카드를 만들기 위해 직접 텍스트를 입력하는 대신...",
+    "fastCta": "계속하기",
+    "relevantTitle": "당신에게 필요한 것을 배우세요",
+    "relevantTitleSuffix": "은...실용적입니다.",
+    "relevantBullet": "절대 사용하지 않을 문구를 암기하는 대신...",
+    "relevantCta": "계속하기",
+    "empoweringTitle": "스캔. 학습. 완료.",
+    "empoweringTitleSuffix": "은...힘이 됩니다.",
+    "empoweringBullet1": "첫 번째 카드를 만들고 간단한 둘러보기를 해볼까요!",
+    "empoweringBullet2": "WordDex와 함께라면 당신의 세상이 교실이 됩니다. 제한 없이 탐험하세요!",
+    "empoweringCta": "계속하기"
   },
   "badges": {
     "title": "나의 배지"
@@ -294,14 +326,14 @@
     "resetSwipeInstructionsModal": "스와이프 안내 모달 재설정",
     "resetSwipeInstructionsSuccess": "스와이프 안내가 재설정되었습니다. 홈으로 이동하면 \"왼쪽/오른쪽 스와이프\" 모달이 표시됩니다.",
     "resetSwipeInstructionsError": "스와이프 안내를 재설정할 수 없습니다.",
-    "showAppWalkthrough": "앱 둘러보기 표시",
-    "showAppWalkthroughDescription": "앱 기능에 대해 배우기 위해 온보딩 튜토리얼을 다시 재생합니다"
+    "showAppWalkthrough": "앱 튜토리얼 표시",
+    "showAppWalkthroughDescription": "온보딩 튜토리얼을 다시 재생하여 앱 기능에 대해 알아보기"
   },
   "review": {
     "remaining": "{{count}}개 남음 - ← 스와이프하여 다시 복습 - → 스와이프하여 진행",
     "swipeInstructionsTitle": "스와이프 안내",
-    "swipeInstructionsBody": "다시 보려면 ← 왼쪽으로, 기억했으면 → 오른쪽으로 스와이프하세요. 복습을 탭하면 간격 반복으로 학습을 추적할 수 있어요!",
-    "dontShowAgain": "다시 표시하지 않기",
+    "swipeInstructionsBody": "카드를 다시 보려면 왼쪽 ←으로 스와이프하고, 카드 뒷면을 기억했다면 오른쪽 →으로 스와이프하세요. 복습을 탭하여 간격 반복으로 학습을 추적하세요!",
+    "dontShowAgain": "다시 표시 안 함",
     "srsCounter": "{{reviewed}}/{{due}}({{total}})",
     "reviewMode": "복습",
     "noCardsDue": "오늘 복습할 카드가 없습니다",
@@ -327,11 +359,11 @@
     "noCardsInSelectionSubtitle": "선택한 컬렉션에 카드가 없습니다. 다른 컬렉션을 선택하거나 카드를 추가하세요.",
     "gettingStarted": {
       "title": "시작하기",
-      "subtitle": "첫 번째 컬렉션 만들기:",
-      "addCard": "사용자 정의 카드 만들기",
+      "subtitle": "첫 번째 컬렉션을 만드세요:",
+      "addCard": "맞춤 카드 만들기",
       "viewCards": "저장된 카드 보기",
       "uploadImage": "갤러리에서 이미지 업로드",
-      "takePhoto": "사진을 찍어 텍스트 스캔"
+      "takePhoto": "사진 촬영하여 텍스트 스캔"
     },
     "srsReset": {
       "title": "SRS 진행 상황 재설정",
@@ -421,6 +453,8 @@
     "processingLimitReachedMessage": "선택한 텍스트 영역이 너무 크거나 복잡합니다. 더 작은 텍스트 섹션을 선택해보세요.",
     "ocrErrorTitle": "OCR 오류",
     "ocrErrorMessage": "선택한 영역에서 텍스트를 인식하는 데 문제가 있었습니다. 다시 시도해주세요.",
+    "ocrTimeoutTitle": "시간이 너무 오래 걸립니다",
+    "ocrTimeoutMessage": "텍스트 인식이 평소보다 오래 걸리고 있습니다. 인터넷 연결을 확인하고 다시 시도하거나, 더 작은 영역을 선택해 주세요.",
     "rotationError": "회전을 적용할 수 없습니다.",
     "permissionDenied": "죄송합니다. 카메라 권한이 필요합니다!",
     "failedToTakePhoto": "사진 촬영에 실패했습니다"
@@ -441,6 +475,11 @@
     "camera": {
       "title": "사진 촬영",
       "description": "여기를 탭하여 배우고 싶은 텍스트의 사진을 찍으세요. 카메라가 스캔하여 사진에서 플래시카드를 만듭니다."
+    },
+    "findText": {
+      "title": "첫 번째 카드가 기다리고 있어요",
+      "description": "주변의 {{language}} 텍스트를 선택하세요. 당신의 자료로 학습을 시작하세요",
+      "languageFallback": "언어"
     },
     "gallery": {
       "title": "갤러리",
@@ -476,37 +515,38 @@
     },
     "rotate": {
       "title": "이미지 회전",
-      "description": "텍스트를 자르거나 하이라이트하기 전에 필요한 경우 사진을 회전하세요."
+      "description": "사진이 기울어졌나요? 여기서 바로잡으세요.",
+      "cta": "회전"
     },
     "crop": {
       "title": "이미지 자르기",
-      "description": "중요한 영역으로 사진을 자르면 필요한 텍스트만 처리할 수 있습니다.",
+      "description": "중요한 부분을 확대하세요. 원하는 텍스트로 자르세요.",
       "cta": "자르기"
     },
     "highlight": {
-      "title": "텍스트 하이라이트",
-      "description": "이미지에서 텍스트를 하이라이트해 봅시다. 무지개 하이라이터를 사용하여 번역하려는 텍스트를 하이라이트하세요.",
-      "cta": "하이라이트"
+      "title": "텍스트 강조",
+      "description": "배우고 싶은 텍스트에 강조 표시를 그리세요. 쉽죠!",
+      "cta": "강조"
     },
     "confirmHighlight": {
       "title": "선택 확인",
-      "description": "무지개 하이라이트가 번역하려는 텍스트를 깔끔하게 둘러싸고 있나요? 그렇다면 다음을 누른 다음 체크 마크를 누르고, 그렇지 않으면 뒤로 버튼을 누르고 다시 시도하세요."
+      "description": "괜찮아 보이나요? 체크 표시를 누르세요. 다시 하시겠어요? 뒤로 가기를 탭하세요."
     },
     "translateButton": {
       "title": "번역",
-      "description": "여기를 탭하여 감지된 텍스트를 목표 언어로 번역합니다. 번역은 아래에 표시되며, 해당되는 경우 발음 가이드도 함께 표시됩니다."
+      "description": "빠른 번역. 끝."
     },
     "wordscopeButton": {
       "title": "Wordscope",
-      "description": "이 강력한 도구는 번역과 상세한 분석을 모두 제공합니다. 문법 분석, 사용 예시, 흔한 실수, 맥락, 가능한 동의어가 포함됩니다. 더 깊이 있는 학습에 완벽합니다!"
+      "description": "전체 내용을 알고 싶으신가요? Wordscope는 문법, 예문, 사용법을 보여줍니다 — 모든 것이 여기 있어요."
     },
     "editTextButton": {
       "title": "텍스트 편집",
-      "description": "필요 없는 단어가 있거나 번역 전에 텍스트를 수정하고 싶다면 여기를 탭하여 감지된 텍스트를 편집할 수 있습니다. 모든 것이 괜찮다면 번역 또는 Wordscope 버튼을 탭하세요!"
+      "description": "스캐너 오류가 있나요? 번역 전에 오류를 수정하세요."
     },
     "chooseTranslation": {
-      "title": "번역할 준비가 되었습니다!",
-      "description": "빠른 번역을 위해 번역을 탭하거나, 더 깊은 분석을 위해 Wordscope를 탭하세요. 둘 다 텍스트를 처리하고 플래시카드로 저장할 준비를 합니다!"
+      "title": "번역 준비 완료!",
+      "description": "선택하세요: 번역 (빠르게) 또는 Wordscope (자세히)."
     },
     "saveButton": {
       "title": "플래시카드 저장",
@@ -526,22 +566,46 @@
     },
     "finalSavePrompt": {
       "title": "첫 번째 플래시카드를 저장하세요!",
-      "description": "이 버튼을 탭하여 첫 번째 플래시카드를 컬렉션에 저장하세요!"
+      "description": "바로 이거예요! 탭하여 첫 번째 카드를 저장하세요."
+    },
+    "goHomePrompt": {
+      "title": "축하합니다! 🎉",
+      "description": "해냈어요! 첫 번째 플래시카드가 저장되었습니다. 앞으로 수백 개가 더 기다리고 있어요. 🎉",
+      "buttonLabel": "계속하기"
     },
     "congratulations": {
       "title": "축하합니다! 🎉",
       "description": "첫 번째 플래시카드를 저장했습니다! 더 많은 카드를 수집하세요! 건배! 🥳"
     },
     "flipCard": {
-      "title": "Flip the Card",
-      "description": "Swipe inward from either edge of the card to flip it!"
+      "title": "카드 뒤집기",
+      "description": "카드의 가장자리에서 안쪽으로 스와이프하여 뒤집으세요!"
     },
-    "continueWalkthrough": "아니요, 가이드 계속하기",
-    "endWalkthrough": "예, 가이드 종료",
+    "imageButton": {
+      "title": "이미지 보기",
+      "description": "이미지를 전환하여 사진을 확인하세요!"
+    },
+    "swipeLeftInstruction": {
+      "title": "왼쪽으로 스와이프",
+      "description": "더 연습이 필요하면 왼쪽으로 스와이프하세요."
+    },
+    "swipeRightInstruction": {
+      "title": "오른쪽으로 스와이프",
+      "description": "다 외웠으면 오른쪽으로 스와이프하세요!"
+    },
+    "finalCongratulations": {
+      "title": "준비 완료! 🎉",
+      "description": "이제 스스로 새로운 단어를 수집할 준비가 되었습니다. 즐겁게 수집하고 복습하세요.",
+      "buttonLabel": "계속하기"
+    },
+    "continueWalkthrough": "아니요, 튜토리얼 계속하기",
+    "endWalkthrough": "예, 튜토리얼 종료",
+    "endWalkthroughTitle": "튜토리얼을 종료하시겠습니까?",
+    "endWalkthroughMessage": "×나 뒤로 가기 버튼을 누르면 튜토리얼에서 나가게 됩니다. 확실하신가요?",
     "noTextFoundTitle": "앗!",
-    "noTextFoundMessage": "무지개 하이라이트가 번역하고 싶은 텍스트 전체를 덮는지 확인하세요. 다시 시도해봅시다!",
-    "noEnergyTitle": "에너지 바 비어있음",
-    "noEnergyMessage": "가이드를 보려면 에너지 바를 다시 채워야 합니다. 가이드는 기능을 시연하기 위해 API 호출이 필요합니다. 일일 에너지가 다시 채워질 때까지 기다리거나 프리미엄으로 업그레이드하여 더 많은 에너지를 얻으세요."
+    "noTextFoundMessage": "무지개 강조 표시가 번역하려는 텍스트 전체를 덮고 있는지 확인하세요. 다시 시도해 봅시다!",
+    "noEnergyTitle": "에너지 바가 비었습니다",
+    "noEnergyMessage": "튜토리얼을 보려면 에너지 바를 충전해야 합니다. 튜토리얼은 기능을 시연하기 위해 API 호출이 필요합니다. 일일 에너지가 충전될 때까지 기다리시거나 Premium으로 업그레이드하여 더 많은 에너지를 받으세요."
   }
 }
 

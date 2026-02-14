@@ -12,7 +12,7 @@ interface APIUsageEnergyBarProps {
   style?: any;
 }
 
-const FREE_MAX_BARS = 3; // Free users get 3 API calls per day (3 segments)
+const FREE_MAX_BARS = 4; // Free users get 4 API calls per day (4 segments)
 const PREMIUM_MAX_BARS = 10; // Premium users get 10 bars, 10 API calls each
 const PREMIUM_CALLS_PER_BAR = 10; // 100 / 10 = 10 (one bar per 10 calls)
 const PREMIUM_DAILY_LIMIT = 100; // Premium users get 100 API calls per day
@@ -22,7 +22,7 @@ export default function APIUsageEnergyBar({ style }: APIUsageEnergyBarProps) {
   const [remainingBars, setRemainingBars] = useState<number | null>(null); // null = not yet loaded (first mount only)
   const [hasLoadedOnce, setHasLoadedOnce] = useState<boolean>(false); // Track if we've ever loaded data
 
-  // Only treat as premium after subscription has loaded; before that, avoid showing free-tier (3 bars) for premium users
+  // Only treat as premium after subscription has loaded; before that, avoid showing free-tier (4 bars) for premium users
   const isPremiumUser = isSubscriptionReady && subscription.plan === 'PREMIUM';
 
   const fetchUsage = useCallback(async (isInitialLoad: boolean = false) => {
@@ -52,7 +52,7 @@ export default function APIUsageEnergyBar({ style }: APIUsageEnergyBarProps) {
         const remainingCalls = Math.max(0, dailyLimit - apiCallsUsed);
         remaining = Math.ceil(remainingCalls / PREMIUM_CALLS_PER_BAR);
       } else {
-        // Free: 3 bars, each represents 1 API call (3 total)
+        // Free: 4 bars, each represents 1 API call (4 total)
         dailyLimit = FREE_MAX_BARS;
         maxBars = FREE_MAX_BARS;
         remaining = Math.max(0, maxBars - apiCallsUsed);
@@ -70,7 +70,7 @@ export default function APIUsageEnergyBar({ style }: APIUsageEnergyBarProps) {
       setHasLoadedOnce(true);
     } catch (error) {
       logger.error('[APIUsageEnergyBar] Error fetching usage:', error);
-      // Never default to free-tier (3 bars) for premium users; keep previous value or wait for subscription
+      // Never default to free-tier (4 bars) for premium users; keep previous value or wait for subscription
       setRemainingBars((prev) => {
         if (prev !== null) return prev;
         if (!isSubscriptionReady) return null; // Don't assume free while subscription still loading
@@ -79,7 +79,7 @@ export default function APIUsageEnergyBar({ style }: APIUsageEnergyBarProps) {
     }
   }, [subscription.plan, isPremiumUser, isSubscriptionReady]);
 
-  // Initialize only after subscription is ready so we never show free-tier (3 bars) for premium users
+  // Initialize only after subscription is ready so we never show free-tier (4 bars) for premium users
   useEffect(() => {
     if (!isSubscriptionReady) return;
 
@@ -225,7 +225,7 @@ export default function APIUsageEnergyBar({ style }: APIUsageEnergyBarProps) {
     <View style={[styles.container, style]}>
       <Animated.View style={[
         styles.barContainer,
-        isPremiumUser && styles.barContainerPremium,
+        isPremiumUser ? styles.barContainerPremium : styles.barContainerFree,
         isEmpty && { borderColor: emptyBorderColor, borderWidth: 1 },
       ]}>
         {Array.from({ length: maxBars }).map((_, index) => {
@@ -281,21 +281,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
-    backgroundColor: COLORS.mediumSurface, // Grey background
+    gap: 2,
+    backgroundColor: COLORS.surface, // Darker grey background
     borderWidth: 1,
     borderColor: COLORS.border, // Grey border
     borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
     minWidth: 100,
-    maxWidth: 120,
+    maxWidth: 140,
+  },
+  barContainerFree: {
+    // 4 equally spaced bars for free tier
+    minWidth: 110,
+    maxWidth: 140,
   },
   barContainerPremium: {
-    minWidth: 170, // 10 bars × 14min + 9 gaps × 2 + 12 padding
+    minWidth: 170, // 10 bars × 14min + 9 gaps × 2 + padding
     maxWidth: 200, // Wider container for 10 bars
-    gap: 2, // Smaller gap for premium bars to fit better
-    paddingHorizontal: 4, // Tighter padding for premium (10 bars)
+    gap: 2,
+    paddingHorizontal: 3,
+    paddingVertical: 2,
     alignSelf: 'center',
   },
   bar: {
@@ -303,7 +309,7 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 2,
     minWidth: 10,
-    maxWidth: 36, // Allow bars to grow and fill the grey container (3 bars)
+    maxWidth: 36, // Allow bars to grow and fill the grey container (4 bars for free)
     overflow: 'visible',
     position: 'relative',
   },

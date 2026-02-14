@@ -82,24 +82,56 @@
       "pleaseTryAgain": "请重试"
     }
   },
+  "signInPrompt": {
+    "title": "创建账户",
+    "subtitle": "登录以加速学习,获得WordDex更多功能:",
+    "benefit1": "• 更高的每日使用次数",
+    "benefit2": "• 无限制创建卡组",
+    "benefit3": "• 免费恢复能量",
+    "signUp": "注册",
+    "continueAsGuest": "以访客身份继续"
+  },
   "onboarding": {
-    "welcomeTitle": "欢迎使用 Worddex",
-    "welcomeSubtitle1": "从真实生活中学习词汇的最快方式。",
-    "welcomeSubtitle2": "扫描的每个单词都会即时显示语法、语境和同义词。",
-    "getStarted": "开始使用",
-    "alreadyHaveAccount": "已有账户？",
+    "welcomeTitle": "感谢您下载WordDex!",
+    "welcomeSubtitle1": "让世界成为你的课堂。",
+    "welcomeSubtitle2": "扫描任何单词即可解锁其含义、上下文和用法——立即保存为抽认卡。",
+    "getStarted": "继续",
+    "alreadyHaveAccount": "已有账户?",
     "signIn": "登录",
-    "whyTitle": "你为什么学习{{language}}？",
-    "newLanguage": "新语言",
+    "languageTitle1": "你说什么语言?",
+    "languageTitle2": "你想学什么语言?",
+    "languageContinue": "继续",
+    "selectLanguageSpeak": "选择语言",
+    "selectLanguageLearn": "选择要学习的语言",
+    "whyTitle": "你为什么学习{{language}}?",
+    "newLanguage": "一门新语言",
     "whyWork": "为了工作或学业",
     "whyTravel": "为了旅行或日常生活",
-    "whyPeople": "为了在乎的人",
-    "whyFun": "只是为了好玩",
+    "whyPeople": "为了我在乎的人",
+    "whyFun": "纯粹为了乐趣",
     "whyOther": "其他",
     "whyCta": "继续",
+    "timeTitle": "你的每日学习目标是什么?",
+    "time5Min": "5分钟/天",
+    "time10Min": "10分钟/天",
+    "time15Min": "15分钟/天",
+    "time20Min": "20分钟/天",
+    "timeCasual": "轻松",
+    "timeRegular": "定期",
+    "timeSerious": "认真",
+    "timeIntense": "高强度",
     "timeCta": "继续",
+    "fastTitle": "WordDex可以这样帮助你!",
+    "fastBullet": "不用手动输入文字来制作抽认卡...",
     "fastCta": "继续",
+    "relevantTitle": "学习你需要的内容",
+    "relevantTitleSuffix": "是...实用的。",
+    "relevantBullet": "不用记忆你永远不会用到的短语...",
     "relevantCta": "继续",
+    "empoweringTitle": "扫描。学习。完成。",
+    "empoweringTitleSuffix": "是...赋能的。",
+    "empoweringBullet1": "让我们制作你的第一张卡片,开始简短的教程!",
+    "empoweringBullet2": "有了WordDex,你的世界就是你的课堂。尽情探索吧!",
     "empoweringCta": "继续"
   },
   "badges": {
@@ -291,13 +323,13 @@
     "resetSwipeInstructionsModal": "重置滑动说明弹窗",
     "resetSwipeInstructionsSuccess": "滑动说明已重置。返回首页后将显示「左/右滑动」说明弹窗。",
     "resetSwipeInstructionsError": "无法重置滑动说明。",
-    "showAppWalkthrough": "显示应用导览",
-    "showAppWalkthroughDescription": "重新播放入门教程，了解应用功能"
+    "showAppWalkthrough": "显示应用教程",
+    "showAppWalkthroughDescription": "重播引导教程以了解应用功能"
   },
   "review": {
     "remaining": "剩余{{count}}张 - ← 滑动再次复习 - → 滑动继续",
     "swipeInstructionsTitle": "滑动说明",
-    "swipeInstructionsBody": "左滑 ← 再看一次，右滑 → 表示记住了。点击复习，用间隔重复来追踪学习进度！",
+    "swipeInstructionsBody": "向左滑动←再次查看你的卡片,向右滑动→如果你记住了卡片背面。点击复习开始使用间隔重复追踪你的学习!",
     "dontShowAgain": "不再显示",
     "srsCounter": "{{reviewed}}/{{due}}({{total}})",
     "reviewMode": "复习",
@@ -323,12 +355,12 @@
     "noCardsInSelectionTitle": "没有要复习的卡片",
     "noCardsInSelectionSubtitle": "所选收藏集中没有卡片。请选择其他收藏集或添加卡片。",
     "gettingStarted": {
-      "title": "入门指南",
-      "subtitle": "创建您的第一个收藏集：",
-      "addCard": "创建自定义卡片",
+      "title": "入门",
+      "subtitle": "创建你的第一个收藏:",
+      "addCard": "制作自定义卡片",
       "viewCards": "查看已保存的卡片",
       "uploadImage": "从相册上传图片",
-      "takePhoto": "拍照扫描文本"
+      "takePhoto": "拍照扫描文字"
     },
     "srsReset": {
       "title": "重置SRS进度",
@@ -414,6 +446,8 @@
     "processingLimitReachedMessage": "所选文本区域太大或太复杂。请尝试选择较小的文本部分。",
     "ocrErrorTitle": "OCR错误",
     "ocrErrorMessage": "识别所选区域的文本时出现问题。请重试。",
+    "ocrTimeoutTitle": "耗时过长",
+    "ocrTimeoutMessage": "文字识别比平时慢。请检查网络后重试，或选择更小的区域。",
     "rotationError": "无法应用旋转。",
     "permissionDenied": "抱歉，我们需要相机权限才能使用此功能！",
     "failedToTakePhoto": "拍照失败"
@@ -434,6 +468,11 @@
     "camera": {
       "title": "拍照",
       "description": "点击此处拍摄您想学习的文本照片。相机将扫描并从您的照片创建闪卡。"
+    },
+    "findText": {
+      "title": "你的第一张卡片在等你",
+      "description": "选择你周围任何{{language}}文字。从你的材料开始学习",
+      "languageFallback": "一种语言"
     },
     "gallery": {
       "title": "相册",
@@ -469,37 +508,38 @@
     },
     "rotate": {
       "title": "旋转图片",
-      "description": "如果需要，在裁剪或高亮文本之前旋转您的照片。"
+      "description": "照片倾斜了?在这里调整。",
+      "cta": "旋转"
     },
     "crop": {
       "title": "裁剪图片",
-      "description": "将照片裁剪到重要区域，以便只处理您需要的文本。",
+      "description": "放大重要部分。裁剪到你想要的文字。",
       "cta": "裁剪"
     },
     "highlight": {
-      "title": "高亮文本",
-      "description": "让我们尝试在图片中高亮一些文本。使用彩虹荧光笔来高亮您想翻译的文本。",
+      "title": "高亮文字",
+      "description": "在你想学习的文字上画一个高亮。简单!",
       "cta": "高亮"
     },
     "confirmHighlight": {
       "title": "确认选择",
-      "description": "彩虹高亮是否整齐地围绕您想翻译的文本？如果是，请按下一步，然后按对勾，如果不是，请按返回按钮重试。"
+      "description": "看起来不错?点击对勾。需要重做?点击返回。"
     },
     "translateButton": {
       "title": "翻译",
-      "description": "点击此处将检测到的文本翻译成您的目标语言。翻译将显示在下方，如果适用，还会显示发音指南。"
+      "description": "快速翻译。搞定。"
     },
     "wordscopeButton": {
       "title": "Wordscope",
-      "description": "这个强大的工具提供翻译和详细分析 - 包括语法分解、使用示例、常见错误、上下文和可能的同义词。非常适合深入学习！"
+      "description": "想了解全部内容?Wordscope会向你展示语法、例句、用法——全都在这里。"
     },
     "editTextButton": {
-      "title": "编辑文本",
-      "description": "如果需要删除不需要的单词或在翻译前修改文本，请点击此处编辑检测到的文本。如果一切看起来都很好，请继续点击翻译或Wordscope按钮！"
+      "title": "编辑文字",
+      "description": "扫描出错?翻译前修正错误。"
     },
     "chooseTranslation": {
-      "title": "准备翻译！",
-      "description": "现在点击翻译进行快速翻译，或点击Wordscope进行更深入的分析。两者都会处理您的文本并准备将其保存为闪卡！"
+      "title": "准备翻译!",
+      "description": "你来选:翻译(快速)还是Wordscope(深入)。"
     },
     "saveButton": {
       "title": "保存闪卡",
@@ -518,22 +558,46 @@
       "description": "需要更改原始文本？点击此处编辑您的输入并获得新的翻译。"
     },
     "finalSavePrompt": {
-      "title": "保存您的第一张闪卡！",
-      "description": "现在只需点击此按钮即可将您的第一张闪卡保存到收藏中！"
+      "title": "保存你的第一张抽认卡!",
+      "description": "就是这个!点击保存你的第一张卡片。"
+    },
+    "goHomePrompt": {
+      "title": "恭喜! 🎉",
+      "description": "你做到了!第一张抽认卡已保存。期待更多张。🎉",
+      "buttonLabel": "继续"
     },
     "congratulations": {
       "title": "恭喜！🎉",
       "description": "您已保存了第一张闪卡！祝您收集更多！干杯！🥳"
     },
     "flipCard": {
-      "title": "Flip the Card",
-      "description": "Swipe inward from either edge of the card to flip it!"
+      "title": "翻转卡片",
+      "description": "从卡片任一边缘向内滑动即可翻转!"
     },
-    "continueWalkthrough": "不，继续教程",
-    "endWalkthrough": "是，结束教程",
-    "noTextFoundTitle": "哎呀！",
-    "noTextFoundMessage": "请确保彩虹高亮覆盖了您想要翻译的全部文本。让我们再试一次！",
-    "noEnergyTitle": "能量条为空",
-    "noEnergyMessage": "要查看教程，您的能量条需要重新填充。教程需要API调用来演示功能。请等待您的每日能量重新填充，或升级到高级版以获得更多能量。"
+    "imageButton": {
+      "title": "查看图片",
+      "description": "切换图片以查看你的照片!"
+    },
+    "swipeLeftInstruction": {
+      "title": "向左滑动",
+      "description": "如果需要更多练习就向左滑动。"
+    },
+    "swipeRightInstruction": {
+      "title": "向右滑动",
+      "description": "记住了就向右滑动!"
+    },
+    "finalCongratulations": {
+      "title": "准备就绪! 🎉",
+      "description": "现在你可以自己捕捉新单词了。祝你收集和复习愉快。",
+      "buttonLabel": "继续"
+    },
+    "continueWalkthrough": "否,继续教程",
+    "endWalkthrough": "是,结束教程",
+    "endWalkthroughTitle": "结束教程?",
+    "endWalkthroughMessage": "按×或返回按钮将退出教程。确定吗?",
+    "noTextFoundTitle": "糟糕!",
+    "noTextFoundMessage": "确保彩虹高亮覆盖了你想翻译的全部文字。让我们再试一次!",
+    "noEnergyTitle": "能量条已空",
+    "noEnergyMessage": "要查看教程,需要补充你的能量条。教程需要调用API来演示功能。请等待每日能量恢复或升级到高级版以获得更多能量。"
   }
 } 

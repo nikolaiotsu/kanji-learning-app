@@ -82,24 +82,56 @@
       "registrationFailed": "Đăng ký thất bại"
     }
   },
+  "signInPrompt": {
+    "title": "Tạo tài khoản",
+    "subtitle": "Tăng tốc học tập bằng cách đăng nhập để truy cập nhiều tính năng của WordDex hơn:",
+    "benefit1": "• Sử dụng hàng ngày nhiều hơn",
+    "benefit2": "• Tạo bộ thẻ không giới hạn",
+    "benefit3": "• Nạp năng lượng miễn phí",
+    "signUp": "Đăng ký",
+    "continueAsGuest": "Tiếp tục với tư cách khách"
+  },
   "onboarding": {
-    "welcomeTitle": "Chào mừng đến với Worddex",
-    "welcomeSubtitle1": "Cách nhanh nhất để học từ vựng từ cuộc sống thực.",
-    "welcomeSubtitle2": "Mỗi từ bạn quét hiển thị ngữ pháp, ngữ cảnh và từ đồng nghĩa — ngay lập tức.",
-    "getStarted": "Bắt đầu",
+    "welcomeTitle": "Cảm ơn bạn đã tải WordDex!",
+    "welcomeSubtitle1": "Biến thế giới thành lớp học của bạn.",
+    "welcomeSubtitle2": "Quét bất kỳ từ nào để mở khóa ý nghĩa, ngữ cảnh và cách dùng — lưu ngay thành thẻ từ vựng.",
+    "getStarted": "Tiếp tục",
     "alreadyHaveAccount": "Đã có tài khoản?",
     "signIn": "Đăng nhập",
+    "languageTitle1": "Bạn nói ngôn ngữ nào?",
+    "languageTitle2": "Bạn muốn học ngôn ngữ nào?",
+    "languageContinue": "Tiếp tục",
+    "selectLanguageSpeak": "Chọn ngôn ngữ",
+    "selectLanguageLearn": "Chọn ngôn ngữ để học",
     "whyTitle": "Tại sao bạn học {{language}}?",
-    "newLanguage": "ngoại ngữ mới",
-    "whyWork": "Để phục vụ công việc hoặc học tập",
-    "whyTravel": "Để đi du lịch hoặc sinh hoạt hàng ngày",
+    "newLanguage": "một ngôn ngữ mới",
+    "whyWork": "Cho công việc hoặc học tập",
+    "whyTravel": "Cho du lịch hoặc cuộc sống hàng ngày",
     "whyPeople": "Vì những người tôi quan tâm",
     "whyFun": "Chỉ để giải trí",
     "whyOther": "Khác",
     "whyCta": "Tiếp tục",
+    "timeTitle": "Mục tiêu học tập hàng ngày của bạn là gì?",
+    "time5Min": "5 phút / ngày",
+    "time10Min": "10 phút / ngày",
+    "time15Min": "15 phút / ngày",
+    "time20Min": "20 phút / ngày",
+    "timeCasual": "Thư giãn",
+    "timeRegular": "Đều đặn",
+    "timeSerious": "Nghiêm túc",
+    "timeIntense": "Chuyên sâu",
     "timeCta": "Tiếp tục",
+    "fastTitle": "WordDex có thể giúp bạn như thế này!",
+    "fastBullet": "Thay vì gõ thủ công văn bản để tạo thẻ từ...",
     "fastCta": "Tiếp tục",
+    "relevantTitle": "Học những gì BẠN cần",
+    "relevantTitleSuffix": "là...phù hợp.",
+    "relevantBullet": "Thay vì ghi nhớ những cụm từ bạn không bao giờ dùng...",
     "relevantCta": "Tiếp tục",
+    "empoweringTitle": "Quét. Học. Xong.",
+    "empoweringTitleSuffix": "là...trao quyền.",
+    "empoweringBullet1": "Hãy tạo thẻ đầu tiên và tham quan nhanh nhé!",
+    "empoweringBullet2": "Với WordDex, thế giới của bạn trở thành lớp học. Khám phá không giới hạn!",
     "empoweringCta": "Tiếp tục"
   },
   "badges": {
@@ -294,13 +326,13 @@
     "resetSwipeInstructionsModal": "Đặt lại cửa sổ hướng dẫn vuốt",
     "resetSwipeInstructionsSuccess": "Đã đặt lại hướng dẫn vuốt. Vào Trang chủ và cửa sổ \"Vuốt trái/phải\" sẽ hiển thị.",
     "resetSwipeInstructionsError": "Không thể đặt lại hướng dẫn vuốt.",
-    "showAppWalkthrough": "Hiển thị Hướng dẫn Ứng dụng",
-    "showAppWalkthroughDescription": "Phát lại hướng dẫn onboarding để tìm hiểu về các tính năng ứng dụng"
+    "showAppWalkthrough": "Hiển thị hướng dẫn ứng dụng",
+    "showAppWalkthroughDescription": "Phát lại hướng dẫn giới thiệu để tìm hiểu về các tính năng của ứng dụng"
   },
   "review": {
     "remaining": "{{count}} còn lại - vuốt ← để ôn lại - vuốt → để bỏ qua",
     "swipeInstructionsTitle": "Hướng dẫn vuốt",
-    "swipeInstructionsBody": "Vuốt trái ← để xem lại, phải → nếu bạn đã nhớ đáp án. Nhấn Ôn tập để bắt đầu theo dõi tiến độ học với lặp lại ngắt quãng!",
+    "swipeInstructionsBody": "Vuốt sang trái ← để xem lại thẻ, sang phải → nếu bạn đã nhớ mặt sau của thẻ. Chạm Ôn tập để bắt đầu theo dõi việc học của bạn với phương pháp lặp lại ngắt quãng!",
     "dontShowAgain": "Không hiển thị lại",
     "srsCounter": "{{reviewed}}/{{due}}({{total}})",
     "reviewMode": "Ôn tập",
@@ -327,10 +359,10 @@
     "noCardsInSelectionSubtitle": "Bộ sưu tập đã chọn không chứa thẻ nào. Chọn bộ sưu tập khác hoặc thêm thẻ.",
     "gettingStarted": {
       "title": "Bắt đầu",
-      "subtitle": "Tạo bộ sưu tập đầu tiên của bạn:",
+      "subtitle": "Tạo bộ sưu tập đầu tiên:",
       "addCard": "Tạo thẻ tùy chỉnh",
       "viewCards": "Xem thẻ đã lưu",
-      "uploadImage": "Tải lên hình ảnh từ thư viện",
+      "uploadImage": "Tải ảnh từ thư viện",
       "takePhoto": "Chụp ảnh để quét văn bản"
     },
     "srsReset": {
@@ -422,6 +454,8 @@
     "processingLimitReachedMessage": "Vùng văn bản đã chọn quá lớn hoặc phức tạp. Vui lòng thử chọn phần văn bản nhỏ hơn.",
     "ocrErrorTitle": "Lỗi OCR",
     "ocrErrorMessage": "Đã xảy ra vấn đề khi nhận dạng văn bản trong vùng đã chọn. Vui lòng thử lại.",
+    "ocrTimeoutTitle": "Mất quá nhiều thời gian",
+    "ocrTimeoutMessage": "Nhận dạng văn bản đang mất nhiều thời gian hơn bình thường. Kiểm tra kết nối và thử lại, hoặc chọn vùng nhỏ hơn.",
     "rotationError": "Không thể áp dụng xoay.",
     "permissionDenied": "Xin lỗi, chúng tôi cần quyền truy cập camera để tính năng này hoạt động!",
     "failedToTakePhoto": "Không thể chụp ảnh"
@@ -437,6 +471,11 @@
     "camera": {
       "title": "Chụp Ảnh",
       "description": "Chạm vào đây để chụp ảnh văn bản bạn muốn học. Camera sẽ quét và tạo thẻ từ ảnh của bạn."
+    },
+    "findText": {
+      "title": "Thẻ đầu tiên của bạn đang chờ",
+      "description": "Chọn bất kỳ văn bản {{language}} nào xung quanh bạn. Bắt đầu học từ tài liệu của CHÍNH BẠN",
+      "languageFallback": "một ngôn ngữ"
     },
     "gallery": {
       "title": "Thư viện",
@@ -471,38 +510,39 @@
       "description": "Hãy thử tải lên một hình ảnh từ thư viện. Sau khi bạn chọn một hình ảnh, chúng tôi sẽ hướng dẫn bạn qua việc xoay, cắt và làm nổi bật."
     },
     "rotate": {
-      "title": "Xoay Hình ảnh",
-      "description": "Xoay ảnh của bạn nếu cần trước khi cắt hoặc làm nổi bật văn bản."
+      "title": "Xoay ảnh",
+      "description": "Ảnh bị nghiêng? Chỉnh thẳng ở đây.",
+      "cta": "Xoay"
     },
     "crop": {
-      "title": "Cắt Hình ảnh",
-      "description": "Cắt ảnh đến vùng quan trọng để bạn chỉ xử lý văn bản bạn cần.",
+      "title": "Cắt ảnh",
+      "description": "Phóng to phần quan trọng. Cắt đến văn bản bạn muốn.",
       "cta": "Cắt"
     },
     "highlight": {
-      "title": "Làm nổi bật Văn bản",
-      "description": "Hãy thử làm nổi bật một số văn bản trong hình ảnh. Sử dụng bút làm nổi bật cầu vồng để làm nổi bật văn bản bạn muốn dịch.",
-      "cta": "Làm nổi bật"
+      "title": "Tô sáng văn bản",
+      "description": "Vẽ tô sáng trên văn bản bạn muốn học. Dễ mà!",
+      "cta": "Tô sáng"
     },
     "confirmHighlight": {
-      "title": "Xác nhận Lựa chọn",
-      "description": "Phần làm nổi bật cầu vồng có bao quanh gọn gàng văn bản bạn muốn dịch không? Nếu có, nhấn tiếp theo, rồi dấu kiểm, nếu không, nhấn nút quay lại và thử lại."
+      "title": "Xác nhận lựa chọn",
+      "description": "Trông ổn chứ? Nhấn dấu kiểm. Muốn làm lại? Chạm quay lại."
     },
     "translateButton": {
       "title": "Dịch",
-      "description": "Chạm vào đây để dịch văn bản đã phát hiện của bạn sang ngôn ngữ đích. Bản dịch sẽ xuất hiện bên dưới cùng với hướng dẫn phát âm nếu có."
+      "description": "Dịch nhanh. Xong."
     },
     "wordscopeButton": {
       "title": "Wordscope",
-      "description": "Công cụ mạnh mẽ này cung cấp cả bản dịch VÀ phân tích chi tiết văn bản - bao gồm phân tích ngữ pháp, ví dụ sử dụng, lỗi thường gặp, ngữ cảnh và các từ đồng nghĩa có thể có. Hoàn hảo cho việc học sâu hơn!"
+      "description": "Muốn biết toàn bộ? Wordscope cho bạn xem ngữ pháp, ví dụ, cách dùng — tất cả ở đây."
     },
     "editTextButton": {
-      "title": "Chỉnh sửa Văn bản",
-      "description": "Chạm vào đây để chỉnh sửa văn bản đã phát hiện trong trường hợp có từ bạn không cần hoặc muốn chỉnh sửa trước khi dịch. Nếu mọi thứ trông ổn, hãy tiếp tục và chạm vào nút dịch hoặc Wordscope!"
+      "title": "Chỉnh sửa văn bản",
+      "description": "Quét nhầm? Sửa lỗi trước khi dịch."
     },
     "chooseTranslation": {
-      "title": "Sẵn sàng Dịch!",
-      "description": "Bây giờ chạm vào Dịch để có bản dịch nhanh, hoặc Wordscope để phân tích sâu hơn. Cả hai sẽ xử lý văn bản của bạn và chuẩn bị để lưu dưới dạng thẻ!"
+      "title": "Sẵn sàng dịch!",
+      "description": "Bạn chọn: Dịch (nhanh) hay Wordscope (chi tiết)."
     },
     "saveButton": {
       "title": "Lưu Thẻ",
@@ -521,23 +561,47 @@
       "description": "Cần thay đổi văn bản gốc? Chạm vào đây để chỉnh sửa nhập liệu của bạn và nhận bản dịch mới."
     },
     "finalSavePrompt": {
-      "title": "Lưu Thẻ Đầu Tiên Của Bạn!",
-      "description": "Bây giờ chỉ cần chạm vào nút này để lưu thẻ đầu tiên của bạn vào bộ sưu tập!"
+      "title": "Lưu thẻ từ đầu tiên của bạn!",
+      "description": "Đây rồi! Chạm để lưu thẻ đầu tiên của bạn."
+    },
+    "goHomePrompt": {
+      "title": "Chúc mừng! 🎉",
+      "description": "Bạn đã làm được! Thẻ từ đầu tiên đã được lưu. Còn hàng trăm thẻ nữa đang chờ. 🎉",
+      "buttonLabel": "Tiếp tục"
     },
     "congratulations": {
       "title": "Chúc mừng! 🎉",
       "description": "Bạn đã lưu thẻ đầu tiên của mình! Chúc bạn có thêm nhiều thẻ nữa! Chúc mừng! 🥳"
     },
     "flipCard": {
-      "title": "Flip the Card",
-      "description": "Swipe inward from either edge of the card to flip it!"
+      "title": "Lật thẻ",
+      "description": "Vuốt vào trong từ bất kỳ cạnh nào của thẻ để lật!"
     },
-    "continueWalkthrough": "Không, Tiếp tục Hướng dẫn",
-    "endWalkthrough": "Có, Kết thúc Hướng dẫn",
+    "imageButton": {
+      "title": "Xem ảnh",
+      "description": "Chuyển đổi ảnh để xem hình của bạn!"
+    },
+    "swipeLeftInstruction": {
+      "title": "Vuốt sang trái",
+      "description": "Vuốt sang trái nếu bạn cần luyện thêm."
+    },
+    "swipeRightInstruction": {
+      "title": "Vuốt sang phải",
+      "description": "Vuốt sang phải khi bạn đã thuộc!"
+    },
+    "finalCongratulations": {
+      "title": "Bạn đã sẵn sàng! 🎉",
+      "description": "Bây giờ bạn đã sẵn sàng để thu thập từ mới một mình. Chúc bạn vui vẻ khi sưu tầm và ôn tập.",
+      "buttonLabel": "Tiếp tục"
+    },
+    "continueWalkthrough": "Không, tiếp tục hướng dẫn",
+    "endWalkthrough": "Có, kết thúc hướng dẫn",
+    "endWalkthroughTitle": "Kết thúc hướng dẫn?",
+    "endWalkthroughMessage": "Nhấn × hoặc nút quay lại sẽ đưa bạn ra khỏi hướng dẫn. Bạn chắc chứ?",
     "noTextFoundTitle": "Ối!",
-    "noTextFoundMessage": "Đảm bảo phần tô sáng cầu vồng bao phủ toàn bộ văn bản bạn muốn dịch. Hãy thử lại nhé!",
-    "noEnergyTitle": "Thanh Năng Lượng Trống",
-    "noEnergyMessage": "Để xem hướng dẫn, thanh năng lượng của bạn cần được nạp lại. Hướng dẫn yêu cầu các cuộc gọi API để trình diễn các tính năng. Vui lòng đợi năng lượng hàng ngày của bạn được nạp lại hoặc nâng cấp lên Premium để có thêm năng lượng."
+    "noTextFoundMessage": "Đảm bảo phần tô sáng màu cầu vồng bao phủ toàn bộ văn bản bạn muốn dịch. Thử lại nào!",
+    "noEnergyTitle": "Thanh năng lượng đã hết",
+    "noEnergyMessage": "Để xem hướng dẫn, thanh năng lượng của bạn cần được nạp lại. Hướng dẫn yêu cầu các lệnh gọi API để trình diễn các tính năng. Vui lòng đợi năng lượng hàng ngày của bạn nạp lại hoặc nâng cấp lên Premium để có thêm năng lượng."
   },
   "debug": {
     "dailyStatsTitle": "Gỡ lỗi Thống kê Hàng ngày",

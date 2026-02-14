@@ -18,10 +18,10 @@ export const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanConfig> = {
     showAds: true,
     features: ['basic_scanning', 'flashcards', 'basic_ocr'],
     // Legacy separate limits (deprecated)
-    translateApiCallsPerDay: 3,
-    wordscopeApiCallsPerDay: 3,
-    // Unified API limit: 3 API calls of any type per 24 hours
-    apiCallsPerDay: 3
+    translateApiCallsPerDay: 4,
+    wordscopeApiCallsPerDay: 4,
+    // Unified API limit: 4 API calls of any type per 24 hours
+    apiCallsPerDay: 4
   },
   PREMIUM: {
     ocrScansPerDay: 300, // Legacy field - use apiCallsPerDay instead

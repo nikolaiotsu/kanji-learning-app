@@ -127,7 +127,7 @@ class APIUsageLogger {
             .then((usage) => {
               const apiCallsUsedToday = usage.translate_api_calls + usage.wordscope_api_calls;
               const plan = this.cachedSubscriptionPlan || 'FREE';
-              const dailyLimit = SUBSCRIPTION_PLANS[plan]?.apiCallsPerDay ?? 3;
+              const dailyLimit = SUBSCRIPTION_PLANS[plan]?.apiCallsPerDay ?? 4;
               const remainingApiCalls = Math.max(0, dailyLimit - apiCallsUsedToday);
               this.cachedRemainingApiCalls = remainingApiCalls;
               this.emitUsageUpdate({

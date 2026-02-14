@@ -82,24 +82,56 @@
       "registrationFailed": "Registrierung fehlgeschlagen"
     }
   },
+  "signInPrompt": {
+    "title": "Konto erstellen",
+    "subtitle": "Beschleunigen Sie Ihr Lernen, indem Sie sich anmelden und mehr WordDex-Funktionen nutzen:",
+    "benefit1": "• Höhere tägliche Nutzung",
+    "benefit2": "• Unbegrenzte Deck-Erstellung",
+    "benefit3": "• Dex-Energie kostenlos aufladen",
+    "signUp": "Registrieren",
+    "continueAsGuest": "Als Gast fortfahren"
+  },
   "onboarding": {
-    "welcomeTitle": "Willkommen bei Worddex",
-    "welcomeSubtitle1": "Der schnellste Weg, Wortschatz aus dem echten Leben zu lernen.",
-    "welcomeSubtitle2": "Jedes gescannte Wort zeigt sofort Grammatik, Kontext und Synonyme.",
-    "getStarted": "Los geht's",
-    "alreadyHaveAccount": "Bereits ein Konto?",
+    "welcomeTitle": "Vielen Dank, dass Sie WordDex heruntergeladen haben!",
+    "welcomeSubtitle1": "Verwandeln Sie die Welt in Ihr Klassenzimmer.",
+    "welcomeSubtitle2": "Scannen Sie jedes Wort, um seine Bedeutung, seinen Kontext und seine Verwendung freizuschalten — speichern Sie es sofort als Lernkarte.",
+    "getStarted": "Weiter",
+    "alreadyHaveAccount": "Haben Sie bereits ein Konto?",
     "signIn": "Anmelden",
-    "whyTitle": "Warum lernst du {{language}}?",
+    "languageTitle1": "Welche Sprache sprechen Sie?",
+    "languageTitle2": "Welche Sprache möchten Sie lernen?",
+    "languageContinue": "Weiter",
+    "selectLanguageSpeak": "Sprache auswählen",
+    "selectLanguageLearn": "Zu lernende Sprache auswählen",
+    "whyTitle": "Warum lernen Sie {{language}}?",
     "newLanguage": "eine neue Sprache",
-    "whyWork": "Für Arbeit oder Schule",
+    "whyWork": "Für Arbeit oder Studium",
     "whyTravel": "Für Reisen oder den Alltag",
-    "whyPeople": "Für Menschen, die mir am Herzen liegen",
-    "whyFun": "Einfach zum Spaß",
+    "whyPeople": "Für Menschen, die mir wichtig sind",
+    "whyFun": "Nur zum Spaß",
     "whyOther": "Sonstiges",
     "whyCta": "Weiter",
+    "timeTitle": "Was ist Ihr tägliches Lernziel?",
+    "time5Min": "5 Min. / Tag",
+    "time10Min": "10 Min. / Tag",
+    "time15Min": "15 Min. / Tag",
+    "time20Min": "20 Min. / Tag",
+    "timeCasual": "Entspannt",
+    "timeRegular": "Regelmäßig",
+    "timeSerious": "Ernsthaft",
+    "timeIntense": "Intensiv",
     "timeCta": "Weiter",
+    "fastTitle": "So kann WordDex Ihnen helfen!",
+    "fastBullet": "Anstatt Text manuell einzugeben, um Lernkarten zu erstellen...",
     "fastCta": "Weiter",
+    "relevantTitle": "Lernen Sie, was SIE brauchen",
+    "relevantTitleSuffix": "ist...relevant.",
+    "relevantBullet": "Anstatt Sätze auswendig zu lernen, die Sie nie verwenden werden...",
     "relevantCta": "Weiter",
+    "empoweringTitle": "Scannen. Lernen. Fertig.",
+    "empoweringTitleSuffix": "ist...ermächtigend.",
+    "empoweringBullet1": "Erstellen wir Ihre erste Karte und machen eine kleine Tour!",
+    "empoweringBullet2": "Mit WordDex wird Ihre Welt zu Ihrem Klassenzimmer. Erkunden Sie ohne Grenzen!",
     "empoweringCta": "Weiter"
   },
   "badges": {
@@ -294,14 +326,14 @@
     "resetSwipeInstructionsModal": "Swipe-Anleitung zurücksetzen",
     "resetSwipeInstructionsSuccess": "Swipe-Anleitung zurückgesetzt. Gehe zur Startseite und das „Links/rechts wischen“-Fenster wird angezeigt.",
     "resetSwipeInstructionsError": "Swipe-Anleitung konnte nicht zurückgesetzt werden.",
-    "showAppWalkthrough": "App-Tour anzeigen",
-    "showAppWalkthroughDescription": "Onboarding-Tutorial erneut abspielen, um die App-Funktionen kennenzulernen"
+    "showAppWalkthrough": "App-Tutorial anzeigen",
+    "showAppWalkthroughDescription": "Onboarding-Tutorial wiederholen, um die App-Funktionen kennenzulernen"
   },
   "review": {
     "remaining": "{{count}} verbleibend - nach links wischen, um erneut zu wiederholen - nach rechts wischen, um zu verwerfen",
-    "swipeInstructionsTitle": "Wisch-Anleitungen",
-    "swipeInstructionsBody": "Wisch nach links ← für erneutes Anzeigen, nach rechts → wenn du die Rückseite gewusst hast. Tippe auf Wiederholung, um deinen Lernfortschritt mit Karteikarten zu verfolgen!",
-    "dontShowAgain": "Nicht wieder anzeigen",
+    "swipeInstructionsTitle": "Wisch-Anweisungen",
+    "swipeInstructionsBody": "Wischen Sie nach links ←, um Ihre Karte erneut zu sehen, nach rechts →, wenn Sie sich an die Rückseite Ihrer Karte erinnert haben. Tippen Sie auf Wiederholen, um Ihr Lernen mit zeitlich verteilter Wiederholung zu verfolgen!",
+    "dontShowAgain": "Nicht mehr anzeigen",
     "srsCounter": "{{reviewed}}/{{due}}({{total}})",
     "reviewMode": "Wiederholung",
     "noCardsDue": "Sie haben Ihre Wiederholungen für heute abgeschlossen! Fahren Sie fort und sammeln Sie weitere Wörter.",
@@ -328,10 +360,10 @@
     "gettingStarted": {
       "title": "Erste Schritte",
       "subtitle": "Erstellen Sie Ihre erste Sammlung:",
-      "addCard": "Eine benutzerdefinierte Karte erstellen",
+      "addCard": "Benutzerdefinierte Karte erstellen",
       "viewCards": "Gespeicherte Karten anzeigen",
-      "uploadImage": "Bild aus der Galerie hochladen",
-      "takePhoto": "Ein Foto aufnehmen, um Text zu scannen"
+      "uploadImage": "Bild aus Galerie hochladen",
+      "takePhoto": "Foto aufnehmen, um Text zu scannen"
     },
     "srsReset": {
       "title": "SRS-Fortschritt zurücksetzen",
@@ -422,6 +454,8 @@
     "processingLimitReachedMessage": "Der ausgewählte Textbereich ist zu groß oder zu komplex. Bitte versuchen Sie, einen kleineren Textabschnitt auszuwählen.",
     "ocrErrorTitle": "OCR-Fehler",
     "ocrErrorMessage": "Beim Erkennen von Text in der ausgewählten Region gab es ein Problem. Bitte versuchen Sie es erneut.",
+    "ocrTimeoutTitle": "Dauert zu lange",
+    "ocrTimeoutMessage": "Die Texterkennung dauert länger als üblich. Prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut, oder wählen Sie einen kleineren Bereich.",
     "rotationError": "Drehung konnte nicht angewendet werden.",
     "permissionDenied": "Entschuldigung, wir benötigen Kameraberechtigungen, damit dies funktioniert!",
     "failedToTakePhoto": "Foto konnte nicht aufgenommen werden"
@@ -437,6 +471,11 @@
     "camera": {
       "title": "Foto aufnehmen",
       "description": "Tippen Sie hier, um ein Foto des Textes aufzunehmen, den Sie lernen möchten. Die Kamera scannt und erstellt Karteikarten aus Ihren Fotos."
+    },
+    "findText": {
+      "title": "Ihre erste Karte wartet",
+      "description": "Wählen Sie einen beliebigen {{language}}-Text in Ihrer Umgebung. Lernen Sie von IHREN Materialien",
+      "languageFallback": "eine Sprache"
     },
     "gallery": {
       "title": "Galerie",
@@ -472,37 +511,38 @@
     },
     "rotate": {
       "title": "Bild drehen",
-      "description": "Drehen Sie Ihr Foto bei Bedarf, bevor Sie Text zuschneiden oder hervorheben."
+      "description": "Schräges Foto? Richten Sie es hier gerade aus.",
+      "cta": "Drehen"
     },
     "crop": {
       "title": "Bild zuschneiden",
-      "description": "Schneiden Sie das Foto auf den wichtigen Bereich zu, damit Sie nur den benötigten Text verarbeiten.",
+      "description": "Zoomen Sie auf das Wesentliche. Schneiden Sie auf den gewünschten Text zu.",
       "cta": "Zuschneiden"
     },
     "highlight": {
-      "title": "Text hervorheben",
-      "description": "Versuchen wir, etwas Text im Bild hervorzuheben. Verwenden Sie den Regenbogen-Marker, um den Text hervorzuheben, den Sie übersetzen möchten.",
-      "cta": "Hervorheben"
+      "title": "Text markieren",
+      "description": "Zeichnen Sie eine Markierung auf den Text, den Sie lernen möchten. Einfach!",
+      "cta": "Markieren"
     },
     "confirmHighlight": {
       "title": "Auswahl bestätigen",
-      "description": "Umschließt die Regenbogen-Hervorhebung ordentlich den Text, den Sie übersetzen möchten? Wenn ja, drücken Sie Weiter und dann das Häkchen. Wenn nicht, drücken Sie die Zurück-Taste und versuchen Sie es erneut."
+      "description": "Sieht gut aus? Tippen Sie auf das Häkchen. Neu machen? Tippen Sie auf zurück."
     },
     "translateButton": {
       "title": "Übersetzen",
-      "description": "Tippen Sie hier, um Ihren erkannten Text in Ihre Zielsprache zu übersetzen. Die Übersetzung erscheint unten zusammen mit Aussprachehilfen, falls zutreffend."
+      "description": "Schnelle Übersetzung. Fertig."
     },
     "wordscopeButton": {
       "title": "Wordscope",
-      "description": "Dieses leistungsstarke Tool bietet sowohl Übersetzung ALS AUCH eine detaillierte Textanalyse - einschließlich Grammatikaufschlüsselung, Verwendungsbeispiele, häufige Fehler, Kontext und mögliche Synonyme. Es ist perfekt für tieferes Lernen!"
+      "description": "Wollen Sie die ganze Geschichte? Wordscope zeigt Ihnen Grammatik, Beispiele, Verwendung — alles ist hier."
     },
     "editTextButton": {
       "title": "Text bearbeiten",
-      "description": "Tippen Sie hier, um den erkannten Text zu bearbeiten, falls es Wörter gibt, die Sie nicht benötigen oder vor dem Übersetzen ändern möchten. Wenn alles gut aussieht, tippen Sie einfach auf den Übersetzen- oder Wordscope-Button!"
+      "description": "Scanner-Fehler? Korrigieren Sie Fehler vor dem Übersetzen."
     },
     "chooseTranslation": {
       "title": "Bereit zum Übersetzen!",
-      "description": "Tippen Sie jetzt entweder auf Übersetzen für eine schnelle Übersetzung oder auf Wordscope für eine tiefere Analyse. Beide verarbeiten Ihren Text und bereiten ihn zum Speichern als Karteikarte vor!"
+      "description": "Ihre Wahl: Übersetzen (schnell) oder Wordscope (detailliert)."
     },
     "saveButton": {
       "title": "Karteikarte speichern",
@@ -521,23 +561,47 @@
       "description": "Müssen Sie den Originaltext ändern? Tippen Sie hier, um Ihre Eingabe zu bearbeiten und eine neue Übersetzung zu erhalten."
     },
     "finalSavePrompt": {
-      "title": "Speichern Sie Ihre erste Karteikarte!",
-      "description": "Tippen Sie einfach auf diesen Button, um Ihre erste Karteikarte in Ihrer Sammlung zu speichern!"
+      "title": "Speichern Sie Ihre erste Lernkarte!",
+      "description": "Das ist es! Tippen Sie, um Ihre allererste Karte zu speichern."
+    },
+    "goHomePrompt": {
+      "title": "Herzlichen Glückwunsch! 🎉",
+      "description": "Geschafft! Erste Lernkarte gespeichert. Auf Hunderte weitere. 🎉",
+      "buttonLabel": "Weiter"
     },
     "congratulations": {
       "title": "Glückwunsch! 🎉",
       "description": "Sie haben Ihre erste Karteikarte gespeichert! Auf viele weitere! Prost! 🥳"
     },
     "flipCard": {
-      "title": "Flip the Card",
-      "description": "Swipe inward from either edge of the card to flip it!"
+      "title": "Karte umdrehen",
+      "description": "Wischen Sie von einer Kante der Karte nach innen, um sie umzudrehen!"
     },
-    "continueWalkthrough": "Nein, Tour fortsetzen",
-    "endWalkthrough": "Ja, Tour beenden",
-    "noTextFoundTitle": "Ups!",
-    "noTextFoundMessage": "Stelle sicher, dass der Regenbogen-Markierung den gesamten Text abdeckt, den du übersetzen möchtest. Versuchen wir es noch einmal!",
-    "noEnergyTitle": "Energieleiste Leer",
-    "noEnergyMessage": "Um das Tutorial zu sehen, muss deine Energieleiste aufgeladen werden. Das Tutorial benötigt API-Aufrufe, um die Funktionen zu demonstrieren. Bitte warte, bis sich deine tägliche Energie auflädt, oder upgrade auf Premium für mehr Energie."
+    "imageButton": {
+      "title": "Bild anzeigen",
+      "description": "Schalten Sie das Bild um, um Ihr Foto zu sehen!"
+    },
+    "swipeLeftInstruction": {
+      "title": "Nach links wischen",
+      "description": "Wischen Sie nach links, wenn Sie mehr Übung brauchen."
+    },
+    "swipeRightInstruction": {
+      "title": "Nach rechts wischen",
+      "description": "Wischen Sie nach rechts, wenn Sie es drauf haben!"
+    },
+    "finalCongratulations": {
+      "title": "Sie sind startklar! 🎉",
+      "description": "Jetzt sind Sie bereit, selbst neue Wörter zu sammeln. Viel Spaß beim Sammeln und Wiederholen.",
+      "buttonLabel": "Weiter"
+    },
+    "continueWalkthrough": "Nein, Tutorial fortsetzen",
+    "endWalkthrough": "Ja, Tutorial beenden",
+    "endWalkthroughTitle": "Tutorial beenden?",
+    "endWalkthroughMessage": "Durch Drücken von × oder der Zurück-Taste verlassen Sie das Tutorial. Sind Sie sicher?",
+    "noTextFoundTitle": "Hoppla!",
+    "noTextFoundMessage": "Stellen Sie sicher, dass die Regenbogen-Markierung den gesamten Text bedeckt, den Sie übersetzen möchten. Versuchen wir es nochmal!",
+    "noEnergyTitle": "Energieleiste leer",
+    "noEnergyMessage": "Um das Tutorial zu sehen, muss Ihre Energieleiste aufgefüllt werden. Das Tutorial erfordert API-Aufrufe, um die Funktionen zu demonstrieren. Bitte warten Sie, bis sich Ihre tägliche Energie auffüllt, oder upgraden Sie auf Premium für mehr Energie."
   },
   "debug": {
     "dailyStatsTitle": "Tägliche Statistiken Debug",
