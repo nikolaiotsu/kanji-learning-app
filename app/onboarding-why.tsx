@@ -34,9 +34,11 @@ export default function OnboardingWhyScreen() {
   const { forcedDetectionLanguage } = useSettings();
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
+  // Localized name of the language being learned (e.g. "英語" when UI is Japanese, "English" when UI is English)
   const learnLanguageName =
-    DETECTABLE_LANGUAGES[forcedDetectionLanguage as keyof typeof DETECTABLE_LANGUAGES] ??
-    t('onboarding.newLanguage');
+    t(`languageNames.${forcedDetectionLanguage}`, {
+      defaultValue: DETECTABLE_LANGUAGES[forcedDetectionLanguage as keyof typeof DETECTABLE_LANGUAGES] ?? t('onboarding.newLanguage'),
+    }) as string;
 
   useEffect(() => {
     setOnboardingStep('onboarding-why');
