@@ -20,6 +20,24 @@
     "next": "Próximo",
     "dismiss": "Fechar"
   },
+  "languageNames": {
+    "en": "Inglês",
+    "fr": "Francês",
+    "es": "Espanhol",
+    "it": "Italiano",
+    "ru": "Russo",
+    "ko": "Coreano",
+    "zh": "Chinês",
+    "tl": "Tagalo",
+    "ja": "Japonês",
+    "ar": "Árabe",
+    "pt": "Português",
+    "de": "Alemão",
+    "hi": "Hindi",
+    "eo": "Esperanto",
+    "th": "Tailandês",
+    "vi": "Vietnamita"
+  },
   "badgeCelebration": {
     "title": "Parabéns!",
     "badgeName": {

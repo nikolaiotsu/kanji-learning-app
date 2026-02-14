@@ -176,7 +176,12 @@ export default function KanjiScanner({ onCardSwipe, onContentReady, onWalkthroug
   const { purchaseSubscription, subscription } = useSubscription();
   const { forcedDetectionLanguage } = useSettings();
   const learnLanguageName =
-    DETECTABLE_LANGUAGES[forcedDetectionLanguage as keyof typeof DETECTABLE_LANGUAGES] ?? t('walkthrough.findText.languageFallback');
+    (t(`languageNames.${forcedDetectionLanguage}`, {
+      defaultValue:
+        DETECTABLE_LANGUAGES[forcedDetectionLanguage as keyof typeof DETECTABLE_LANGUAGES] ??
+        t('walkthrough.findText.languageFallback'),
+    }) as string) ||
+    t('walkthrough.findText.languageFallback');
   const { isConnected } = useNetworkState();
   
   // State for unified API limit (applies to all API call types)

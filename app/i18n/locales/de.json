@@ -20,6 +20,24 @@
     "next": "Weiter",
     "dismiss": "Schließen"
   },
+  "languageNames": {
+    "en": "Englisch",
+    "fr": "Französisch",
+    "es": "Spanisch",
+    "it": "Italienisch",
+    "ru": "Russisch",
+    "ko": "Koreanisch",
+    "zh": "Chinesisch",
+    "tl": "Tagalog",
+    "ja": "Japanisch",
+    "ar": "Arabisch",
+    "pt": "Portugiesisch",
+    "de": "Deutsch",
+    "hi": "Hindi",
+    "eo": "Esperanto",
+    "th": "Thailändisch",
+    "vi": "Vietnamesisch"
+  },
   "badgeCelebration": {
     "title": "Herzlichen Glückwunsch!",
     "badgeName": {

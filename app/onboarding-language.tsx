@@ -43,8 +43,14 @@ export default function OnboardingLanguageScreen() {
     }
   }, []);
 
-  const selectedSpeakName = AVAILABLE_LANGUAGES[targetLanguage as keyof typeof AVAILABLE_LANGUAGES] ?? 'English';
-  const selectedLearnName = DETECTABLE_LANGUAGES[forcedDetectionLanguage as keyof typeof DETECTABLE_LANGUAGES] ?? 'Japanese';
+  const selectedSpeakName =
+    t(`languageNames.${targetLanguage}`, {
+      defaultValue: AVAILABLE_LANGUAGES[targetLanguage as keyof typeof AVAILABLE_LANGUAGES] ?? 'English',
+    }) as string;
+  const selectedLearnName =
+    t(`languageNames.${forcedDetectionLanguage}`, {
+      defaultValue: DETECTABLE_LANGUAGES[forcedDetectionLanguage as keyof typeof DETECTABLE_LANGUAGES] ?? 'Japanese',
+    }) as string;
 
   const handleSelectSpeakLanguage = async (langCode: string) => {
     await setTargetLanguage(langCode);
@@ -133,7 +139,7 @@ export default function OnboardingLanguageScreen() {
                       targetLanguage === item.code && styles.selectedLanguageText,
                     ]}
                   >
-                    {item.name}
+                    {t(`languageNames.${item.code}`, { defaultValue: item.name }) as string}
                   </Text>
                   {targetLanguage === item.code && (
                     <Ionicons name="checkmark" size={22} color={COLORS.primary} />
@@ -176,7 +182,7 @@ export default function OnboardingLanguageScreen() {
                       forcedDetectionLanguage === item.code && styles.selectedLanguageText,
                     ]}
                   >
-                    {item.name}
+                    {t(`languageNames.${item.code}`, { defaultValue: item.name }) as string}
                   </Text>
                   {forcedDetectionLanguage === item.code && (
                     <Ionicons name="checkmark" size={22} color={COLORS.primary} />

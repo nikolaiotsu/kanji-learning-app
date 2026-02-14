@@ -20,6 +20,24 @@
     "next": "Next",
     "dismiss": "Dismiss"
   },
+  "languageNames": {
+    "en": "English",
+    "fr": "French",
+    "es": "Spanish",
+    "it": "Italian",
+    "ru": "Russian",
+    "ko": "Korean",
+    "zh": "Chinese",
+    "tl": "Tagalog",
+    "ja": "Japanese",
+    "ar": "Arabic",
+    "pt": "Portuguese",
+    "de": "German",
+    "hi": "Hindi",
+    "eo": "Esperanto",
+    "th": "Thai",
+    "vi": "Vietnamese"
+  },
   "badgeCelebration": {
     "title": "Congratulations!",
     "badgeName": {

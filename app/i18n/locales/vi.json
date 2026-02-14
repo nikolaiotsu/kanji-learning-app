@@ -20,6 +20,24 @@
     "next": "Tiếp theo",
     "dismiss": "Đóng"
   },
+  "languageNames": {
+    "en": "Tiếng Anh",
+    "fr": "Tiếng Pháp",
+    "es": "Tiếng Tây Ban Nha",
+    "it": "Tiếng Ý",
+    "ru": "Tiếng Nga",
+    "ko": "Tiếng Hàn",
+    "zh": "Tiếng Trung",
+    "tl": "Tiếng Tagalog",
+    "ja": "Tiếng Nhật",
+    "ar": "Tiếng Ả Rập",
+    "pt": "Tiếng Bồ Đào Nha",
+    "de": "Tiếng Đức",
+    "hi": "Tiếng Hindi",
+    "eo": "Tiếng Quốc tế ngữ",
+    "th": "Tiếng Thái",
+    "vi": "Tiếng Việt"
+  },
   "badgeCelebration": {
     "title": "Chúc mừng!",
     "badgeName": {
