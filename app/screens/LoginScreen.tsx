@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, TextInput, TouchableOpacity, Text, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, StyleSheet, TextInput, TouchableOpacity, Text, Alert, ActivityIndicator, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
@@ -11,7 +11,8 @@ import { FONTS } from '../constants/typography';
 import PokedexLayout from '../components/shared/PokedexLayout';
 
 import { logger } from '../utils/logger';
-// Import the logo image
+import { isValidEmailFormat } from '../utils/validation';
+
 const worddexLogo = require('../../assets/images/worddexlogo.png');
 
 const LoginScreen = () => {
@@ -20,20 +21,41 @@ const LoginScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const { signIn } = useAuth();
   const { setHasCompletedOnboarding } = useOnboarding();
+
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [emailInputY, setEmailInputY] = useState(0);
+  const [passwordInputY, setPasswordInputY] = useState(0);
+
+  const clearFormError = () => setFormError(null);
+
+  const scrollToInput = (inputY: number, padding = 100) => {
+    scrollViewRef.current?.scrollTo({
+      y: Math.max(0, inputY - padding),
+      animated: true,
+    });
+  };
 
   const handleLogin = async () => {
     logger.log('🔐 [LoginScreen] Starting email login process...');
     logger.log('🔐 [LoginScreen] Email:', email);
     logger.log('🔐 [LoginScreen] Password length:', password.length);
-    
+
+    setFormError(null);
+
     if (!email || !password) {
       logger.log('❌ [LoginScreen] Missing credentials');
       Alert.alert(t('common.error'), t('auth.login.missingCredentials'));
       return;
     }
-    
+
+    if (!isValidEmailFormat(email)) {
+      setFormError(t('auth.login.invalidEmailFormat'));
+      return;
+    }
+
     setLoading(true);
     try {
       logger.log('🔐 [LoginScreen] Calling signIn function...');
@@ -42,9 +64,26 @@ const LoginScreen = () => {
       logger.log('🔐 [LoginScreen] Authentication successful, letting AuthGuard handle navigation...');
     } catch (error: any) {
       logger.error('❌ [LoginScreen] Login error:', error);
-      logger.error('❌ [LoginScreen] Error message:', error.message);
-      logger.error('❌ [LoginScreen] Error details:', JSON.stringify(error));
-      Alert.alert(t('auth.login.loginFailed'), error.message || 'Failed to login. Please try again.');
+      const message = typeof error?.message === 'string' ? error.message : String(error ?? '');
+
+      // Invalid credentials (wrong password or no account): show inline, no modal
+      const lower = message.toLowerCase();
+      if (
+        message.includes('Invalid login credentials') ||
+        (lower.includes('invalid') && lower.includes('credential'))
+      ) {
+        setFormError(t('auth.login.invalidCredentials'));
+        return;
+      }
+
+      // Email format from server (edge case): show inline
+      if (message.includes('invalid format') || message.includes('validate email')) {
+        setFormError(t('auth.login.invalidEmailFormat'));
+        return;
+      }
+
+      // Other errors: keep modal for rare cases
+      Alert.alert(t('auth.login.loginFailed'), message || t('auth.login.loginFailedMessage', 'Failed to sign in. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -84,6 +123,17 @@ const LoginScreen = () => {
         top: 0
       }}
     >
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+      >
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
       <View style={styles.form}>
         <Text style={styles.title}>{t('auth.login.title')}</Text>
         
@@ -115,23 +165,46 @@ const LoginScreen = () => {
           </TouchableOpacity>
         ) : (
           <>
-            <TextInput
-              style={styles.input}
-              placeholder={t('auth.login.emailPlaceholder')}
-              placeholderTextColor="#A0A0A0"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
-            <TextInput
-              style={styles.input}
-              placeholder={t('auth.login.passwordPlaceholder')}
-              placeholderTextColor="#A0A0A0"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
+            <View onLayout={(e) => setEmailInputY(e.nativeEvent.layout.y)}>
+              <TextInput
+                style={[styles.input, formError ? styles.inputError : null]}
+                placeholder={t('auth.login.emailPlaceholder')}
+                placeholderTextColor="#A0A0A0"
+                value={email}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  if (formError) clearFormError();
+                }}
+                onFocus={() => {
+                  clearFormError();
+                  scrollToInput(emailInputY);
+                }}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoComplete="email"
+              />
+            </View>
+            <View onLayout={(e) => setPasswordInputY(e.nativeEvent.layout.y)}>
+              <TextInput
+                style={[styles.input, formError ? styles.inputError : null]}
+                placeholder={t('auth.login.passwordPlaceholder')}
+                placeholderTextColor="#A0A0A0"
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (formError) clearFormError();
+                }}
+                onFocus={() => {
+                  clearFormError();
+                  scrollToInput(passwordInputY);
+                }}
+                secureTextEntry
+                autoComplete="password"
+              />
+            </View>
+            {formError ? (
+              <Text style={styles.formError}>{formError}</Text>
+            ) : null}
             <TouchableOpacity 
               style={styles.button}
               onPress={handleLogin}
@@ -159,15 +232,23 @@ const LoginScreen = () => {
           </View>
         )}
       </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </PokedexLayout>
   );
 };
 
 const styles = StyleSheet.create({
+  keyboardAvoid: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingVertical: 20,
+  },
   form: {
     padding: 20,
-    flex: 1,
-    justifyContent: 'center',
   },
   title: {
     fontFamily: FONTS.sansBold,
@@ -213,6 +294,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: COLORS.darkSurface,
     color: COLORS.text,
+  },
+  inputError: {
+    borderColor: '#dc3545',
+    backgroundColor: 'rgba(220, 53, 69, 0.08)',
+  },
+  formError: {
+    fontFamily: FONTS.sans,
+    color: '#f08a8a',
+    fontSize: 13,
+    marginTop: -8,
+    marginBottom: 12,
   },
   button: {
     backgroundColor: COLORS.primary,

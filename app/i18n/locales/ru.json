@@ -70,7 +70,10 @@
       "loginButton": "Войти",
       "forgotPassword": "Забыли пароль?",
       "loginFailed": "Ошибка входа",
-      "missingCredentials": "Пожалуйста, введите email и пароль"
+      "missingCredentials": "Пожалуйста, введите email и пароль",
+      "loginFailedMessage": "Не удалось войти. Попробуйте снова.",
+      "invalidEmailFormat": "Введите действительный адрес электронной почты (например, name@example.com).",
+      "invalidCredentials": "Аккаунт с этой почтой и паролем не найден. Впервые здесь? Создайте аккаунт ниже."
     },
     "social": {
       "googleSignInFailed": "Ошибка входа через Google",
@@ -97,7 +100,9 @@
       "accountExists": "Аккаунт уже существует",
       "accountExistsMessage": "Аккаунт с таким email уже существует. Пожалуйста, войдите вместо этого.",
       "goToLogin": "Перейти к входу",
-      "registrationFailed": "Ошибка регистрации"
+      "registrationFailed": "Ошибка регистрации",
+      "registrationFailedMessage": "Не удалось создать аккаунт. Попробуйте снова.",
+      "invalidEmailFormat": "Введите действительный адрес электронной почты (например, name@example.com)."
     }
   },
   "signInPrompt": {

@@ -70,7 +70,10 @@
       "loginButton": "ログイン",
       "forgotPassword": "パスワードを忘れましたか？",
       "loginFailed": "ログインに失敗しました",
-      "missingCredentials": "メールアドレスとパスワードの両方を入力してください"
+      "missingCredentials": "メールアドレスとパスワードの両方を入力してください",
+      "loginFailedMessage": "サインインに失敗しました。もう一度お試しください。",
+      "invalidEmailFormat": "有効なメールアドレスを入力してください（例：name@example.com）。",
+      "invalidCredentials": "このメールアドレスとパスワードのアカウントは見つかりませんでした。初めての方は下の「アカウント作成」から登録してください。"
     },
     "signup": {
       "title": "アカウントを作成",
@@ -89,7 +92,9 @@
       "accountExists": "アカウントが既に存在します",
       "accountExistsMessage": "このメールアドレスのアカウントは既に存在します。代わりにログインしてください。",
       "goToLogin": "ログインページへ",
-      "registrationFailed": "登録に失敗しました"
+      "registrationFailed": "登録に失敗しました",
+      "registrationFailedMessage": "アカウントの作成に失敗しました。もう一度お試しください。",
+      "invalidEmailFormat": "有効なメールアドレスを入力してください（例：name@example.com）。"
     },
     "social": {
       "googleSignInFailed": "Googleサインインに失敗しました",

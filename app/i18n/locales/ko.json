@@ -70,7 +70,10 @@
       "loginButton": "로그인",
       "forgotPassword": "비밀번호를 잊으셨나요?",
       "loginFailed": "로그인 실패",
-      "missingCredentials": "이메일과 비밀번호를 모두 입력해주세요"
+      "missingCredentials": "이메일과 비밀번호를 모두 입력해주세요",
+      "loginFailedMessage": "로그인에 실패했습니다. 다시 시도해 주세요.",
+      "invalidEmailFormat": "올바른 이메일 주소를 입력해 주세요 (예: name@example.com).",
+      "invalidCredentials": "이 이메일과 비밀번호로 등록된 계정이 없습니다. 처음이신가요? 아래에서 계정을 만들어 주세요."
     },
     "signup": {
       "title": "계정 만들기",
@@ -89,7 +92,9 @@
       "accountExists": "이미 계정이 존재합니다",
       "accountExistsMessage": "이 이메일로 이미 계정이 존재합니다. 대신 로그인해주세요.",
       "goToLogin": "로그인으로 이동",
-      "registrationFailed": "등록 실패"
+      "registrationFailed": "등록 실패",
+      "registrationFailedMessage": "계정 생성에 실패했습니다. 다시 시도해 주세요.",
+      "invalidEmailFormat": "올바른 이메일 주소를 입력해 주세요 (예: name@example.com)."
     },
     "social": {
       "googleSignInFailed": "Google 로그인 실패",

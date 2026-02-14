@@ -70,7 +70,10 @@
       "loginButton": "登录",
       "forgotPassword": "忘记密码？",
       "loginFailed": "登录失败",
-      "missingCredentials": "请输入邮箱和密码"
+      "missingCredentials": "请输入邮箱和密码",
+      "loginFailedMessage": "登录失败，请重试。",
+      "invalidEmailFormat": "请输入有效的邮箱地址（例如 name@example.com）。",
+      "invalidCredentials": "未找到与此邮箱和密码对应的账户。还没有账号？请在下方创建账户。"
     },
     "signup": {
       "title": "创建您的账户",
@@ -89,7 +92,9 @@
       "accountExists": "账户已存在",
       "accountExistsMessage": "此邮箱的账户已存在。请登录。",
       "goToLogin": "前往登录",
-      "registrationFailed": "注册失败"
+      "registrationFailed": "注册失败",
+      "registrationFailedMessage": "创建账户失败，请重试。",
+      "invalidEmailFormat": "请输入有效的邮箱地址（例如 name@example.com）。"
     },
     "social": {
       "googleSignInFailed": "Google登录失败",

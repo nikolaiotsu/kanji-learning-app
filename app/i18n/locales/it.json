@@ -70,7 +70,10 @@
       "loginButton": "Accedi",
       "forgotPassword": "Password dimenticata?",
       "loginFailed": "Accesso fallito",
-      "missingCredentials": "Inserisci sia email che password"
+      "missingCredentials": "Inserisci sia email che password",
+      "loginFailedMessage": "Accesso non riuscito. Riprova.",
+      "invalidEmailFormat": "Inserisci un indirizzo email valido (es. name@example.com).",
+      "invalidCredentials": "Nessun account trovato per questa email e password. Sei nuovo? Crea un account qui sotto."
     },
     "social": {
       "googleSignInFailed": "Accesso con Google fallito",
@@ -97,7 +100,9 @@
       "accountExists": "Account già esistente",
       "accountExistsMessage": "Esiste già un account con questa email. Accedi invece.",
       "goToLogin": "Vai all'accesso",
-      "registrationFailed": "Registrazione fallita"
+      "registrationFailed": "Registrazione fallita",
+      "registrationFailedMessage": "Impossibile creare l'account. Riprova.",
+      "invalidEmailFormat": "Inserisci un indirizzo email valido (es. name@example.com)."
     }
   },
   "signInPrompt": {

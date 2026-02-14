@@ -70,7 +70,10 @@
       "loginButton": "Entrar",
       "forgotPassword": "Esqueceu a senha?",
       "loginFailed": "Falha no login",
-      "missingCredentials": "Por favor, insira email e senha"
+      "missingCredentials": "Por favor, insira email e senha",
+      "loginFailedMessage": "Falha ao entrar. Tente novamente.",
+      "invalidEmailFormat": "Digite um endereço de e-mail válido (ex.: name@example.com).",
+      "invalidCredentials": "Nenhuma conta encontrada para este e-mail e senha. Novo por aqui? Crie uma conta abaixo."
     },
     "social": {
       "googleSignInFailed": "Falha no login com Google",
@@ -97,7 +100,9 @@
       "accountExists": "Conta já existe",
       "accountExistsMessage": "Já existe uma conta com este email. Por favor, faça login em vez disso.",
       "goToLogin": "Ir para o login",
-      "registrationFailed": "Falha no cadastro"
+      "registrationFailed": "Falha no cadastro",
+      "registrationFailedMessage": "Falha ao criar a conta. Tente novamente.",
+      "invalidEmailFormat": "Digite um endereço de e-mail válido (ex.: name@example.com)."
     }
   },
   "signInPrompt": {

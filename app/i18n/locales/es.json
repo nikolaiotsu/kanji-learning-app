@@ -70,7 +70,10 @@
       "loginButton": "Iniciar sesión",
       "forgotPassword": "¿Olvidaste tu contraseña?",
       "loginFailed": "Error al iniciar sesión",
-      "missingCredentials": "Por favor ingresa tu correo y contraseña"
+      "missingCredentials": "Por favor ingresa tu correo y contraseña",
+      "loginFailedMessage": "Error al iniciar sesión. Inténtalo de nuevo.",
+      "invalidEmailFormat": "Introduce una dirección de correo válida (ej. name@example.com).",
+      "invalidCredentials": "No hay ninguna cuenta con este correo y contraseña. ¿Primera vez? Crea una cuenta abajo."
     },
     "signup": {
       "title": "Crea tu cuenta",
@@ -89,7 +92,9 @@
       "accountExists": "La cuenta ya existe",
       "accountExistsMessage": "Ya existe una cuenta con este correo electrónico. Por favor inicia sesión.",
       "goToLogin": "Ir a iniciar sesión",
-      "registrationFailed": "Error en el registro"
+      "registrationFailed": "Error en el registro",
+      "registrationFailedMessage": "No se pudo crear la cuenta. Inténtalo de nuevo.",
+      "invalidEmailFormat": "Introduce una dirección de correo válida (ej. name@example.com)."
     },
     "social": {
       "googleSignInFailed": "Error al iniciar sesión con Google",

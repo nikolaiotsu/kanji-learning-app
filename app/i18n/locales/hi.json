@@ -70,7 +70,10 @@
       "loginButton": "लॉग इन करें",
       "forgotPassword": "पासवर्ड भूल गए?",
       "loginFailed": "लॉगिन असफल",
-      "missingCredentials": "कृपया ईमेल और पासवर्ड दोनों दर्ज करें"
+      "missingCredentials": "कृपया ईमेल और पासवर्ड दोनों दर्ज करें",
+      "loginFailedMessage": "साइन इन विफल। कृपया पुनः प्रयास करें।",
+      "invalidEmailFormat": "कृपया एक मान्य ईमेल पता दर्ज करें (जैसे name@example.com)।",
+      "invalidCredentials": "इस ईमेल और पासवर्ड के लिए कोई खाता नहीं मिला। नए हैं? नीचे खाता बनाएं।"
     },
     "signup": {
       "title": "अपना खाता बनाएं",
@@ -89,7 +92,9 @@
       "accountExists": "खाता पहले से मौजूद है",
       "accountExistsMessage": "इस ईमेल का एक खाता पहले से मौजूद है। कृपया इसके बजाय लॉग इन करें।",
       "goToLogin": "लॉगिन पर जाएं",
-      "registrationFailed": "पंजीकरण असफल"
+      "registrationFailed": "पंजीकरण असफल",
+      "registrationFailedMessage": "खाता बनाने में विफल। कृपया पुनः प्रयास करें।",
+      "invalidEmailFormat": "कृपया एक मान्य ईमेल पता दर्ज करें (जैसे name@example.com)।"
     },
     "social": {
       "googleSignInFailed": "Google साइन इन असफल",

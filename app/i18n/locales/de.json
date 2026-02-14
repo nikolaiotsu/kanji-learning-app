@@ -70,7 +70,10 @@
       "loginButton": "Anmelden",
       "forgotPassword": "Passwort vergessen?",
       "loginFailed": "Anmeldung fehlgeschlagen",
-      "missingCredentials": "Bitte geben Sie sowohl E-Mail als auch Passwort ein"
+      "missingCredentials": "Bitte geben Sie sowohl E-Mail als auch Passwort ein",
+      "loginFailedMessage": "Anmeldung fehlgeschlagen. Bitte erneut versuchen.",
+      "invalidEmailFormat": "Bitte gib eine gültige E-Mail-Adresse ein (z. B. name@example.com).",
+      "invalidCredentials": "Kein Konto mit dieser E-Mail und diesem Passwort gefunden. Neu hier? Erstelle unten ein Konto."
     },
     "social": {
       "googleSignInFailed": "Google-Anmeldung fehlgeschlagen",
@@ -97,7 +100,9 @@
       "accountExists": "Konto existiert bereits",
       "accountExistsMessage": "Ein Konto mit dieser E-Mail existiert bereits. Bitte melden Sie sich stattdessen an.",
       "goToLogin": "Zur Anmeldung",
-      "registrationFailed": "Registrierung fehlgeschlagen"
+      "registrationFailed": "Registrierung fehlgeschlagen",
+      "registrationFailedMessage": "Konto konnte nicht erstellt werden. Bitte erneut versuchen.",
+      "invalidEmailFormat": "Bitte gib eine gültige E-Mail-Adresse ein (z. B. name@example.com)."
     }
   },
   "signInPrompt": {

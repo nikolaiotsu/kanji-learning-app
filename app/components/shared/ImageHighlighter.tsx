@@ -1961,6 +1961,45 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       {renderHighlightStrokes()}
       {renderCropBox()}
 
+      {/* Rotate mode: center cross guideline overlay to help user align text */}
+      {rotateMode && scaledContainerWidth > 0 && scaledContainerHeight > 0 && (
+        <View
+          pointerEvents="none"
+          style={[
+            styles.rotateCrossGuideContainer,
+            {
+              left: displayImageOffsetX,
+              top: displayImageOffsetY,
+              width: scaledContainerWidth,
+              height: scaledContainerHeight,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.rotateCrossGuideLine,
+              {
+                left: 0,
+                top: scaledContainerHeight / 2 - ROTATE_CROSS_GUIDE_STROKE / 2,
+                width: scaledContainerWidth,
+                height: ROTATE_CROSS_GUIDE_STROKE,
+              },
+            ]}
+          />
+          <View
+            style={[
+              styles.rotateCrossGuideLine,
+              {
+                left: scaledContainerWidth / 2 - ROTATE_CROSS_GUIDE_STROKE / 2,
+                top: 0,
+                width: ROTATE_CROSS_GUIDE_STROKE,
+                height: scaledContainerHeight,
+              },
+            ]}
+          />
+        </View>
+      )}
+
       {/* Rotate mode instructions could be inside or outside, positioned absolutely */}
       {rotateMode && (
         <View style={styles.instructionContainer}>
@@ -2155,6 +2194,8 @@ const CORNER_BRACKET_SIZE = 24;
 const CORNER_BRACKET_STROKE = 2;
 const FRAME_COLOR = 'rgba(0, 140, 45, 0.4)';   // darker matrix green, translucent
 const CORNER_COLOR = 'rgba(0, 120, 40, 0.55)';  // darker matrix green (corners), translucent
+const ROTATE_CROSS_GUIDE_COLOR = 'rgba(255, 255, 255, 0.7)';
+const ROTATE_CROSS_GUIDE_STROKE = 2;
 
 const styles = StyleSheet.create({
   container: {
@@ -2174,6 +2215,14 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     pointerEvents: 'none',
     zIndex: 50,  // above image, below instruction overlays (100)
+  },
+  rotateCrossGuideContainer: {
+    position: 'absolute',
+    zIndex: 45,  // above image, below screen frame
+  },
+  rotateCrossGuideLine: {
+    position: 'absolute',
+    backgroundColor: ROTATE_CROSS_GUIDE_COLOR,
   },
   cornerBracket: {
     position: 'absolute',

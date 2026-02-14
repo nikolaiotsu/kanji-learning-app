@@ -70,7 +70,10 @@
       "loginButton": "تسجيل الدخول",
       "forgotPassword": "نسيت كلمة المرور؟",
       "loginFailed": "فشل تسجيل الدخول",
-      "missingCredentials": "يرجى إدخال البريد الإلكتروني وكلمة المرور"
+      "missingCredentials": "يرجى إدخال البريد الإلكتروني وكلمة المرور",
+      "loginFailedMessage": "فشل تسجيل الدخول. يرجى المحاولة مرة أخرى.",
+      "invalidEmailFormat": "يرجى إدخال بريد إلكتروني صالح (مثال: name@example.com).",
+      "invalidCredentials": "لم يتم العثور على حساب لهذا البريد وكلمة المرور. جديد هنا؟ أنشئ حساباً أدناه."
     },
     "signup": {
       "title": "أنشئ حسابك",
@@ -89,7 +92,9 @@
       "accountExists": "الحساب موجود بالفعل",
       "accountExistsMessage": "يوجد حساب بهذا البريد الإلكتروني بالفعل. يرجى تسجيل الدخول بدلاً من ذلك.",
       "goToLogin": "الذهاب لتسجيل الدخول",
-      "registrationFailed": "فشل التسجيل"
+      "registrationFailed": "فشل التسجيل",
+      "registrationFailedMessage": "فشل إنشاء الحساب. يرجى المحاولة مرة أخرى.",
+      "invalidEmailFormat": "يرجى إدخال بريد إلكتروني صالح (مثال: name@example.com)."
     },
     "social": {
       "googleSignInFailed": "فشل تسجيل الدخول عبر Google",

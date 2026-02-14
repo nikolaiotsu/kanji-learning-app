@@ -70,7 +70,10 @@
       "loginButton": "Log In",
       "forgotPassword": "Forgot Password?",
       "loginFailed": "Login Failed",
-      "missingCredentials": "Please enter both email and password"
+      "loginFailedMessage": "Failed to sign in. Please try again.",
+      "missingCredentials": "Please enter both email and password",
+      "invalidEmailFormat": "Please enter a valid email address (e.g. name@example.com).",
+      "invalidCredentials": "No account found for this email and password. New here? Create an account below."
     },
     "social": {
       "googleSignInFailed": "Google Sign In Failed",
@@ -97,7 +100,9 @@
       "accountExists": "Account Already Exists",
       "accountExistsMessage": "An account with this email already exists. Please log in instead.",
       "goToLogin": "Go to Login",
-      "registrationFailed": "Registration Failed"
+      "registrationFailed": "Registration Failed",
+      "registrationFailedMessage": "Failed to create account. Please try again.",
+      "invalidEmailFormat": "Please enter a valid email address (e.g. name@example.com)."
     }
   },
   "signInPrompt": {

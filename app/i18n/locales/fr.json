@@ -70,7 +70,10 @@
       "loginButton": "Se connecter",
       "forgotPassword": "Mot de passe oublié ?",
       "loginFailed": "Échec de la connexion",
-      "missingCredentials": "Veuillez saisir l'e-mail et le mot de passe"
+      "missingCredentials": "Veuillez saisir l'e-mail et le mot de passe",
+      "loginFailedMessage": "Échec de la connexion. Veuillez réessayer.",
+      "invalidEmailFormat": "Veuillez entrer une adresse e-mail valide (ex. name@example.com).",
+      "invalidCredentials": "Aucun compte trouvé pour cet e-mail et ce mot de passe. Nouveau ? Créez un compte ci-dessous."
     },
     "social": {
       "googleSignInFailed": "Échec de la connexion Google",
@@ -97,7 +100,9 @@
       "accountExists": "Le compte existe déjà",
       "accountExistsMessage": "Un compte avec cet e-mail existe déjà. Veuillez vous connecter à la place.",
       "goToLogin": "Aller à la connexion",
-      "registrationFailed": "Échec de l'inscription"
+      "registrationFailed": "Échec de l'inscription",
+      "registrationFailedMessage": "Impossible de créer le compte. Veuillez réessayer.",
+      "invalidEmailFormat": "Veuillez entrer une adresse e-mail valide (ex. name@example.com)."
     }
   },
   "signInPrompt": {

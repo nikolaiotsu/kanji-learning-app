@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, TextInput, TouchableOpacity, Text, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, StyleSheet, TextInput, TouchableOpacity, Text, Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
@@ -10,31 +10,55 @@ import { COLORS } from '../constants/colors';
 import { FONTS } from '../constants/typography';
 
 import { logger } from '../utils/logger';
+import { isValidEmailFormat } from '../utils/validation';
+
 const SignupScreen = () => {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const { signUp } = useAuth();
 
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [emailInputY, setEmailInputY] = useState(0);
+  const [passwordInputY, setPasswordInputY] = useState(0);
+  const [confirmPasswordInputY, setConfirmPasswordInputY] = useState(0);
+
+  const clearEmailError = () => setEmailError(null);
+
+  const scrollToInput = (inputY: number, padding = 100) => {
+    scrollViewRef.current?.scrollTo({
+      y: Math.max(0, inputY - padding),
+      animated: true,
+    });
+  };
+
   const handleSignup = async () => {
+    setEmailError(null);
+
     // Validate inputs
     if (!email || !password || !confirmPassword) {
       Alert.alert(t('common.error'), t('auth.signup.fillAllFields'));
       return;
     }
-    
+
+    if (!isValidEmailFormat(email)) {
+      setEmailError(t('auth.signup.invalidEmailFormat'));
+      return;
+    }
+
     if (password !== confirmPassword) {
       Alert.alert(t('common.error'), t('auth.signup.passwordsMismatch'));
       return;
     }
-    
+
     if (password.length < 6) {
       Alert.alert(t('common.error'), t('auth.signup.passwordTooShort'));
       return;
     }
-    
+
     setLoading(true);
     try {
       logger.log('🔐 [SignupScreen] Starting signup for:', email);
@@ -58,20 +82,28 @@ const SignupScreen = () => {
       }
     } catch (error: any) {
       logger.error('❌ [SignupScreen] Signup error:', error);
-      
+
+      const message = error?.message ?? '';
+
+      // Email format error: show inline so user can fix without losing context
+      if (message.includes('invalid format') || message.includes('validate email') || message.includes('Invalid email')) {
+        setEmailError(t('auth.signup.invalidEmailFormat'));
+        return;
+      }
+
       // Handle specific signup errors
-      if (error.message && error.message.includes('User already registered')) {
+      if (message.includes('User already registered')) {
         Alert.alert(
-          t('auth.signup.accountExists'), 
+          t('auth.signup.accountExists'),
           t('auth.signup.accountExistsMessage'),
           [
             { text: t('common.cancel'), style: 'cancel' },
             { text: t('auth.signup.goToLogin'), onPress: () => router.replace('/login') }
           ]
         );
-      } else if (error.message && error.message.includes('already registered')) {
+      } else if (message.includes('already registered')) {
         Alert.alert(
-          'Account Already Exists', 
+          'Account Already Exists',
           'This email is already registered. Please sign in instead.',
           [
             { text: t('common.cancel'), style: 'cancel' },
@@ -80,8 +112,8 @@ const SignupScreen = () => {
         );
       } else {
         Alert.alert(
-          t('auth.signup.registrationFailed'), 
-          error.message || 'Failed to create account. Please try again.'
+          t('auth.signup.registrationFailed'),
+          message || t('auth.signup.registrationFailedMessage', 'Failed to create account. Please try again.')
         );
       }
     } finally {
@@ -95,7 +127,17 @@ const SignupScreen = () => {
 
   return (
     <PokedexLayout>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+      >
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
         <View style={styles.form}>
           <Text style={styles.title}>{t('auth.signup.title')}</Text>
           
@@ -118,30 +160,51 @@ const SignupScreen = () => {
             <View style={styles.dividerLine} />
           </View>
           
-          <TextInput
-            style={styles.input}
-            placeholder={t('auth.login.emailPlaceholder')}
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-          />
-          
-          <TextInput
-            style={styles.input}
-            placeholder={t('auth.login.passwordPlaceholder')}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-          
-          <TextInput
-            style={styles.input}
-            placeholder={t('auth.signup.confirmPasswordPlaceholder')}
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-          />
+          <View onLayout={(e) => setEmailInputY(e.nativeEvent.layout.y)}>
+            <TextInput
+              style={[styles.input, emailError ? styles.inputError : null]}
+              placeholder={t('auth.login.emailPlaceholder')}
+              value={email}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (emailError) clearEmailError();
+              }}
+              onFocus={() => {
+                clearEmailError();
+                scrollToInput(emailInputY);
+              }}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoComplete="email"
+              accessibilityLabel={t('auth.login.emailPlaceholder')}
+              accessibilityHint={emailError ?? undefined}
+            />
+            {emailError ? (
+              <Text style={styles.fieldError}>{emailError}</Text>
+            ) : null}
+          </View>
+
+          <View onLayout={(e) => setPasswordInputY(e.nativeEvent.layout.y)}>
+            <TextInput
+              style={styles.input}
+              placeholder={t('auth.login.passwordPlaceholder')}
+              value={password}
+              onChangeText={setPassword}
+              onFocus={() => scrollToInput(passwordInputY)}
+              secureTextEntry
+            />
+          </View>
+
+          <View onLayout={(e) => setConfirmPasswordInputY(e.nativeEvent.layout.y)}>
+            <TextInput
+              style={styles.input}
+              placeholder={t('auth.signup.confirmPasswordPlaceholder')}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              onFocus={() => scrollToInput(confirmPasswordInputY)}
+              secureTextEntry
+            />
+          </View>
 
           <Text style={styles.passwordHint}>
             {t('auth.signup.passwordHint')}
@@ -172,7 +235,8 @@ const SignupScreen = () => {
             <Text style={styles.loginButtonText}>{t('auth.signup.loginExisting')}</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </PokedexLayout>
   );
 };
@@ -182,8 +246,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
+  keyboardAvoid: {
+    flex: 1,
+  },
   scrollContent: {
     flexGrow: 1,
+    paddingBottom: 40,
   },
   form: {
     padding: 20,
@@ -214,6 +282,17 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     fontSize: 16,
     backgroundColor: '#f9f9f9',
+  },
+  inputError: {
+    borderColor: '#dc3545',
+    backgroundColor: '#fff8f8',
+  },
+  fieldError: {
+    fontFamily: FONTS.sans,
+    color: '#dc3545',
+    fontSize: 13,
+    marginTop: -10,
+    marginBottom: 12,
   },
   passwordHint: {
     fontFamily: FONTS.sans,

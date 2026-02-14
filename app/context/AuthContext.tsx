@@ -242,10 +242,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     };
   }, []);
 
-  // Sign in function
+  // Sign in function. We do NOT set global isLoading here so AuthGuard keeps
+  // rendering the app (e.g. login screen). Otherwise a full-screen spinner would
+  // replace the login form and, on failure, can leave a blank screen. The login
+  // screen uses its own local loading state for the submit button.
   const signIn = async (email: string, password: string) => {
     logger.log('🔐 [AuthContext] signIn called with email:', email);
-    setIsLoading(true);
     try {
       logger.log('🔐 [AuthContext] Calling authService.signIn...');
       const { session } = await authService.signIn(email, password);
@@ -264,8 +266,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     } catch (error) {
       logger.error('❌ [AuthContext] Error signing in:', error);
       throw error;
-    } finally {
-      setIsLoading(false);
     }
   };
 

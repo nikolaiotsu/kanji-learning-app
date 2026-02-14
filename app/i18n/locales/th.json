@@ -70,7 +70,10 @@
       "loginButton": "เข้าสู่ระบบ",
       "forgotPassword": "ลืมรหัสผ่าน?",
       "loginFailed": "เข้าสู่ระบบล้มเหลว",
-      "missingCredentials": "กรุณากรอกอีเมลและรหัสผ่าน"
+      "missingCredentials": "กรุณากรอกอีเมลและรหัสผ่าน",
+      "loginFailedMessage": "เข้าสู่ระบบไม่สำเร็จ กรุณาลองอีกครั้ง",
+      "invalidEmailFormat": "กรุณาใส่อีเมลที่ถูกต้อง (เช่น name@example.com)",
+      "invalidCredentials": "ไม่พบบัญชีสำหรับอีเมลและรหัสผ่านนี้ ใหม่ไหม? สร้างบัญชีด้านล่าง"
     },
     "social": {
       "googleSignInFailed": "เข้าสู่ระบบด้วย Google ล้มเหลว",
@@ -97,7 +100,9 @@
       "accountExists": "บัญชีมีอยู่แล้ว",
       "accountExistsMessage": "มีบัญชีที่ใช้อีเมลนี้อยู่แล้ว กรุณาเข้าสู่ระบบแทน",
       "goToLogin": "ไปที่หน้าเข้าสู่ระบบ",
-      "registrationFailed": "การลงทะเบียนล้มเหลว"
+      "registrationFailed": "การลงทะเบียนล้มเหลว",
+      "registrationFailedMessage": "ไม่สามารถสร้างบัญชีได้ กรุณาลองอีกครั้ง",
+      "invalidEmailFormat": "กรุณาใส่อีเมลที่ถูกต้อง (เช่น name@example.com)"
     }
   },
   "signInPrompt": {

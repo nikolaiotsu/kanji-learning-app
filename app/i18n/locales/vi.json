@@ -70,7 +70,10 @@
       "loginButton": "Đăng nhập",
       "forgotPassword": "Quên mật khẩu?",
       "loginFailed": "Đăng nhập thất bại",
-      "missingCredentials": "Vui lòng nhập cả email và mật khẩu"
+      "missingCredentials": "Vui lòng nhập cả email và mật khẩu",
+      "loginFailedMessage": "Đăng nhập thất bại. Vui lòng thử lại.",
+      "invalidEmailFormat": "Vui lòng nhập địa chỉ email hợp lệ (ví dụ: name@example.com).",
+      "invalidCredentials": "Không tìm thấy tài khoản cho email và mật khẩu này. Mới dùng? Tạo tài khoản bên dưới."
     },
     "social": {
       "googleSignInFailed": "Đăng nhập Google thất bại",
@@ -97,7 +100,9 @@
       "accountExists": "Tài khoản Đã Tồn tại",
       "accountExistsMessage": "Đã có tài khoản với email này. Vui lòng đăng nhập thay vào đó.",
       "goToLogin": "Đi đến Đăng nhập",
-      "registrationFailed": "Đăng ký thất bại"
+      "registrationFailed": "Đăng ký thất bại",
+      "registrationFailedMessage": "Không thể tạo tài khoản. Vui lòng thử lại.",
+      "invalidEmailFormat": "Vui lòng nhập địa chỉ email hợp lệ (ví dụ: name@example.com)."
     }
   },
   "signInPrompt": {
