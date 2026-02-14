@@ -157,7 +157,7 @@
     "relevantTitleSuffix": "คือ...เกี่ยวข้อง",
     "relevantBullet": "แทนที่จะท่องจำวลีที่คุณไม่เคยใช้...",
     "relevantCta": "ดำเนินการต่อ",
-    "empoweringTitle": "สแกน เรียนรู้ เสร็จ",
+    "empoweringTitle": "พร้อมที่จะเห็นมนต์เสน่ห์แล้วหรือยัง?",
     "empoweringTitleSuffix": "คือ...เสริมพลัง",
     "empoweringBullet1": "มาสร้างการ์ดแรกของคุณและทัวร์สั้นๆ กันเลย!",
     "empoweringBullet2": "ด้วย WordDex โลกของคุณกลายเป็นห้องเรียน สำรวจได้ไม่มีขีดจำกัด!",
@@ -506,7 +506,7 @@
     },
     "findText": {
       "title": "การ์ดแรกของคุณรออยู่",
-      "description": "เลือกข้อความ{{language}}ใดก็ได้รอบตัวคุณ เรียนรู้จากชีวิตของคุณ",
+      "description": "เลือกข้อความ{{language}}ใดก็ได้รอบตัวคุณ เรียนรู้{{language}}จากชีวิตของคุณ",
       "languageFallback": "ภาษา"
     },
     "gallery": {

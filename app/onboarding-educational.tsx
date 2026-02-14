@@ -182,7 +182,8 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     letterSpacing: -0.5,
     marginRight: 10,
-    flex: 1,
+    // No flex: 1 — keep only the width needed so the loading animation stays beside the title
+    // on all screen sizes (e.g. iPad Mini). With flex: 1 the title container expanded and created a large gap.
   },
   titleLogoWrap: {
     flexShrink: 0,

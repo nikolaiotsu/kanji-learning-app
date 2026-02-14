@@ -157,7 +157,7 @@
     "relevantTitleSuffix": "is...relevant.",
     "relevantBullet": "Instead of memorizing phrases you'll never use...",
     "relevantCta": "Continue",
-    "empoweringTitle": "Scan. Learn. Done.",
+    "empoweringTitle": "Ready to see the magic?",
     "empoweringTitleSuffix": "is...empowering.",
     "empoweringBullet1": "Let's make your first card and go on a little tour!",
     "empoweringBullet2": "With WordDex, your world becomes your classroom. Explore without limits!",
@@ -506,7 +506,7 @@
     },
     "findText": {
       "title": "Your first card awaits",
-      "description": "Choose any {{language}} text around you. Start learning from YOUR life.",
+      "description": "Choose any {{language}} text around you. Start learning {{language}} from YOUR life.",
       "languageFallback": "a language"
     },
     "gallery": {

@@ -157,7 +157,7 @@
     "relevantTitleSuffix": "...عملي.",
     "relevantBullet": "بدلاً من حفظ عبارات لن تستخدمها أبدًا...",
     "relevantCta": "متابعة",
-    "empoweringTitle": "امسح. تعلم. انتهى.",
+    "empoweringTitle": "مستعد لرؤية السحر؟",
     "empoweringTitleSuffix": "...يمكّنك.",
     "empoweringBullet1": "لننشئ بطاقتك الأولى ونقوم بجولة سريعة!",
     "empoweringBullet2": "مع WordDex، يصبح عالمك صفك الدراسي. استكشف بلا حدود!",
@@ -509,7 +509,7 @@
     },
     "findText": {
       "title": "بطاقتك الأولى في انتظارك",
-      "description": "اختر أي نص بـ{{language}} من حولك. تعلم من حياتك",
+      "description": "اختر أي نص بـ{{language}} من حولك. ابدأ بتعلم {{language}} من حياتك",
       "languageFallback": "لغة"
     },
     "gallery": {

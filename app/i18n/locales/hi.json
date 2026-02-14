@@ -157,7 +157,7 @@
     "relevantTitleSuffix": "है...प्रासंगिक।",
     "relevantBullet": "उन वाक्यांशों को याद करने के बजाय जो आप कभी उपयोग नहीं करेंगे...",
     "relevantCta": "जारी रखें",
-    "empoweringTitle": "स्कैन करें। सीखें। हो गया।",
+    "empoweringTitle": "जादू देखने के लिए तैयार?",
     "empoweringTitleSuffix": "है...सशक्त बनाने वाला।",
     "empoweringBullet1": "आइए अपना पहला कार्ड बनाएं और एक छोटा टूर करें!",
     "empoweringBullet2": "WordDex के साथ, आपकी दुनिया आपकी कक्षा बन जाती है। बिना किसी सीमा के खोजें!",
@@ -502,7 +502,7 @@
     },
     "findText": {
       "title": "आपका पहला कार्ड इंतजार कर रहा है",
-      "description": "अपने आसपास कोई भी {{language}} टेक्स्ट चुनें। अपने जीवन से सीखें",
+      "description": "अपने आसपास कोई भी {{language}} टेक्स्ट चुनें। {{language}} अपने जीवन से सीखें",
       "languageFallback": "एक भाषा"
     },
     "gallery": {

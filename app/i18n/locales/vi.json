@@ -157,7 +157,7 @@
     "relevantTitleSuffix": "là...phù hợp.",
     "relevantBullet": "Thay vì ghi nhớ những cụm từ bạn không bao giờ dùng...",
     "relevantCta": "Tiếp tục",
-    "empoweringTitle": "Quét. Học. Xong.",
+    "empoweringTitle": "Sẵn sàng xem phép màu chưa?",
     "empoweringTitleSuffix": "là...trao quyền.",
     "empoweringBullet1": "Hãy tạo thẻ đầu tiên và tham quan nhanh nhé!",
     "empoweringBullet2": "Với WordDex, thế giới của bạn trở thành lớp học. Khám phá không giới hạn!",
@@ -506,7 +506,7 @@
     },
     "findText": {
       "title": "Thẻ đầu tiên của bạn đang chờ",
-      "description": "Chọn bất kỳ văn bản {{language}} nào xung quanh bạn. Học từ cuộc sống của BẠN",
+      "description": "Chọn bất kỳ văn bản {{language}} nào xung quanh bạn. Học {{language}} từ cuộc sống của BẠN",
       "languageFallback": "một ngôn ngữ"
     },
     "gallery": {
