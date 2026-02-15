@@ -164,7 +164,14 @@
     "empoweringCta": "जारी रखें"
   },
   "badges": {
-    "title": "आपके बैज"
+    "title": "आपके बैज",
+    "instruction": {
+      "title": "उपलब्धि बैज",
+      "collectBullet": "सीखते समय बैज इकट्ठा करें",
+      "masterBullet": "सबूत है कि आप WordDex के माहिर हैं!",
+      "dontShowAgain": "दोबारा न दिखाएं",
+      "nice": "बढ़िया!"
+    }
   },
   "deck": {
     "select": "संग्रह चुनें",
@@ -404,6 +411,22 @@
     "streak": {
       "congratsTitle": "बधाई हो!",
       "congratsBody": "आपने अपनी रिव्यू स्ट्रीक शुरू कर दी! कल रिव्यू मोड में तीन और कार्ड्स को दाएं स्वाइप करके अपनी स्ट्रीक जारी रखें!"
+    },
+    "buttonInstruction": {
+      "title": "समीक्षा मोड",
+      "body": "अंतराल पुनरावृत्ति से कार्ड दोहराएं।",
+      "glowBullet": "जब कार्ड समीक्षा के लिए तैयार हों तो चमकता है",
+      "longPressBullet": "प्रगति रीसेट करने के लिए लंबे समय तक दबाएं",
+      "dontShowAgain": "दोबारा न दिखाएं",
+      "gotIt": "समझ गया"
+    },
+    "collectionsInstruction": {
+      "title": "संग्रह",
+      "body": "अध्ययन के लिए डेक चुनें।",
+      "longPressBullet": "लंबे समय तक दबाएं: केवल यह डेक चुनें",
+      "swipeBullet": "बाईं ओर स्वाइप करें: डेक हटाएं",
+      "dontShowAgain": "दोबारा न दिखाएं",
+      "gotIt": "समझ गया"
     }
   },
   "savedFlashcards": {
@@ -435,7 +458,16 @@
     "moveFlashcardError": "फ्लैशकार्ड स्थानांतरित करने में असफल",
     "createDeckError": "डेक बनाने और फ्लैशकार्ड स्थानांतरित करने में असफल",
     "updateFlashcardError": "फ्लैशकार्ड अपडेट करने में असफल। कृपया पुनः प्रयास करें।",
-    "unexpectedError": "एक अप्रत्याशित त्रुटि हुई। कृपया पुनः प्रयास करें।"
+    "unexpectedError": "एक अप्रत्याशित त्रुटि हुई। कृपया पुनः प्रयास करें।",
+    "deckNameInstruction": {
+      "title": "डेक विकल्प",
+      "body": "विकल्पों के लिए लंबे समय तक दबाएं:",
+      "reorderBullet": "डेक पुनः व्यवस्थित करें",
+      "renameBullet": "डेक का नाम बदलें",
+      "deleteBullet": "डेक हटाएं",
+      "dontShowAgain": "दोबारा न दिखाएं",
+      "gotIt": "समझ गया"
+    }
   },
   "imageHighlighter": {
     "dragToRotate": "छवि को घुमाने के लिए खींचें",

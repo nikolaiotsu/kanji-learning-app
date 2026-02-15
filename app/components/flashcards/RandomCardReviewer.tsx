@@ -19,6 +19,10 @@ import { useBadge } from '../../context/BadgeContext';
 import { useSwipeCounter } from '../../context/SwipeCounterContext';
 import { useNetworkState } from '../../services/networkManager';
 import OfflineBanner from '../shared/OfflineBanner';
+import ReviewButtonInstructionModal from '../shared/ReviewButtonInstructionModal';
+import CollectionsButtonInstructionModal from '../shared/CollectionsButtonInstructionModal';
+import { getReviewButtonInstructionsDontShowAgain } from '../../services/reviewButtonInstructionService';
+import { getCollectionsButtonInstructionsDontShowAgain } from '../../services/collectionsButtonInstructionService';
 import { registerSyncCallback, unregisterSyncCallback, onDataSynced } from '../../services/syncManager';
 import { useFocusEffect } from 'expo-router';
 import { filterDueCards, calculateNextReviewDate, getNewBoxOnCorrect, getNewBoxOnIncorrect } from '../../constants/leitner';
@@ -98,6 +102,9 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   // Card interaction walkthrough: track flip and image toggle counts (need 2 each to advance)
   const [walkthroughFlipCount, setWalkthroughFlipCount] = useState(0);
   const [walkthroughImageToggleCount, setWalkthroughImageToggleCount] = useState(0);
+  // Instructional modals shown on first button press
+  const [showReviewInstructionModal, setShowReviewInstructionModal] = useState(false);
+  const [showCollectionsInstructionModal, setShowCollectionsInstructionModal] = useState(false);
   
   // Callback to prepare for session finish - must be stable reference
   const handleSessionFinishing = useCallback(() => {
@@ -1426,6 +1433,82 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     });
   };
 
+  // Shared logic for review mode toggle - used by button and instruction modal
+  const performReviewModeToggle = useCallback(() => {
+    setButtonDisplayActive(prev => !prev);
+    if (transitionTimeoutRef.current) clearTimeout(transitionTimeoutRef.current);
+    if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+    setIsTransitionLoading(true);
+    Animated.timing(transitionLoadingOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      const newSrsMode = !isSrsModeActive;
+      logger.log('🎓 [Review Button] Toggling SRS mode:', isSrsModeActive, '->', newSrsMode);
+      if (isSrsModeActive && !newSrsMode) {
+        setFadeOutSwipedCount(sessionSwipedCardIds.size);
+        setFadeOutDueCount(sessionStartDueCount || dueCardsCount);
+        setFadeOutTotalDeckCards(totalDeckCards);
+        setIsFadingOut(true);
+      }
+      isSrsModeActiveRef.current = newSrsMode;
+      setIsSrsModeActive(newSrsMode);
+      loadingTimeoutRef.current = setTimeout(() => {
+        Animated.timing(transitionLoadingOpacity, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }).start(() => {
+          setIsTransitionLoading(false);
+          loadingTimeoutRef.current = null;
+        });
+      }, 200);
+    });
+  }, [isSrsModeActive, sessionSwipedCardIds.size, sessionStartDueCount, dueCardsCount, totalDeckCards, transitionLoadingOpacity]);
+
+  const handleReviewButtonPress = useCallback(() => {
+    if (isTransitionLoading || isCardTransitioning || isInitializing) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const runToggle = () => performReviewModeToggle();
+    if (isWalkthroughActive) {
+      runToggle();
+      return;
+    }
+    if (!isSrsModeActive) {
+      getReviewButtonInstructionsDontShowAgain().then(dontShow => {
+        if (dontShow) runToggle();
+        else setShowReviewInstructionModal(true);
+      });
+    } else {
+      runToggle();
+    }
+  }, [isTransitionLoading, isCardTransitioning, isInitializing, isWalkthroughActive, isSrsModeActive, performReviewModeToggle]);
+
+  const handleReviewInstructionModalProceed = useCallback(() => {
+    setShowReviewInstructionModal(false);
+    performReviewModeToggle();
+  }, [performReviewModeToggle]);
+
+  const handleCollectionsButtonPress = useCallback(() => {
+    if (isCardTransitioning || isInitializing) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const openDeckSelector = () => setShowDeckSelector(true);
+    if (isWalkthroughActive) {
+      openDeckSelector();
+      return;
+    }
+    getCollectionsButtonInstructionsDontShowAgain().then(dontShow => {
+      if (dontShow) openDeckSelector();
+      else setShowCollectionsInstructionModal(true);
+    });
+  }, [isCardTransitioning, isInitializing, isWalkthroughActive]);
+
+  const handleCollectionsInstructionModalProceed = useCallback(() => {
+    setShowCollectionsInstructionModal(false);
+    setShowDeckSelector(true);
+  }, []);
+
   const onKeepCard = () => {
     completeSwipe('left');
   };
@@ -2018,7 +2101,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 style={[
                   styles.deckButton,
                 ]} 
-              onPress={() => setShowDeckSelector(true)}
+              onPress={handleCollectionsButtonPress}
                 disabled={isWalkthroughActive && currentWalkthroughStepId !== 'collections'}
             >
                 <Ionicons 
@@ -2059,66 +2142,8 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               ]}
               disabled={(reviewSessionCards.length === 0 && filteredCards.length === 0) || (isWalkthroughActive && currentWalkthroughStepId !== 'review-button')}
               onPress={() => {
-                // Prevent rapid button presses from causing overlapping transitions
-                if (isTransitionLoading || isCardTransitioning || isInitializing) {
-                  return;
-                }
-                
-                // Prevent action when no cards available
-                if (reviewSessionCards.length === 0 && filteredCards.length === 0) {
-                  return;
-                }
-                
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                
-                // Update button appearance immediately to prevent flashing
-                setButtonDisplayActive(!buttonDisplayActive);
-                
-                // Clear any existing timeouts
-                if (transitionTimeoutRef.current) {
-                  clearTimeout(transitionTimeoutRef.current);
-                }
-                if (loadingTimeoutRef.current) {
-                  clearTimeout(loadingTimeoutRef.current);
-                }
-                
-                setIsTransitionLoading(true);
-                
-                // Smoothly fade in loading overlay - wait for it to complete before changing mode
-                Animated.timing(transitionLoadingOpacity, {
-                  toValue: 1,
-                  duration: 200,
-                  useNativeDriver: true,
-                }).start(() => {
-                  // Only change mode after loading overlay is fully visible to prevent card flashing
-                  const newSrsMode = !isSrsModeActive;
-                  logger.log('🎓 [Review Button] Toggling SRS mode:', isSrsModeActive, '->', newSrsMode);
-                  
-                  // CRITICAL: Capture counter values BEFORE state change to prevent flicker
-                  if (isSrsModeActive && !newSrsMode) {
-                    setFadeOutSwipedCount(sessionSwipedCardIds.size);
-                    setFadeOutDueCount(sessionStartDueCount || dueCardsCount);
-                    setFadeOutTotalDeckCards(totalDeckCards);
-                    setIsFadingOut(true);
-                  }
-                  
-                  // Update ref immediately (don't wait for useEffect) to ensure swipes use new value
-                  isSrsModeActiveRef.current = newSrsMode;
-                  
-                  setIsSrsModeActive(newSrsMode);
-                  
-                  // Hide loading after cards are ready with smooth fade out
-                  loadingTimeoutRef.current = setTimeout(() => {
-                    Animated.timing(transitionLoadingOpacity, {
-                      toValue: 0,
-                      duration: 200,
-                      useNativeDriver: true,
-                    }).start(() => {
-                      setIsTransitionLoading(false);
-                      loadingTimeoutRef.current = null;
-                    });
-                  }, 200);
-                });
+                if (reviewSessionCards.length === 0 && filteredCards.length === 0) return;
+                handleReviewButtonPress();
               }}
             >
               <Ionicons 
@@ -2252,7 +2277,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 style={[
                   styles.deckButton,
                 ]} 
-              onPress={() => setShowDeckSelector(true)}
+              onPress={handleCollectionsButtonPress}
                 disabled={isWalkthroughActive && currentWalkthroughStepId !== 'collections'}
             >
                 <Ionicons 
@@ -2292,63 +2317,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 showCompletionPulse && completionPulseStyle,
               ]}
               disabled={isSessionFinished || (isWalkthroughActive && currentWalkthroughStepId !== 'review-button')}
-              onPress={() => {
-                // Prevent rapid button presses from causing overlapping transitions
-                if (isTransitionLoading || isCardTransitioning || isInitializing) {
-                  return;
-                }
-                
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                
-                // Update button appearance immediately to prevent flashing
-                setButtonDisplayActive(!buttonDisplayActive);
-                
-                // Clear any existing timeouts
-                if (transitionTimeoutRef.current) {
-                  clearTimeout(transitionTimeoutRef.current);
-                }
-                if (loadingTimeoutRef.current) {
-                  clearTimeout(loadingTimeoutRef.current);
-                }
-                
-                setIsTransitionLoading(true);
-                
-                // Smoothly fade in loading overlay - wait for it to complete before changing mode
-                Animated.timing(transitionLoadingOpacity, {
-                  toValue: 1,
-                  duration: 200,
-                  useNativeDriver: true,
-                }).start(() => {
-                  // Only change mode after loading overlay is fully visible to prevent card flashing
-                  const newSrsMode = !isSrsModeActive;
-                  logger.log('🎓 [Review Button] Toggling SRS mode:', isSrsModeActive, '->', newSrsMode);
-                  
-                  // CRITICAL: Capture counter values BEFORE state change to prevent flicker
-                  if (isSrsModeActive && !newSrsMode) {
-                    setFadeOutSwipedCount(sessionSwipedCardIds.size);
-                    setFadeOutDueCount(sessionStartDueCount || dueCardsCount);
-                    setFadeOutTotalDeckCards(totalDeckCards);
-                    setIsFadingOut(true);
-                  }
-                  
-                  // Update ref immediately (don't wait for useEffect) to ensure swipes use new value
-                  isSrsModeActiveRef.current = newSrsMode;
-                  
-                  setIsSrsModeActive(newSrsMode);
-                  
-                  // Hide loading after cards are ready with smooth fade out
-                  loadingTimeoutRef.current = setTimeout(() => {
-                    Animated.timing(transitionLoadingOpacity, {
-                      toValue: 0,
-                      duration: 200,
-                      useNativeDriver: true,
-                    }).start(() => {
-                      setIsTransitionLoading(false);
-                      loadingTimeoutRef.current = null;
-                    });
-                  }, 200);
-                });
-              }}
+              onPress={handleReviewButtonPress}
             >
               <Ionicons 
                 name={buttonDisplayActive ? "school" : "school-outline"} 
@@ -2510,12 +2479,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                   // Keep full opacity during walkthrough; only dim when not in walkthrough and disabled
                   (!isWalkthroughActive && (isCardTransitioning || isInitializing)) && styles.deckButtonDisabled
             ]} 
-          onPress={() => {
-              if (!isWalkthroughActive || currentWalkthroughStepId === 'collections') {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setShowDeckSelector(true);
-              }
-          }}
+          onPress={handleCollectionsButtonPress}
             disabled={isCardTransitioning || isInitializing || (isWalkthroughActive && currentWalkthroughStepId !== 'collections')}
         >
             <Ionicons 
@@ -2556,63 +2520,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
             rainbowBorderStyle,
             showCompletionPulse && completionPulseStyle
           ]}
-          onPress={() => {
-            // Prevent rapid button presses from causing overlapping transitions
-            if (isTransitionLoading || isCardTransitioning || isInitializing) {
-              return;
-            }
-            
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            
-            // Update button appearance immediately to prevent flashing
-            setButtonDisplayActive(!buttonDisplayActive);
-            
-            // Clear any existing timeouts
-            if (transitionTimeoutRef.current) {
-              clearTimeout(transitionTimeoutRef.current);
-            }
-            if (loadingTimeoutRef.current) {
-              clearTimeout(loadingTimeoutRef.current);
-            }
-            
-            setIsTransitionLoading(true);
-            
-            // Smoothly fade in loading overlay - wait for it to complete before changing mode
-            Animated.timing(transitionLoadingOpacity, {
-              toValue: 1,
-              duration: 200,
-              useNativeDriver: true,
-            }).start(() => {
-              // Only change mode after loading overlay is fully visible to prevent card flashing
-              const newSrsMode = !isSrsModeActive;
-              logger.log('🎓 [Review Button] Toggling SRS mode:', isSrsModeActive, '->', newSrsMode);
-              
-              // CRITICAL: Capture counter values BEFORE state change to prevent flicker
-              if (isSrsModeActive && !newSrsMode) {
-                setFadeOutSwipedCount(sessionSwipedCardIds.size);
-                setFadeOutDueCount(sessionStartDueCount || dueCardsCount);
-                setFadeOutTotalDeckCards(totalDeckCards);
-                setIsFadingOut(true);
-              }
-              
-              // Update ref immediately (don't wait for useEffect) to ensure swipes use new value
-              isSrsModeActiveRef.current = newSrsMode;
-              
-              setIsSrsModeActive(newSrsMode);
-              
-              // Hide loading after cards are ready with smooth fade out
-              loadingTimeoutRef.current = setTimeout(() => {
-                Animated.timing(transitionLoadingOpacity, {
-                  toValue: 0,
-                  duration: 200,
-                  useNativeDriver: true,
-                }).start(() => {
-                  setIsTransitionLoading(false);
-                  loadingTimeoutRef.current = null;
-                });
-              }, 200);
-            });
-          }}
+          onPress={handleReviewButtonPress}
           onLongPress={handleResetSRSProgress}
           disabled={isCardTransitioning || isInitializing || isResettingSRS || (isWalkthroughActive && currentWalkthroughStepId !== 'review-button')}
         >
@@ -2898,6 +2806,18 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
+
+    <ReviewButtonInstructionModal
+      visible={showReviewInstructionModal}
+      onClose={() => setShowReviewInstructionModal(false)}
+      onProceed={handleReviewInstructionModalProceed}
+    />
+
+    <CollectionsButtonInstructionModal
+      visible={showCollectionsInstructionModal}
+      onClose={() => setShowCollectionsInstructionModal(false)}
+      onProceed={handleCollectionsInstructionModalProceed}
+    />
     </>
   );
 };

@@ -164,7 +164,14 @@
     "empoweringCta": "Continua"
   },
   "badges": {
-    "title": "I Tuoi Badge"
+    "title": "I Tuoi Badge",
+    "instruction": {
+      "title": "Badge di Successo",
+      "collectBullet": "Raccogli badge mentre impari",
+      "masterBullet": "La prova che sei un maestro di WordDex!",
+      "dontShowAgain": "Non mostrare più",
+      "nice": "Fantastico!"
+    }
   },
   "deck": {
     "select": "Seleziona Collezione",
@@ -408,6 +415,22 @@
     "streak": {
       "congratsTitle": "Congratulazioni!",
       "congratsBody": "Hai iniziato la tua serie di ripassi! Scorri a destra altre tre carte domani in modalità Ripasso per continuare la tua serie."
+    },
+    "buttonInstruction": {
+      "title": "Modalità Ripasso",
+      "body": "Ripassa le carte con la ripetizione dilazionata.",
+      "glowBullet": "Si illumina quando ci sono carte da ripassare",
+      "longPressBullet": "Premi a lungo per reimpostare i progressi",
+      "dontShowAgain": "Non mostrare più",
+      "gotIt": "Capito"
+    },
+    "collectionsInstruction": {
+      "title": "Raccolte",
+      "body": "Seleziona quali mazzi studiare.",
+      "longPressBullet": "Premi a lungo: Seleziona solo questo mazzo",
+      "swipeBullet": "Scorri a sinistra: Elimina mazzo",
+      "dontShowAgain": "Non mostrare più",
+      "gotIt": "Capito"
     }
   },
   "savedFlashcards": {
@@ -443,7 +466,16 @@
     "moveFlashcardError": "Spostamento scheda fallito",
     "createDeckError": "Creazione mazzo e spostamento scheda falliti",
     "updateFlashcardError": "Aggiornamento scheda fallito. Riprova.",
-    "unexpectedError": "Si è verificato un errore imprevisto. Riprova."
+    "unexpectedError": "Si è verificato un errore imprevisto. Riprova.",
+    "deckNameInstruction": {
+      "title": "Opzioni Mazzo",
+      "body": "Premi a lungo per le opzioni:",
+      "reorderBullet": "Riordina mazzi",
+      "renameBullet": "Rinomina mazzo",
+      "deleteBullet": "Elimina mazzo",
+      "dontShowAgain": "Non mostrare più",
+      "gotIt": "Capito"
+    }
   },
   "imageHighlighter": {
     "dragToRotate": "Trascina per ruotare l'immagine",

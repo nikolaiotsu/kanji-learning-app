@@ -164,7 +164,14 @@
     "empoweringCta": "Continuar"
   },
   "badges": {
-    "title": "Seus Emblemas"
+    "title": "Seus Emblemas",
+    "instruction": {
+      "title": "Insígnias de Conquista",
+      "collectBullet": "Colete insígnias enquanto aprende",
+      "masterBullet": "Prova de que você é um mestre do WordDex!",
+      "dontShowAgain": "Não mostrar novamente",
+      "nice": "Ótimo!"
+    }
   },
   "deck": {
     "select": "Selecionar Coleção",
@@ -408,6 +415,22 @@
     "streak": {
       "congratsTitle": "Parabéns!",
       "congratsBody": "Você começou sua sequência de revisão! Deslize para a direita mais três cartas amanhã no modo Revisão para continuar sua sequência."
+    },
+    "buttonInstruction": {
+      "title": "Modo de Revisão",
+      "body": "Revise cartões com repetição espaçada.",
+      "glowBullet": "Brilha quando há cartões para revisar",
+      "longPressBullet": "Pressione longamente para redefinir o progresso",
+      "dontShowAgain": "Não mostrar novamente",
+      "gotIt": "Entendi"
+    },
+    "collectionsInstruction": {
+      "title": "Coleções",
+      "body": "Selecione quais baralhos estudar.",
+      "longPressBullet": "Pressione longamente: Selecionar apenas este baralho",
+      "swipeBullet": "Deslize para a esquerda: Excluir baralho",
+      "dontShowAgain": "Não mostrar novamente",
+      "gotIt": "Entendi"
     }
   },
   "savedFlashcards": {
@@ -443,7 +466,16 @@
     "moveFlashcardError": "Falha ao mover cartão",
     "createDeckError": "Falha ao criar baralho e mover cartão",
     "updateFlashcardError": "Falha ao atualizar cartão. Por favor, tente novamente.",
-    "unexpectedError": "Ocorreu um erro inesperado. Por favor, tente novamente."
+    "unexpectedError": "Ocorreu um erro inesperado. Por favor, tente novamente.",
+    "deckNameInstruction": {
+      "title": "Opções do Baralho",
+      "body": "Pressione longamente para opções:",
+      "reorderBullet": "Reordenar baralhos",
+      "renameBullet": "Renomear baralho",
+      "deleteBullet": "Excluir baralho",
+      "dontShowAgain": "Não mostrar novamente",
+      "gotIt": "Entendi"
+    }
   },
   "imageHighlighter": {
     "dragToRotate": "Arraste para girar a imagem",

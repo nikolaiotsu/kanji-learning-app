@@ -164,7 +164,14 @@
     "empoweringCta": "Continuer"
   },
   "badges": {
-    "title": "Vos Badges"
+    "title": "Vos Badges",
+    "instruction": {
+      "title": "Badges de Réussite",
+      "collectBullet": "Collectez des badges en apprenant",
+      "masterBullet": "La preuve que vous êtes un maître de WordDex !",
+      "dontShowAgain": "Ne plus afficher",
+      "nice": "Super !"
+    }
   },
   "deck": {
     "select": "Sélectionner une collection",
@@ -408,6 +415,22 @@
     "streak": {
       "congratsTitle": "Félicitations !",
       "congratsBody": "Vous avez commencé votre série de révisions ! Faites glisser trois cartes de plus vers la droite demain en mode Révision pour continuer votre série."
+    },
+    "buttonInstruction": {
+      "title": "Mode Révision",
+      "body": "Révisez vos cartes avec la répétition espacée.",
+      "glowBullet": "Brille quand des cartes sont à réviser",
+      "longPressBullet": "Appui long pour réinitialiser la progression",
+      "dontShowAgain": "Ne plus afficher",
+      "gotIt": "Compris"
+    },
+    "collectionsInstruction": {
+      "title": "Collections",
+      "body": "Sélectionnez les paquets à étudier.",
+      "longPressBullet": "Appui long : Sélectionner uniquement ce paquet",
+      "swipeBullet": "Glissez à gauche : Supprimer le paquet",
+      "dontShowAgain": "Ne plus afficher",
+      "gotIt": "Compris"
     }
   },
   "savedFlashcards": {
@@ -443,7 +466,16 @@
     "moveFlashcardError": "Échec du déplacement de la flashcard",
     "createDeckError": "Échec de la création du jeu et du déplacement de la flashcard",
     "updateFlashcardError": "Échec de la mise à jour de la flashcard. Veuillez réessayer.",
-    "unexpectedError": "Une erreur inattendue s'est produite. Veuillez réessayer."
+    "unexpectedError": "Une erreur inattendue s'est produite. Veuillez réessayer.",
+    "deckNameInstruction": {
+      "title": "Options du Paquet",
+      "body": "Appui long pour les options :",
+      "reorderBullet": "Réorganiser les paquets",
+      "renameBullet": "Renommer le paquet",
+      "deleteBullet": "Supprimer le paquet",
+      "dontShowAgain": "Ne plus afficher",
+      "gotIt": "Compris"
+    }
   },
   "imageHighlighter": {
     "dragToRotate": "Glissez pour faire pivoter l'image",

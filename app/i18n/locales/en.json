@@ -164,7 +164,14 @@
     "empoweringCta": "Continue"
   },
   "badges": {
-    "title": "Your Badges"
+    "title": "Your Badges",
+    "instruction": {
+      "title": "Achievement Badges",
+      "collectBullet": "Collect badges as you learn",
+      "masterBullet": "Proof you're a WordDex master!",
+      "dontShowAgain": "Don't show again",
+      "nice": "Nice!"
+    }
   },
   "deck": {
     "select": "Select Collection",
@@ -408,6 +415,22 @@
     "streak": {
       "congratsTitle": "Congratulations!",
       "congratsBody": "You started your review streak! Swipe right on three more cards tomorrow in Review mode to continue your streak!"
+    },
+    "buttonInstruction": {
+      "title": "Review Mode",
+      "body": "Review cards using spaced repetition.",
+      "glowBullet": "Glows when cards are due",
+      "longPressBullet": "Long press to reset progress",
+      "dontShowAgain": "Don't show again",
+      "gotIt": "Got it"
+    },
+    "collectionsInstruction": {
+      "title": "Collections",
+      "body": "Select which decks to study.",
+      "longPressBullet": "Long press: Select only this deck.",
+      "swipeBullet": "Swipe left: Delete deck.",
+      "dontShowAgain": "Don't show again",
+      "gotIt": "Got it"
     }
   },
   "savedFlashcards": {
@@ -443,7 +466,16 @@
     "moveFlashcardError": "Failed to move flashcard",
     "createDeckError": "Failed to create deck and move flashcard",
     "updateFlashcardError": "Failed to update flashcard. Please try again.",
-    "unexpectedError": "An unexpected error occurred. Please try again."
+    "unexpectedError": "An unexpected error occurred. Please try again.",
+    "deckNameInstruction": {
+      "title": "Deck Options",
+      "body": "Long press for options:",
+      "reorderBullet": "Reorder decks",
+      "renameBullet": "Rename deck",
+      "deleteBullet": "Delete deck",
+      "dontShowAgain": "Don't show again",
+      "gotIt": "Got it"
+    }
   },
   "imageHighlighter": {
     "dragToRotate": "Drag to rotate the image",

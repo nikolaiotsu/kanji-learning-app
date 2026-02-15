@@ -164,7 +164,14 @@
     "empoweringCta": "继续"
   },
   "badges": {
-    "title": "您的徽章"
+    "title": "您的徽章",
+    "instruction": {
+      "title": "成就徽章",
+      "collectBullet": "学习时收集徽章",
+      "masterBullet": "证明你是WordDex大师！",
+      "dontShowAgain": "不再显示",
+      "nice": "太棒了！"
+    }
   },
   "deck": {
     "select": "选择收藏集",
@@ -404,6 +411,22 @@
     "streak": {
       "congratsTitle": "恭喜！",
       "congratsBody": "你已开始复习连续打卡！明天在复习模式下再右滑三张卡片即可继续你的连续打卡！"
+    },
+    "buttonInstruction": {
+      "title": "复习模式",
+      "body": "使用间隔重复法复习卡片。",
+      "glowBullet": "有卡片需要复习时会发光",
+      "longPressBullet": "长按重置进度",
+      "dontShowAgain": "不再显示",
+      "gotIt": "知道了"
+    },
+    "collectionsInstruction": {
+      "title": "收藏",
+      "body": "选择要学习的卡组。",
+      "longPressBullet": "长按：仅选择此卡组",
+      "swipeBullet": "向左滑动：删除卡组",
+      "dontShowAgain": "不再显示",
+      "gotIt": "知道了"
     }
   },
   "savedFlashcards": {
@@ -435,7 +458,16 @@
     "moveFlashcardError": "移动单词卡失败",
     "createDeckError": "创建卡组和移动单词卡失败",
     "updateFlashcardError": "更新单词卡失败。请重试。",
-    "unexpectedError": "发生意外错误。请重试。"
+    "unexpectedError": "发生意外错误。请重试。",
+    "deckNameInstruction": {
+      "title": "卡组选项",
+      "body": "长按查看选项：",
+      "reorderBullet": "重新排序卡组",
+      "renameBullet": "重命名卡组",
+      "deleteBullet": "删除卡组",
+      "dontShowAgain": "不再显示",
+      "gotIt": "知道了"
+    }
   },
   "imageHighlighter": {
     "dragToRotate": "拖动旋转图像",

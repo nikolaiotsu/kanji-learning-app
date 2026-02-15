@@ -164,7 +164,14 @@
     "empoweringCta": "Tiếp tục"
   },
   "badges": {
-    "title": "Huy Hiệu Của Bạn"
+    "title": "Huy Hiệu Của Bạn",
+    "instruction": {
+      "title": "Huy hiệu Thành tựu",
+      "collectBullet": "Thu thập huy hiệu khi học",
+      "masterBullet": "Chứng minh bạn là bậc thầy WordDex!",
+      "dontShowAgain": "Không hiển thị lại",
+      "nice": "Tuyệt vời!"
+    }
   },
   "deck": {
     "select": "Chọn Bộ Sưu Tập",
@@ -408,6 +415,22 @@
     "streak": {
       "congratsTitle": "Chúc mừng!",
       "congratsBody": "Bạn đã bắt đầu chuỗi ôn tập! Vuốt sang phải thêm ba thẻ vào ngày mai ở chế độ Ôn tập để tiếp tục chuỗi của bạn!"
+    },
+    "buttonInstruction": {
+      "title": "Chế độ Ôn tập",
+      "body": "Ôn tập thẻ bằng lặp lại ngắt quãng.",
+      "glowBullet": "Sáng lên khi có thẻ cần ôn tập",
+      "longPressBullet": "Nhấn giữ để đặt lại tiến trình",
+      "dontShowAgain": "Không hiển thị lại",
+      "gotIt": "Đã hiểu"
+    },
+    "collectionsInstruction": {
+      "title": "Bộ sưu tập",
+      "body": "Chọn bộ thẻ để học.",
+      "longPressBullet": "Nhấn giữ: Chỉ chọn bộ thẻ này",
+      "swipeBullet": "Vuốt sang trái: Xóa bộ thẻ",
+      "dontShowAgain": "Không hiển thị lại",
+      "gotIt": "Đã hiểu"
     }
   },
   "savedFlashcards": {
@@ -443,7 +466,16 @@
     "moveFlashcardError": "Không thể chuyển thẻ",
     "createDeckError": "Không thể tạo bộ thẻ và chuyển thẻ",
     "updateFlashcardError": "Không thể cập nhật thẻ. Vui lòng thử lại.",
-    "unexpectedError": "Đã xảy ra lỗi không mong đợi. Vui lòng thử lại."
+    "unexpectedError": "Đã xảy ra lỗi không mong đợi. Vui lòng thử lại.",
+    "deckNameInstruction": {
+      "title": "Tùy chọn Bộ thẻ",
+      "body": "Nhấn giữ để xem tùy chọn:",
+      "reorderBullet": "Sắp xếp lại bộ thẻ",
+      "renameBullet": "Đổi tên bộ thẻ",
+      "deleteBullet": "Xóa bộ thẻ",
+      "dontShowAgain": "Không hiển thị lại",
+      "gotIt": "Đã hiểu"
+    }
   },
   "imageHighlighter": {
     "dragToRotate": "Kéo để xoay hình ảnh",

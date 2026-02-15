@@ -164,7 +164,14 @@
     "empoweringCta": "続ける"
   },
   "badges": {
-    "title": "あなたのバッジ"
+    "title": "あなたのバッジ",
+    "instruction": {
+      "title": "達成バッジ",
+      "collectBullet": "学習しながらバッジを集めよう",
+      "masterBullet": "あなたがWordDexマスターである証拠！",
+      "dontShowAgain": "今後表示しない",
+      "nice": "いいね！"
+    }
   },
   "deck": {
     "select": "コレクションを選択",
@@ -407,6 +414,22 @@
     "streak": {
       "congratsTitle": "おめでとうございます！",
       "congratsBody": "復習ストリークを開始しました！明日の復習モードで3枚以上のカードを右にスワイプして、ストリークを続けましょう！"
+    },
+    "buttonInstruction": {
+      "title": "復習モード",
+      "body": "間隔反復法でカードを復習します。",
+      "glowBullet": "復習するカードがあるときに光ります",
+      "longPressBullet": "長押しで進捗をリセット",
+      "dontShowAgain": "今後表示しない",
+      "gotIt": "了解"
+    },
+    "collectionsInstruction": {
+      "title": "コレクション",
+      "body": "学習するデッキを選択します。",
+      "longPressBullet": "長押し：このデッキのみを選択",
+      "swipeBullet": "左にスワイプ：デッキを削除",
+      "dontShowAgain": "今後表示しない",
+      "gotIt": "了解"
     }
   },
   "savedFlashcards": {
@@ -442,7 +465,16 @@
     "moveFlashcardError": "フラッシュカードの移動に失敗しました",
     "createDeckError": "デッキの作成とフラッシュカードの移動に失敗しました",
     "updateFlashcardError": "フラッシュカードの更新に失敗しました。もう一度お試しください。",
-    "unexpectedError": "予期しないエラーが発生しました。もう一度お試しください。"
+    "unexpectedError": "予期しないエラーが発生しました。もう一度お試しください。",
+    "deckNameInstruction": {
+      "title": "デッキオプション",
+      "body": "長押しでオプション表示：",
+      "reorderBullet": "デッキを並び替え",
+      "renameBullet": "デッキ名を変更",
+      "deleteBullet": "デッキを削除",
+      "dontShowAgain": "今後表示しない",
+      "gotIt": "了解"
+    }
   },
   "imageHighlighter": {
     "dragToRotate": "ドラッグして画像を回転",

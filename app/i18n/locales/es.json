@@ -164,7 +164,14 @@
     "empoweringCta": "Continuar"
   },
   "badges": {
-    "title": "Tus Insignias"
+    "title": "Tus Insignias",
+    "instruction": {
+      "title": "Insignias de Logros",
+      "collectBullet": "Colecciona insignias mientras aprendes",
+      "masterBullet": "¡Prueba de que eres un maestro de WordDex!",
+      "dontShowAgain": "No mostrar de nuevo",
+      "nice": "¡Genial!"
+    }
   },
   "deck": {
     "select": "Seleccionar colección",
@@ -407,6 +414,22 @@
     "streak": {
       "congratsTitle": "¡Felicitaciones!",
       "congratsBody": "¡Has comenzado tu racha de repaso! Desliza a la derecha tres cartas más mañana en modo Repaso para continuar tu racha."
+    },
+    "buttonInstruction": {
+      "title": "Modo de Repaso",
+      "body": "Repasa tarjetas con repetición espaciada.",
+      "glowBullet": "Brilla cuando hay tarjetas pendientes",
+      "longPressBullet": "Mantén presionado para reiniciar el progreso",
+      "dontShowAgain": "No mostrar de nuevo",
+      "gotIt": "Entendido"
+    },
+    "collectionsInstruction": {
+      "title": "Colecciones",
+      "body": "Selecciona qué mazos estudiar.",
+      "longPressBullet": "Mantén presionado: Seleccionar solo este mazo",
+      "swipeBullet": "Desliza a la izquierda: Eliminar mazo",
+      "dontShowAgain": "No mostrar de nuevo",
+      "gotIt": "Entendido"
     }
   },
   "savedFlashcards": {
@@ -442,7 +465,16 @@
     "moveFlashcardError": "Error al mover la tarjeta",
     "createDeckError": "Error al crear el mazo y mover la tarjeta",
     "updateFlashcardError": "Error al actualizar la tarjeta. Por favor intenta de nuevo.",
-    "unexpectedError": "Ocurrió un error inesperado. Por favor intenta de nuevo."
+    "unexpectedError": "Ocurrió un error inesperado. Por favor intenta de nuevo.",
+    "deckNameInstruction": {
+      "title": "Opciones del Mazo",
+      "body": "Mantén presionado para opciones:",
+      "reorderBullet": "Reordenar mazos",
+      "renameBullet": "Renombrar mazo",
+      "deleteBullet": "Eliminar mazo",
+      "dontShowAgain": "No mostrar de nuevo",
+      "gotIt": "Entendido"
+    }
   },
   "imageHighlighter": {
     "dragToRotate": "Arrastra para rotar la imagen",

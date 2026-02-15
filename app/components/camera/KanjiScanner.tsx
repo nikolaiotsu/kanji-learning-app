@@ -42,6 +42,8 @@ import { useOnboardingProgress } from '../../context/OnboardingProgressContext';
 import { useAppReady } from '../../context/AppReadyContext';
 import { ensureMeasuredThenAdvance, measureButton } from '../../utils/walkthroughUtils';
 import APIUsageEnergyBar from '../shared/APIUsageEnergyBar';
+import BadgesButtonInstructionModal from '../shared/BadgesButtonInstructionModal';
+import { getBadgesButtonInstructionsDontShowAgain } from '../../services/badgesButtonInstructionService';
 import { hasEnergyBarsRemaining } from '../../utils/walkthroughEnergyCheck';
 
 import { logger } from '../../utils/logger';
@@ -514,6 +516,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
 
   // Track when user completes walkthrough via Done button (parent may use for sign-in prompt timing)
   const [walkthroughJustCompleted, setWalkthroughJustCompleted] = useState(false);
+  const [showBadgesInstructionModal, setShowBadgesInstructionModal] = useState(false);
   // Once walkthrough has ended (completed or skipped), never show the pre-walkthrough touch block again
   const walkthroughEverEndedRef = useRef(false);
   // When true, the WalkthroughOverlay has fully closed and been removed from the tree.
@@ -902,6 +905,22 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       ]
     );
   };
+
+  const handleBadgesButtonPress = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    getBadgesButtonInstructionsDontShowAgain().then(dontShow => {
+      if (dontShow) {
+        router.push('/badges');
+      } else {
+        setShowBadgesInstructionModal(true);
+      }
+    });
+  }, []);
+
+  const handleBadgesInstructionModalProceed = useCallback(() => {
+    setShowBadgesInstructionModal(false);
+    router.push('/badges');
+  }, []);
 
   const handleOpenSettings = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -2685,10 +2704,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                     styles.badgeButtonTouchable,
                     (localProcessing || isImageProcessing) ? styles.disabledButton : null
                   ]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    router.push('/badges');
-                  }}
+                  onPress={handleBadgesButtonPress}
                   disabled={localProcessing || isImageProcessing}
                 >
                   <Ionicons
@@ -3400,6 +3416,12 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       )}
         </>
       )}
+
+      <BadgesButtonInstructionModal
+        visible={showBadgesInstructionModal}
+        onClose={() => setShowBadgesInstructionModal(false)}
+        onProceed={handleBadgesInstructionModalProceed}
+      />
     </View>
   );
 }

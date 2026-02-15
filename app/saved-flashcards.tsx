@@ -31,6 +31,8 @@ import {
 import FlashcardItem from './components/flashcards/FlashcardItem';
 import EditFlashcardModal from './components/flashcards/EditFlashcardModal';
 import DeckReorderModal from './components/flashcards/DeckReorderModal';
+import DeckNameInstructionModal from './components/shared/DeckNameInstructionModal';
+import { getDeckNameInstructionsDontShowAgain } from './services/deckNameInstructionService';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from './context/AuthContext';
 import { supabase } from './services/supabaseClient';
@@ -79,6 +81,9 @@ export default function SavedFlashcardsScreen() {
 
   // Reorder modal state
   const [showReorderModal, setShowReorderModal] = useState(false);
+  // Deck name instruction modal (first-time tap on deck button in Your Collections)
+  const [showDeckNameInstructionModal, setShowDeckNameInstructionModal] = useState(false);
+  const pendingDeckSelectRef = useRef<{ deckId: string; index: number } | null>(null);
 
   const flashcardsListRef = useRef<FlatList>(null);
   const deckSelectorRef = useRef<FlatList>(null);
@@ -689,7 +694,7 @@ export default function SavedFlashcardsScreen() {
   };
 
   // Function to handle deck selection
-  const handleDeckSelect = (deckId: string, index: number) => {
+  const handleDeckSelect = useCallback((deckId: string, index: number) => {
     // Update selected deck state
     setSelectedDeckId(deckId);
     setSelectedDeckIndex(index);
@@ -710,7 +715,27 @@ export default function SavedFlashcardsScreen() {
         animated: true,
       });
     }
-  };
+  }, [decks.length]);
+
+  const handleDeckPress = useCallback((deckId: string, index: number) => {
+    getDeckNameInstructionsDontShowAgain().then(dontShow => {
+      if (dontShow) {
+        handleDeckSelect(deckId, index);
+      } else {
+        pendingDeckSelectRef.current = { deckId, index };
+        setShowDeckNameInstructionModal(true);
+      }
+    });
+  }, [handleDeckSelect]);
+
+  const handleDeckNameInstructionProceed = useCallback(() => {
+    setShowDeckNameInstructionModal(false);
+    const pending = pendingDeckSelectRef.current;
+    if (pending) {
+      pendingDeckSelectRef.current = null;
+      handleDeckSelect(pending.deckId, pending.index);
+    }
+  }, [handleDeckSelect]);
   
   // Function to handle swipe between decks
   const handleDeckSwipe = (index: number) => {
@@ -786,7 +811,7 @@ export default function SavedFlashcardsScreen() {
           styles.deckItem,
           selectedDeckId === item.id && styles.selectedDeckItem,
         ]}
-        onPress={() => handleDeckSelect(item.id, index)}
+        onPress={() => handleDeckPress(item.id, index)}
         onLongPress={() => handleDeckLongPress(item.id)}
         delayLongPress={500}
       >
@@ -1256,6 +1281,12 @@ export default function SavedFlashcardsScreen() {
           onClose={() => setShowReorderModal(false)}
           decks={decks}
           onReorderComplete={handleReorderComplete}
+        />
+
+        <DeckNameInstructionModal
+          visible={showDeckNameInstructionModal}
+          onClose={() => setShowDeckNameInstructionModal(false)}
+          onProceed={handleDeckNameInstructionProceed}
         />
       </SafeAreaView>
     </PokedexLayout>

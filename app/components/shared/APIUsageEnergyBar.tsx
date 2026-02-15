@@ -13,9 +13,9 @@ interface APIUsageEnergyBarProps {
 }
 
 const FREE_MAX_BARS = 4; // Free users get 4 API calls per day (4 segments)
-const PREMIUM_MAX_BARS = 10; // Premium users get 10 bars, 10 API calls each
-const PREMIUM_CALLS_PER_BAR = 10; // 100 / 10 = 10 (one bar per 10 calls)
-const PREMIUM_DAILY_LIMIT = 100; // Premium users get 100 API calls per day
+const PREMIUM_MAX_BARS = 10; // Premium users get 10 bars, 100 API calls each
+const PREMIUM_CALLS_PER_BAR = 100; // 1000 / 10 = 100 (one bar per 100 calls)
+const PREMIUM_TOTAL_LIMIT = 1000; // Premium users get 1000 API calls per month (10 bars × 100)
 
 export default function APIUsageEnergyBar({ style }: APIUsageEnergyBarProps) {
   const { subscription, isSubscriptionReady } = useSubscription();
@@ -33,35 +33,30 @@ export default function APIUsageEnergyBar({ style }: APIUsageEnergyBarProps) {
       // Cache subscription plan for faster rate limit calculations
       apiLogger.setCachedSubscriptionPlan(subscriptionPlan);
 
-      // Get daily usage
-      const usage = await apiLogger.getDailyUsage();
-      
-      // Calculate API calls used (translate + wordscope)
-      const apiCallsUsed = (usage?.translate_api_calls || 0) + (usage?.wordscope_api_calls || 0);
-      
-      // Calculate remaining bars based on plan
+      // Premium: use monthly usage (1000 total, 100 per bar). Free: use daily usage (4 total).
       let remaining: number;
       let maxBars: number;
-      let dailyLimit: number;
-      
+      let usageLabel: string;
+
       if (isPremiumUser) {
-        // Premium: 10 bars, each represents 10 API calls (100 total)
-        dailyLimit = PREMIUM_DAILY_LIMIT;
+        const monthlyUsage = await apiLogger.getMonthlyUsage();
+        const apiCallsUsed = monthlyUsage.totalApiCalls;
         maxBars = PREMIUM_MAX_BARS;
-        // Calculate remaining bars: ceil((100 - used) / 10)
-        const remainingCalls = Math.max(0, dailyLimit - apiCallsUsed);
+        const remainingCalls = Math.max(0, PREMIUM_TOTAL_LIMIT - apiCallsUsed);
         remaining = Math.ceil(remainingCalls / PREMIUM_CALLS_PER_BAR);
+        usageLabel = `${apiCallsUsed}/${PREMIUM_TOTAL_LIMIT} this month`;
       } else {
-        // Free: 4 bars, each represents 1 API call (4 total)
-        dailyLimit = FREE_MAX_BARS;
+        const usage = await apiLogger.getDailyUsage();
+        const apiCallsUsed = (usage?.translate_api_calls || 0) + (usage?.wordscope_api_calls || 0);
         maxBars = FREE_MAX_BARS;
         remaining = Math.max(0, maxBars - apiCallsUsed);
+        usageLabel = `${apiCallsUsed}/${FREE_MAX_BARS} today`;
       }
-      
+
       // Update state and only log on initial load or when value actually changes
       setRemainingBars(prevRemaining => {
         if (isInitialLoad || prevRemaining !== remaining) {
-          logger.log(`[APIUsageEnergyBar] Plan: ${subscriptionPlan}, Usage: ${apiCallsUsed}/${dailyLimit}, Remaining bars: ${remaining}/${maxBars}`);
+          logger.log(`[APIUsageEnergyBar] Plan: ${subscriptionPlan}, Usage: ${usageLabel}, Remaining bars: ${remaining}/${maxBars}`);
         }
         return remaining;
       });
@@ -113,7 +108,7 @@ export default function APIUsageEnergyBar({ style }: APIUsageEnergyBarProps) {
         // Calculate remaining bars based on plan
         let remaining: number;
         if (isPremiumUser) {
-          // Premium: convert remaining API calls to bars (ceil(remaining / 12))
+          // Premium: convert remaining API calls to bars (each bar = 100 calls)
           remaining = Math.ceil(event.remainingApiCalls / PREMIUM_CALLS_PER_BAR);
         } else {
           // Free: remaining API calls = remaining bars

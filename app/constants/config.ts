@@ -39,10 +39,10 @@ export const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanConfig> = {
       'priority_support'
     ],
     // Legacy separate limits (deprecated)
-    translateApiCallsPerDay: 100,
-    wordscopeApiCallsPerDay: 100,
-    // Unified API limits: 100 API calls per day, 1000 per month
-    apiCallsPerDay: 100,
+    translateApiCallsPerDay: 1000,
+    wordscopeApiCallsPerDay: 1000,
+    // Unified API limits: 1000 per month (energy bar shows 10 bars × 100 calls); daily set high so monthly is the cap
+    apiCallsPerDay: 1000,
     apiCallsPerMonth: 1000
   }
 };

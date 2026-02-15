@@ -164,7 +164,14 @@
     "empoweringCta": "Weiter"
   },
   "badges": {
-    "title": "Deine Abzeichen"
+    "title": "Deine Abzeichen",
+    "instruction": {
+      "title": "Erfolgs-Abzeichen",
+      "collectBullet": "Sammle Abzeichen beim Lernen",
+      "masterBullet": "Beweis, dass du ein WordDex-Meister bist!",
+      "dontShowAgain": "Nicht mehr anzeigen",
+      "nice": "Super!"
+    }
   },
   "deck": {
     "select": "Sammlung auswählen",
@@ -408,6 +415,22 @@
     "streak": {
       "congratsTitle": "Herzlichen Glückwunsch!",
       "congratsBody": "Du hast deine Überprüfungs-Serie gestartet! Wische morgen im Überprüfungsmodus drei weitere Karten nach rechts, um deine Serie fortzusetzen!"
+    },
+    "buttonInstruction": {
+      "title": "Wiederholungsmodus",
+      "body": "Wiederhole Karten mit verteilter Wiederholung.",
+      "glowBullet": "Leuchtet, wenn Karten fällig sind",
+      "longPressBullet": "Langes Drücken zum Zurücksetzen des Fortschritts",
+      "dontShowAgain": "Nicht mehr anzeigen",
+      "gotIt": "Verstanden"
+    },
+    "collectionsInstruction": {
+      "title": "Sammlungen",
+      "body": "Wähle aus, welche Decks du lernen möchtest.",
+      "longPressBullet": "Langes Drücken: Nur dieses Deck auswählen",
+      "swipeBullet": "Nach links wischen: Deck löschen",
+      "dontShowAgain": "Nicht mehr anzeigen",
+      "gotIt": "Verstanden"
     }
   },
   "savedFlashcards": {
@@ -443,7 +466,16 @@
     "moveFlashcardError": "Verschieben der Karteikarte fehlgeschlagen",
     "createDeckError": "Erstellen des Stapels und Verschieben der Karteikarte fehlgeschlagen",
     "updateFlashcardError": "Aktualisieren der Karteikarte fehlgeschlagen. Bitte versuchen Sie es erneut.",
-    "unexpectedError": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
+    "unexpectedError": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.",
+    "deckNameInstruction": {
+      "title": "Deck-Optionen",
+      "body": "Langes Drücken für Optionen:",
+      "reorderBullet": "Decks neu anordnen",
+      "renameBullet": "Deck umbenennen",
+      "deleteBullet": "Deck löschen",
+      "dontShowAgain": "Nicht mehr anzeigen",
+      "gotIt": "Verstanden"
+    }
   },
   "imageHighlighter": {
     "dragToRotate": "Ziehen, um das Bild zu drehen",

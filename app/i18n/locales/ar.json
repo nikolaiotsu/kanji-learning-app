@@ -164,7 +164,14 @@
     "empoweringCta": "متابعة"
   },
   "badges": {
-    "title": "شاراتك"
+    "title": "شاراتك",
+    "instruction": {
+      "title": "شارات الإنجاز",
+      "collectBullet": "اجمع الشارات أثناء التعلم",
+      "masterBullet": "دليل على أنك خبير في WordDex!",
+      "dontShowAgain": "لا تظهر مرة أخرى",
+      "nice": "رائع!"
+    }
   },
   "deck": {
     "select": "اختر المجموعة",
@@ -407,6 +414,22 @@
     "streak": {
       "congratsTitle": "تهانينا!",
       "congratsBody": "لقد بدأت سلسلة مراجعتك! اسحب لليمين على ثلاث بطاقات أخرى غداً في وضع المراجعة لمواصلة سلسلتك!"
+    },
+    "buttonInstruction": {
+      "title": "وضع المراجعة",
+      "body": "راجع البطاقات باستخدام التكرار المتباعد.",
+      "glowBullet": "يتوهج عندما تكون البطاقات مستحقة",
+      "longPressBullet": "اضغط مطولاً لإعادة تعيين التقدم",
+      "dontShowAgain": "لا تظهر مرة أخرى",
+      "gotIt": "فهمت"
+    },
+    "collectionsInstruction": {
+      "title": "المجموعات",
+      "body": "اختر المجموعات التي تريد دراستها.",
+      "longPressBullet": "اضغط مطولاً: اختر هذه المجموعة فقط",
+      "swipeBullet": "اسحب لليسار: احذف المجموعة",
+      "dontShowAgain": "لا تظهر مرة أخرى",
+      "gotIt": "فهمت"
     }
   },
   "savedFlashcards": {
@@ -442,7 +465,16 @@
     "moveFlashcardError": "فشل في نقل البطاقة",
     "createDeckError": "فشل في إنشاء المجموعة ونقل البطاقة",
     "updateFlashcardError": "فشل في تحديث البطاقة. يرجى المحاولة مرة أخرى.",
-    "unexpectedError": "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى."
+    "unexpectedError": "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.",
+    "deckNameInstruction": {
+      "title": "خيارات المجموعة",
+      "body": "اضغط مطولاً للخيارات:",
+      "reorderBullet": "إعادة ترتيب المجموعات",
+      "renameBullet": "إعادة تسمية المجموعة",
+      "deleteBullet": "حذف المجموعة",
+      "dontShowAgain": "لا تظهر مرة أخرى",
+      "gotIt": "فهمت"
+    }
   },
   "imageHighlighter": {
     "dragToRotate": "اسحب لتدوير الصورة",
