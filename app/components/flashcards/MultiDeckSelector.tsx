@@ -19,7 +19,7 @@ import * as Haptics from 'expo-haptics';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Deck } from '../../types/Deck';
 import { getDecks, deleteDeck, getFlashcardsByDecks } from '../../services/supabaseStorage';
-import { getLocalDecks, getLocalFlashcards } from '../../services/localFlashcardStorage';
+import { getLocalDecks, getLocalFlashcards, deleteLocalDeck } from '../../services/localFlashcardStorage';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../services/supabaseClient';
 import { isOnline } from '../../services/networkManager';
@@ -349,7 +349,9 @@ export default function MultiDeckSelector({
           style: 'destructive',
           onPress: async () => {
             try {
-              const success = await deleteDeck(deckId, true);
+              const success = isGuest
+                ? await deleteLocalDeck(deckId)
+                : await deleteDeck(deckId, true);
               
               if (success) {
                 // Provide haptic feedback

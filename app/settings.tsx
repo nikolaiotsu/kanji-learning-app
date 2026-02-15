@@ -19,6 +19,10 @@ import { PRODUCT_IDS, PRODUCT_DETAILS } from './constants/config';
 import PokedexLayout from './components/shared/PokedexLayout';
 import { resetReviewPromptState, resetLifetimeCount, getReviewStatus } from './services/reviewPromptService';
 import { resetBadgeProgress } from './services/badgeService';
+import { setReviewButtonInstructionsDontShowAgain } from './services/reviewButtonInstructionService';
+import { setCollectionsButtonInstructionsDontShowAgain } from './services/collectionsButtonInstructionService';
+import { setDeckNameInstructionsDontShowAgain } from './services/deckNameInstructionService';
+import { setBadgesButtonInstructionsDontShowAgain } from './services/badgesButtonInstructionService';
 import { useBadge } from './context/BadgeContext';
 import { resetWalkthrough } from './hooks/useWalkthrough';
 import { hasEnergyBarsRemaining } from './utils/walkthroughEnergyCheck';
@@ -295,6 +299,20 @@ export default function SettingsScreen() {
     } catch (error) {
       logger.error('Error resetting walkthrough:', error);
       Alert.alert('Error', 'Failed to reset walkthrough. Please try again.');
+    }
+  };
+
+  // Function to reset all 4 instruction modals (Review, Collections, Deck Name, Badges)
+  const handleResetInstructionModals = async () => {
+    try {
+      await setReviewButtonInstructionsDontShowAgain(false);
+      await setCollectionsButtonInstructionsDontShowAgain(false);
+      await setDeckNameInstructionsDontShowAgain(false);
+      await setBadgesButtonInstructionsDontShowAgain(false);
+      Alert.alert('Success', 'All instruction modals have been reset. They will show again the next time you tap their buttons.');
+    } catch (error) {
+      logger.error('Error resetting instruction modals:', error);
+      Alert.alert('Error', 'Failed to reset instruction modals. Please try again.');
     }
   };
 
@@ -849,6 +867,16 @@ export default function SettingsScreen() {
               <Ionicons name="medal-outline" size={16} color={COLORS.background} style={{ marginRight: 8 }} />
               <Text style={[styles.resetCountButtonText, { color: COLORS.background }]}>
                 Reset Badge Progress
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.resetCountButton, { backgroundColor: COLORS.darkGray }]}
+              onPress={handleResetInstructionModals}
+            >
+              <Ionicons name="document-text-outline" size={16} color="white" style={{ marginRight: 8 }} />
+              <Text style={styles.resetCountButtonText}>
+                Reset Instruction Modals
               </Text>
             </TouchableOpacity>
 

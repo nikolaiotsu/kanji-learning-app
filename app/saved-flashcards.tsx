@@ -207,10 +207,15 @@ export default function SavedFlashcardsScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      // Refresh deck list when screen gains focus so changes from elsewhere
+      // (e.g. deck deleted in Collections modal) are reflected
+      if (user || isGuest) {
+        loadDecks();
+      }
       return () => {
         if (!isGuest) refreshDecksFromServer().catch(() => {});
       };
-    }, [isGuest])
+    }, [isGuest, user])
   );
   
   // Reload cache if state is empty on navigation back

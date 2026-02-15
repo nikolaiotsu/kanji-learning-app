@@ -9,6 +9,7 @@ import { Asset } from 'expo-asset';
 import { useAuth } from './context/AuthContext';
 import { useTransitionLoading } from './context/TransitionLoadingContext';
 import { useBadge } from './context/BadgeContext';
+import { useSignInPromptTrigger } from './context/SignInPromptTriggerContext';
 import OnboardingProgressBar from './components/shared/OnboardingProgressBar';
 import { COLORS } from './constants/colors';
 import { FONTS } from './constants/typography';
@@ -26,6 +27,7 @@ export default function App() {
   const { user, isGuest, setGuestMode } = useAuth();
   const { setShowTransitionLoading } = useTransitionLoading();
   const { pendingBadge } = useBadge();
+  const { registerTrigger } = useSignInPromptTrigger();
   const params = useLocalSearchParams<{ walkthrough?: string; continueWalkthrough?: string }>();
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const [triggerLightAnimation, setTriggerLightAnimation] = useState(0);
@@ -84,9 +86,12 @@ export default function App() {
     };
   }, [params.walkthrough, setShowTransitionLoading]);
 
-  // Sign-in prompt is only shown when the user presses Continue on the final "You're all set"
-  // walkthrough step (via handleWalkthroughComplete). We do NOT show it on focus or after
-  // the badge modal, so it appears in the right place in the flow.
+  // Register trigger so other screens (e.g. BadgeModalGate) can show the sign-in prompt.
+  // Used when user skips walkthrough and makes their first flashcard - prompt shows after badge modal.
+  useEffect(() => {
+    registerTrigger(() => setShowSignInPrompt(true));
+    return () => registerTrigger(null);
+  }, [registerTrigger]);
 
   // Callback to trigger the light animation
   const handleCardSwipe = useCallback(() => {
