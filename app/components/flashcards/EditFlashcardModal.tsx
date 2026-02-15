@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -17,13 +17,16 @@ import {
   Dimensions
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import i18next from '../../i18n';
 import { Flashcard } from '../../types/Flashcard';
+import { localizeScopeAnalysisHeadings, parseScopeAnalysisForStyling } from '../../utils/textFormatting';
 import { updateFlashcard } from '../../services/supabaseStorage';
-import { processWithClaude } from '../../services/claudeApi';
+import { processWithClaude, processWithClaudeAndScope } from '../../services/claudeApi';
 // Removed text formatting imports - no longer needed for direct content analysis
 import { useSettings, AVAILABLE_LANGUAGES } from '../../context/SettingsContext';
 import { useSubscription } from '../../context/SubscriptionContext';
 import { getCurrentSubscriptionPlan } from '../../services/receiptValidationService';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { FONTS } from '../../constants/typography';
 
@@ -49,10 +52,13 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
   const [originalText, setOriginalText] = useState('');
   const [readingsText, setReadingsText] = useState('');
   const [translatedText, setTranslatedText] = useState('');
+  const [scopeAnalysis, setScopeAnalysis] = useState('');
   const [isRetranslating, setIsRetranslating] = useState(false);
+  const [isRewordscoping, setIsRewordscoping] = useState(false);
   const [needsRomanization, setNeedsRomanization] = useState(false);
   const [detectedLanguage, setDetectedLanguage] = useState('');
   const [error, setError] = useState('');
+  const scrollViewRef = useRef<ScrollView>(null);
 
   // Get translated language name for display (use the language stored with the flashcard)
   const translatedLanguageName = AVAILABLE_LANGUAGES[flashcard?.targetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'English';
@@ -63,6 +69,7 @@ const EditFlashcardModal: React.FC<EditFlashcardModalProps> = ({
       setOriginalText(flashcard.originalText);
       setReadingsText(flashcard.readingsText);
       setTranslatedText(flashcard.translatedText);
+      setScopeAnalysis(flashcard.scopeAnalysis ?? '');
       
       // Determine pronunciation guide type based on content (no language detection needed)
 const readingsText = flashcard.readingsText;
@@ -164,7 +171,8 @@ const readingsText = flashcard.readingsText;
       ...flashcard,
       originalText,
       readingsText,
-      translatedText
+      translatedText,
+      scopeAnalysis: scopeAnalysis || undefined
     };
     
     onSave(updatedFlashcard);
@@ -216,6 +224,60 @@ const readingsText = flashcard.readingsText;
     }
   };
 
+  // Function to rewordscope with Claude API (translation + grammar analysis)
+  const handleRewordscope = async () => {
+    if (!originalText.trim()) {
+      Alert.alert(t('common.error'), t('flashcard.edit.enterText'));
+      return;
+    }
+
+    setIsRewordscoping(true);
+    setError('');
+
+    try {
+      const subscriptionPlan = await getCurrentSubscriptionPlan(subscription?.plan);
+      const flashcardTarget = flashcard?.targetLanguage ?? targetLanguage;
+      const result = await processWithClaudeAndScope(
+        originalText,
+        flashcardTarget,
+        forcedDetectionLanguage,
+        undefined,
+        subscriptionPlan
+      );
+
+      if (result.errorCode) {
+        Alert.alert(
+          t('flashcard.apiUnavailableTitle'),
+          t('flashcard.apiUnavailableMessage'),
+          [{ text: t('common.ok'), style: 'default' }]
+        );
+        setError(t('flashcard.edit.rewordscopeFailed'));
+        return;
+      }
+
+      if (result.translatedText) {
+        setTranslatedText(result.translatedText);
+        setScopeAnalysis(result.scopeAnalysis ?? '');
+        if (needsRomanization && result.readingsText) {
+          setReadingsText(result.readingsText);
+        } else if (!result.readingsText && needsRomanization) {
+          setError(t('flashcard.edit.romanizationFailed'));
+        }
+        Keyboard.dismiss();
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 150);
+      } else {
+        setError(t('flashcard.edit.rewordscopeFailed'));
+      }
+    } catch (err) {
+      logger.error('Error processing with WordScope:', err);
+      setError(t('flashcard.edit.rewordscopeFailed'));
+    } finally {
+      setIsRewordscoping(false);
+    }
+  };
+
   return (
     <Modal
       visible={visible}
@@ -233,27 +295,28 @@ const readingsText = flashcard.readingsText;
           style={styles.keyboardAvoidingView}
           keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
         >
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <View style={styles.modalContent}>
-              {/* Header */}
-              <View style={styles.header}>
-                <Text style={styles.modalTitle}>Edit Flashcard</Text>
-                <TouchableOpacity 
-                  style={styles.closeButton} 
-                  onPress={onClose}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Text style={styles.closeButtonText}>✕</Text>
-                </TouchableOpacity>
-              </View>
-              
-              {/* Content */}
-              <ScrollView 
-                style={styles.scrollContent}
-                contentContainerStyle={styles.scrollContentContainer}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
+          <View style={styles.modalContent}>
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.modalTitle}>Edit Flashcard</Text>
+              <TouchableOpacity 
+                style={styles.closeButton} 
+                onPress={onClose}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
+                <Text style={styles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {/* Content - No TouchableWithoutFeedback/scrollWrapper so ScrollView handles all scroll gestures including on Wordscope area */}
+            <ScrollView 
+              ref={scrollViewRef}
+              style={styles.scrollContent}
+              contentContainerStyle={styles.scrollContentContainer}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+            >
                 <Text style={styles.inputLabel}>Original Text:</Text>
                 <TextInput
                   style={styles.textInput}
@@ -307,27 +370,85 @@ const readingsText = flashcard.readingsText;
                   onPress={handleRetranslate}
                   disabled={isRetranslating}
                 >
-                  {isRetranslating ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <Text style={styles.buttonText}>Retranslate</Text>
-                  )}
+                  <View style={[styles.flashcardButtonFill, { backgroundColor: 'rgba(255, 255, 255, 0.15)' }]} />
+                  <View style={styles.flashcardButtonTopHighlight} />
+                  <View style={styles.modalButtonContent}>
+                    {isRetranslating ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <>
+                        <Ionicons name="language" size={12} color={COLORS.text} style={styles.buttonIcon} />
+                        <Text style={styles.modalButtonText}>{t('flashcard.edit.retranslate')}</Text>
+                      </>
+                    )}
+                  </View>
                 </TouchableOpacity>
-              </ScrollView>
-              
-              {/* Footer */}
+
+                <TouchableOpacity
+                  style={[styles.rewordscopeButton, isRewordscoping && styles.disabledButton]}
+                  onPress={handleRewordscope}
+                  disabled={isRewordscoping}
+                >
+                  <View style={[styles.flashcardButtonFill, { backgroundColor: 'rgba(255, 255, 255, 0.15)' }]} />
+                  <View style={styles.flashcardButtonTopHighlight} />
+                  <View style={styles.modalButtonContent}>
+                    {isRewordscoping ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <>
+                        <FontAwesome5 name="microscope" size={12} color={COLORS.text} style={styles.buttonIcon} />
+                        <Text style={styles.modalButtonText}>{t('flashcard.edit.rewordscope')}</Text>
+                      </>
+                    )}
+                  </View>
+                </TouchableOpacity>
+
+                {scopeAnalysis ? (
+                  <View style={styles.scopeAnalysisContainer} pointerEvents="none">
+                    <Text style={styles.scopeAnalysisLabel}>Wordscope</Text>
+                    <Text style={styles.scopeAnalysisText}>
+                      {(() => {
+                        const targetLang = flashcard?.targetLanguage ?? 'en';
+                        const targetT = i18next.getFixedT(targetLang, 'translation');
+                        const localizedScopeAnalysis = localizeScopeAnalysisHeadings(scopeAnalysis, {
+                          grammar: targetT('flashcard.wordscope.grammar'),
+                          examples: targetT('flashcard.wordscope.examples'),
+                          commonMistake: targetT('flashcard.wordscope.commonMistake'),
+                          commonContext: targetT('flashcard.wordscope.commonContext'),
+                          alternativeExpressions: targetT('flashcard.wordscope.alternativeExpressions'),
+                        });
+                        const segments = parseScopeAnalysisForStyling(localizedScopeAnalysis);
+                        return segments.map((seg, i) => (
+                          <Text key={i} style={seg.isSourceLanguage ? styles.scopeAnalysisSourceText : undefined}>
+                            {seg.text}
+                          </Text>
+                        ));
+                      })()}
+                    </Text>
+                  </View>
+                ) : null}
+            </ScrollView>
+            
+            {/* Footer */}
               <View style={styles.footer}>
                 <View style={styles.buttonContainer}>
                   <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                    <View style={[styles.flashcardButtonFill, { backgroundColor: 'rgba(255, 255, 255, 0.15)' }]} />
+                    <View style={styles.flashcardButtonTopHighlight} />
+                    <View style={styles.modalButtonContent}>
+                      <Text style={styles.modalButtonText}>Cancel</Text>
+                    </View>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                    <Text style={styles.buttonText}>Save</Text>
+                    <View style={[styles.flashcardButtonFill, { backgroundColor: 'rgba(255, 255, 255, 0.15)' }]} />
+                    <View style={styles.flashcardButtonTopHighlight} />
+                    <View style={styles.modalButtonContent}>
+                      <Text style={styles.modalButtonText}>Save</Text>
+                    </View>
                   </TouchableOpacity>
                 </View>
               </View>
             </View>
-          </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
@@ -355,7 +476,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: screenHeight * 0.9, // Use 90% of screen height maximum
-    minHeight: screenHeight * 0.4, // Minimum 40% of screen height
+    minHeight: screenHeight * 0.6, // Minimum 60% of screen height
     elevation: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
@@ -430,16 +551,104 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   retranslateButton: {
-    backgroundColor: '#2CB67D',
+    position: 'relative',
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 8,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 8,
-    alignItems: 'center',
     marginTop: 8,
+    marginBottom: 12,
+  },
+  rewordscopeButton: {
+    position: 'relative',
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 8,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    marginTop: 0,
     marginBottom: 16,
+  },
+  buttonIcon: {
+    marginBottom: 4,
   },
   disabledButton: {
     opacity: 0.6,
+  },
+  flashcardButtonFill: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 12,
+  },
+  flashcardButtonTopHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    pointerEvents: 'none',
+  },
+  modalButtonContent: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  modalButtonText: {
+    color: COLORS.text,
+    fontFamily: FONTS.sansBold,
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  scopeAnalysisContainer: {
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: COLORS.mediumSurface,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  scopeAnalysisLabel: {
+    fontFamily: FONTS.sansBold,
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 8,
+  },
+  scopeAnalysisText: {
+    fontFamily: FONTS.sans,
+    fontSize: 14,
+    lineHeight: 22,
+    color: COLORS.text,
+    flexWrap: 'wrap',
+  },
+  scopeAnalysisSourceText: {
+    color: '#4ADE80',
   },
   footer: {
     paddingHorizontal: 20,
@@ -450,37 +659,43 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     flexDirection: 'row',
-    gap: 12, // Modern gap property for spacing
+    gap: 12,
   },
   saveButton: {
-    backgroundColor: COLORS.primary,
+    flex: 1,
+    position: 'relative',
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 8,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 8,
-    flex: 1,
-    alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: COLORS.mediumSurface,
+    flex: 1,
+    position: 'relative',
+    borderRadius: 12,
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 8,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 8,
-    flex: 1,
-    alignItems: 'center',
-  },
-  buttonText: {
-    fontFamily: FONTS.sansSemiBold,
-    color: COLORS.text,
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  cancelButtonText: {
-    fontFamily: FONTS.sansSemiBold,
-    color: COLORS.text,
-    fontWeight: '600',
-    fontSize: 16,
   },
 });
 
