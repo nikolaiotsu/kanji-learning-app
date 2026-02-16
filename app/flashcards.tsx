@@ -60,6 +60,7 @@ import FuriganaText from './components/shared/FuriganaText';
 import { useFlashcardCounter } from './context/FlashcardCounterContext';
 import { useBadge } from './context/BadgeContext';
 import { useSubscription } from './context/SubscriptionContext';
+import { useSignInPromptTrigger } from './context/SignInPromptTriggerContext';
 import { PRODUCT_IDS } from './constants/config';
 import MemoryManager from './services/memoryManager';
 import * as Haptics from 'expo-haptics';
@@ -78,6 +79,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
   const { incrementFlashcardCount, canCreateFlashcard, remainingFlashcards } = useFlashcardCounter();
   const { checkAndUnlockBadges } = useBadge();
   const { purchaseSubscription, subscription } = useSubscription();
+  const { requestShowSignInPrompt } = useSignInPromptTrigger();
   const { isConnected } = useNetworkState();
   
   // State for unified API limit (applies to both translate and wordscope)
@@ -88,7 +90,8 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
   const imageUriParam = params.imageUri;
   const useScopeParam = params.useScope;
   const walkthroughParam = params.walkthrough;
-  
+  const walkthroughStepIndexParam = params.walkthroughStepIndex;
+
   const displayText = typeof textParam === 'string' 
     ? textParam 
     : Array.isArray(textParam) 
@@ -213,13 +216,14 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     currentStepIndex,
     totalSteps,
     startWalkthrough,
+    startWalkthroughAtStep,
     nextStep,
     previousStep,
     skipWalkthrough,
     completeWalkthrough,
     registerStep,
     updateStepLayout,
-  } = useWalkthrough(flashcardWalkthroughSteps);
+  } = useWalkthrough(flashcardWalkthroughSteps, { phase: 'flashcards' });
 
   const { setWalkthroughPhase, hideProgressBar } = useOnboardingProgress();
 
@@ -250,19 +254,33 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     }
   }, [isWalkthroughActive, currentStepIndex, setWalkthroughPhase]);
 
-  // Track if walkthrough has been started from params
+  // Track if walkthrough has been started from params (or restored by hook)
   const walkthroughStartedRef = useRef(false);
+  const isWalkthroughActiveRef = useRef(isWalkthroughActive);
+  isWalkthroughActiveRef.current = isWalkthroughActive;
+  useEffect(() => {
+    if (isWalkthroughActive) walkthroughStartedRef.current = true;
+  }, [isWalkthroughActive]);
 
-  // Start walkthrough if param is set
+  // Start walkthrough if param is set (or restore at step when walkthroughStepIndex is provided). Skip if hook already restored from storage.
   useEffect(() => {
     if (shouldStartWalkthrough && !walkthroughStartedRef.current && !isWalkthroughActive) {
-      walkthroughStartedRef.current = true;
-      // Small delay to ensure UI is rendered and refs are measured
-      setTimeout(() => {
-        startWalkthrough();
-      }, 500);
+      const stepIndex = walkthroughStepIndexParam != null
+        ? Math.max(0, parseInt(String(walkthroughStepIndexParam), 10))
+        : 0;
+      const delay = 500;
+      const t = setTimeout(() => {
+        if (isWalkthroughActiveRef.current) return; // hook already restored
+        walkthroughStartedRef.current = true;
+        if (stepIndex > 0) {
+          startWalkthroughAtStep(stepIndex);
+        } else {
+          startWalkthrough();
+        }
+      }, delay);
+      return () => clearTimeout(t);
     }
-  }, [shouldStartWalkthrough, isWalkthroughActive]);
+  }, [shouldStartWalkthrough, isWalkthroughActive, walkthroughStepIndexParam, startWalkthrough, startWalkthroughAtStep]);
 
   // Register walkthrough steps with refs
   useEffect(() => {
@@ -1066,13 +1084,21 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       await checkAndUnlockBadges('cards_created');
       
       // Increment lifetime count and check if we should show review prompt
-      await incrementLifetimeCount();
+      const newLifetimeCount = await incrementLifetimeCount();
       const shouldShowReview = await shouldShowReviewPrompt();
       if (shouldShowReview) {
         // Delay showing the review prompt slightly so the success alert shows first
         setTimeout(() => {
           setShowReviewPrompt(true);
         }, 500);
+      }
+
+      // Show sign-in / premium prompt every 10 cards for guest or free (non-premium) users
+      const isFreeOrGuest = isGuest || subscription.plan !== 'PREMIUM';
+      if (isFreeOrGuest && newLifetimeCount > 0 && newLifetimeCount % 10 === 0) {
+        setTimeout(() => {
+          requestShowSignInPrompt();
+        }, 600);
       }
       
       // Do NOT delete the local image file after upload
@@ -1104,9 +1130,13 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
         return;
       }
 
-      // Show success message with language-specific wording
-      const cardType = detectedLanguage
-        ? t('flashcard.save.cardType', { language: detectedLanguage })
+      // Show success message with language-specific wording (language name in user's UI locale, e.g. 英語 for English when app is in Japanese)
+      const detectedCode = detectedLanguage ? LANGUAGE_NAME_TO_CODE[detectedLanguage] : null;
+      const languageDisplayName = detectedCode
+        ? (t(`languageNames.${detectedCode}`, { defaultValue: detectedLanguage }) as string)
+        : detectedLanguage;
+      const cardType = languageDisplayName
+        ? t('flashcard.save.cardType', { language: languageDisplayName })
         : t('flashcard.save.languageFlashcard');
       const deckName = deckId === 'deck1' ? t('flashcard.save.deck1') : t('flashcard.save.newDeck');
 

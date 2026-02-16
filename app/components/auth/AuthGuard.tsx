@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, View, StyleSheet, Text } from 'react-native';
 import { useSegments, useRouter, useGlobalSearchParams } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
@@ -8,6 +8,7 @@ import { COLORS } from '../../constants/colors';
 import { FONTS } from '../../constants/typography';
 
 import { logger } from '../../utils/logger';
+
 // Protected routes (require authentication)
 const PROTECTED_SEGMENTS = ['flashcards', 'saved-flashcards', '(screens)'];
 
@@ -27,6 +28,8 @@ export const AuthGuard = ({ children }: { children: React.ReactNode }) => {
 
   // Track if loading has taken too long (show helpful message)
   const [showSlowLoadingMessage, setShowSlowLoadingMessage] = useState(false);
+  // True once the user has been on the first onboarding page this session (so we don't redirect when they tap Continue)
+  const seenOnboardingFirstPageThisSessionRef = useRef(false);
 
   // Current route segment (first part of the path)
   const currentSegment = segments[0];
@@ -104,6 +107,23 @@ export const AuthGuard = ({ children }: { children: React.ReactNode }) => {
 
     logger.log('🔐 [AuthGuard] No navigation needed');
   }, [user, isLoading, isGuest, hasCompletedOnboarding, currentSegment, isWalkthroughMode, isOfflineMode]);
+
+  // Mark that we've seen the first onboarding page this session (user tapped Continue and is navigating forward)
+  useEffect(() => {
+    if (currentSegment === 'onboarding') {
+      seenOnboardingFirstPageThisSessionRef.current = true;
+    }
+  }, [currentSegment]);
+
+  // If app was killed during onboarding, reopen at the first onboarding page. Only redirect when we have NOT seen the first page this session (cold start).
+  const onboardingSubSegments = ['onboarding-language', 'onboarding-why', 'onboarding-time', 'onboarding-faster', 'onboarding-relevant', 'onboarding-educational'];
+  useEffect(() => {
+    if (isLoading || hasCompletedOnboarding === null) return;
+    if (!user && hasCompletedOnboarding === false && onboardingSubSegments.includes(currentSegment) && !seenOnboardingFirstPageThisSessionRef.current) {
+      logger.log('🔐 [AuthGuard] Reopened during onboarding; redirecting to first page');
+      router.replace('/onboarding');
+    }
+  }, [isLoading, hasCompletedOnboarding, user, currentSegment, router]);
 
   // Show loading while auth or onboarding state is resolving (avoids flashing wrong screen)
   const resolvingFirstTime = !user && hasCompletedOnboarding === null;

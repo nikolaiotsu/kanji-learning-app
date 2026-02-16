@@ -28,7 +28,7 @@ export default function App() {
   const { setShowTransitionLoading } = useTransitionLoading();
   const { pendingBadge } = useBadge();
   const { registerTrigger } = useSignInPromptTrigger();
-  const params = useLocalSearchParams<{ walkthrough?: string; continueWalkthrough?: string }>();
+  const params = useLocalSearchParams<{ walkthrough?: string; continueWalkthrough?: string; walkthroughStepIndex?: string }>();
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const [triggerLightAnimation, setTriggerLightAnimation] = useState(0);
   const [logoVisible, setLogoVisible] = useState(true);
@@ -167,9 +167,11 @@ export default function App() {
             onContentReady={handleContentReady}
             onWalkthroughComplete={handleWalkthroughComplete}
             canStartWalkthrough={canStartWalkthrough}
+            startWalkthroughFromOnboarding={params.walkthrough === 'true'}
             blockTouchesBeforeWalkthrough={params.walkthrough === 'true' && canStartWalkthrough}
             isSignInPromptVisible={showSignInPrompt}
             continueWalkthrough={params.continueWalkthrough === 'true'}
+            walkthroughStepIndex={params.walkthroughStepIndex}
             onHeaderLayout={handleHeaderLayout}
             onFindTextSkipVisibilityChange={setShowFindTextSkip}
             walkthroughSkipRef={walkthroughSkipRef}

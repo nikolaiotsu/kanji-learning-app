@@ -58,12 +58,16 @@ interface KanjiScannerProps {
   onWalkthroughComplete?: (options?: { fromFinalStep?: boolean }) => void;
   /** When false, walkthrough will not auto-start (e.g. until post-onboarding loading overlay is dismissed). */
   canStartWalkthrough?: boolean;
+  /** When true, start walkthrough when canStartWalkthrough becomes true even if storage says skipped (e.g. coming from onboarding). */
+  startWalkthroughFromOnboarding?: boolean;
   /** When true, block touches until the walkthrough modal appears (prevents tapping buttons in the brief window). */
   blockTouchesBeforeWalkthrough?: boolean;
   /** When true, sign-in prompt modal is visible - swipe instructions should wait */
   isSignInPromptVisible?: boolean;
-  /** When true, continue walkthrough from card interaction steps (flip, image, swipes) - used when returning from flashcards after saving */
+  /** When true, continue walkthrough from card interaction steps (flip, image, swipes) - used when returning from flashcards after saving or when restoring after app background */
   continueWalkthrough?: boolean;
+  /** When continuing/restoring walkthrough, start at this step index (default 5 = flip-card when continueWalkthrough is true) */
+  walkthroughStepIndex?: string;
   /** Called with header area top (window Y) so parent can position progress bar above it */
   onHeaderLayout?: (headerY: number) => void;
   /** When true/false, parent can show/hide the find-text step Skip (e.g. above progress bar) */
@@ -72,7 +76,7 @@ interface KanjiScannerProps {
   walkthroughSkipRef?: React.MutableRefObject<(() => void) | null>;
 }
 
-export default function KanjiScanner({ onCardSwipe, onContentReady, onWalkthroughComplete, canStartWalkthrough = true, blockTouchesBeforeWalkthrough = false, isSignInPromptVisible = false, continueWalkthrough = false, onHeaderLayout, onFindTextSkipVisibilityChange, walkthroughSkipRef }: KanjiScannerProps) {
+export default function KanjiScanner({ onCardSwipe, onContentReady, onWalkthroughComplete, canStartWalkthrough = true, startWalkthroughFromOnboarding = false, blockTouchesBeforeWalkthrough = false, isSignInPromptVisible = false, continueWalkthrough = false, walkthroughStepIndex: walkthroughStepIndexParam, onHeaderLayout, onFindTextSkipVisibilityChange, walkthroughSkipRef }: KanjiScannerProps) {
   logger.log('🎬 [KanjiScanner] Component render, onContentReady callback:', !!onContentReady);
   
   const { t } = useTranslation();
@@ -290,7 +294,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     shouldShowWalkthrough: shouldShowWalkthroughPrompt,
     registerStep,
     updateStepLayout,
-  } = useWalkthrough(walkthroughSteps);
+  } = useWalkthrough(walkthroughSteps, { phase: 'home' });
 
   const { setInWalkthroughFlow } = useSignInPromptTrigger();
   useEffect(() => {
@@ -576,16 +580,19 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     });
   }, []);
 
-  // Handle continueWalkthrough: start at flip-card step when returning from flashcards after saving
+  // Handle continueWalkthrough: start at flip-card step when returning from flashcards, or at walkthroughStepIndex when restoring after background
   const continueWalkthroughHandledRef = useRef(false);
   useEffect(() => {
     if (continueWalkthrough && !continueWalkthroughHandledRef.current && !isWalkthroughActive) {
       continueWalkthroughHandledRef.current = true;
+      const stepIndex = walkthroughStepIndexParam != null
+        ? Math.max(0, parseInt(walkthroughStepIndexParam, 10))
+        : 5; // default: flip-card (after find-text, rotate, crop, highlight, confirm-highlight)
       setTimeout(() => {
-        startWalkthroughAtStep(5); // flip-card is index 5 (after find-text, rotate, crop, highlight, confirm-highlight)
+        startWalkthroughAtStep(stepIndex);
       }, 500);
     }
-  }, [continueWalkthrough, isWalkthroughActive, startWalkthroughAtStep]);
+  }, [continueWalkthrough, isWalkthroughActive, startWalkthroughAtStep, walkthroughStepIndexParam]);
 
   // For flip-card, image-button, and swipe steps, hide the overlay so the user can interact with the card (Modal blocks touch-through)
   useEffect(() => {
@@ -619,9 +626,12 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     onFindTextSkipVisibilityChange?.(show);
   }, [isWalkthroughActive, currentStep?.id, findTextIntroDismissed, onFindTextSkipVisibilityChange]);
 
-  // Start walkthrough on first launch or after reset (only after splash and post-onboarding loading are dismissed)
+  // Start walkthrough on first launch or after reset (only after splash and post-onboarding loading are dismissed).
+  // When startWalkthroughFromOnboarding is true (e.g. ?walkthrough=true from onboarding), start even if storage said skipped so user never gets stuck.
+  // Never re-start once the user has skipped or completed (walkthroughEverEndedRef) so Skip cleanly ends the flow.
   useEffect(() => {
-    if (shouldShowWalkthroughPrompt && canStartWalkthrough && !capturedImage && !isWalkthroughActive && !isSplashVisible) {
+    const shouldStart = (shouldShowWalkthroughPrompt || startWalkthroughFromOnboarding) && canStartWalkthrough && !capturedImage && !isWalkthroughActive && !isSplashVisible && !walkthroughEverEndedRef.current;
+    if (shouldStart) {
       // Delay to ensure buttons are rendered and measured
       const timer = setTimeout(async () => {
         // Check if user has energy bars before starting walkthrough
@@ -650,7 +660,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       }, 400);
       return () => clearTimeout(timer);
     }
-  }, [shouldShowWalkthroughPrompt, canStartWalkthrough, capturedImage, isWalkthroughActive, isSplashVisible, subscription.plan, t]);
+  }, [shouldShowWalkthroughPrompt, startWalkthroughFromOnboarding, canStartWalkthrough, capturedImage, isWalkthroughActive, isSplashVisible, subscription.plan, t]);
 
   // Track if initial measurements have been done
   const hasMeasuredRef = useRef<boolean>(false);

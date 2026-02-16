@@ -6,7 +6,15 @@ import { logger } from '../utils/logger';
 const WALKTHROUGH_COMPLETED_KEY = '@walkthrough_completed';
 const WALKTHROUGH_SKIPPED_KEY = '@walkthrough_skipped';
 const WALKTHROUGH_STARTED_KEY = '@walkthrough_started';
+const WALKTHROUGH_PHASE_KEY = '@walkthrough_phase';
+const WALKTHROUGH_STEP_INDEX_KEY = '@walkthrough_step_index';
 const SIGNIN_PROMPT_DISMISSED_KEY = '@signin_prompt_dismissed';
+
+export type WalkthroughPhase = 'home' | 'flashcards';
+
+export interface UseWalkthroughOptions {
+  phase?: WalkthroughPhase;
+}
 
 // Global flag to track if walkthrough status has been checked in this app session
 // This prevents re-checking every time the component remounts
@@ -43,7 +51,8 @@ export interface UseWalkthroughReturn {
   setCurrentStepIndex: (index: number) => void;
 }
 
-export function useWalkthrough(steps: WalkthroughStep[]): UseWalkthroughReturn {
+export function useWalkthrough(steps: WalkthroughStep[], options?: UseWalkthroughOptions): UseWalkthroughReturn {
+  const phase = options?.phase;
   const [isActive, setIsActive] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   // Initialize with cached value if available, otherwise false
@@ -53,10 +62,8 @@ export function useWalkthrough(steps: WalkthroughStep[]): UseWalkthroughReturn {
   const [registeredSteps, setRegisteredSteps] = useState<Map<string, WalkthroughStep>>(new Map());
   const initializedRef = useRef(false);
 
-  // Load completion status on mount
+  // Load completion status on mount; if walkthrough was in progress (app killed or backgrounded then killed), treat as skipped
   useEffect(() => {
-    // If we've already checked in this app session, no need to do anything
-    // (state is already initialized with the cached value)
     if (globalWalkthroughChecked) {
       initializedRef.current = true;
       return;
@@ -64,28 +71,33 @@ export function useWalkthrough(steps: WalkthroughStep[]): UseWalkthroughReturn {
 
     const checkWalkthroughStatus = async () => {
       try {
-        const [completed, skipped, started] = await Promise.all([
+        const [completed, skipped, started, storedPhase, storedStepIndex] = await Promise.all([
           AsyncStorage.getItem(WALKTHROUGH_COMPLETED_KEY),
           AsyncStorage.getItem(WALKTHROUGH_SKIPPED_KEY),
           AsyncStorage.getItem(WALKTHROUGH_STARTED_KEY),
+          AsyncStorage.getItem(WALKTHROUGH_PHASE_KEY),
+          AsyncStorage.getItem(WALKTHROUGH_STEP_INDEX_KEY),
         ]);
 
-        // If walkthrough was started in a previous session but user closed/restarted without completing or skipping,
-        // treat it as implicitly skipped (don't show again)
-        if (started && !completed && !skipped) {
-          logger.log('Walkthrough was in progress when app closed; treating as skipped');
+        const inProgress = started === 'true' && !completed && !skipped;
+
+        // App was backgrounded then killed, or force-killed during walkthrough: do not restore; treat as skipped so user is not stuck
+        if (inProgress) {
+          logger.log('Walkthrough was in progress when app closed; treating as skipped (no persist across kill)');
           await AsyncStorage.setItem(WALKTHROUGH_SKIPPED_KEY, 'true');
           await AsyncStorage.removeItem(WALKTHROUGH_STARTED_KEY);
+          await AsyncStorage.removeItem(WALKTHROUGH_PHASE_KEY);
+          await AsyncStorage.removeItem(WALKTHROUGH_STEP_INDEX_KEY);
         }
+        const skippedNow = inProgress ? true : skipped;
 
-        // If user hasn't completed or skipped, show walkthrough on first launch
-        const shouldShow = !completed && !skipped;
-        
-        // Cache the result globally for this app session
-        globalWalkthroughChecked = true;
-        globalShouldShowWalkthrough = shouldShow;
-        
-        setShouldShowWalkthrough(shouldShow);
+        if (!globalWalkthroughChecked) {
+          // If user hasn't completed or skipped, show walkthrough on first launch
+          const shouldShow = !completed && !skippedNow;
+          globalWalkthroughChecked = true;
+          globalShouldShowWalkthrough = shouldShow;
+          setShouldShowWalkthrough(shouldShow);
+        }
         initializedRef.current = true;
       } catch (error) {
         logger.error('Error checking walkthrough status:', error);
@@ -176,6 +188,8 @@ export function useWalkthrough(steps: WalkthroughStep[]): UseWalkthroughReturn {
     try {
       await AsyncStorage.setItem(WALKTHROUGH_COMPLETED_KEY, 'true');
       await AsyncStorage.removeItem(WALKTHROUGH_STARTED_KEY);
+      await AsyncStorage.removeItem(WALKTHROUGH_PHASE_KEY);
+      await AsyncStorage.removeItem(WALKTHROUGH_STEP_INDEX_KEY);
     } catch (error) {
       logger.error('Error persisting walkthrough completion:', error);
     }
@@ -213,30 +227,33 @@ export function useWalkthrough(steps: WalkthroughStep[]): UseWalkthroughReturn {
     try {
       await AsyncStorage.setItem(WALKTHROUGH_SKIPPED_KEY, 'true');
       await AsyncStorage.removeItem(WALKTHROUGH_STARTED_KEY);
+      await AsyncStorage.removeItem(WALKTHROUGH_PHASE_KEY);
+      await AsyncStorage.removeItem(WALKTHROUGH_STEP_INDEX_KEY);
     } catch (error) {
       logger.error('Error persisting walkthrough skip:', error);
     }
   }, []);
 
-  // When app goes to background or is closed while walkthrough is active, persist skip
+  // When app goes to background while walkthrough is active: persist phase + step so we can restore (do not cancel)
   const isActiveRef = useRef(isActive);
+  const currentStepIndexRef = useRef(currentStepIndex);
   isActiveRef.current = isActive;
+  currentStepIndexRef.current = currentStepIndex;
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-      if (nextAppState === 'background' && isActiveRef.current) {
-        logger.log('App backgrounded during walkthrough; treating as skipped');
-        isActiveRef.current = false;
-        setIsActive(false);
-        setShouldShowWalkthrough(false);
-        globalShouldShowWalkthrough = false;
-        AsyncStorage.setItem(WALKTHROUGH_SKIPPED_KEY, 'true').catch((err) =>
-          logger.error('Error persisting walkthrough skip on background:', err)
+      if (nextAppState === 'background' && isActiveRef.current && phase) {
+        const stepIndex = currentStepIndexRef.current;
+        logger.log('App backgrounded during walkthrough; persisting for restore', { phase, stepIndex });
+        AsyncStorage.setItem(WALKTHROUGH_PHASE_KEY, phase).catch((err) =>
+          logger.error('Error persisting walkthrough phase on background:', err)
         );
-        AsyncStorage.removeItem(WALKTHROUGH_STARTED_KEY).catch(() => {});
+        AsyncStorage.setItem(WALKTHROUGH_STEP_INDEX_KEY, String(stepIndex)).catch((err) =>
+          logger.error('Error persisting walkthrough step index on background:', err)
+        );
       }
     });
     return () => subscription.remove();
-  }, []);
+  }, [phase]);
 
   return {
     isActive,
@@ -256,6 +273,29 @@ export function useWalkthrough(steps: WalkthroughStep[]): UseWalkthroughReturn {
   };
 }
 
+/** Returns current persisted walkthrough state (for redirect when app reopens on wrong screen). */
+export async function getWalkthroughRestoreState(): Promise<{
+  inProgress: boolean;
+  phase: WalkthroughPhase | null;
+  stepIndex: number;
+}> {
+  try {
+    const [completed, skipped, started, phase, stepIndexStr] = await Promise.all([
+      AsyncStorage.getItem(WALKTHROUGH_COMPLETED_KEY),
+      AsyncStorage.getItem(WALKTHROUGH_SKIPPED_KEY),
+      AsyncStorage.getItem(WALKTHROUGH_STARTED_KEY),
+      AsyncStorage.getItem(WALKTHROUGH_PHASE_KEY),
+      AsyncStorage.getItem(WALKTHROUGH_STEP_INDEX_KEY),
+    ]);
+    const inProgress = started === 'true' && !completed && !skipped;
+    const phaseVal = (phase === 'home' || phase === 'flashcards' ? phase : null) as WalkthroughPhase | null;
+    const stepIndex = stepIndexStr != null ? Math.max(0, parseInt(stepIndexStr, 10)) : 0;
+    return { inProgress, phase: phaseVal, stepIndex };
+  } catch {
+    return { inProgress: false, phase: null, stepIndex: 0 };
+  }
+}
+
 // Helper function to reset walkthrough (for settings)
 export async function resetWalkthrough(): Promise<void> {
   try {
@@ -263,6 +303,8 @@ export async function resetWalkthrough(): Promise<void> {
       AsyncStorage.removeItem(WALKTHROUGH_COMPLETED_KEY),
       AsyncStorage.removeItem(WALKTHROUGH_SKIPPED_KEY),
       AsyncStorage.removeItem(WALKTHROUGH_STARTED_KEY),
+      AsyncStorage.removeItem(WALKTHROUGH_PHASE_KEY),
+      AsyncStorage.removeItem(WALKTHROUGH_STEP_INDEX_KEY),
       // Also reset sign-in prompt dismissed state so it shows after walkthrough completes
       AsyncStorage.removeItem(SIGNIN_PROMPT_DISMISSED_KEY),
     ]);
