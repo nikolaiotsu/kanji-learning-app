@@ -165,6 +165,9 @@
   },
   "badges": {
     "title": "Huy Hiệu Của Bạn",
+    "detail": {
+      "gotIt": "Đã hiểu!"
+    },
     "instruction": {
       "title": "Huy hiệu Thành tựu",
       "collectBullet": "Thu thập huy hiệu khi học",

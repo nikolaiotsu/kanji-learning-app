@@ -165,6 +165,9 @@
   },
   "badges": {
     "title": "Tus Insignias",
+    "detail": {
+      "gotIt": "¡Entendido!"
+    },
     "instruction": {
       "title": "Insignias de Logros",
       "collectBullet": "Colecciona insignias mientras aprendes",

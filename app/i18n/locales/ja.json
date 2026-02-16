@@ -165,6 +165,9 @@
   },
   "badges": {
     "title": "あなたのバッジ",
+    "detail": {
+      "gotIt": "了解！"
+    },
     "instruction": {
       "title": "達成バッジ",
       "collectBullet": "学習しながらバッジを集めよう",

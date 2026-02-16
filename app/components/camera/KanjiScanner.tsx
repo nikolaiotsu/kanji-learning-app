@@ -45,6 +45,7 @@ import APIUsageEnergyBar from '../shared/APIUsageEnergyBar';
 import BadgesButtonInstructionModal from '../shared/BadgesButtonInstructionModal';
 import { getBadgesButtonInstructionsDontShowAgain } from '../../services/badgesButtonInstructionService';
 import { hasEnergyBarsRemaining } from '../../utils/walkthroughEnergyCheck';
+import { useSignInPromptTrigger } from '../../context/SignInPromptTriggerContext';
 
 import { logger } from '../../utils/logger';
 import * as Haptics from 'expo-haptics';
@@ -290,6 +291,11 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     registerStep,
     updateStepLayout,
   } = useWalkthrough(walkthroughSteps);
+
+  const { setInWalkthroughFlow } = useSignInPromptTrigger();
+  useEffect(() => {
+    setInWalkthroughFlow(isWalkthroughActive);
+  }, [isWalkthroughActive, setInWalkthroughFlow]);
 
   // Crop hint (walkthrough): box opens like a cursor dragging from top-left to bottom-right
   const CROP_HINT_BOX_WIDTH = 160;

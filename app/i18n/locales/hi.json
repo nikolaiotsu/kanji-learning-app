@@ -165,6 +165,9 @@
   },
   "badges": {
     "title": "आपके बैज",
+    "detail": {
+      "gotIt": "समझ गया!"
+    },
     "instruction": {
       "title": "उपलब्धि बैज",
       "collectBullet": "सीखते समय बैज इकट्ठा करें",

@@ -165,6 +165,9 @@
   },
   "badges": {
     "title": "Seus Emblemas",
+    "detail": {
+      "gotIt": "Entendi!"
+    },
     "instruction": {
       "title": "Insígnias de Conquista",
       "collectBullet": "Colete insígnias enquanto aprende",

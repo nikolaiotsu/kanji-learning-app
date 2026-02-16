@@ -165,6 +165,9 @@
   },
   "badges": {
     "title": "شاراتك",
+    "detail": {
+      "gotIt": "فهمت!"
+    },
     "instruction": {
       "title": "شارات الإنجاز",
       "collectBullet": "اجمع الشارات أثناء التعلم",

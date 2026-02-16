@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
 import { Flashcard } from '../types/Flashcard';
 import { Deck } from '../types/Deck';
 import { logger } from '../utils/logger';
@@ -76,14 +77,44 @@ export const getLocalDecksWithDefault = async (): Promise<Deck[]> => {
 };
 
 /**
- * Get all guest flashcards from local storage
+ * Strip imageUrl from guest cards whose local file no longer exists (e.g. after new build / cache clear).
+ * Persists the cleaned list so we don't keep trying to load missing files.
+ */
+async function sanitizeGuestFlashcardImageUrls(cards: Flashcard[]): Promise<Flashcard[]> {
+  let changed = false;
+  const sanitized = await Promise.all(
+    cards.map(async (card) => {
+      const uri = card.imageUrl;
+      if (!uri || !uri.startsWith('file://')) return card;
+      try {
+        const info = await FileSystem.getInfoAsync(uri, { size: false });
+        if (info.exists) return card;
+        logger.log('[LocalFlashcardStorage] Guest card image file missing, clearing imageUrl:', card.id);
+        changed = true;
+        return { ...card, imageUrl: undefined };
+      } catch {
+        changed = true;
+        return { ...card, imageUrl: undefined };
+      }
+    })
+  );
+  if (changed) {
+    await AsyncStorage.setItem(GUEST_FLASHCARDS_KEY, JSON.stringify(sanitized));
+  }
+  return sanitized;
+}
+
+/**
+ * Get all guest flashcards from local storage.
+ * Local file image URLs are checked for existence; missing files are cleared and data is persisted.
  */
 export const getLocalFlashcards = async (): Promise<Flashcard[]> => {
   try {
     const data = await AsyncStorage.getItem(GUEST_FLASHCARDS_KEY);
     if (!data) return [];
     const parsed = JSON.parse(data) as Flashcard[];
-    return Array.isArray(parsed) ? parsed : [];
+    const cards = Array.isArray(parsed) ? parsed : [];
+    return sanitizeGuestFlashcardImageUrls(cards);
   } catch (error) {
     logger.error('[LocalFlashcardStorage] Error getting local flashcards:', error);
     return [];

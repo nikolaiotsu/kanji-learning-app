@@ -165,6 +165,9 @@
   },
   "badges": {
     "title": "Vos Badges",
+    "detail": {
+      "gotIt": "Compris !"
+    },
     "instruction": {
       "title": "Badges de Réussite",
       "collectBullet": "Collectez des badges en apprenant",

@@ -165,6 +165,9 @@
   },
   "badges": {
     "title": "나의 배지",
+    "detail": {
+      "gotIt": "확인!"
+    },
     "instruction": {
       "title": "성취 배지",
       "collectBullet": "학습하면서 배지를 모으세요",

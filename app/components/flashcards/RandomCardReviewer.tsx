@@ -395,6 +395,12 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     };
   }, [completionPulseColor]);
 
+  // Container completion pulse - same rainbow flash on the card review border (not browse).
+  // Only animates borderColor; container always has borderWidth so no layout shift.
+  const containerCompletionPulseStyle = useMemo(() => {
+    return showCompletionPulse ? { borderColor: completionPulseColor } : undefined;
+  }, [showCompletionPulse, completionPulseColor]);
+
   // Separate effect to update total cards in selected decks - STABLE COUNTER
   // This counter updates when deck selection changes OR when cards are added to selected decks
   // CRITICAL: Don't update during fade-out or active review sessions to prevent flicker
@@ -2261,7 +2267,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
      });
       
       return (
-        <View style={[styles.container]}>
+        <Animated.View style={[styles.container, containerCompletionPulseStyle]}>
           <View style={styles.header}>
             <View 
               ref={collectionsButtonRef} 
@@ -2453,14 +2459,19 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
             </Animated.View>
           </View>
           {deckSelector}
-        </View>
+        </Animated.View>
       );
     }
   }
 
   return (
     <>
-    <View style={[styles.container]}>
+    <Animated.View
+      style={[
+        styles.container,
+        containerCompletionPulseStyle,
+      ]}
+    >
       <View style={styles.header}>
         <View 
           ref={collectionsButtonRef} 
@@ -2772,7 +2783,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       </View>
 
       {deckSelector}
-    </View>
+    </Animated.View>
 
     {/* Streak congratulations overlay - shown when user reaches 3 right swipes in a review session */}
     <Modal
@@ -2852,6 +2863,9 @@ const createStyles = (
     // Fill all available space provided by parent's maxHeight constraint
     flex: 1,
     flexDirection: 'column',
+    // Reserve border space so completion pulse only changes color (no layout shift); match review button thinness (1)
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   containerHighlighted: {
     borderWidth: 3,

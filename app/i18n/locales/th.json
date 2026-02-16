@@ -165,6 +165,9 @@
   },
   "badges": {
     "title": "เหรียญของคุณ",
+    "detail": {
+      "gotIt": "เข้าใจแล้ว!"
+    },
     "instruction": {
       "title": "ตราความสำเร็จ",
       "collectBullet": "สะสมตราในขณะที่เรียนรู้",

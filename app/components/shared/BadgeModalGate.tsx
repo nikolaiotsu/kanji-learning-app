@@ -4,6 +4,8 @@
  * after earning a badge, not while they're still on other screens.
  * When user skips the walkthrough, the sign-in prompt is shown after they dismiss
  * the badge modal (right after their first flashcard).
+ * When user is in walkthrough mode, the sign-in prompt is suppressed here and will
+ * be shown after the final congrats modal instead (via handleWalkthroughComplete).
  */
 import { usePathname } from 'expo-router';
 import BadgeCelebrationModal from './BadgeCelebrationModal';

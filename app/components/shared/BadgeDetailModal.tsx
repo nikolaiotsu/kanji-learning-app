@@ -8,6 +8,7 @@ import {
   Animated,
   Dimensions,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { COLORS } from '../../constants/colors';
 import { FONTS } from '../../constants/typography';
 import FloatingBadgeImage from './FloatingBadgeImage';
@@ -15,13 +16,6 @@ import type { Badge } from '../../services/badgeService';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const FADE_DURATION = 200;
-
-function getBadgeDisplayText(badge: Badge): { title: string; subtext: string } {
-  return {
-    title: badge.name,
-    subtext: badge.description,
-  };
-}
 
 interface BadgeDetailModalProps {
   visible: boolean;
@@ -39,6 +33,7 @@ export default function BadgeDetailModal({
   badge,
   onDismiss,
 }: BadgeDetailModalProps) {
+  const { t } = useTranslation();
   const [shouldRender, setShouldRender] = useState(false);
   const [displayedBadge, setDisplayedBadge] = useState<Badge | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -66,7 +61,9 @@ export default function BadgeDetailModal({
 
   if (!shouldRender || !displayedBadge) return null;
 
-  const { title, subtext } = getBadgeDisplayText(displayedBadge);
+  const { badgeType, threshold, name, description } = displayedBadge;
+  const title = t(`badgeCelebration.badgeName.${badgeType}_${threshold}`, { defaultValue: name });
+  const subtext = t(`badgeCelebration.description.${badgeType}_${threshold}`, { defaultValue: description });
 
   return (
     <Animated.View
@@ -90,7 +87,7 @@ export default function BadgeDetailModal({
           onPress={onDismiss}
           activeOpacity={0.8}
         >
-          <Text style={styles.dismissButtonText}>Got it</Text>
+          <Text style={styles.dismissButtonText}>{t('badges.detail.gotIt')}</Text>
         </TouchableOpacity>
       </View>
     </Animated.View>

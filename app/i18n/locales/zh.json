@@ -165,6 +165,9 @@
   },
   "badges": {
     "title": "您的徽章",
+    "detail": {
+      "gotIt": "知道了！"
+    },
     "instruction": {
       "title": "成就徽章",
       "collectBullet": "学习时收集徽章",
