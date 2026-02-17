@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useOnboardingLayout } from './hooks/useOnboardingLayout';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useOnboardingVideo } from './context/OnboardingVideosContext';
@@ -31,6 +31,7 @@ const guyflyingVideoSource = require('../assets/guyflying.mp4');
 
 export default function OnboardingEducationalScreen() {
   const { t } = useTranslation();
+  const navigation = useNavigation();
   const { paddingHorizontal, contentPaddingTop } = useOnboardingLayout();
   const { setHasCompletedOnboarding } = useOnboarding();
   const { setOnboardingStep } = useOnboardingProgress();
@@ -80,7 +81,9 @@ export default function OnboardingEducationalScreen() {
     // Set guest mode so user can save cards locally during walkthrough
     // Must await to ensure state is updated before navigation
     await setGuestMode(true);
-    router.replace('/?walkthrough=true');
+    // Reset the entire stack so user cannot swipe back to onboarding screens
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- reset routes type varies by expo-router version
+    navigation.reset({ index: 0, routes: [{ name: 'index', params: { walkthrough: 'true' } }] } as any);
   };
 
   return (

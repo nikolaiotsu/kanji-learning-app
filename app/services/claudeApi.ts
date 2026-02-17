@@ -111,7 +111,7 @@ const USE_LITE_PROMPTS = true;
 function buildGeneralLanguageSystemPromptLite(sourceLanguage: string): string {
   const languageRules = getLanguageFamilyRules(sourceLanguage);
   const rulesBlock = languageRules ? `\n${languageRules}\n` : '';
-  return `Translation + grammar expert. Translate naturally; preserve meaning/tone; no romanization in translation. Grammar: analyze SOURCE only. Format: word1 [label] + word2 [label] + ... all words; labels in TARGET. Example sentences in SOURCE; translation, note, explanation, reason, nuance in TARGET. Mistake: wrong/correct in SOURCE, reason in TARGET. All WordScope explanations and learner-facing text (explanation, note, translation, reason, nuance) MUST be in the TARGET language. Double-check that scope output is in target language, not source.${rulesBlock}JSON: readingsText, translatedText, scopeAnalysis. Do NOT add "This means...", "Here is...", or any explanation inside or outside the JSON. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes. No trailing commas.`;
+  return `Translation + grammar expert. Translate naturally; preserve meaning/tone; no romanization in translation. Grammar: analyze SOURCE only. Format: word1 [label] + word2 [label] + ... all words; labels in TARGET. Example sentences in SOURCE; translation, note, explanation, reason, nuance in TARGET. Common mistake = mistake IN the scanned (SOURCE) language: wrong/correct phrases in SOURCE only; reason (why it's wrong) in TARGET. Never use wrong/correct in TARGET. All WordScope explanations and learner-facing text (explanation, note, translation, reason, nuance) MUST be in the TARGET language. Double-check that scope output is in target language, not source.${rulesBlock}JSON: readingsText, translatedText, scopeAnalysis. Do NOT add "This means...", "Here is...", or any explanation inside or outside the JSON. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes. No trailing commas.`;
 }
 
 /** Lite scope instructions - bare minimum; schema in user message. */
@@ -122,7 +122,7 @@ function buildScopeInstructionsLite(
 ): string {
   return `Analyze "${normalizedText}" as ${sourceLangName} teacher for ${targetLangName} speaker.
 partOfSpeech: word1 [label] + word2 [label] + ... all words from source; labels in ${targetLangName}.
-examples: 3 items; sentence in ${sourceLangName}, translation and note in ${targetLangName}. synonyms: 3 items; phrase in ${sourceLangName}, translation and nuance in ${targetLangName}. grammar.explanation, commonMistake.reason in ${targetLangName}. All explanations and learner-facing text in ${targetLangName} only. Double-check. Period-end sentence-like fields. particles/baseForm only if needed (JA/KO).`;
+examples: 3 items; sentence in ${sourceLangName}, translation and note in ${targetLangName}. synonyms: 3 items; phrase in ${sourceLangName}, translation and nuance in ${targetLangName}. commonMistake: mistake IN ${sourceLangName} (scanned language)—wrong and correct in ${sourceLangName} only; reason in ${targetLangName}. grammar.explanation, commonMistake.reason in ${targetLangName}. All explanations and learner-facing text in ${targetLangName} only. Double-check. Period-end sentence-like fields. particles/baseForm only if needed (JA/KO).`;
 }
 
 // Language validation caching system to reduce API costs
@@ -5873,7 +5873,7 @@ TEXT: "${normalizedText}"${jaFuriganaReminder}
 
 GRAMMAR: ${scopeInstructions}
 
-JSON (camelCase keys): readingsText, translatedText, scopeAnalysis: { word (main phrase), reading, partOfSpeech (word1 [label]+...), baseForm?, grammar: { explanation, particles? }, examples: [ { sentence, translation, note } ] x3, commonMistake: { wrong, correct, reason }, commonContext?, synonyms: [ { phrase, translation, nuance } ] x3 }. Period-end sentence fields. Labels and translatedText in ${targetLangName}. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
+JSON (camelCase keys): readingsText, translatedText, scopeAnalysis: { word (main phrase), reading, partOfSpeech (word1 [label]+...), baseForm?, grammar: { explanation, particles? }, examples: [ { sentence, translation, note } ] x3, commonMistake: { wrong, correct } in ${sourceLangName} only (mistake in scanned language), reason in ${targetLangName}, commonContext?, synonyms: [ { phrase, translation, nuance } ] x3 }. Period-end sentence fields. Labels and translatedText in ${targetLangName}. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
       } else {
         dynamicUserMessage = `TEXT TO PROCESS: "${normalizedText}"
 
@@ -6007,7 +6007,7 @@ TEXT: "${normalizedText}"
 
 GRAMMAR: ${scopeInstructions}
 
-JSON (camelCase keys): readingsText, translatedText, scopeAnalysis: { word (main phrase), reading, partOfSpeech (word1 [label]+...), baseForm?, grammar: { explanation, particles? }, examples: [ { sentence, translation, note } ] x3, commonMistake: { wrong, correct, reason }, commonContext?, synonyms: [ { phrase, translation, nuance } ] x3 }. Period-end sentence fields. Labels in ${targetLangName}. All explanations and translatedText in ${targetLangName}. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
+JSON (camelCase keys): readingsText, translatedText, scopeAnalysis: { word (main phrase), reading, partOfSpeech (word1 [label]+...), baseForm?, grammar: { explanation, particles? }, examples: [ { sentence, translation, note } ] x3, commonMistake: { wrong, correct } in ${sourceLangName} only (mistake in scanned language), reason in ${targetLangName}, commonContext?, synonyms: [ { phrase, translation, nuance } ] x3 }. Period-end sentence fields. Labels in ${targetLangName}. All explanations and translatedText in ${targetLangName}. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes.`;
       } else {
         dynamicUserMessage = combinedPrompt;
       }
@@ -6067,8 +6067,8 @@ JSON (camelCase keys): readingsText, translatedText, scopeAnalysis: { word (main
 SOURCE: ${sourceLangName}
 TARGET: ${targetLangName}
 Translate to ${targetLangName}. Grammar: ${scopeInstructions}
-All explanations in TARGET (${targetLangName}): grammar.explanation, note, translation (in examples/synonyms), reason, nuance must be in ${targetLangName}. Example sentences stay in SOURCE (${sourceLangName}). Double-check every scope field is in the correct language.
-JSON (camelCase): readingsText "", translatedText, scopeAnalysis: { word, reading, partOfSpeech (word1 [label]+...), baseForm?, grammar: { explanation, particles? }, examples [ { sentence, translation, note } ] x3, commonMistake { wrong, correct, reason }, synonyms [ { phrase, translation, nuance } ] x3 }. Labels in ${targetLangName}. Period-end sentence fields. Do NOT add preamble or explanation outside the JSON. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes. No trailing commas.`;
+All explanations in TARGET (${targetLangName}): grammar.explanation, note, translation (in examples/synonyms), reason, nuance must be in ${targetLangName}. Example sentences and commonMistake wrong/correct stay in SOURCE (${sourceLangName}); commonMistake = mistake in scanned language only—reason in ${targetLangName}. Double-check every scope field is in the correct language.
+JSON (camelCase): readingsText "", translatedText, scopeAnalysis: { word, reading, partOfSpeech (word1 [label]+...), baseForm?, grammar: { explanation, particles? }, examples [ { sentence, translation, note } ] x3, commonMistake { wrong, correct } in ${sourceLangName}, reason in ${targetLangName}, synonyms [ { phrase, translation, nuance } ] x3 }. Labels in ${targetLangName}. Period-end sentence fields. Do NOT add preamble or explanation outside the JSON. Escape JSON: \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes. No trailing commas.`;
       } else {
         dynamicUserMessage = `TEXT TO PROCESS: "${normalizedText}"
 SOURCE LANGUAGE: ${sourceLangName}

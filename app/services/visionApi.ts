@@ -6,8 +6,12 @@ import { Platform } from 'react-native';
 import * as ImageManipulator from 'expo-image-manipulator';
 import MemoryManager from './memoryManager';
 import { apiLogger, logVisionAPI, APIUsageMetrics } from './apiUsageLogger';
+import { getImageInfo } from './ProcessImage';
 
 import { logger } from '../utils/logger';
+
+/** Max dimension (long edge) for images sent to Vision OCR. Smaller = faster upload and API time. */
+const OCR_MAX_DIMENSION = 1200;
 
 /** Error codes for OCR so UI can show the right message (timeout vs network vs generic). */
 export const VISION_OCR_ERROR_CODES = {
@@ -378,6 +382,32 @@ export async function resizeImageToRegion(imageUri: string, region: Region): Pro
   }
 }
 
+/**
+ * Resize image so the long edge is at most maxDimension before sending to OCR.
+ * Reduces upload size and Vision API processing time. Returns original URI if already small.
+ */
+async function resizeImageForOcr(imageUri: string, maxDimension: number = OCR_MAX_DIMENSION): Promise<string> {
+  try {
+    const info = await getImageInfo(imageUri);
+    if (info.width <= maxDimension && info.height <= maxDimension) {
+      return imageUri;
+    }
+    const scale = maxDimension / Math.max(info.width, info.height);
+    const width = Math.round(info.width * scale);
+    const height = Math.round(info.height * scale);
+    logger.log(`[resizeImageForOcr] Resizing ${info.width}x${info.height} -> ${width}x${height} for faster OCR`);
+    const result = await ImageManipulator.manipulateAsync(
+      imageUri,
+      [{ resize: { width, height } }],
+      { format: ImageManipulator.SaveFormat.JPEG, compress: 0.85 }
+    );
+    return result.uri;
+  } catch (error) {
+    logger.warn('[resizeImageForOcr] Resize failed, using original image:', error);
+    return imageUri;
+  }
+}
+
 export async function detectJapaneseText(
   imageUri: string,
   region: Region,
@@ -402,13 +432,11 @@ export async function detectJapaneseText(
 
   const API_URL = `https://vision.googleapis.com/v1/images:annotate?key=${API_KEY}`;
 
-  // SIMPLIFICATION: Pre-crop the image to the region if a region is specified
-  // This ensures we only send the exact area of interest to the API
-  // Implement the actual cropping logic
+  // Resize image for faster upload and API processing, then encode to base64
   let base64Image: string | null = null;
-
   try {
-    base64Image = await getBase64ForImage(imageUri);
+    const ocrReadyUri = await resizeImageForOcr(imageUri);
+    base64Image = await getBase64ForImage(ocrReadyUri);
   } catch (error) {
     logger.error('Error converting image to base64:', error);
     throw new VisionOCRError('Failed to prepare image for OCR', VISION_OCR_ERROR_CODES.IMAGE_PREP);
@@ -419,17 +447,15 @@ export async function detectJapaneseText(
   }
 
   // Determine if the region is complex (large area, likely contains lots of text)
-  // Calculate aspect ratio to detect wide regions specifically
   const aspectRatio = region.width / region.height;
-  const isWideRegion = aspectRatio > 3; // If width is more than 3x the height
+  const isWideRegion = aspectRatio > 3;
   const isLargeRegion = region.width * region.height > 100000;
-  
-  // Combine criteria - complex if either wide or large
   const isComplexRegion = isWideRegion || isLargeRegion;
   
   logger.log(`Region complexity assessment: ${isComplexRegion ? 'Complex' : 'Standard'} region (${region.width}x${region.height}, aspect ratio: ${aspectRatio.toFixed(1)}${isWideRegion ? ', wide region' : ''})`);
 
-  // Create request body with parameters tuned for region complexity
+  // Single feature = faster: DOCUMENT_TEXT_DETECTION is best for blocks of text (e.g. Japanese paragraphs).
+  // builtin/stable only for predictable latency; advanced options only for wide regions.
   const requestBody = {
     requests: [
       {
@@ -438,13 +464,8 @@ export async function detectJapaneseText(
         },
         features: [
           {
-            type: 'TEXT_DETECTION',
-            // For complex regions, we can adjust model parameters
-            model: isComplexRegion ? 'builtin/latest' : 'builtin/stable',
-          },
-          {
             type: 'DOCUMENT_TEXT_DETECTION',
-            model: isComplexRegion ? 'builtin/latest' : 'builtin/stable',
+            model: 'builtin/stable',
           }
         ],
         imageContext: {
@@ -468,21 +489,24 @@ export async function detectJapaneseText(
             'th',
             'vi'
           ],
-          textDetectionParams: {
-            enableTextDetectionConfidenceScore: true,
-            // For wide regions, enhance parameters to ensure text on edges is captured
-            advancedOcrOptions: isWideRegion ? 
-              [
-                "enable_image_quality_scores",
-                "enable_super_resolution",
-                "enable_dewarping",
-                "enable_dense_text_detection"
-              ] : 
-              [
-                "enable_image_quality_scores",
-                "enable_super_resolution"
-              ]
-          }
+          ...(isWideRegion
+            ? {
+                textDetectionParams: {
+                  enableTextDetectionConfidenceScore: true,
+                  advancedOcrOptions: [
+                    'enable_image_quality_scores',
+                    'enable_super_resolution',
+                    'enable_dewarping',
+                    'enable_dense_text_detection'
+                  ]
+                }
+              }
+            : {
+                textDetectionParams: {
+                  enableTextDetectionConfidenceScore: true,
+                  advancedOcrOptions: ['enable_image_quality_scores']
+                }
+              })
         }
       }
     ]
@@ -519,36 +543,63 @@ export async function detectJapaneseText(
 
     const data = await response.json();
     
-    // Process API response
-    
-    // For complex regions, check if we have document text results (from DOCUMENT_TEXT_DETECTION)
-    const textDetectionResults = data.responses?.[0]?.textAnnotations?.length 
-      ? data.responses[0].textAnnotations[0].description 
-      : null;
-    
-    const documentTextResults = data.responses?.[0]?.fullTextAnnotation?.text || null;
-    
-    // For wide regions, preferentially use document text results if available
-    let finalText;
-    if (isWideRegion && documentTextResults) {
-      logger.log('Using document text detection result for wide region');
-      finalText = documentTextResults;
-    } else if (textDetectionResults && documentTextResults) {
-      // For regular regions, combine results, preferring the longer one
-      logger.log('Using combined OCR result');
-      finalText = textDetectionResults.length > documentTextResults.length 
-        ? textDetectionResults 
-        : documentTextResults;
-    } else {
-      // Fall back to whichever result is available
-      finalText = textDetectionResults || documentTextResults || '';
+    // We only request DOCUMENT_TEXT_DETECTION, so use fullTextAnnotation
+    let finalText = data.responses?.[0]?.fullTextAnnotation?.text || '';
+    logger.log('Final extracted text:', finalText);
+
+    // If we got no or negligible text and this was a standard (non-wide) region, retry with super
+    // resolution in case the image is blurry or low-res. Wide regions already use super resolution.
+    const shouldRetryWithEnhancement =
+      !isWideRegion &&
+      (finalText.trim().length < 2) &&
+      (base64Image?.length ?? 0) > 0;
+
+    if (shouldRetryWithEnhancement) {
+      logger.log('[detectJapaneseText] No text from first pass, retrying with super resolution for possible blur/low-res');
+      const enhancedRequestBody = {
+        requests: [
+          {
+            image: { content: (base64Image as string).split(',')[1] },
+            features: [{ type: 'DOCUMENT_TEXT_DETECTION', model: 'builtin/stable' }],
+            imageContext: {
+              languageHints: [
+                'ja', 'ja-t-i0-handwrit', 'ja-Hira', 'ja-Kana', 'en', 'zh', 'zh-TW', 'ko',
+                'es', 'fr', 'de', 'pt', 'ru', 'ar', 'hi', 'it', 'th', 'vi'
+              ],
+              textDetectionParams: {
+                enableTextDetectionConfidenceScore: true,
+                advancedOcrOptions: ['enable_image_quality_scores', 'enable_super_resolution']
+              }
+            }
+          }
+        ]
+      };
+      const retryController = new AbortController();
+      const retryTimeoutId = setTimeout(() => retryController.abort(), timeoutDuration);
+      try {
+        const retryResponse = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(enhancedRequestBody),
+          signal: retryController.signal
+        });
+        clearTimeout(retryTimeoutId);
+        if (retryResponse.ok) {
+          const retryData = await retryResponse.json();
+          const retryText = retryData.responses?.[0]?.fullTextAnnotation?.text || '';
+          if (retryText.trim().length >= 2) {
+            finalText = retryText;
+            logger.log('[detectJapaneseText] Super-resolution retry returned text:', retryText.substring(0, 80) + (retryText.length > 80 ? '...' : ''));
+          }
+        }
+      } catch (retryErr) {
+        clearTimeout(retryTimeoutId);
+        logger.warn('[detectJapaneseText] Super-resolution retry failed:', retryErr);
+      }
     }
     
-    logger.log('Final extracted text:', finalText);
-    
-    // Analyze the results to extract Japanese text and create responses
+    // Build response from final text (first pass or successful retry)
     const visionApiResponse: VisionApiResponse[] = [];
-    
     if (finalText) {
       visionApiResponse.push({
         text: finalText,

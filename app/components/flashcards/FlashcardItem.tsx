@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, Dimensions, Animated, ScrollView, LayoutChangeEvent, Image, ActivityIndicator, Easing, PanResponder } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Dimensions, Animated, ScrollView, LayoutChangeEvent, Image, ActivityIndicator, Easing, PanResponder } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import i18next from '../../i18n';
 import { Flashcard } from '../../types/Flashcard';
@@ -990,13 +990,35 @@ const readingsText = flashcard.readingsText;
                 return (
                   <>
                     <Text style={styles.sectionTitle}>Wordscope</Text>
-                    <Text style={styles.scopeAnalysisText}>
-                      {segments.map((seg, i) => (
-                        <Text key={i} style={seg.isSourceLanguage ? styles.scopeAnalysisSourceText : undefined}>
-                          {seg.text}
+                    <View style={styles.wordscopeCopyableContainer}>
+                      <TextInput
+                        value={localizedScopeAnalysis}
+                        editable={false}
+                        multiline
+                        scrollEnabled={false}
+                        caretHidden
+                        style={[styles.wordscopeBaseText, styles.wordscopeSelectionLayer]}
+                        underlineColorAndroid="transparent"
+                      />
+                      <View style={styles.wordscopeColoredOverlay} pointerEvents="none">
+                        <Text style={styles.wordscopeBaseText}>
+                          {segments.map((seg, i) => (
+                            <Text
+                              key={i}
+                              style={
+                                seg.isTargetLanguage
+                                  ? styles.scopeAnalysisTargetText
+                                  : seg.isSourceLanguage
+                                    ? styles.scopeAnalysisSourceText
+                                    : undefined
+                              }
+                            >
+                              {seg.text}
+                            </Text>
+                          ))}
                         </Text>
-                      ))}
-                    </Text>
+                      </View>
+                    </View>
                   </>
                 );
               })()}
@@ -1384,6 +1406,30 @@ const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean
     color: COLORS.text,
     lineHeight: 30, // Increased proportionally
   },
+  wordscopeBaseText: {
+    fontFamily: FONTS.sans,
+    fontSize: 16,
+    textAlign: 'center',
+    color: COLORS.text,
+    lineHeight: 24,
+    fontStyle: 'italic',
+    marginTop: 10,
+    padding: 0,
+    margin: 0,
+  },
+  wordscopeSelectionLayer: {
+    color: 'transparent',
+    backgroundColor: 'transparent',
+  },
+  wordscopeCopyableContainer: {
+    position: 'relative',
+  },
+  wordscopeColoredOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+  },
   scopeAnalysisText: {
     fontFamily: FONTS.sans,
     fontSize: 16,
@@ -1395,6 +1441,9 @@ const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean
   },
   scopeAnalysisSourceText: {
     color: '#4ADE80', // Green for scanned/source language
+  },
+  scopeAnalysisTargetText: {
+    color: '#A78BFA', // Purple for target language (translations, notes in Examples)
   },
   appendAnalysisButton: {
     flexDirection: 'row',

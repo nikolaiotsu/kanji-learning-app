@@ -334,14 +334,17 @@ export function localizeScopeAnalysisHeadings(
 export interface ScopeAnalysisSegment {
   text: string;
   isSourceLanguage: boolean;
+  /** Target language (e.g. translations and notes in Examples / Alternative Expressions) */
+  isTargetLanguage: boolean;
 }
 
 /**
  * Parses scopeAnalysis text into segments for styling.
- * Source language text (example sentences, wrong/correct examples, alternative phrases) is marked for green highlighting.
+ * Source language: example sentences, wrong/correct, alternative phrases → green.
+ * Target language: translation and "→ note" lines in Examples / Alternative Expressions → purple.
  *
  * @param scopeAnalysis The localized scopeAnalysis text
- * @returns Array of segments with isSourceLanguage flag for styling
+ * @returns Array of segments with isSourceLanguage / isTargetLanguage for styling
  */
 export function parseScopeAnalysisForStyling(scopeAnalysis: string): ScopeAnalysisSegment[] {
   if (!scopeAnalysis) return [];
@@ -355,10 +358,13 @@ export function parseScopeAnalysisForStyling(scopeAnalysis: string): ScopeAnalys
       /^\d+\.\s+.+/.test(line) ||  // "1. sentence" or "2. phrase" (Examples / Alternative Expressions)
       /^✗\s+.+/.test(line) ||      // "✗ wrong" (Common Mistake)
       /^✓\s+.+/.test(line);        // "✓ correct" (Common Mistake)
+    // Indented translation lines only (target language). Exclude "   → note" lines so those stay default color.
+    const isTarget = line.startsWith('   ') && !line.startsWith('   →');
 
     segments.push({
       text: line + (i < lines.length - 1 ? '\n' : ''),
       isSourceLanguage: isSource,
+      isTargetLanguage: isTarget && !isSource,
     });
   }
 
