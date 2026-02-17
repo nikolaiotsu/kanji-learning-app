@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import SignupScreen from './screens/SignupScreen';
 import { supabase } from './services/supabaseClient';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { COLORS } from './constants/colors';
 import { FONTS } from './constants/typography';
@@ -51,11 +51,12 @@ const Signup = () => {
     handleOAuthCallback();
   }, [params]);
   
-  // If already authenticated, redirect to home
+  // Log user state changes, let AuthGuard handle navigation
+  // (AuthGuard does dismissAll + replace to properly reset the navigation stack,
+  // preventing the home screen from appearing as a modal when signing in from guest mode)
   useEffect(() => {
     if (user) {
-      logger.log('✅ User authenticated, redirecting to home');
-      router.replace('/');
+      logger.log('✅ [signup.tsx] User authenticated, AuthGuard will handle navigation');
     }
   }, [user]);
   
