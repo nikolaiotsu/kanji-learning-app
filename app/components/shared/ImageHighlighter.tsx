@@ -124,8 +124,8 @@ const EDGE_TOLERANCE = 50; // pixels outside image boundary for starting highlig
 const STROKE_WIDTH = 20; // Width of the highlighter stroke
 /** Larger stroke on iPad when image is cropped—faster to highlight words on the larger display */
 const STROKE_WIDTH_IPAD_CROPPED = 36;
-/** Horizontal dead zone (left and right) so accidental hand touches don't extend the highlight to the screen edge */
-const HIGHLIGHT_DEAD_ZONE_EDGE = 44;
+/** Inset (px) for the green frame; highlightable area is inside this frame—deadzone is outside. Must match SCREEN_FRAME_INSET in styles. */
+const HIGHLIGHT_FRAME_INSET = 14;
 /** Extra width when building composite mask polygons so adjacent strokes overlap (no white streaks). Keep moderate to avoid including adjacent text. */
 const COMPOSITE_MASK_STROKE_INFLATION = 10;
 /** Pixels to expand each composite polygon outward (minimal—prioritize accuracy over capturing edge chars) */
@@ -1192,13 +1192,15 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         const preciseX = pageX - offset.x;
         const preciseY = pageY - offset.y;
         const w = layout?.width || 0;
-        if (preciseX < HIGHLIGHT_DEAD_ZONE_EDGE || preciseX > w - HIGHLIGHT_DEAD_ZONE_EDGE) {
+        const h = layout?.height || 0;
+        if (preciseX < HIGHLIGHT_FRAME_INSET || preciseX > w - HIGHLIGHT_FRAME_INSET ||
+            preciseY < HIGHLIGHT_FRAME_INSET || preciseY > h - HIGHLIGHT_FRAME_INSET) {
           return;
         }
-        const containerMinX = HIGHLIGHT_DEAD_ZONE_EDGE;
-        const containerMaxX = w - HIGHLIGHT_DEAD_ZONE_EDGE;
-        const containerMinY = 0;
-        const containerMaxY = (layout?.height || 0) - 1;
+        const containerMinX = HIGHLIGHT_FRAME_INSET;
+        const containerMaxX = w - HIGHLIGHT_FRAME_INSET;
+        const containerMinY = HIGHLIGHT_FRAME_INSET;
+        const containerMaxY = h - HIGHLIGHT_FRAME_INSET;
 
         const clampedX = Math.max(containerMinX, Math.min(containerMaxX, preciseX));
         const clampedY = Math.max(containerMinY, Math.min(containerMaxY, preciseY));
@@ -1334,10 +1336,11 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         const preciseX = pageX - offset.x;
         const preciseY = pageY - offset.y;
         const w = layout?.width || 0;
-        const containerMinX = HIGHLIGHT_DEAD_ZONE_EDGE;
-        const containerMaxX = w - HIGHLIGHT_DEAD_ZONE_EDGE;
-        const containerMinY = 0;
-        const containerMaxY = (layout?.height || 0) - 1;
+        const h = layout?.height || 0;
+        const containerMinX = HIGHLIGHT_FRAME_INSET;
+        const containerMaxX = w - HIGHLIGHT_FRAME_INSET;
+        const containerMinY = HIGHLIGHT_FRAME_INSET;
+        const containerMaxY = h - HIGHLIGHT_FRAME_INSET;
 
         const clampedX = Math.max(containerMinX, Math.min(containerMaxX, preciseX));
         const clampedY = Math.max(containerMinY, Math.min(containerMaxY, preciseY));
@@ -1391,11 +1394,12 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
 
         const finalPreciseX = pageX - offset.x;
         const finalPreciseY = pageY - offset.y;
-        
-        const containerMinX = 0;
-        const containerMaxX = (layout?.width || 0) - 1;
-        const containerMinY = 0;
-        const containerMaxY = (layout?.height || 0) - 1;
+        const w = layout?.width || 0;
+        const h = layout?.height || 0;
+        const containerMinX = HIGHLIGHT_FRAME_INSET;
+        const containerMaxX = Math.max(containerMinX, w - HIGHLIGHT_FRAME_INSET);
+        const containerMinY = HIGHLIGHT_FRAME_INSET;
+        const containerMaxY = Math.max(containerMinY, h - HIGHLIGHT_FRAME_INSET);
         
         const finalClampedX = Math.max(containerMinX, Math.min(containerMaxX, finalPreciseX));
         const finalClampedY = Math.max(containerMinY, Math.min(containerMaxY, finalPreciseY));
@@ -2196,8 +2200,8 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
 // Add display name for debugging
 ImageHighlighter.displayName = 'ImageHighlighter';
 
-// Tech/screen frame constants
-const SCREEN_FRAME_INSET = 14;
+// Tech/screen frame constants (green border; highlight deadzone is outside this inset)
+const SCREEN_FRAME_INSET = HIGHLIGHT_FRAME_INSET;
 const CORNER_BRACKET_SIZE = 24;
 const CORNER_BRACKET_STROKE = 2;
 const FRAME_COLOR = 'rgba(0, 140, 45, 0.4)';   // darker matrix green, translucent

@@ -104,6 +104,9 @@ const russianWordScopeSystemPromptLite = `Russian expert: translation + Latin ro
 // Minimal prompt for English→any (no WordScope)
 const simpleTranslationPromptLite = `Translate to the requested target language. Natural, fluent output only. No readings/romanization in translation. Output ONLY the JSON object: {"readingsText": "", "translatedText": "translation"}. No preamble, no explanation, no commentary. translatedText must be ONLY the translation—nothing else. Do NOT add phrases like "This means...", "Here is...", or any explanation inside or outside the JSON. Escape JSON: \\" for quotes in strings, \\n for newlines, \\\\ for backslashes. No trailing commas.`;
 
+/** One-line reminder so the model double-checks readings (source language only). Kept short to avoid bloating prompts. */
+const READINGS_VERIFY_LINE = 'Before responding, verify: readingsText has a reading for every word that needs one (no omissions).';
+
 // All flows use lite prompts (Haiku 4.5 optimized). Heavy prompts removed.
 const USE_LITE_PROMPTS = true;
 
@@ -1830,7 +1833,7 @@ Format your response as valid JSON with these exact keys:
       }
       // FAILSAFE: If Japanese is forced, use Japanese prompt with PROMPT CACHING
       else if (forcedLanguage === 'ja' && targetLanguage !== 'ja') {
-        const jaTranslatePrompt = japaneseTranslationSystemPromptLite;
+        const jaTranslatePrompt = japaneseTranslationSystemPromptLite + '\n' + READINGS_VERIFY_LINE;
         logger.log(`[DEBUG] FORCED JAPANESE: Using lite Japanese prompt with prompt caching`);
 
         // DYNAMIC USER MESSAGE (NOT CACHEABLE) - Only the text and target language
@@ -3088,7 +3091,7 @@ Format your response as valid JSON with these exact keys:
         const systemConfig = [
           {
             type: "text",
-            text: systemPrompt,
+            text: systemPrompt + '\n' + READINGS_VERIFY_LINE,
             cache_control: { type: "ephemeral" }
           }
         ];
@@ -5836,7 +5839,7 @@ CRITICAL REQUIREMENTS:
     const isOtherReadingLanguage = isArabicWithReadings || isHindiWithReadings || isThaiWithReadings || isRussianWithReadings;
     
     // Select the appropriate system prompt - CJK and other reading languages get specialized prompts
-    const systemPrompt = isChineseWithCaching ? chineseWordScopeSystemPromptLite :
+    const baseSystemPrompt = isChineseWithCaching ? chineseWordScopeSystemPromptLite :
                          isJapaneseWithCaching ? japaneseWordScopeSystemPromptLite :
                          isKoreanWithCaching ? koreanWordScopeSystemPromptLite :
                          isArabicWithReadings ? arabicWordScopeSystemPromptLite :
@@ -5844,6 +5847,7 @@ CRITICAL REQUIREMENTS:
                          isThaiWithReadings ? thaiWordScopeSystemPromptLite :
                          isRussianWithReadings ? russianWordScopeSystemPromptLite :
                          buildGeneralLanguageSystemPromptLite(forcedLanguage);
+    const systemPrompt = needsReadings ? baseSystemPrompt + '\n' + READINGS_VERIFY_LINE : baseSystemPrompt;
     
     // Determine language name for logging
     const languageDisplayNames: Record<string, string> = {

@@ -8,6 +8,7 @@ import {
   Platform,
   ActivityIndicator,
   ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 import { useOnboardingLayout } from './hooks/useOnboardingLayout';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,9 +30,14 @@ import OnboardingProgressBar from './components/shared/OnboardingProgressBar';
 
 const guyflyingVideoSource = require('../assets/guyflying.mp4');
 
+/** Breakpoint below which we use phone layout: loading video above title. iPad keeps side-by-side. */
+const PHONE_MAX_WIDTH = 767;
+
 export default function OnboardingEducationalScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation();
+  const { width } = useWindowDimensions();
+  const isPhoneOrNarrow = width <= PHONE_MAX_WIDTH;
   const { paddingHorizontal, contentPaddingTop } = useOnboardingLayout();
   const { setHasCompletedOnboarding } = useOnboarding();
   const { setOnboardingStep } = useOnboardingProgress();
@@ -100,17 +106,33 @@ export default function OnboardingEducationalScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.textBlock}>
-            <View style={styles.titleRow}>
-              <Text
-                style={styles.titleText}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.7}
-              >{t('onboarding.empoweringTitle')}</Text>
-              <View style={styles.titleLogoWrap}>
-                <LoadingVideoScreen compact />
+            {isPhoneOrNarrow ? (
+              <>
+                <View style={styles.phoneVideoAbove}>
+                  <LoadingVideoScreen compact />
+                </View>
+                <Text
+                  style={[styles.titleText, styles.titleTextCentered]}
+                  numberOfLines={2}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.7}
+                >
+                  {t('onboarding.empoweringTitle')}
+                </Text>
+              </>
+            ) : (
+              <View style={styles.titleRow}>
+                <Text
+                  style={styles.titleText}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.7}
+                >{t('onboarding.empoweringTitle')}</Text>
+                <View style={styles.titleLogoWrap}>
+                  <LoadingVideoScreen compact />
+                </View>
               </View>
-            </View>
+            )}
             <View style={styles.bulletRow}>
               <View style={styles.bullet} />
               <Text style={styles.subtitle}>
@@ -187,6 +209,15 @@ const styles = StyleSheet.create({
     marginRight: 10,
     // No flex: 1 — keep only the width needed so the loading animation stays beside the title
     // on all screen sizes (e.g. iPad Mini). With flex: 1 the title container expanded and created a large gap.
+  },
+  titleTextCentered: {
+    textAlign: 'center',
+    marginRight: 0,
+    marginBottom: 20,
+  },
+  phoneVideoAbove: {
+    alignSelf: 'center',
+    marginBottom: 16,
   },
   titleLogoWrap: {
     flexShrink: 0,
