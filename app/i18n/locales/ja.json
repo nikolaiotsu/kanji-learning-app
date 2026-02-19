@@ -121,7 +121,7 @@
     "continueAsGuest": "ゲストとして続ける"
   },
   "onboarding": {
-    "welcomeTitle": "WordDexをダウンロードいただきありがとうございます!",
+    "welcomeTitle": "世界をあなたの教室に変えよう。",
     "welcomeSubtitle1": "世界をあなたの教室に変えよう。",
     "welcomeSubtitle2": "どんな言葉もスキャンして意味、文脈、使い方を理解し、すぐにフラッシュカードとして保存できます。",
     "getStarted": "続ける",
@@ -157,7 +157,7 @@
     "relevantTitleSuffix": "は...実用的。",
     "relevantBullet": "使わないフレーズを暗記する代わりに...",
     "relevantCta": "続ける",
-    "empoweringTitle": "魔法を見る準備はいい？",
+    "empoweringTitle": "旅を始める準備はいい?",
     "empoweringTitleSuffix": "は...力になる。",
     "empoweringBullet1": "最初のカードを作って、簡単なツアーに参加しましょう!",
     "empoweringBullet2": "WordDexがあれば、あなたの世界が教室になります。自由に探索しよう!",
@@ -544,7 +544,7 @@
     },
     "findText": {
       "title": "最初のカードを作ろう",
-      "description": "身の回りにある{{language}}のテキストを選んでください。あなたの生活から{{language}}を学ぼう",
+      "description": "身の回りにある{{language}}のテキストを選んでください。あなたの世界から{{language}}を学ぼう。",
       "languageFallback": "言語"
     },
     "gallery": {

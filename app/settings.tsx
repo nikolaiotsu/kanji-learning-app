@@ -11,6 +11,7 @@ import { useSwipeCounter } from './context/SwipeCounterContext';
 import { useOCRCounter } from './context/OCRCounterContext';
 import { useSubscription } from './context/SubscriptionContext';
 import { useOnboarding } from './context/OnboardingContext';
+import { useTransitionLoading } from './context/TransitionLoadingContext';
 import { supabase } from './services/supabaseClient';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { COLORS } from './constants/colors';
@@ -55,6 +56,7 @@ export default function SettingsScreen() {
     availableProducts
   } = useSubscription();
   const { setHasCompletedOnboarding } = useOnboarding();
+  const { setShowTransitionLoading } = useTransitionLoading();
   const { clearPendingBadge, setPendingBadge, refreshEarnedBadges } = useBadge();
   
   const router = useRouter();
@@ -894,10 +896,12 @@ export default function SettingsScreen() {
               style={[styles.resetCountButton, { backgroundColor: COLORS.accent }]}
               onPress={async () => {
                 try {
+                  setShowTransitionLoading(true);
                   await setHasCompletedOnboarding(false);
                   router.replace('/onboarding');
                 } catch (e) {
                   logger.error('Error launching onboarding:', e);
+                  setShowTransitionLoading(false);
                   Alert.alert(t('common.error') ?? 'Error', 'Could not launch onboarding.');
                 }
               }}

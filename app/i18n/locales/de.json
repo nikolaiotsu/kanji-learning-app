@@ -121,7 +121,7 @@
     "continueAsGuest": "Als Gast fortfahren"
   },
   "onboarding": {
-    "welcomeTitle": "Vielen Dank, dass Sie WordDex heruntergeladen haben!",
+    "welcomeTitle": "Verwandeln Sie die Welt in Ihr Klassenzimmer.",
     "welcomeSubtitle1": "Verwandeln Sie die Welt in Ihr Klassenzimmer.",
     "welcomeSubtitle2": "Scannen Sie jedes Wort, um seine Bedeutung, seinen Kontext und seine Verwendung freizuschalten — speichern Sie es sofort als Lernkarte.",
     "getStarted": "Weiter",
@@ -157,7 +157,7 @@
     "relevantTitleSuffix": "ist...relevant.",
     "relevantBullet": "Anstatt Sätze auswendig zu lernen, die Sie nie verwenden werden...",
     "relevantCta": "Weiter",
-    "empoweringTitle": "Bereit, die Magie zu sehen?",
+    "empoweringTitle": "Bereit, Ihre Reise zu beginnen?",
     "empoweringTitleSuffix": "ist...ermächtigend.",
     "empoweringBullet1": "Erstellen wir Ihre erste Karte und machen eine kleine Tour!",
     "empoweringBullet2": "Mit WordDex wird Ihre Welt zu Ihrem Klassenzimmer. Erkunden Sie ohne Grenzen!",
@@ -541,7 +541,7 @@
     },
     "findText": {
       "title": "Ihre erste Karte wartet",
-      "description": "Wählen Sie einen beliebigen {{language}}-Text in Ihrer Umgebung. Lernen Sie {{language}} aus IHREM Leben",
+      "description": "Wählen Sie einen beliebigen {{language}}-Text in Ihrer Umgebung. Lernen Sie {{language}} aus IHRER Welt.",
       "languageFallback": "eine Sprache"
     },
     "gallery": {

@@ -1,16 +1,21 @@
-import React, { useEffect } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, StatusBar, Platform, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, Text, TouchableOpacity, StatusBar, Platform, ScrollView, ActivityIndicator } from 'react-native';
 import { useOnboardingLayout } from './hooks/useOnboardingLayout';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useVideoPlayer, VideoView } from 'expo-video';
+import { useEvent } from 'expo';
 import { useOnboarding } from './context/OnboardingContext';
 import { useOnboardingProgress } from './context/OnboardingProgressContext';
+import { useOnboardingVideo } from './context/OnboardingVideosContext';
 import { COLORS } from './constants/colors';
 import OnboardingProgressBar from './components/shared/OnboardingProgressBar';
 import { FONTS } from './constants/typography';
 import LoadingVideoScreen from './components/LoadingVideoScreen';
+
+const heroshotVideoSource = require('../assets/heroshot.mp4');
 
 /**
  * Full-screen onboarding welcome screen.
@@ -23,10 +28,35 @@ export default function OnboardingScreen() {
   const { paddingHorizontal, contentPaddingTop } = useOnboardingLayout();
   const { setHasCompletedOnboarding } = useOnboarding();
   const { setOnboardingStep, hideProgressBar } = useOnboardingProgress();
+  const [hasError, setHasError] = useState(false);
+
+  const preloadedPlayer = useOnboardingVideo('heroshot');
+  const localPlayer = useVideoPlayer(heroshotVideoSource, (p) => {
+    p.loop = true;
+    p.muted = true;
+  });
+  const player = preloadedPlayer ?? localPlayer;
 
   useEffect(() => {
     setOnboardingStep('onboarding');
   }, [setOnboardingStep]);
+
+  useEffect(() => {
+    player.play();
+    return () => {
+      try {
+        player.pause();
+      } catch {
+        // Native player may already be disposed when leaving onboarding; ignore
+      }
+    };
+  }, [player]);
+
+  const { status } = useEvent(player, 'statusChange', { status: player.status });
+
+  useEffect(() => {
+    if (status === 'error') setHasError(true);
+  }, [status]);
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -53,11 +83,11 @@ export default function OnboardingScreen() {
           style={styles.scrollView}
           contentContainerStyle={[
             styles.content,
-            { paddingHorizontal, paddingTop: contentPaddingTop, paddingBottom: 24 },
+            { paddingHorizontal, paddingTop: contentPaddingTop, paddingBottom: 48 },
           ]}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.videoSection}>
+          <View style={styles.loadingVideoSection}>
             <LoadingVideoScreen compact usePreloaded={false} />
           </View>
           <View style={styles.textBlock}>
@@ -66,10 +96,24 @@ export default function OnboardingScreen() {
               <View style={styles.bullet} />
               <Text style={styles.subtitle}>{t('onboarding.welcomeSubtitle2')}</Text>
             </View>
-            <View style={styles.bulletRow}>
-              <View style={styles.bullet} />
-              <Text style={styles.subtitle}>{t('onboarding.welcomeSubtitle1')}</Text>
-            </View>
+          </View>
+          <View style={styles.heroVideoSection}>
+            {(hasError || status === 'error') ? (
+              <View style={styles.videoClip}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+              </View>
+            ) : (
+              <View style={styles.videoClip}>
+                <VideoView
+                  style={styles.video}
+                  player={player}
+                  nativeControls={false}
+                  contentFit="contain"
+                  allowsFullscreen={false}
+                  allowsPictureInPicture={false}
+                />
+              </View>
+            )}
           </View>
           <TouchableOpacity
             style={styles.button}
@@ -110,11 +154,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'stretch',
   },
-  videoSection: {
+  loadingVideoSection: {
+    marginBottom: 24,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroVideoSection: {
     marginBottom: 40,
     paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  videoClip: {
+    width: 200,
+    height: 200,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  video: {
+    width: 200,
+    height: 200,
   },
   textBlock: {
     alignSelf: 'stretch',
@@ -151,6 +216,7 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   button: {
+    flexShrink: 0,
     backgroundColor: COLORS.primary,
     height: 65,
     paddingHorizontal: 32,
@@ -178,6 +244,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   footer: {
+    flexShrink: 0,
     marginTop: 28,
     alignSelf: 'stretch',
   },

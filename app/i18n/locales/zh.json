@@ -121,7 +121,7 @@
     "continueAsGuest": "以访客身份继续"
   },
   "onboarding": {
-    "welcomeTitle": "感谢您下载WordDex!",
+    "welcomeTitle": "让世界成为你的课堂。",
     "welcomeSubtitle1": "让世界成为你的课堂。",
     "welcomeSubtitle2": "扫描任何单词即可解锁其含义、上下文和用法——立即保存为抽认卡。",
     "getStarted": "继续",
@@ -157,7 +157,7 @@
     "relevantTitleSuffix": "是...实用的。",
     "relevantBullet": "不用记忆你永远不会用到的短语...",
     "relevantCta": "继续",
-    "empoweringTitle": "准备好看魔法了吗？",
+    "empoweringTitle": "准备好开始你的旅程了吗?",
     "empoweringTitleSuffix": "是...赋能的。",
     "empoweringBullet1": "让我们制作你的第一张卡片,开始简短的教程!",
     "empoweringBullet2": "有了WordDex,你的世界就是你的课堂。尽情探索吧!",
@@ -537,7 +537,7 @@
     },
     "findText": {
       "title": "你的第一张卡片在等你",
-      "description": "选择你周围任何{{language}}文字。从你的生活中学习{{language}}",
+      "description": "选择你周围任何{{language}}文字。从你的世界学习{{language}}。",
       "languageFallback": "一种语言"
     },
     "gallery": {

@@ -121,7 +121,7 @@
     "continueAsGuest": "Continue as Guest"
   },
   "onboarding": {
-    "welcomeTitle": "Thank you for downloading WordDex!",
+    "welcomeTitle": "Turn the world into your classroom.",
     "welcomeSubtitle1": "Turn the world into your classroom.",
     "welcomeSubtitle2": "Scan any word to unlock its meaning, context, and usage — save it instantly as a flashcard.",
     "getStarted": "Continue",
@@ -157,7 +157,7 @@
     "relevantTitleSuffix": "is...relevant.",
     "relevantBullet": "Instead of memorizing phrases you'll never use...",
     "relevantCta": "Continue",
-    "empoweringTitle": "Ready to see the magic?",
+    "empoweringTitle": "Ready to start your journey?",
     "empoweringTitleSuffix": "is...empowering.",
     "empoweringBullet1": "Let's make your first card and go on a little tour!",
     "empoweringBullet2": "With WordDex, your world becomes your classroom. Explore without limits!",
@@ -544,7 +544,7 @@
     },
     "findText": {
       "title": "Your first card awaits",
-      "description": "Choose any {{language}} text around you. Start learning {{language}} from YOUR life.",
+      "description": "Choose any {{language}} text around you. Start learning {{language}} from YOUR world.",
       "languageFallback": "a language"
     },
     "gallery": {

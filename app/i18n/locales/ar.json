@@ -121,7 +121,7 @@
     "continueAsGuest": "المتابعة كزائر"
   },
   "onboarding": {
-    "welcomeTitle": "شكرًا لتحميلك WordDex!",
+    "welcomeTitle": "اجعل العالم صفك الدراسي.",
     "welcomeSubtitle1": "اجعل العالم صفك الدراسي.",
     "welcomeSubtitle2": "امسح أي كلمة لتكتشف معناها وسياقها واستخدامها — واحفظها فورًا كبطاقة تعليمية.",
     "getStarted": "متابعة",
@@ -157,7 +157,7 @@
     "relevantTitleSuffix": "...عملي.",
     "relevantBullet": "بدلاً من حفظ عبارات لن تستخدمها أبدًا...",
     "relevantCta": "متابعة",
-    "empoweringTitle": "مستعد لرؤية السحر؟",
+    "empoweringTitle": "هل أنت مستعد لبدء رحلتك؟",
     "empoweringTitleSuffix": "...يمكّنك.",
     "empoweringBullet1": "لننشئ بطاقتك الأولى ونقوم بجولة سريعة!",
     "empoweringBullet2": "مع WordDex، يصبح عالمك صفك الدراسي. استكشف بلا حدود!",
@@ -544,7 +544,7 @@
     },
     "findText": {
       "title": "بطاقتك الأولى في انتظارك",
-      "description": "اختر أي نص بـ{{language}} من حولك. ابدأ بتعلم {{language}} من حياتك",
+      "description": "اختر أي نص بـ{{language}} من حولك. تعلم {{language}} من عالمك.",
       "languageFallback": "لغة"
     },
     "gallery": {

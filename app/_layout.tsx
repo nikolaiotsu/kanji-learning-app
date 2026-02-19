@@ -97,6 +97,7 @@ function RootLayoutContent() {
   const [hasContentMounted, setHasContentMounted] = useState(false);
   const [showTransitionOverlay, setShowTransitionOverlay] = useState(false);
   const [splashHidden, setSplashHidden] = useState(false);
+  const [onboardingVideosReady, setOnboardingVideosReady] = useState(false);
   const loadingOpacity = useRef(new Animated.Value(1)).current;
   const fadeInOpacity = useRef(new Animated.Value(0)).current;
   const transitionOpacity = useRef(new Animated.Value(0)).current;
@@ -143,6 +144,16 @@ function RootLayoutContent() {
     }
   }, [showTransitionLoading, transitionOpacity]);
 
+  // Safety: when transition overlay is shown (e.g. Launch Onboarding), force dismiss after 6.5s
+  // in case onVideosReady never fires (e.g. provider unmounts when navigating from modal).
+  useEffect(() => {
+    if (!showTransitionLoading) return;
+    const safety = setTimeout(() => {
+      setShowTransitionLoading(false);
+    }, 6500);
+    return () => clearTimeout(safety);
+  }, [showTransitionLoading, setShowTransitionLoading]);
+
   // When transition loading is dismissed, fade out then hide
   useEffect(() => {
     if (!showTransitionLoading && showTransitionOverlay) {
@@ -159,6 +170,7 @@ function RootLayoutContent() {
 
   // Auth/onboarding ready = we can safely reveal the app (AuthGuard won't show its own spinner)
   const isAuthReady = !authLoading && (user != null || hasCompletedOnboarding != null);
+  const isFirstTimeUser = hasCompletedOnboarding === false;
 
   // Ensure i18n is ready before rendering the app (with cleanup and max wait to avoid runaway polling)
   useEffect(() => {
@@ -187,9 +199,11 @@ function RootLayoutContent() {
     };
   }, [i18n]);
 
-  // When content is ready, fonts loaded, and we've shown the loading screen for at least MIN_LOADING_DISPLAY_MS, fade out
+  // When content is ready, fonts loaded, and we've shown the loading screen for at least MIN_LOADING_DISPLAY_MS, fade out.
+  // For first-time users: also wait for onboarding videos to be preloaded so they appear instantly on the first screen.
   useEffect(() => {
     if (!hasContentMounted || !isAppReady || !isAuthReady || !fontsLoaded) return;
+    if (isFirstTimeUser && !onboardingVideosReady) return;
 
     const elapsed = Date.now() - loadingStartTimeRef.current;
     const remaining = Math.max(0, MIN_LOADING_DISPLAY_MS - elapsed);
@@ -205,7 +219,7 @@ function RootLayoutContent() {
     }, CONTENT_RENDER_DELAY + remaining);
 
     return () => clearTimeout(timer);
-  }, [hasContentMounted, isAppReady, isAuthReady, fontsLoaded, loadingOpacity]);
+  }, [hasContentMounted, isAppReady, isAuthReady, fontsLoaded, isFirstTimeUser, onboardingVideosReady, loadingOpacity]);
 
   const onContentLayout = useCallback(() => {
     if (!hasContentMounted) setHasContentMounted(true);
@@ -216,7 +230,7 @@ function RootLayoutContent() {
       <AppReadyProvider isSplashVisible={isLoadingVisible}>
       {isAppReady && fontsLoaded && (
         <View style={styles.container} onLayout={onContentLayout}>
-          <OnboardingVideosProvider>
+          <OnboardingVideosProvider onVideosReady={() => { setOnboardingVideosReady(true); setShowTransitionLoading(false); }}>
           <SettingsProvider>
                       <SubscriptionProvider>
                         <OCRCounterProvider>
@@ -344,7 +358,7 @@ function RootLayoutContent() {
           pointerEvents={hasContentMounted && !showTransitionOverlay ? 'none' : 'auto'}
         >
           <Animated.View style={[{ opacity: fadeInOpacity }, { paddingHorizontal }]}>
-            <LoadingVideoScreen compact />
+            <LoadingVideoScreen compact usePreloaded={false} />
           </Animated.View>
         </Animated.View>
       )}

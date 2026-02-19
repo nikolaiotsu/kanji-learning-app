@@ -121,7 +121,7 @@
     "continueAsGuest": "Tiếp tục với tư cách khách"
   },
   "onboarding": {
-    "welcomeTitle": "Cảm ơn bạn đã tải WordDex!",
+    "welcomeTitle": "Biến thế giới thành lớp học của bạn.",
     "welcomeSubtitle1": "Biến thế giới thành lớp học của bạn.",
     "welcomeSubtitle2": "Quét bất kỳ từ nào để mở khóa ý nghĩa, ngữ cảnh và cách dùng — lưu ngay thành thẻ từ vựng.",
     "getStarted": "Tiếp tục",
@@ -157,7 +157,7 @@
     "relevantTitleSuffix": "là...phù hợp.",
     "relevantBullet": "Thay vì ghi nhớ những cụm từ bạn không bao giờ dùng...",
     "relevantCta": "Tiếp tục",
-    "empoweringTitle": "Sẵn sàng xem phép màu chưa?",
+    "empoweringTitle": "Sẵn sàng bắt đầu hành trình của bạn chưa?",
     "empoweringTitleSuffix": "là...trao quyền.",
     "empoweringBullet1": "Hãy tạo thẻ đầu tiên và tham quan nhanh nhé!",
     "empoweringBullet2": "Với WordDex, thế giới của bạn trở thành lớp học. Khám phá không giới hạn!",
@@ -541,7 +541,7 @@
     },
     "findText": {
       "title": "Thẻ đầu tiên của bạn đang chờ",
-      "description": "Chọn bất kỳ văn bản {{language}} nào xung quanh bạn. Học {{language}} từ cuộc sống của BẠN",
+      "description": "Chọn bất kỳ văn bản {{language}} nào xung quanh bạn. Học {{language}} từ thế giới của BẠN.",
       "languageFallback": "một ngôn ngữ"
     },
     "gallery": {
