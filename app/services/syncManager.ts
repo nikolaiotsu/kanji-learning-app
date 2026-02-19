@@ -96,6 +96,7 @@ const transformFlashcard = (card: any): Flashcard => ({
   deckId: card.deck_id,
   imageUrl: card.image_url || undefined,
   scopeAnalysis: card.scope_analysis || undefined,
+  sourceLanguage: card.source_language || undefined,
   box: card.box ?? 1,
   nextReviewDate: card.next_review_date ? new Date(card.next_review_date) : new Date(),
 });

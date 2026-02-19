@@ -12,6 +12,7 @@ import { logger } from '../utils/logger';
 const getCardsKey = (userId: string, deckId: string) => `offline_cards_${userId}_${deckId}`;
 const getDecksKey = (userId: string) => `offline_decks_${userId}`;
 const getImageMappingKey = (userId: string) => `offline_images_${userId}`;
+const getAudioMappingKey = (userId: string) => `audio_cache_${userId}`;
 const getMetadataKey = (userId: string) => `offline_metadata_${userId}`;
 
 export interface CacheMetadata {
@@ -485,6 +486,69 @@ export const removeImageMapping = async (
     }
   } catch (error) {
     logger.error('Error removing image mapping:', error);
+  }
+};
+
+/**
+ * Cache audio (TTS) cacheKey to local path mapping
+ */
+export const cacheAudioMapping = async (
+  userId: string,
+  cacheKey: string,
+  localPath: string
+): Promise<void> => {
+  try {
+    const key = getAudioMappingKey(userId);
+    const data = await AsyncStorage.getItem(key);
+    const mapping = data ? JSON.parse(data) : {};
+    mapping[cacheKey] = localPath;
+    await AsyncStorage.setItem(key, JSON.stringify(mapping));
+    logger.log(`🔊 [OfflineStorage] Cached audio mapping: ${cacheKey}`);
+  } catch (error) {
+    logger.error('Error caching audio mapping:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get local path for cached audio
+ */
+export const getCachedAudioPath = async (
+  userId: string,
+  cacheKey: string
+): Promise<string | null> => {
+  try {
+    const key = getAudioMappingKey(userId);
+    const data = await AsyncStorage.getItem(key);
+    if (data) {
+      const mapping = JSON.parse(data);
+      return mapping[cacheKey] || null;
+    }
+    return null;
+  } catch (error) {
+    logger.error('Error getting cached audio path:', error);
+    return null;
+  }
+};
+
+/**
+ * Remove a single audio mapping from cache (does not delete file)
+ */
+export const removeAudioMapping = async (
+  userId: string,
+  cacheKey: string
+): Promise<void> => {
+  try {
+    const key = getAudioMappingKey(userId);
+    const data = await AsyncStorage.getItem(key);
+    const mapping = data ? JSON.parse(data) : {};
+    if (mapping && mapping[cacheKey]) {
+      delete mapping[cacheKey];
+      await AsyncStorage.setItem(key, JSON.stringify(mapping));
+      logger.log(`🧹 [OfflineStorage] Removed audio mapping: ${cacheKey}`);
+    }
+  } catch (error) {
+    logger.error('Error removing audio mapping:', error);
   }
 };
 

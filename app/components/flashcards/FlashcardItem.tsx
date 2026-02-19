@@ -13,6 +13,7 @@ import PokedexButton from '../shared/PokedexButton';
 import { logger } from '../../utils/logger';
 import * as Haptics from 'expo-haptics';
 import { getCachedImageUri } from '../../services/imageCache';
+import { synthesizeAndPlay } from '../../services/ttsService';
 import { useAuth } from '../../context/AuthContext';
 import { interpolateColor } from '../../utils/styleUtils';
 // Removed text formatting imports - no longer needed for direct content analysis
@@ -71,7 +72,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   showFlipButton = false,
 }) => {
   const { t } = useTranslation();
-  const { targetLanguage } = useSettings();
+  const { targetLanguage, forcedDetectionLanguage } = useSettings();
   const { user } = useAuth();
   const [isFlipped, setIsFlipped] = useState(false);
   const flipAnim = useRef(new Animated.Value(0)).current;
@@ -155,6 +156,10 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   const [imageRetryCount, setImageRetryCount] = useState(0);
   const [imageUriToUse, setImageUriToUse] = useState<string | undefined>(flashcard.imageUrl);
   const MAX_RETRY_COUNT = 5;
+
+  // TTS (text-to-speech) state for speaker button on back
+  const [ttsLoading, setTtsLoading] = useState(false);
+  const [ttsError, setTtsError] = useState<string | null>(null);
   
   
   // Load cached image URI on mount or when image URL changes
@@ -307,6 +312,24 @@ const readingsText = flashcard.readingsText;
       onFlip?.();
     });
   };
+
+  const handleTtsPress = useCallback(async () => {
+    if (!user?.id || ttsLoading || !flashcard.originalText?.trim()) return;
+    setTtsError(null);
+    setTtsLoading(true);
+    // Prefer flashcard.sourceLanguage (persisted at creation) > forcedDetectionLanguage > heuristic
+    const effectiveLanguage = flashcard.sourceLanguage || forcedDetectionLanguage || detectedLanguage || 'unknown';
+    const result = await synthesizeAndPlay({
+      flashcard,
+      detectedLanguage: effectiveLanguage,
+      userId: user.id,
+    });
+    setTtsLoading(false);
+    if (!result.success) {
+      setTtsError(result.error);
+      setTimeout(() => setTtsError(null), 3000);
+    }
+  }, [user?.id, ttsLoading, flashcard, detectedLanguage, forcedDetectionLanguage]);
 
   // Refs so edge PanResponders (created once) always see current values
   const disableTouchHandlingRef = useRef(disableTouchHandling);
@@ -1087,6 +1110,25 @@ const readingsText = flashcard.readingsText;
             )}
             {/* Bottom right actions - flip with back */}
             <View style={styles.bottomRightActionsContainer}>
+              {flashcard.originalText?.trim() && (
+                ttsLoading ? (
+                  <View style={[styles.flashcardActionButton, { width: 45, height: 45, justifyContent: 'center', alignItems: 'center' }]}>
+                    <ActivityIndicator size="small" color={COLORS.text} />
+                  </View>
+                ) : (
+                  <PokedexButton
+                    onPress={handleTtsPress}
+                    icon="volume-high"
+                    iconColor={ttsError ? '#DC2626' : 'black'}
+                    color="grey"
+                    size="small"
+                    shape="square"
+                    style={styles.flashcardActionButton}
+                    disabled={!user?.id}
+                    darkDisabled={!user?.id}
+                  />
+                )
+              )}
               {showFlipButton && (
                 <PokedexButton
                   onPress={handleFlipButtonPress}

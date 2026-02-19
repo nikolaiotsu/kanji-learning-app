@@ -4,6 +4,7 @@ export interface Flashcard {
   readingsText: string; // Source text with readings (furigana/pinyin/romanization) - universal across languages
   translatedText: string;
   targetLanguage: string; // Language code (e.g., 'en', 'ru', 'fr') this flashcard was created with
+  sourceLanguage?: string; // Language code of the original text (e.g., 'it', 'ja') for TTS accent
   createdAt: number;
   deckId: string; // ID of the deck this flashcard belongs to
   imageUrl?: string; // URL to the image in Supabase storage (optional)

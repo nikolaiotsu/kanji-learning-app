@@ -4,6 +4,9 @@ import { Flashcard } from '../types/Flashcard';
 import { Deck } from '../types/Deck';
 import { logger } from '../utils/logger';
 import { createDeck as createDeckSupabase, saveFlashcard, uploadImageToStorage } from './supabaseStorage';
+import { deleteCachedAudioForCard } from './audioCache';
+import { getLanguageCode } from './ttsService';
+import { getUserIdOffline } from './offlineAuth';
 
 const GUEST_FLASHCARDS_KEY = '@guest_flashcards';
 const GUEST_DECKS_KEY = '@guest_decks';
@@ -156,8 +159,21 @@ export const saveLocalFlashcard = async (
  */
 export const deleteLocalFlashcard = async (id: string): Promise<boolean> => {
   const cards = await getLocalFlashcards();
+  const card = cards.find((c) => c.id === id);
+  if (!card) return false;
+
+  // Delete cached TTS audio for this card (best-effort; userId may be null for guests)
+  try {
+    const userId = await getUserIdOffline();
+    if (userId && card.originalText) {
+      const languageCode = getLanguageCode(card.sourceLanguage || 'en');
+      await deleteCachedAudioForCard(userId, card.originalText, languageCode);
+    }
+  } catch (err) {
+    logger.error('[LocalFlashcardStorage] Error deleting cached audio:', err);
+  }
+
   const filtered = cards.filter((c) => c.id !== id);
-  if (filtered.length === cards.length) return false;
   await AsyncStorage.setItem(GUEST_FLASHCARDS_KEY, JSON.stringify(filtered));
   logger.log('[LocalFlashcardStorage] Deleted local flashcard:', id);
   return true;
@@ -213,6 +229,22 @@ export const deleteLocalDeck = async (id: string): Promise<boolean> => {
   const [decks, cards] = await Promise.all([getLocalDecks(), getLocalFlashcards()]);
   const newDecks = decks.filter((d) => d.id !== id);
   if (newDecks.length === decks.length) return false;
+
+  const cardsToRemove = cards.filter((c) => c.deckId === id);
+  try {
+    const userId = await getUserIdOffline();
+    if (userId) {
+      for (const card of cardsToRemove) {
+        if (card.originalText) {
+          const languageCode = getLanguageCode(card.sourceLanguage || 'en');
+          await deleteCachedAudioForCard(userId, card.originalText, languageCode);
+        }
+      }
+    }
+  } catch (err) {
+    logger.error('[LocalFlashcardStorage] Error deleting cached audio for deck:', err);
+  }
+
   const newCards = cards.filter((c) => c.deckId !== id);
   await AsyncStorage.setItem(GUEST_DECKS_KEY, JSON.stringify(newDecks));
   await AsyncStorage.setItem(GUEST_FLASHCARDS_KEY, JSON.stringify(newCards));

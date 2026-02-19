@@ -3,6 +3,8 @@ import { logger } from '../utils/logger';
 import { getUserIdOffline } from './offlineAuth';
 import { clearCache } from './offlineStorage';
 import { deleteCachedImages } from './imageCache';
+import { deleteCachedAudioForCard } from './audioCache';
+import { getLanguageCode } from './ttsService';
 import { sanitizeForLogging } from './privacyService';
 import { EXPO_PUBLIC_SUPABASE_URL } from '@env';
 
@@ -350,10 +352,10 @@ export const deleteFlashcardData = async (flashcardId: string): Promise<boolean>
     
     logger.log(`🗑️ [UserDataControl] Deleting flashcard: ${flashcardId}`);
     
-    // Get flashcard data first
+    // Get flashcard data first (need original_text, source_language for audio cache cleanup)
     const { data: flashcard, error: fetchError } = await supabase
       .from('flashcards')
-      .select('image_url')
+      .select('image_url, original_text, source_language')
       .eq('id', flashcardId)
       .eq('user_id', userId)
       .single();
@@ -410,7 +412,17 @@ export const deleteFlashcardData = async (flashcardId: string): Promise<boolean>
         logger.warn('Error deleting flashcard image:', error);
       }
     }
-    
+
+    // Delete cached TTS audio for this card
+    if (flashcard.original_text) {
+      try {
+        const languageCode = getLanguageCode(flashcard.source_language || 'en');
+        await deleteCachedAudioForCard(userId, flashcard.original_text, languageCode);
+      } catch (audioErr) {
+        logger.warn('Failed to delete cached audio for flashcard:', audioErr);
+      }
+    }
+
     logger.log(`🗑️ [UserDataControl] Flashcard deleted successfully: ${flashcardId}`);
     return true;
   } catch (error) {

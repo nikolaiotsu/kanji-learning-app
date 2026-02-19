@@ -1048,6 +1048,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
         readingsText: needsRomanization ? readingsText : "", // Store readings (furigana/pinyin/romanization) in readingsText field
         translatedText,
         targetLanguage,
+        sourceLanguage: forcedDetectionLanguage,
         createdAt: Date.now(),
         deckId: deckId,
         imageUrl: storedImageUrl,

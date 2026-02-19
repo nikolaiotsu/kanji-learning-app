@@ -18,6 +18,8 @@ import {
   clearDeckCache
 } from './offlineStorage';
 import { batchCacheImages, deleteCachedImage, deleteCachedImages } from './imageCache';
+import { deleteCachedAudioForCard } from './audioCache';
+import { getLanguageCode } from './ttsService';
 import { getUserIdOffline } from './offlineAuth';
 import { generatePrivacySafeImageId, sanitizeForLogging } from './privacyService';
 
@@ -75,6 +77,7 @@ const transformFlashcard = (card: any): Flashcard => ({
   deckId: card.deck_id,
   imageUrl: card.image_url || undefined, // Include image URL if available
   scopeAnalysis: card.scope_analysis || undefined, // Include scope analysis if available
+  sourceLanguage: card.source_language || undefined,
   box: card.box ?? 1, // Default to box 1 if not set (backward compatibility)
   nextReviewDate: card.next_review_date ? new Date(card.next_review_date) : new Date(), // Default to today if not set
 });
@@ -654,6 +657,7 @@ export const saveFlashcard = async (flashcard: Flashcard, deckId: string): Promi
       deck_id: deckId,
       image_url: flashcard.imageUrl || null, // Include image URL if available
       scope_analysis: flashcard.scopeAnalysis || null, // Include scope analysis if available
+      source_language: flashcard.sourceLanguage || null,
       box: box, // Leitner box (defaults to 1)
       next_review_date: nextReviewDate, // Next review date (defaults to today + box interval)
     };
@@ -1292,6 +1296,11 @@ export const deleteFlashcard = async (id: string): Promise<boolean> => {
           // Also delete from Supabase Storage
           await deleteImageFromStorage(card.imageUrl);
         }
+        // Delete cached TTS audio for this card
+        if (card.originalText) {
+          const languageCode = getLanguageCode(card.sourceLanguage || 'en');
+          await deleteCachedAudioForCard(userId, card.originalText, languageCode);
+        }
       }
     } catch (cacheError) {
       logger.error('Error invalidating cache on deleteFlashcard:', cacheError);
@@ -1312,15 +1321,17 @@ export const deleteFlashcard = async (id: string): Promise<boolean> => {
  */
 export const deleteDeck = async (deckId: string, deleteFlashcards: boolean = true): Promise<boolean> => {
   try {
-    // Pre-fetch image URLs for flashcards in this deck (best-effort)
+    // Pre-fetch flashcard data for cache cleanup (images + audio)
     let imageUrls: string[] = [];
+    let deckCards: Array<{ image_url?: string | null; original_text?: string; source_language?: string | null }> = [];
     try {
-      const { data: deckCards, error: fetchErr } = await supabase
+      const { data, error: fetchErr } = await supabase
         .from('flashcards')
-        .select('image_url')
+        .select('image_url, original_text, source_language')
         .eq('deck_id', deckId);
-      if (!fetchErr && Array.isArray(deckCards)) {
-        imageUrls = deckCards.map((c: any) => c.image_url).filter((u: string | null) => !!u);
+      if (!fetchErr && Array.isArray(data)) {
+        deckCards = data;
+        imageUrls = data.map((c: any) => c.image_url).filter((u: string | null) => !!u);
       }
     } catch (e) {
       // Non-fatal
@@ -1357,6 +1368,13 @@ export const deleteDeck = async (deckId: string, deleteFlashcards: boolean = tru
         await removeDeckFromCache(userId, deckId);
         if (imageUrls.length > 0) {
           await deleteCachedImages(userId, imageUrls);
+        }
+        // Delete cached TTS audio for each card in the deck
+        for (const card of deckCards) {
+          if (card.original_text) {
+            const languageCode = getLanguageCode(card.source_language || 'en');
+            await deleteCachedAudioForCard(userId, card.original_text, languageCode);
+          }
         }
         // Refresh deck cache in background (do not block)
         fetchAndCacheDecks(userId, false).catch(() => {});
@@ -1510,6 +1528,7 @@ export const updateFlashcard = async (flashcard: Flashcard): Promise<boolean> =>
       target_language: flashcard.targetLanguage,
       image_url: flashcard.imageUrl || null, // Include image URL in update
       scope_analysis: flashcard.scopeAnalysis || null, // Include scope analysis in update
+      source_language: flashcard.sourceLanguage || null,
     };
     
     // Only include SRS fields if they are defined and valid
