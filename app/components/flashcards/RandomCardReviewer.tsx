@@ -345,6 +345,39 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     outputRange: [0, -10],
   });
 
+  // Flash animation for walkthrough yellow borders (collections, review-button)
+  const walkthroughBorderFlashAnim = useRef(new Animated.Value(0)).current;
+  const walkthroughStepsWithFlash = ['collections', 'review-button'];
+  useEffect(() => {
+    const shouldFlash = isWalkthroughActive && walkthroughStepsWithFlash.includes(currentWalkthroughStepId ?? '');
+    if (!shouldFlash) {
+      walkthroughBorderFlashAnim.setValue(0);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(walkthroughBorderFlashAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(walkthroughBorderFlashAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [isWalkthroughActive, currentWalkthroughStepId, walkthroughBorderFlashAnim]);
+
+  // Opacity pulse: 1 -> 0.5 -> 1 so the border "flashes"
+  const walkthroughBorderFlashOpacity = walkthroughBorderFlashAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0.5],
+  });
+
   // Create interpolated color value directly - no setState means no re-renders during animation
   const reviewButtonRainbowColor = reviewButtonRainbowAnim.interpolate({
     inputRange: [0, 0.166, 0.333, 0.5, 0.666, 0.833, 1],
@@ -1974,6 +2007,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       return (
         <View style={[styles.container]}>
           <View style={styles.header}>
+          <Animated.View style={isWalkthroughActive && currentWalkthroughStepId === 'collections' ? { opacity: walkthroughBorderFlashOpacity } : undefined}>
           <View 
             ref={collectionsButtonRef} 
             collapsable={false}
@@ -1993,7 +2027,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               <Ionicons 
                 name="albums-outline" 
                 size={20} 
-                color={COLORS.primary} // Stay blue throughout walkthrough
+                color="grey"
                 style={{ zIndex: 1001 }} // Ensure icon is above yellow background
               />
               <Text 
@@ -2006,8 +2040,10 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               </Text>
           </TouchableOpacity>
             </View>
+            </Animated.View>
             
             {/* SRS Mode Toggle */}
+            <Animated.View style={isWalkthroughActive && currentWalkthroughStepId === 'review-button' ? { opacity: walkthroughBorderFlashOpacity } : undefined}>
             <View
               ref={reviewButtonRef}
               collapsable={false}
@@ -2031,7 +2067,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
             <Ionicons 
               name={buttonDisplayActive ? "school" : "school-outline"} 
               size={18} 
-              color={isWalkthroughActive && currentWalkthroughStepId === 'review-button' ? '#FBBF24' : (buttonDisplayActive ? COLORS.text : COLORS.primary)}
+              color={isWalkthroughActive && currentWalkthroughStepId === 'review-button' ? '#FBBF24' : (buttonDisplayActive ? COLORS.text : 'grey')}
             />
             <Text 
               style={[
@@ -2043,6 +2079,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
             </Text>
           </AnimatedTouchableOpacity>
             </View>
+            </Animated.View>
           
           {/* Offline Indicator */}
           <OfflineBanner visible={!isConnected} />
@@ -2093,6 +2130,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       return (
         <View style={[styles.container]}>
           <View style={styles.header}>
+            <Animated.View style={isWalkthroughActive && currentWalkthroughStepId === 'collections' ? { opacity: walkthroughBorderFlashOpacity } : undefined}>
             <View 
               ref={collectionsButtonRef} 
               collapsable={false}
@@ -2113,7 +2151,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 <Ionicons 
                   name="albums-outline" 
                   size={20} 
-                  color={COLORS.primary} // Stay blue throughout walkthrough
+                  color="grey"
                   style={{ zIndex: 1001 }} // Ensure icon is above yellow background
                 />
                 <Text 
@@ -2126,8 +2164,10 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 </Text>
             </TouchableOpacity>
             </View>
+            </Animated.View>
             
             {/* SRS Mode Toggle */}
+            <Animated.View style={isWalkthroughActive && currentWalkthroughStepId === 'review-button' ? { opacity: walkthroughBorderFlashOpacity } : undefined}>
             <View
               ref={reviewButtonRef}
               collapsable={false}
@@ -2159,7 +2199,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                   ? '#FBBF24'
                   : ((reviewSessionCards.length === 0 && filteredCards.length === 0) 
                     ? COLORS.lightGray 
-                    : (buttonDisplayActive ? COLORS.text : COLORS.primary))}
+                    : (buttonDisplayActive ? COLORS.text : 'grey'))}
               />
               <Text 
                 style={[
@@ -2172,6 +2212,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               </Text>
             </AnimatedTouchableOpacity>
             </View>
+            </Animated.View>
             
             {/* Offline Indicator */}
             <OfflineBanner visible={!isConnected} />
@@ -2269,6 +2310,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       return (
         <Animated.View style={[styles.container, containerCompletionPulseStyle]}>
           <View style={styles.header}>
+            <Animated.View style={isWalkthroughActive && currentWalkthroughStepId === 'collections' ? { opacity: walkthroughBorderFlashOpacity } : undefined}>
             <View 
               ref={collectionsButtonRef} 
               collapsable={false}
@@ -2289,7 +2331,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 <Ionicons 
                   name="albums-outline" 
                   size={20} 
-                  color={COLORS.primary} // Stay blue throughout walkthrough
+                  color="grey"
                   style={{ zIndex: 1001 }} // Ensure icon is above yellow background
                 />
                 <Text 
@@ -2302,8 +2344,10 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 </Text>
             </TouchableOpacity>
             </View>
+            </Animated.View>
             
             {/* SRS Mode Toggle */}
+            <Animated.View style={isWalkthroughActive && currentWalkthroughStepId === 'review-button' ? { opacity: walkthroughBorderFlashOpacity } : undefined}>
             <View
               ref={reviewButtonRef}
               collapsable={false}
@@ -2332,7 +2376,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                   ? '#FBBF24'
                   : (isSessionFinished 
                     ? COLORS.lightGray 
-                    : (buttonDisplayActive ? COLORS.text : COLORS.primary))}
+                    : (buttonDisplayActive ? COLORS.text : 'grey'))}
               />
               <Text 
                 style={[
@@ -2345,6 +2389,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               </Text>
             </AnimatedTouchableOpacity>
             </View>
+            </Animated.View>
             
             {/* SRS Counter - Keep visible when showing no cards message */}
             {shouldShowCounter && (
@@ -2473,6 +2518,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       ]}
     >
       <View style={styles.header}>
+        <Animated.View style={isWalkthroughActive && currentWalkthroughStepId === 'collections' ? { opacity: walkthroughBorderFlashOpacity } : undefined}>
         <View 
           ref={collectionsButtonRef} 
           collapsable={false}
@@ -2496,7 +2542,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
             <Ionicons 
               name="albums-outline" 
               size={20} 
-                  color="rgba(59, 130, 246, 0.5)" // More transparent blue
+                  color="grey"
               style={{ zIndex: 1001 }} // Ensure icon is above yellow background
             />
             <Text 
@@ -2509,8 +2555,10 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
             </Text>
         </TouchableOpacity>
         </View>
+        </Animated.View>
         
         {/* SRS Mode Toggle */}
+        <Animated.View style={isWalkthroughActive && currentWalkthroughStepId === 'review-button' ? { opacity: walkthroughBorderFlashOpacity } : undefined}>
         <View
           ref={reviewButtonRef}
           collapsable={false}
@@ -2538,7 +2586,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           <Ionicons 
             name={buttonDisplayActive ? "school" : "school-outline"} 
             size={18} 
-            color={buttonDisplayActive ? COLORS.text : 'rgba(59, 130, 246, 0.5)'} // More transparent blue when inactive
+            color={buttonDisplayActive ? COLORS.text : 'grey'}
           />
           <Text 
             style={[
@@ -2550,6 +2598,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           </Text>
         </AnimatedTouchableOpacity>
         </View>
+        </Animated.View>
         
         {/* SRS Counter - Only visible in SRS Mode, positioned right after Review button */}
         {shouldShowCounter && (
@@ -2899,7 +2948,7 @@ const createStyles = (
   },
   deckButtonText: {
     fontFamily: FONTS.sansMedium,
-    color: 'rgba(59, 130, 246, 0.5)', // More transparent blue
+    color: 'grey',
     marginLeft: 4,
     fontWeight: '500',
     zIndex: 1001, // Ensure text is above the yellow background
@@ -2925,7 +2974,7 @@ const createStyles = (
   },
   reviewModeButtonText: {
     fontFamily: FONTS.sansMedium,
-    color: 'rgba(59, 130, 246, 0.5)', // More transparent blue
+    color: 'grey',
     marginLeft: 4,
     fontWeight: '500',
     zIndex: 1001,

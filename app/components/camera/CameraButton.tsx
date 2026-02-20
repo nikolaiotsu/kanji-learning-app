@@ -190,7 +190,7 @@ export default function CameraButton({ onPhotoCapture, style, onProcessingStateC
         <PokedexButton
           onPress={handleBack}
           icon="arrow-back"
-          iconColor="#000000"
+          iconColor="grey"
           color="grey"
           size="medium"
           shape="square"
@@ -199,7 +199,7 @@ export default function CameraButton({ onPhotoCapture, style, onProcessingStateC
         <PokedexButton
           onPress={takePhoto}
           icon={disabled ? "lock-closed" : "camera"}
-          iconColor="#000000"
+          iconColor="grey"
           color="grey"
           size="medium"
           shape="square"

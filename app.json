@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/worddexiconlogo.png",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/worddexiconlogo.png",
       "resizeMode": "contain",
@@ -39,7 +39,6 @@
       "favicon": "./assets/worddexiconlogo.png"
     },
     "plugins": [
-      "expo-video",
       [
         "expo-splash-screen",
         {

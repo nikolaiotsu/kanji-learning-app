@@ -306,8 +306,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   const CROP_HINT_BOX_HEIGHT = 116;
   const CROP_HINT_CURSOR_SIZE = 14;
   const cropHintOpenAnim = useRef(new Animated.Value(0)).current;
-  // Flash animation for find-text step yellow borders (gallery + camera)
-  const findTextBorderFlashAnim = useRef(new Animated.Value(0)).current;
+  // Flash animation for walkthrough yellow borders (all highlighted steps)
+  const walkthroughBorderFlashAnim = useRef(new Animated.Value(0)).current;
   const showCropDragHint =
     isWalkthroughActive && currentStep?.id === 'crop' && cropModeActive && !hasCropSelection && !cropConfirmingRef.current;
 
@@ -361,21 +361,22 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     return () => loop.stop();
   }, [showCropDragHint, cropHintOpenAnim]);
 
-  // Flash loop for find-text step (yellow borders pulse to draw attention)
+  // Flash loop for walkthrough steps with yellow borders (pulse to draw attention)
+  const walkthroughStepsWithFlash = ['find-text', 'custom-card', 'flashcards', 'confirm-highlight', 'crop'];
   useEffect(() => {
-    const onFindTextStep = isWalkthroughActive && currentStep?.id === 'find-text';
-    if (!onFindTextStep) {
-      findTextBorderFlashAnim.setValue(0);
+    const shouldFlash = isWalkthroughActive && walkthroughStepsWithFlash.includes(currentStep?.id ?? '');
+    if (!shouldFlash) {
+      walkthroughBorderFlashAnim.setValue(0);
       return;
     }
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(findTextBorderFlashAnim, {
+        Animated.timing(walkthroughBorderFlashAnim, {
           toValue: 1,
           duration: 600,
           useNativeDriver: true,
         }),
-        Animated.timing(findTextBorderFlashAnim, {
+        Animated.timing(walkthroughBorderFlashAnim, {
           toValue: 0,
           duration: 600,
           useNativeDriver: true,
@@ -384,10 +385,10 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     );
     loop.start();
     return () => loop.stop();
-  }, [isWalkthroughActive, currentStep?.id, findTextBorderFlashAnim]);
+  }, [isWalkthroughActive, currentStep?.id, walkthroughBorderFlashAnim]);
 
   // Opacity pulse: 1 -> 0.5 -> 1 so the border "flashes"
-  const findTextBorderFlashOpacity = findTextBorderFlashAnim.interpolate({
+  const walkthroughBorderFlashOpacity = walkthroughBorderFlashAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [1, 0.5],
   });
@@ -2809,6 +2810,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           {/* Button Row - moved below the reviewer */}
           <View style={styles.buttonRow}>
             {/* Add Custom Card Button (leftmost) */}
+            <Animated.View style={isWalkthroughActive && currentStep?.id === 'custom-card' ? { opacity: walkthroughBorderFlashOpacity } : undefined}>
             <View 
               ref={customCardButtonRef} 
               collapsable={false} 
@@ -2823,7 +2825,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                     ? '#FBBF24' // Warm amber for highlighted
                     : isWalkthroughActive
                     ? '#94A3B8' // Slate grey for non-highlighted during walkthrough
-                    : '#000000' // Black icon color
+                    : 'grey'
                 }
                 color="grey"
                 size="medium"
@@ -2833,7 +2835,9 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 darkDisabled={isAPILimitExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
               />
             </View>
+            </Animated.View>
             {/* Check Flashcards Button */}
+            <Animated.View style={isWalkthroughActive && currentStep?.id === 'flashcards' ? { opacity: walkthroughBorderFlashOpacity } : undefined}>
             <View 
               ref={flashcardsButtonRef} 
               collapsable={false} 
@@ -2848,7 +2852,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                     ? '#FBBF24' // Warm amber for highlighted
                     : isWalkthroughActive
                     ? '#94A3B8' // Slate grey for non-highlighted during walkthrough
-                    : '#000000' // Black icon color
+                    : 'grey'
                 }
                 color="grey"
                 size="medium"
@@ -2857,11 +2861,12 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'flashcards')}
               />
             </View>
+            </Animated.View>
             {/* Camera + Gallery row (wrap for find-text step so modal appears above both). Skip for find-text is rendered by parent above progress bar. */}
             <View style={styles.cameraGalleryRowWrapper}>
             <View ref={cameraGalleryRowRef} collapsable={false} style={styles.cameraGalleryRow}>
             {/* Gallery Button */}
-            <Animated.View style={isWalkthroughActive && currentStep?.id === 'find-text' ? { opacity: findTextBorderFlashOpacity } : undefined}>
+            <Animated.View style={isWalkthroughActive && currentStep?.id === 'find-text' ? { opacity: walkthroughBorderFlashOpacity } : undefined}>
             <WalkthroughTarget
               targetRef={galleryButtonRef} 
               stepId="gallery"
@@ -2875,7 +2880,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
               <PokedexButton
                 onPress={(canCreateFlashcard && !isAPILimitExhausted && isConnected) ? pickImage : showUpgradeAlert}
                 icon={isWalkthroughActive ? "images" : ((isAPILimitExhausted || !canCreateFlashcard || !isConnected || isImageProcessing || localProcessing) ? "lock-closed" : "images")}
-                iconColor="#000000"
+                iconColor="grey"
                 color="grey"
                 size="medium"
                 shape="square"
@@ -2889,7 +2894,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
             </WalkthroughTarget>
             </Animated.View>
             {/* Camera Button (rightmost) */}
-<Animated.View style={isWalkthroughActive && currentStep?.id === 'find-text' ? { opacity: findTextBorderFlashOpacity } : undefined}>
+<Animated.View style={isWalkthroughActive && currentStep?.id === 'find-text' ? { opacity: walkthroughBorderFlashOpacity } : undefined}>
             <View
               ref={cameraButtonRef}
               collapsable={false} 
@@ -3163,6 +3168,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                           shape="square"
                           disabled={localProcessing || isImageProcessing}
                         />
+                        <Animated.View style={isWalkthroughActive && currentStep?.id === 'confirm-highlight' ? { opacity: walkthroughBorderFlashOpacity } : undefined}>
                         <WalkthroughTarget
                           targetRef={checkmarkButtonRef}
                           stepId="confirm-highlight"
@@ -3184,6 +3190,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                             disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'confirm-highlight')}
                           />
                         </WalkthroughTarget>
+                        </Animated.View>
                       </>
                     )}
   
@@ -3197,14 +3204,18 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                           shape="square"
                           disabled={localProcessing || isImageProcessing}
                         />
+                        <Animated.View style={isWalkthroughActive && currentStep?.id === 'crop' ? { opacity: walkthroughBorderFlashOpacity } : undefined}>
+                        <View style={isWalkthroughActive && currentStep?.id === 'crop' ? styles.highlightedToolbarButtonWrapper : undefined}>
                         <PokedexButton
                           onPress={confirmCrop}
                           icon="checkmark"
-                          iconColor="#FFFFFF"
+                          iconColor={isWalkthroughActive && currentStep?.id === 'crop' ? '#FFFF00' : '#FFFFFF'}
                           size="medium"
                           shape="square"
                           disabled={localProcessing || isImageProcessing}
                         />
+                        </View>
+                        </Animated.View>
                       </>
                     )}
 

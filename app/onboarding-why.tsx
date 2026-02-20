@@ -7,6 +7,7 @@ import {
   StatusBar,
   Platform,
   ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 import { useOnboardingLayout } from './hooks/useOnboardingLayout';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -31,9 +32,13 @@ const REASON_OPTIONS = [
 export default function OnboardingWhyScreen() {
   const { t } = useTranslation();
   const { paddingHorizontal, contentPaddingTop } = useOnboardingLayout();
+  const { height } = useWindowDimensions();
   const { setOnboardingStep } = useOnboardingProgress();
   const { forcedDetectionLanguage } = useSettings();
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Responsive sizing for small screens (iPhone SE has ~667pt height)
+  const isSmallScreen = height < 700;
 
   // Localized name of the language being learned (e.g. "英語" when UI is Japanese, "English" when UI is English)
   const learnLanguageName =
@@ -85,22 +90,22 @@ export default function OnboardingWhyScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.videoSection}>
+          <View style={[styles.videoSection, { marginBottom: isSmallScreen ? 20 : 32 }]}>
             <LoadingVideoScreen compact />
           </View>
-          <View style={styles.textBlock}>
-            <Text style={styles.title}>{t('onboarding.whyTitle', { language: learnLanguageName })}</Text>
+          <View style={[styles.textBlock, { marginBottom: isSmallScreen ? 20 : 32 }]}>
+            <Text style={[styles.title, isSmallScreen && { fontSize: 23, marginBottom: 16 }]}>{t('onboarding.whyTitle', { language: learnLanguageName })}</Text>
             {REASON_OPTIONS.map((option) => {
               const isSelected = selected.has(option.id);
               return (
                 <TouchableOpacity
                   key={option.id}
-                  style={[styles.optionButton, isSelected && styles.optionButtonSelected]}
+                  style={[styles.optionButton, isSelected && styles.optionButtonSelected, isSmallScreen && { paddingVertical: 10, marginBottom: 8 }]}
                   onPress={() => toggleOption(option.id)}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.optionEmoji}>{option.emoji}</Text>
-                  <Text style={[styles.optionLabel, isSelected && styles.optionLabelSelected]}>
+                  <Text style={[styles.optionEmoji, isSmallScreen && { fontSize: 18 }]}>{option.emoji}</Text>
+                  <Text style={[styles.optionLabel, isSelected && styles.optionLabelSelected, isSmallScreen && { fontSize: 17 }]}>
                     {t(option.labelKey)}
                   </Text>
                 </TouchableOpacity>
@@ -108,7 +113,7 @@ export default function OnboardingWhyScreen() {
             })}
           </View>
           <TouchableOpacity
-            style={[styles.button, selected.size === 0 && styles.buttonDisabled]}
+            style={[styles.button, selected.size === 0 && styles.buttonDisabled, isSmallScreen && { height: 56 }]}
             onPress={handleContinue}
             activeOpacity={0.8}
             disabled={selected.size === 0}
@@ -141,14 +146,12 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
   },
   videoSection: {
-    marginBottom: 32,
     paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
   textBlock: {
     alignSelf: 'stretch',
-    marginBottom: 32,
   },
   title: {
     fontFamily: FONTS.sansBold,

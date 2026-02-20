@@ -14,7 +14,6 @@ import BadgeModalGate from './components/shared/BadgeModalGate';
 import { OnboardingProvider } from './context/OnboardingContext';
 import { OnboardingProgressProvider } from './context/OnboardingProgressContext';
 import LoadingVideoScreen from './components/LoadingVideoScreen';
-import { LoadingVideoProvider } from './context/LoadingVideoContext';
 import { OnboardingVideosProvider } from './context/OnboardingVideosContext';
 import { AppReadyProvider } from './context/AppReadyContext';
 import { TransitionLoadingProvider, useTransitionLoading } from './context/TransitionLoadingContext';
@@ -358,7 +357,7 @@ function RootLayoutContent() {
           pointerEvents={hasContentMounted && !showTransitionOverlay ? 'none' : 'auto'}
         >
           <Animated.View style={[{ opacity: fadeInOpacity }, { paddingHorizontal }]}>
-            <LoadingVideoScreen compact usePreloaded={false} />
+            <LoadingVideoScreen compact />
           </Animated.View>
         </Animated.View>
       )}
@@ -391,19 +390,17 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.gestureContainer}>
       <SafeAreaProvider>
-        <LoadingVideoProvider>
-          <AuthProvider>
-            <SignInPromptTriggerProvider>
-              <OnboardingProvider>
-                <OnboardingProgressProvider>
-                  <TransitionLoadingProvider>
-                    <RootLayoutContent />
-                  </TransitionLoadingProvider>
-                </OnboardingProgressProvider>
-              </OnboardingProvider>
-            </SignInPromptTriggerProvider>
-          </AuthProvider>
-        </LoadingVideoProvider>
+        <AuthProvider>
+          <SignInPromptTriggerProvider>
+            <OnboardingProvider>
+              <OnboardingProgressProvider>
+                <TransitionLoadingProvider>
+                  <RootLayoutContent />
+                </TransitionLoadingProvider>
+              </OnboardingProgressProvider>
+            </OnboardingProvider>
+          </SignInPromptTriggerProvider>
+        </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

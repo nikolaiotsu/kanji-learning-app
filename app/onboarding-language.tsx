@@ -10,6 +10,7 @@ import {
   FlatList,
   Pressable,
   ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 import { useOnboardingLayout } from './hooks/useOnboardingLayout';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -30,8 +31,12 @@ const LEARN_LANGUAGE_DATA = Object.entries(DETECTABLE_LANGUAGES).map(([code, nam
 export default function OnboardingLanguageScreen() {
   const { t } = useTranslation();
   const { paddingHorizontal, contentPaddingTop } = useOnboardingLayout();
+  const { height } = useWindowDimensions();
   const { setHasCompletedOnboarding } = useOnboarding();
   const { setOnboardingStep } = useOnboardingProgress();
+
+  // Responsive sizing for small screens (iPhone SE has ~667pt height)
+  const isSmallScreen = height < 700;
 
   useEffect(() => {
     setOnboardingStep('onboarding-language');
@@ -82,31 +87,31 @@ export default function OnboardingLanguageScreen() {
           ]}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.videoSection}>
+          <View style={[styles.videoSection, { marginBottom: isSmallScreen ? 20 : 32 }]}>
             <LoadingVideoScreen compact />
           </View>
-          <View style={styles.textBlock}>
-            <Text style={styles.title}>{t('onboarding.languageTitle1')}</Text>
+          <View style={[styles.textBlock, { marginBottom: isSmallScreen ? 20 : 32 }]}>
+            <Text style={[styles.title, isSmallScreen && { fontSize: 23, marginBottom: 10 }]}>{t('onboarding.languageTitle1')}</Text>
             <TouchableOpacity
-              style={styles.languageButton}
+              style={[styles.languageButton, isSmallScreen && { paddingVertical: 12 }]}
               onPress={() => setShowSpeakPicker(true)}
               activeOpacity={0.8}
             >
-              <Text style={styles.languageButtonText}>{selectedSpeakName}</Text>
+              <Text style={[styles.languageButtonText, isSmallScreen && { fontSize: 18 }]}>{selectedSpeakName}</Text>
               <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
             </TouchableOpacity>
-            <Text style={[styles.title, styles.titleWithSpacing]}>{t('onboarding.languageTitle2')}</Text>
+            <Text style={[styles.title, styles.titleWithSpacing, isSmallScreen && { fontSize: 23, marginTop: 16, marginBottom: 10 }]}>{t('onboarding.languageTitle2')}</Text>
             <TouchableOpacity
-              style={styles.languageButton}
+              style={[styles.languageButton, isSmallScreen && { paddingVertical: 12 }]}
               onPress={() => setShowLearnPicker(true)}
               activeOpacity={0.8}
             >
-              <Text style={styles.languageButtonText}>{selectedLearnName}</Text>
+              <Text style={[styles.languageButtonText, isSmallScreen && { fontSize: 18 }]}>{selectedLearnName}</Text>
               <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
             </TouchableOpacity>
           </View>
           <TouchableOpacity
-            style={styles.button}
+            style={[styles.button, isSmallScreen && { height: 56 }]}
             onPress={handleContinue}
             activeOpacity={0.8}
           >
@@ -224,14 +229,12 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
   },
   videoSection: {
-    marginBottom: 32,
     paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
   textBlock: {
     alignSelf: 'stretch',
-    marginBottom: 32,
   },
   title: {
     fontFamily: FONTS.sansBold,

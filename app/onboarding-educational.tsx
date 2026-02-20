@@ -14,9 +14,7 @@ import { useOnboardingLayout } from './hooks/useOnboardingLayout';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
-import { useVideoPlayer, VideoView } from 'expo-video';
-import { useOnboardingVideo } from './context/OnboardingVideosContext';
-import { useEvent } from 'expo';
+import { Video, ResizeMode } from 'expo-av';
 import { useOnboarding } from './context/OnboardingContext';
 import { useOnboardingProgress } from './context/OnboardingProgressContext';
 import { useAuth } from './context/AuthContext';
@@ -36,41 +34,24 @@ const PHONE_MAX_WIDTH = 767;
 export default function OnboardingEducationalScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const isPhoneOrNarrow = width <= PHONE_MAX_WIDTH;
   const { paddingHorizontal, contentPaddingTop } = useOnboardingLayout();
   const { setHasCompletedOnboarding } = useOnboarding();
   const { setOnboardingStep } = useOnboardingProgress();
 
+  const [hasError, setHasError] = useState(false);
+
+  // Responsive sizing for small screens (iPhone SE has ~667pt height)
+  const isSmallScreen = height < 700;
+  const videoWidth = isSmallScreen ? 150 : 200;
+  const videoHeight = isSmallScreen ? 200 : 267;
+  const sectionMargin = isSmallScreen ? 20 : 32;
+
   useEffect(() => {
     setOnboardingStep('onboarding-educational');
   }, [setOnboardingStep]);
   const { setGuestMode } = useAuth();
-  const [hasError, setHasError] = useState(false);
-
-  const preloadedPlayer = useOnboardingVideo('guyflying');
-  const localPlayer = useVideoPlayer(guyflyingVideoSource, (p) => {
-    p.loop = true;
-    p.muted = true;
-  });
-  const player = preloadedPlayer ?? localPlayer;
-
-  useEffect(() => {
-    player.play();
-    return () => {
-      try {
-        player.pause();
-      } catch {
-        // Native player may already be disposed when leaving onboarding; ignore
-      }
-    };
-  }, [player]);
-
-  const { status } = useEvent(player, 'statusChange', { status: player.status });
-
-  useEffect(() => {
-    if (status === 'error') setHasError(true);
-  }, [status]);
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -105,14 +86,14 @@ export default function OnboardingEducationalScreen() {
           ]}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.textBlock}>
+          <View style={[styles.textBlock, { marginBottom: isSmallScreen ? 16 : 24 }]}>
             {isPhoneOrNarrow ? (
               <>
-                <View style={styles.phoneVideoAbove}>
+                <View style={[styles.phoneVideoAbove, { marginBottom: isSmallScreen ? 12 : 16 }]}>
                   <LoadingVideoScreen compact />
                 </View>
                 <Text
-                  style={[styles.titleText, styles.titleTextCentered]}
+                  style={[styles.titleText, styles.titleTextCentered, isSmallScreen && { fontSize: 23, marginBottom: 16 }]}
                   numberOfLines={2}
                   adjustsFontSizeToFit
                   minimumFontScale={0.7}
@@ -123,7 +104,7 @@ export default function OnboardingEducationalScreen() {
             ) : (
               <View style={styles.titleRow}>
                 <Text
-                  style={styles.titleText}
+                  style={[styles.titleText, isSmallScreen && { fontSize: 23 }]}
                   numberOfLines={1}
                   adjustsFontSizeToFit
                   minimumFontScale={0.7}
@@ -135,31 +116,32 @@ export default function OnboardingEducationalScreen() {
             )}
             <View style={styles.bulletRow}>
               <View style={styles.bullet} />
-              <Text style={styles.subtitle}>
+              <Text style={[styles.subtitle, isSmallScreen && { fontSize: 17, lineHeight: 26 }]}>
                 {t('onboarding.empoweringBullet1')}
               </Text>
             </View>
           </View>
-          <View style={styles.videoSection}>
-            {(hasError || status === 'error') ? (
-              <View style={styles.videoClip}>
+          <View style={[styles.videoSection, { marginBottom: sectionMargin }]}>
+            {hasError ? (
+              <View style={[styles.videoClip, { width: videoWidth, height: videoHeight }]}>
                 <ActivityIndicator size="large" color={COLORS.primary} />
               </View>
             ) : (
-              <View style={styles.videoClip}>
-                <VideoView
-                  style={styles.video}
-                  player={player}
-                  nativeControls={false}
-                  contentFit="contain"
-                  allowsFullscreen={false}
-                  allowsPictureInPicture={false}
+              <View style={[styles.videoClip, { width: videoWidth, height: videoHeight }]}>
+                <Video
+                  source={guyflyingVideoSource}
+                  style={{ width: videoWidth, height: videoHeight }}
+                  isLooping
+                  isMuted
+                  shouldPlay
+                  resizeMode={ResizeMode.CONTAIN}
+                  onError={() => setHasError(true)}
                 />
               </View>
             )}
           </View>
           <TouchableOpacity
-            style={styles.button}
+            style={[styles.button, isSmallScreen && { height: 56 }]}
             onPress={handleCTA}
             activeOpacity={0.8}
           >
@@ -192,7 +174,6 @@ const styles = StyleSheet.create({
   },
   textBlock: {
     alignSelf: 'stretch',
-    marginBottom: 24,
   },
   titleRow: {
     flexDirection: 'row',
@@ -217,7 +198,6 @@ const styles = StyleSheet.create({
   },
   phoneVideoAbove: {
     alignSelf: 'center',
-    marginBottom: 16,
   },
   titleLogoWrap: {
     flexShrink: 0,
@@ -246,14 +226,11 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   videoSection: {
-    marginBottom: 32,
     paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
   videoClip: {
-    width: 200,
-    height: 267,
     borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: COLORS.background,
@@ -261,10 +238,6 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  video: {
-    width: 200,
-    height: 267,
   },
   button: {
     backgroundColor: COLORS.primary,

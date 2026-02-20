@@ -8,14 +8,13 @@ import {
   Platform,
   ActivityIndicator,
   ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 import { useOnboardingLayout } from './hooks/useOnboardingLayout';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { useVideoPlayer, VideoView } from 'expo-video';
-import { useOnboardingVideo } from './context/OnboardingVideosContext';
-import { useEvent } from 'expo';
+import { Video, ResizeMode } from 'expo-av';
 import { useOnboardingProgress } from './context/OnboardingProgressContext';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from './constants/colors';
@@ -27,36 +26,19 @@ const guytypingVideoSource = require('../assets/guytyping1.mp4');
 export default function OnboardingFasterScreen() {
   const { t } = useTranslation();
   const { paddingHorizontal, contentPaddingTop } = useOnboardingLayout();
+  const { height } = useWindowDimensions();
   const { setOnboardingStep } = useOnboardingProgress();
   const [hasError, setHasError] = useState(false);
 
-  const preloadedPlayer = useOnboardingVideo('guytyping');
-  const localPlayer = useVideoPlayer(guytypingVideoSource, (p) => {
-    p.loop = true;
-    p.muted = true;
-  });
-  const player = preloadedPlayer ?? localPlayer;
+  // Responsive sizing for small screens (iPhone SE has ~667pt height)
+  const isSmallScreen = height < 700;
+  const videoWidth = isSmallScreen ? 150 : 200;
+  const videoHeight = isSmallScreen ? 200 : 267;
+  const sectionMargin = isSmallScreen ? 20 : 32;
 
   useEffect(() => {
     setOnboardingStep('onboarding-faster');
   }, [setOnboardingStep]);
-
-  useEffect(() => {
-    player.play();
-    return () => {
-      try {
-        player.pause();
-      } catch {
-        // Native player may already be disposed when leaving onboarding; ignore
-      }
-    };
-  }, [player]);
-
-  const { status } = useEvent(player, 'statusChange', { status: player.status });
-
-  useEffect(() => {
-    if (status === 'error') setHasError(true);
-  }, [status]);
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -81,35 +63,36 @@ export default function OnboardingFasterScreen() {
           ]}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.textBlock}>
-            <Text style={styles.titleText}>{t('onboarding.fastTitle')}</Text>
+          <View style={[styles.textBlock, { marginBottom: isSmallScreen ? 16 : 24 }]}>
+            <Text style={[styles.titleText, isSmallScreen && { fontSize: 23, marginBottom: 16 }]}>{t('onboarding.fastTitle')}</Text>
             <View style={styles.bulletRow}>
               <View style={styles.bullet} />
-              <Text style={styles.subtitle}>
+              <Text style={[styles.subtitle, isSmallScreen && { fontSize: 17, lineHeight: 26 }]}>
                 {t('onboarding.fastBullet')}
               </Text>
             </View>
           </View>
-          <View style={styles.videoSection}>
-            {(hasError || status === 'error') ? (
-              <View style={styles.videoClip}>
+          <View style={[styles.videoSection, { marginBottom: sectionMargin }]}>
+            {hasError ? (
+              <View style={[styles.videoClip, { width: videoWidth, height: videoHeight }]}>
                 <ActivityIndicator size="large" color={COLORS.primary} />
               </View>
             ) : (
-              <View style={styles.videoClip}>
-                <VideoView
-                  style={styles.video}
-                  player={player}
-                  nativeControls={false}
-                  contentFit="contain"
-                  allowsFullscreen={false}
-                  allowsPictureInPicture={false}
+              <View style={[styles.videoClip, { width: videoWidth, height: videoHeight }]}>
+                <Video
+                  source={guytypingVideoSource}
+                  style={{ width: videoWidth, height: videoHeight }}
+                  isLooping
+                  isMuted
+                  shouldPlay
+                  resizeMode={ResizeMode.CONTAIN}
+                  onError={() => setHasError(true)}
                 />
               </View>
             )}
           </View>
           <TouchableOpacity
-            style={styles.button}
+            style={[styles.button, isSmallScreen && { height: 56 }]}
             onPress={handleCTA}
             activeOpacity={0.8}
           >
@@ -142,7 +125,6 @@ const styles = StyleSheet.create({
   },
   textBlock: {
     alignSelf: 'stretch',
-    marginBottom: 24,
   },
   titleText: {
     fontFamily: FONTS.sansBold,
@@ -174,14 +156,11 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   videoSection: {
-    marginBottom: 32,
     paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
   videoClip: {
-    width: 200,
-    height: 267,
     borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: COLORS.background,
@@ -189,10 +168,6 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  video: {
-    width: 200,
-    height: 267,
   },
   button: {
     backgroundColor: COLORS.primary,

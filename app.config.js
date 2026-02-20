@@ -10,7 +10,13 @@ export default {
     scheme: "kanjiapp",
     plugins: [
       'expo-font',
-      // ... other plugins
+      'expo-localization',
+      'expo-router',
+      ['expo-build-properties', {
+        ios: {
+          deploymentTarget: '16.0',
+        },
+      }],
     ],
     android: {
       permissions: [
@@ -19,6 +25,7 @@ export default {
     },
     ios: {
       bundleIdentifier: "com.bluve01.kanjilearningapp",
+      buildNumber: "2",
       config: {
         usesNonExemptEncryption: false
       }
@@ -36,6 +43,6 @@ export default {
       },
       EXPO_PUBLIC_CLAUDE_API_KEY: process.env.EXPO_PUBLIC_CLAUDE_API_KEY || process.env.CLAUDE_API_KEY
     },
-    newArchEnabled: true,
+    newArchEnabled: false,
   },
 }; 

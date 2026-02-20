@@ -86,6 +86,39 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   // Float animation for flip-card walkthrough arrows
   const flipArrowFloatAnim = useRef(new Animated.Value(0)).current;
 
+  // Flash animation for walkthrough yellow borders (flip-card, image-button)
+  const walkthroughBorderFlashAnim = useRef(new Animated.Value(0)).current;
+  const walkthroughStepsWithFlash = ['flip-card', 'image-button'];
+  useEffect(() => {
+    const shouldFlash = isWalkthroughActive && walkthroughStepsWithFlash.includes(currentWalkthroughStepId ?? '');
+    if (!shouldFlash) {
+      walkthroughBorderFlashAnim.setValue(0);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(walkthroughBorderFlashAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(walkthroughBorderFlashAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [isWalkthroughActive, currentWalkthroughStepId, walkthroughBorderFlashAnim]);
+
+  // Opacity pulse: 1 -> 0.5 -> 1 so the border "flashes"
+  const walkthroughBorderFlashOpacity = walkthroughBorderFlashAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0.5],
+  });
+
   useEffect(() => {
     if (isSrsModeActive) {
       // Start rainbow animation
@@ -844,7 +877,7 @@ const readingsText = flashcard.readingsText;
                   <PokedexButton
                     onPress={handleFlipButtonPress}
                     materialIcon="flip"
-                    iconColor="black"
+                    iconColor="grey"
                     color="grey"
                     size="small"
                     shape="square"
@@ -856,7 +889,7 @@ const readingsText = flashcard.readingsText;
                 <PokedexButton
                   onPress={handleImageRetry}
                   icon="refresh"
-                  iconColor={imageRetryCount >= MAX_RETRY_COUNT ? COLORS.darkGray : 'black'}
+                  iconColor={imageRetryCount >= MAX_RETRY_COUNT ? COLORS.darkGray : 'grey'}
                   color="grey"
                   size="small"
                   shape="square"
@@ -866,21 +899,24 @@ const readingsText = flashcard.readingsText;
                 />
               )}
               {flashcard.imageUrl && (
+                <Animated.View style={isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? { opacity: walkthroughBorderFlashOpacity } : undefined}>
                 <View ref={imageButtonRef} collapsable={false}>
                   <PokedexButton
                     onPress={toggleShowImage}
                     icon="image"
-                    iconColor={isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? '#FBBF24' : 'black'}
+                    iconColor={isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? '#FBBF24' : 'grey'}
                     color={isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? '#FBBF24' : 'grey'}
                     size="small"
                     shape="square"
                     style={StyleSheet.flatten([styles.flashcardActionButton, ...(isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? [styles.walkthroughHighlightedButton] : [])])}
                   />
                 </View>
+                </Animated.View>
               )}
             </View>
             {/* Full-height yellow highlight for flip walkthrough (fills lower part too); touch zones sit on top */}
             {isWalkthroughActive && currentWalkthroughStepId === 'flip-card' && (
+              <Animated.View style={{ opacity: walkthroughBorderFlashOpacity }}>
               <View style={styles.flipZoneFullHeightHighlightContainer} pointerEvents="none">
                 <View style={[styles.flipZoneFullHeightHighlight, styles.flipZoneFullHeightHighlightLeft]} />
                 <View style={[styles.flipZoneFullHeightHighlight, styles.flipZoneFullHeightHighlightRight]} />
@@ -891,19 +927,22 @@ const readingsText = flashcard.readingsText;
                   <Ionicons name="chevron-back" size={28} color="#1a1a1a" />
                 </Animated.View>
               </View>
+              </Animated.View>
             )}
             {/* Edge flip zones - swipe inward from left or right edge to flip */}
-            <View
+            <Animated.View 
               style={[
                 styles.leftEdgeZone,
                 isWalkthroughActive && currentWalkthroughStepId === 'flip-card' && styles.flipZoneWalkthroughHighlight,
+                isWalkthroughActive && currentWalkthroughStepId === 'flip-card' && { opacity: walkthroughBorderFlashOpacity },
               ]}
               {...leftEdgePanResponder.panHandlers}
             />
-            <View
+            <Animated.View 
               style={[
                 styles.rightEdgeZone,
                 isWalkthroughActive && currentWalkthroughStepId === 'flip-card' && styles.flipZoneWalkthroughHighlight,
+                isWalkthroughActive && currentWalkthroughStepId === 'flip-card' && { opacity: walkthroughBorderFlashOpacity },
               ]}
               {...rightEdgePanResponder.panHandlers}
             />
@@ -1119,7 +1158,7 @@ const readingsText = flashcard.readingsText;
                   <PokedexButton
                     onPress={handleTtsPress}
                     icon="volume-high"
-                    iconColor={ttsError ? '#DC2626' : 'black'}
+                    iconColor={ttsError ? '#DC2626' : 'grey'}
                     color="grey"
                     size="small"
                     shape="square"
@@ -1133,7 +1172,7 @@ const readingsText = flashcard.readingsText;
                 <PokedexButton
                   onPress={handleFlipButtonPress}
                   materialIcon="flip"
-                  iconColor="black"
+                  iconColor="grey"
                   color="grey"
                   size="small"
                   shape="square"
@@ -1144,7 +1183,7 @@ const readingsText = flashcard.readingsText;
                 <PokedexButton
                   onPress={handleImageRetry}
                   icon="refresh"
-                  iconColor={imageRetryCount >= MAX_RETRY_COUNT ? COLORS.darkGray : 'black'}
+                  iconColor={imageRetryCount >= MAX_RETRY_COUNT ? COLORS.darkGray : 'grey'}
                   color="grey"
                   size="small"
                   shape="square"
@@ -1154,19 +1193,22 @@ const readingsText = flashcard.readingsText;
                 />
               )}
               {flashcard.imageUrl && (
+                <Animated.View style={isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? { opacity: walkthroughBorderFlashOpacity } : undefined}>
                 <PokedexButton
                   onPress={toggleShowImage}
                   icon="image"
-                  iconColor={isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? '#FBBF24' : 'black'}
+                  iconColor={isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? '#FBBF24' : 'grey'}
                   color={isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? '#FBBF24' : 'grey'}
                   size="small"
                   shape="square"
                   style={StyleSheet.flatten([styles.flashcardActionButton, ...(isWalkthroughActive && currentWalkthroughStepId === 'image-button' ? [styles.walkthroughHighlightedButton] : [])])}
                 />
+                </Animated.View>
               )}
             </View>
             {/* Full-height yellow highlight for flip walkthrough (fills lower part too); touch zones sit on top */}
             {isWalkthroughActive && currentWalkthroughStepId === 'flip-card' && (
+              <Animated.View style={{ opacity: walkthroughBorderFlashOpacity }}>
               <View style={styles.flipZoneFullHeightHighlightContainer} pointerEvents="none">
                 <View style={[styles.flipZoneFullHeightHighlight, styles.flipZoneFullHeightHighlightLeft]} />
                 <View style={[styles.flipZoneFullHeightHighlight, styles.flipZoneFullHeightHighlightRight]} />
@@ -1177,19 +1219,22 @@ const readingsText = flashcard.readingsText;
                   <Ionicons name="chevron-back" size={28} color="#1a1a1a" />
                 </Animated.View>
               </View>
+              </Animated.View>
             )}
             {/* Edge flip zones - swipe inward from left or right edge to flip */}
-            <View
+            <Animated.View 
               style={[
                 styles.leftEdgeZone,
                 isWalkthroughActive && currentWalkthroughStepId === 'flip-card' && styles.flipZoneWalkthroughHighlight,
+                isWalkthroughActive && currentWalkthroughStepId === 'flip-card' && { opacity: walkthroughBorderFlashOpacity },
               ]}
               {...leftEdgePanResponder.panHandlers}
             />
-            <View
+            <Animated.View 
               style={[
                 styles.rightEdgeZone,
                 isWalkthroughActive && currentWalkthroughStepId === 'flip-card' && styles.flipZoneWalkthroughHighlight,
+                isWalkthroughActive && currentWalkthroughStepId === 'flip-card' && { opacity: walkthroughBorderFlashOpacity },
               ]}
               {...rightEdgePanResponder.panHandlers}
             />

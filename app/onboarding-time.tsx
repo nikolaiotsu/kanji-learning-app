@@ -7,6 +7,7 @@ import {
   StatusBar,
   Platform,
   ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 import { useOnboardingLayout } from './hooks/useOnboardingLayout';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,8 +30,12 @@ const TIME_OPTIONS = [
 export default function OnboardingTimeScreen() {
   const { t } = useTranslation();
   const { paddingHorizontal, contentPaddingTop } = useOnboardingLayout();
+  const { height } = useWindowDimensions();
   const { setOnboardingStep } = useOnboardingProgress();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Responsive sizing for small screens (iPhone SE has ~667pt height)
+  const isSmallScreen = height < 700;
 
   useEffect(() => {
     setOnboardingStep('onboarding-time');
@@ -59,24 +64,24 @@ export default function OnboardingTimeScreen() {
           ]}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.videoSection}>
+          <View style={[styles.videoSection, { marginBottom: isSmallScreen ? 20 : 32 }]}>
             <LoadingVideoScreen compact />
           </View>
-          <View style={styles.textBlock}>
-            <Text style={styles.title}>{t('onboarding.timeTitle')}</Text>
+          <View style={[styles.textBlock, { marginBottom: isSmallScreen ? 20 : 32 }]}>
+            <Text style={[styles.title, isSmallScreen && { fontSize: 23, marginBottom: 16 }]}>{t('onboarding.timeTitle')}</Text>
             {TIME_OPTIONS.map((option) => {
               const isSelected = selectedId === option.id;
               return (
                 <TouchableOpacity
                   key={option.id}
-                  style={[styles.optionButton, isSelected && styles.optionButtonSelected]}
+                  style={[styles.optionButton, isSelected && styles.optionButtonSelected, isSmallScreen && { paddingVertical: 10, marginBottom: 8 }]}
                   onPress={() => setSelectedId(option.id)}
                   activeOpacity={0.8}
                 >
-                  <Text style={[styles.optionTime, isSelected && styles.optionTimeSelected]}>
+                  <Text style={[styles.optionTime, isSelected && styles.optionTimeSelected, isSmallScreen && { fontSize: 17 }]}>
                     {t(option.timeKey)}
                   </Text>
-                  <Text style={[styles.optionLabel, isSelected && styles.optionLabelSelected]}>
+                  <Text style={[styles.optionLabel, isSelected && styles.optionLabelSelected, isSmallScreen && { fontSize: 17 }]}>
                     {t(option.labelKey)}
                   </Text>
                 </TouchableOpacity>
@@ -84,7 +89,7 @@ export default function OnboardingTimeScreen() {
             })}
           </View>
           <TouchableOpacity
-            style={[styles.button, !selectedId && styles.buttonDisabled]}
+            style={[styles.button, !selectedId && styles.buttonDisabled, isSmallScreen && { height: 56 }]}
             onPress={handleContinue}
             activeOpacity={0.8}
             disabled={!selectedId}
@@ -117,14 +122,12 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
   },
   videoSection: {
-    marginBottom: 32,
     paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
   textBlock: {
     alignSelf: 'stretch',
-    marginBottom: 32,
   },
   title: {
     fontFamily: FONTS.sansBold,

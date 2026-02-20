@@ -1,15 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, StatusBar, Platform, ScrollView, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, StatusBar, Platform, ScrollView, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { useOnboardingLayout } from './hooks/useOnboardingLayout';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useVideoPlayer, VideoView } from 'expo-video';
-import { useEvent } from 'expo';
+import { Video, ResizeMode } from 'expo-av';
 import { useOnboarding } from './context/OnboardingContext';
 import { useOnboardingProgress } from './context/OnboardingProgressContext';
-import { useOnboardingVideo } from './context/OnboardingVideosContext';
 import { COLORS } from './constants/colors';
 import OnboardingProgressBar from './components/shared/OnboardingProgressBar';
 import { FONTS } from './constants/typography';
@@ -26,37 +24,19 @@ const heroshotVideoSource = require('../assets/heroshot.mp4');
 export default function OnboardingScreen() {
   const { t } = useTranslation();
   const { paddingHorizontal, contentPaddingTop } = useOnboardingLayout();
+  const { height } = useWindowDimensions();
   const { setHasCompletedOnboarding } = useOnboarding();
   const { setOnboardingStep, hideProgressBar } = useOnboardingProgress();
   const [hasError, setHasError] = useState(false);
 
-  const preloadedPlayer = useOnboardingVideo('heroshot');
-  const localPlayer = useVideoPlayer(heroshotVideoSource, (p) => {
-    p.loop = true;
-    p.muted = true;
-  });
-  const player = preloadedPlayer ?? localPlayer;
+  // Responsive sizing for small screens (iPhone SE has ~667pt height)
+  const isSmallScreen = height < 700;
+  const videoSize = isSmallScreen ? 150 : 200;
+  const sectionMargin = isSmallScreen ? 24 : 40;
 
   useEffect(() => {
     setOnboardingStep('onboarding');
   }, [setOnboardingStep]);
-
-  useEffect(() => {
-    player.play();
-    return () => {
-      try {
-        player.pause();
-      } catch {
-        // Native player may already be disposed when leaving onboarding; ignore
-      }
-    };
-  }, [player]);
-
-  const { status } = useEvent(player, 'statusChange', { status: player.status });
-
-  useEffect(() => {
-    if (status === 'error') setHasError(true);
-  }, [status]);
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -83,49 +63,50 @@ export default function OnboardingScreen() {
           style={styles.scrollView}
           contentContainerStyle={[
             styles.content,
-            { paddingHorizontal, paddingTop: contentPaddingTop, paddingBottom: 48 },
+            { paddingHorizontal, paddingTop: contentPaddingTop, paddingBottom: 32 },
           ]}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.loadingVideoSection}>
-            <LoadingVideoScreen compact usePreloaded={false} />
+          <View style={[styles.loadingVideoSection, { marginBottom: isSmallScreen ? 16 : 24 }]}>
+            <LoadingVideoScreen compact />
           </View>
-          <View style={styles.textBlock}>
-            <Text style={styles.title}>{t('onboarding.welcomeTitle')}</Text>
+          <View style={[styles.textBlock, { marginBottom: sectionMargin }]}>
+            <Text style={[styles.title, isSmallScreen && { fontSize: 26, marginBottom: 20 }]}>{t('onboarding.welcomeTitle')}</Text>
             <View style={styles.bulletRow}>
               <View style={styles.bullet} />
-              <Text style={styles.subtitle}>{t('onboarding.welcomeSubtitle2')}</Text>
+              <Text style={[styles.subtitle, isSmallScreen && { fontSize: 17, lineHeight: 26 }]}>{t('onboarding.welcomeSubtitle2')}</Text>
             </View>
           </View>
-          <View style={styles.heroVideoSection}>
-            {(hasError || status === 'error') ? (
-              <View style={styles.videoClip}>
+          <View style={[styles.heroVideoSection, { marginBottom: sectionMargin }]}>
+            {hasError ? (
+              <View style={[styles.videoClip, { width: videoSize, height: videoSize }]}>
                 <ActivityIndicator size="large" color={COLORS.primary} />
               </View>
             ) : (
-              <View style={styles.videoClip}>
-                <VideoView
-                  style={styles.video}
-                  player={player}
-                  nativeControls={false}
-                  contentFit="contain"
-                  allowsFullscreen={false}
-                  allowsPictureInPicture={false}
+              <View style={[styles.videoClip, { width: videoSize, height: videoSize }]}>
+                <Video
+                  source={heroshotVideoSource}
+                  style={{ width: videoSize, height: videoSize }}
+                  isLooping
+                  isMuted
+                  shouldPlay
+                  resizeMode={ResizeMode.CONTAIN}
+                  onError={() => setHasError(true)}
                 />
               </View>
             )}
           </View>
           <TouchableOpacity
-            style={styles.button}
+            style={[styles.button, isSmallScreen && { height: 56 }]}
             onPress={handleGetStarted}
             activeOpacity={0.8}
           >
             <View style={styles.buttonContent}>
-              <Text style={styles.buttonText}>{t('onboarding.getStarted')}</Text>
+              <Text style={[styles.buttonText, isSmallScreen && { fontSize: 18 }]}>{t('onboarding.getStarted')}</Text>
               <Ionicons name="chevron-forward" size={22} color={COLORS.text} style={styles.buttonArrow} />
             </View>
           </TouchableOpacity>
-          <View style={styles.footer}>
+          <View style={[styles.footer, isSmallScreen && { marginTop: 20 }]}>
             <Text style={styles.footerText}>{t('onboarding.alreadyHaveAccount')}{' '}
               <Text style={styles.signInLink} onPress={handleSignIn}>
                 {t('onboarding.signIn')}
@@ -155,20 +136,16 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
   },
   loadingVideoSection: {
-    marginBottom: 24,
     paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
   heroVideoSection: {
-    marginBottom: 40,
     paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
   videoClip: {
-    width: 200,
-    height: 200,
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: COLORS.background,
@@ -178,12 +155,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   video: {
-    width: 200,
-    height: 200,
+    flex: 1,
   },
   textBlock: {
     alignSelf: 'stretch',
-    marginBottom: 40,
   },
   title: {
     fontFamily: FONTS.sansBold,
