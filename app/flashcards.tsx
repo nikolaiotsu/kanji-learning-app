@@ -225,6 +225,38 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     updateStepLayout,
   } = useWalkthrough(flashcardWalkthroughSteps, { phase: 'flashcards' });
 
+  // Flash animation for walkthrough yellow borders (translate, wordscope, edit, choose-translation)
+  const walkthroughBorderFlashAnim = useRef(new Animated.Value(0)).current;
+  const walkthroughStepsWithFlash = ['translate-button', 'wordscope-button', 'edit-text-button', 'choose-translation', 'final-save-prompt', 'go-home-prompt'];
+  useEffect(() => {
+    const shouldFlash = isWalkthroughActive && walkthroughStepsWithFlash.includes(currentStep?.id ?? '');
+    if (!shouldFlash) {
+      walkthroughBorderFlashAnim.setValue(0);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(walkthroughBorderFlashAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(walkthroughBorderFlashAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [isWalkthroughActive, currentStep?.id, walkthroughBorderFlashAnim]);
+
+  const walkthroughBorderFlashOpacity = walkthroughBorderFlashAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0.5],
+  });
+
   const { setWalkthroughPhase, hideProgressBar } = useOnboardingProgress();
 
   const containerRef = useRef<View>(null);
@@ -1584,6 +1616,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
               {/* Buttons on top, fade out when Translate/Wordscope pressed */}
               {((!isLoading && !textProcessed) || actionButtonsFadingOut) && (
             <Animated.View style={[styles.actionButtonsContainer, { opacity: actionButtonsOpacity }]} pointerEvents={actionButtonsFadingOut ? 'none' : 'auto'}>
+              <Animated.View style={isWalkthroughActive && currentStep?.id === 'edit-text-button' ? { opacity: walkthroughBorderFlashOpacity } : undefined}>
               <WalkthroughTarget
                 targetRef={editTextButtonRef}
                 stepId="edit-text-button"
@@ -1615,7 +1648,9 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                   </View>
                 </TouchableOpacity>
               </WalkthroughTarget>
+              </Animated.View>
               
+              <Animated.View style={isWalkthroughActive && (currentStep?.id === 'wordscope-button' || currentStep?.id === 'choose-translation') ? { opacity: walkthroughBorderFlashOpacity } : undefined}>
               <WalkthroughTarget
                 targetRef={wordscopeButtonRef}
                 stepId="wordscope-button"
@@ -1664,7 +1699,9 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                   </View>
                 </TouchableOpacity>
               </WalkthroughTarget>
+              </Animated.View>
               
+              <Animated.View style={isWalkthroughActive && (currentStep?.id === 'translate-button' || currentStep?.id === 'choose-translation') ? { opacity: walkthroughBorderFlashOpacity } : undefined}>
               <WalkthroughTarget
                 targetRef={translateButtonRef}
                 stepId="translate-button"
@@ -1701,6 +1738,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                   </View>
                 </TouchableOpacity>
               </WalkthroughTarget>
+              </Animated.View>
             </Animated.View>
               )}
             </View>
@@ -1839,6 +1877,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                           </TouchableOpacity>
                         </View>
 
+                        <Animated.View style={isWalkthroughActive && (currentStep?.id === 'final-save-prompt' || currentStep?.id === 'go-home-prompt') ? { flex: 1, opacity: walkthroughBorderFlashOpacity } : { flex: 1 }}>
                         <WalkthroughTarget
                           targetRef={saveButtonRef}
                           stepId="final-save-prompt"
@@ -1905,6 +1944,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                             </View>
                           </TouchableOpacity>
                         </WalkthroughTarget>
+                        </Animated.View>
                       </View>
 
                       {/* Bottom Row */}

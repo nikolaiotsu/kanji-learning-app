@@ -74,9 +74,11 @@ interface KanjiScannerProps {
   onFindTextSkipVisibilityChange?: (visible: boolean) => void;
   /** Parent sets this ref; we assign handleSkipWalkthrough so parent's Skip button can trigger it */
   walkthroughSkipRef?: React.MutableRefObject<(() => void) | null>;
+  /** Called when walkthrough active state changes (e.g. so parent can disable back gesture) */
+  onWalkthroughActiveChange?: (active: boolean) => void;
 }
 
-export default function KanjiScanner({ onCardSwipe, onContentReady, onWalkthroughComplete, canStartWalkthrough = true, startWalkthroughFromOnboarding = false, blockTouchesBeforeWalkthrough = false, isSignInPromptVisible = false, continueWalkthrough = false, walkthroughStepIndex: walkthroughStepIndexParam, onHeaderLayout, onFindTextSkipVisibilityChange, walkthroughSkipRef }: KanjiScannerProps) {
+export default function KanjiScanner({ onCardSwipe, onContentReady, onWalkthroughComplete, canStartWalkthrough = true, startWalkthroughFromOnboarding = false, blockTouchesBeforeWalkthrough = false, isSignInPromptVisible = false, continueWalkthrough = false, walkthroughStepIndex: walkthroughStepIndexParam, onHeaderLayout, onFindTextSkipVisibilityChange, walkthroughSkipRef, onWalkthroughActiveChange }: KanjiScannerProps) {
   logger.log('🎬 [KanjiScanner] Component render, onContentReady callback:', !!onContentReady);
   
   const { t } = useTranslation();
@@ -300,6 +302,10 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   useEffect(() => {
     setInWalkthroughFlow(isWalkthroughActive);
   }, [isWalkthroughActive, setInWalkthroughFlow]);
+
+  useEffect(() => {
+    onWalkthroughActiveChange?.(isWalkthroughActive);
+  }, [isWalkthroughActive, onWalkthroughActiveChange]);
 
   // Crop hint (walkthrough): box opens like a cursor dragging from top-left to bottom-right
   const CROP_HINT_BOX_WIDTH = 160;

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import KanjiScanner from './components/camera/KanjiScanner';
 import PokedexLayout from './components/shared/PokedexLayout';
@@ -24,6 +24,7 @@ const worddexLogo = require('../assets/images/worddexlogo.png'); // Adjusted pat
 
 export default function App() {
   const { t } = useTranslation();
+  const navigation = useNavigation();
   const { user, isGuest, setGuestMode } = useAuth();
   const { setShowTransitionLoading } = useTransitionLoading();
   const { pendingBadge } = useBadge();
@@ -46,6 +47,13 @@ export default function App() {
       setProgressBarTop(Math.max(0, headerY - cy - 8));
     }
   }, []);
+
+  const handleWalkthroughActiveChange = useCallback(
+    (active: boolean) => {
+      navigation.setOptions({ gestureEnabled: !active });
+    },
+    [navigation]
+  );
 
   const handleContainerLayout = useCallback(() => {
     containerRef.current?.measureInWindow((_x, y) => {
@@ -175,6 +183,7 @@ export default function App() {
             onHeaderLayout={handleHeaderLayout}
             onFindTextSkipVisibilityChange={setShowFindTextSkip}
             walkthroughSkipRef={walkthroughSkipRef}
+            onWalkthroughActiveChange={handleWalkthroughActiveChange}
           />
         </View>
       </PokedexLayout>
