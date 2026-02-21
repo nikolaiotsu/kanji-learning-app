@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import i18next from './i18n';
 import { processWithClaude, processWithClaudeAndScope, validateLanguageWithClaude, LanguageMismatchInfo, ClaudeResponse } from './services/claudeApi';
-import { localizeScopeAnalysisHeadings, parseScopeAnalysisForStyling } from './utils/textFormatting';
+import { localizeScopeAnalysisHeadings } from './utils/textFormatting';
 import { 
   cleanText, 
   containsJapanese, 
@@ -1794,41 +1794,19 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                       commonContext: targetT('flashcard.wordscope.commonContext'),
                       alternativeExpressions: targetT('flashcard.wordscope.alternativeExpressions'),
                     });
-                    const segments = parseScopeAnalysisForStyling(localizedScopeAnalysis);
                     return (
                       <View style={styles.resultContainer} key="wordscope">
                         <Text style={styles.sectionTitle}>Wordscope</Text>
-                        <View style={styles.wordscopeCopyableContainer}>
-                          {/* Selection layer: invisible text, handles long-press range selection */}
-                          <TextInput
-                            value={localizedScopeAnalysis}
-                            editable={false}
-                            multiline
-                            scrollEnabled={false}
-                            caretHidden
-                            style={[styles.wordscopeBaseText, styles.wordscopeSelectionLayer]}
-                            underlineColorAndroid="transparent"
-                          />
-                          {/* Visual layer: colored segments, passes touches through */}
-                          <View style={styles.wordscopeColoredOverlay} pointerEvents="none">
-                            <Text style={styles.wordscopeBaseText}>
-                              {segments.map((seg, i) => (
-                                <Text
-                                  key={i}
-                                  style={
-                                    seg.isTargetLanguage
-                                      ? styles.scopeAnalysisTargetText
-                                      : seg.isSourceLanguage
-                                        ? styles.scopeAnalysisSourceText
-                                        : undefined
-                                  }
-                                >
-                                  {seg.text}
-                                </Text>
-                              ))}
-                            </Text>
-                          </View>
-                        </View>
+                        <TextInput
+                          value={localizedScopeAnalysis}
+                          editable={false}
+                          multiline
+                          scrollEnabled={false}
+                          caretHidden
+                          style={styles.wordscopeBaseText}
+                          underlineColorAndroid="transparent"
+                          selectTextOnFocus={false}
+                        />
                       </View>
                     );
                   })()}
@@ -2501,31 +2479,11 @@ const styles = StyleSheet.create({
   wordscopeBaseText: {
     fontFamily: FONTS.sans,
     fontSize: 16,
-    lineHeight: 22,
     color: COLORS.text,
     fontStyle: 'italic',
     textAlign: 'left',
     padding: 0,
     margin: 0,
-  },
-  wordscopeSelectionLayer: {
-    color: 'transparent',
-    backgroundColor: 'transparent',
-  },
-  wordscopeCopyableContainer: {
-    position: 'relative',
-  },
-  wordscopeColoredOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-  },
-  scopeAnalysisSourceText: {
-    color: '#4ADE80', // Green for scanned/source language
-  },
-  scopeAnalysisTargetText: {
-    color: '#A78BFA', // Purple for target language (translations, notes in Examples)
   },
   appendAnalysisButton: {
     flexDirection: 'row',

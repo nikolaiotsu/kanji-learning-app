@@ -3,7 +3,7 @@ import { View, Text, TextInput, StyleSheet, TouchableOpacity, Dimensions, Animat
 import { useTranslation } from 'react-i18next';
 import i18next from '../../i18n';
 import { Flashcard } from '../../types/Flashcard';
-import { localizeScopeAnalysisHeadings, parseScopeAnalysisForStyling } from '../../utils/textFormatting';
+import { localizeScopeAnalysisHeadings } from '../../utils/textFormatting';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { FONTS } from '../../constants/typography';
@@ -47,6 +47,8 @@ interface FlashcardItemProps {
   currentWalkthroughStepId?: string;
   /** When true, show a flip button beside the image button and disable edge flip gesture (e.g. in Your Collections where cards swipe left/right) */
   showFlipButton?: boolean;
+  /** Callback when user enters/exits text selection mode (e.g. long-press on Wordscope). Parent can disable swipe gestures. */
+  onTextSelectionActiveChange?: (active: boolean) => void;
 }
 
 const FlashcardItem: React.FC<FlashcardItemProps> = ({ 
@@ -70,6 +72,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   isWalkthroughActive = false,
   currentWalkthroughStepId,
   showFlipButton = false,
+  onTextSelectionActiveChange,
 }) => {
   const { t } = useTranslation();
   const { targetLanguage, forcedDetectionLanguage } = useSettings();
@@ -367,6 +370,9 @@ const readingsText = flashcard.readingsText;
   // Refs so edge PanResponders (created once) always see current values
   const disableTouchHandlingRef = useRef(disableTouchHandling);
   disableTouchHandlingRef.current = disableTouchHandling;
+  const [isTextSelectionActive, setIsTextSelectionActive] = useState(false);
+  const isTextSelectionActiveRef = useRef(false);
+  isTextSelectionActiveRef.current = isTextSelectionActive;
   const isFlippedRef = useRef(isFlipped);
   isFlippedRef.current = isFlipped;
   const onFlipRef = useRef(onFlip);
@@ -447,6 +453,7 @@ const readingsText = flashcard.readingsText;
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) =>
         !disableTouchHandlingRef.current &&
+        !isTextSelectionActiveRef.current &&
         gestureState.dx > 15 &&
         Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 2,
       onPanResponderTerminationRequest: () => false,
@@ -493,6 +500,7 @@ const readingsText = flashcard.readingsText;
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) =>
         !disableTouchHandlingRef.current &&
+        !isTextSelectionActiveRef.current &&
         gestureState.dx < -15 &&
         Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 2,
       onPanResponderTerminationRequest: () => false,
@@ -688,7 +696,7 @@ const readingsText = flashcard.readingsText;
       {
         rotateY: flipAnim.interpolate({
           inputRange: [0, 1],
-          outputRange: ['180deg', '360deg'],
+          outputRange: ['-180deg', '0deg'],
         }),
       },
       // Match front: slightly narrower when edge-on for 3D effect
@@ -772,6 +780,7 @@ const readingsText = flashcard.readingsText;
           styles.cardSide, 
           frontAnimatedStyle
         ]}>
+          <View style={styles.cardShadowLayer} pointerEvents="none" />
           {/* Small notches marking where the flip gesture zone begins (50px from each edge) */}
           <View style={styles.flipZoneNotchContainer} pointerEvents="none">
             <View style={[styles.flipZoneNotch, styles.flipZoneNotchLeftTop, { backgroundColor: isSrsModeActive ? rainbowBorderColor : COLORS.appleLiquidGrey }]} />
@@ -956,6 +965,7 @@ const readingsText = flashcard.readingsText;
           styles.cardSide, 
           backAnimatedStyle
         ]}>
+          <View style={styles.cardShadowLayer} pointerEvents="none" />
           {/* Small notches marking where the flip gesture zone begins (50px from each edge) */}
           <View style={styles.flipZoneNotchContainer} pointerEvents="none">
             <View style={[styles.flipZoneNotch, styles.flipZoneNotchLeftTop, { backgroundColor: isSrsModeActive ? rainbowBorderColor : COLORS.appleLiquidGrey }]} />
@@ -979,6 +989,7 @@ const readingsText = flashcard.readingsText;
               showsVerticalScrollIndicator={true}
               scrollEnabled={true}
               nestedScrollEnabled={true}
+              removeClippedSubviews={false}
               onContentSizeChange={(width, height) => {
                 const scrollView = {
                   nativeEvent: {
@@ -1023,7 +1034,7 @@ const readingsText = flashcard.readingsText;
                       textAlign="center"
                     />
                   ) : (
-                    <Text style={styles.readingsText}>
+                    <Text selectable style={styles.readingsText}>
                       {flashcard.readingsText}
                     </Text>
                   )}
@@ -1031,7 +1042,7 @@ const readingsText = flashcard.readingsText;
               )}
               
               <Text style={styles.sectionTitle}>{t('flashcard.sectionTitles.translation', { language: translatedLanguageName })}</Text>
-              <Text style={styles.translatedText}>
+              <Text selectable style={styles.translatedText}>
                 {flashcard.translatedText}
               </Text>
               
@@ -1048,39 +1059,29 @@ const readingsText = flashcard.readingsText;
                   commonContext: targetT('flashcard.wordscope.commonContext'),
                   alternativeExpressions: targetT('flashcard.wordscope.alternativeExpressions'),
                 });
-                const segments = parseScopeAnalysisForStyling(localizedScopeAnalysis);
                 return (
                   <>
                     <Text style={styles.sectionTitle}>Wordscope</Text>
-                    <View style={styles.wordscopeCopyableContainer}>
-                      <TextInput
-                        value={localizedScopeAnalysis}
-                        editable={false}
-                        multiline
-                        scrollEnabled={false}
-                        caretHidden
-                        style={[styles.wordscopeBaseText, styles.wordscopeSelectionLayer]}
-                        underlineColorAndroid="transparent"
-                      />
-                      <View style={styles.wordscopeColoredOverlay} pointerEvents="none">
-                        <Text style={styles.wordscopeBaseText}>
-                          {segments.map((seg, i) => (
-                            <Text
-                              key={i}
-                              style={
-                                seg.isTargetLanguage
-                                  ? styles.scopeAnalysisTargetText
-                                  : seg.isSourceLanguage
-                                    ? styles.scopeAnalysisSourceText
-                                    : undefined
-                              }
-                            >
-                              {seg.text}
-                            </Text>
-                          ))}
-                        </Text>
-                      </View>
-                    </View>
+                    <TextInput
+                      value={localizedScopeAnalysis}
+                      editable={false}
+                      multiline
+                      scrollEnabled={false}
+                      caretHidden
+                      style={styles.wordscopeBaseText}
+                      underlineColorAndroid="transparent"
+                      selectTextOnFocus={false}
+                      onFocus={() => {
+                        isTextSelectionActiveRef.current = true;
+                        setIsTextSelectionActive(true);
+                        onTextSelectionActiveChange?.(true);
+                      }}
+                      onBlur={() => {
+                        isTextSelectionActiveRef.current = false;
+                        setIsTextSelectionActive(false);
+                        onTextSelectionActiveChange?.(false);
+                      }}
+                    />
                   </>
                 );
               })()}
@@ -1326,7 +1327,15 @@ const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean
     overflow: 'hidden',
     backfaceVisibility: 'hidden',
     backgroundColor: COLORS.darkSurface,
-    // Enhanced shadow for depth
+  },
+  cardShadowLayer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 16,
+    backgroundColor: COLORS.darkSurface,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -1480,7 +1489,6 @@ const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean
     textAlign: 'center', // Center the text
     color: COLORS.text,
     marginBottom: 15,
-    lineHeight: 30, // Increased proportionally
   },
   readingsTextComponent: {
     marginBottom: 15,
@@ -1491,31 +1499,14 @@ const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean
     fontSize: 20, // Increased from 18 for better visibility on larger cards
     textAlign: 'center', // Center the text
     color: COLORS.text,
-    lineHeight: 30, // Increased proportionally
   },
   wordscopeBaseText: {
     fontFamily: FONTS.sans,
     fontSize: 16,
     textAlign: 'center',
     color: COLORS.text,
-    lineHeight: 24,
     fontStyle: 'italic',
     marginTop: 10,
-    padding: 0,
-    margin: 0,
-  },
-  wordscopeSelectionLayer: {
-    color: 'transparent',
-    backgroundColor: 'transparent',
-  },
-  wordscopeCopyableContainer: {
-    position: 'relative',
-  },
-  wordscopeColoredOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
   },
   scopeAnalysisText: {
     fontFamily: FONTS.sans,
@@ -1525,12 +1516,6 @@ const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean
     lineHeight: 24,
     fontStyle: 'italic',
     marginTop: 10,
-  },
-  scopeAnalysisSourceText: {
-    color: '#4ADE80', // Green for scanned/source language
-  },
-  scopeAnalysisTargetText: {
-    color: '#A78BFA', // Purple for target language (translations, notes in Examples)
   },
   appendAnalysisButton: {
     flexDirection: 'row',

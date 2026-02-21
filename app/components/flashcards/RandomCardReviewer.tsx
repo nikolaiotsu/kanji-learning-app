@@ -1260,12 +1260,17 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const isProcessingRef = useRef(false);
   const completeSwipeRef = useRef<(direction: 'left' | 'right') => void>(() => {});
   isProcessingRef.current = isProcessing;
+  const [isTextSelectionActive, setIsTextSelectionActive] = useState(false);
+  const isTextSelectionActiveRef = useRef(false);
+  isTextSelectionActiveRef.current = isTextSelectionActive;
 
   // Configure PanResponder
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false, // Let scroll events pass through initially
       onMoveShouldSetPanResponder: (_, gestureState) => {
+        // Don't capture when user is selecting text (adjusting highlight range)
+        if (isTextSelectionActiveRef.current) return false;
         // Only respond to horizontal movements that are significant
         // This prevents conflict with vertical scrolling
         return Math.abs(gestureState.dx) > 20 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy * 3);
@@ -2726,6 +2731,10 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 flashcard={currentCard}
                 disableTouchHandling={false}
                 cardHeight={CARD_STAGE_HEIGHT}
+                onTextSelectionActiveChange={(active) => {
+                  isTextSelectionActiveRef.current = active;
+                  setIsTextSelectionActive(active);
+                }}
                 onImageToggle={(showImage) => {
                   setIsImageExpanded(showImage);
                   if (isWalkthroughActive && currentWalkthroughStepId === 'image-button' && onWalkthroughNextStep) {
