@@ -7,7 +7,10 @@ import {
   Pressable,
   Dimensions,
   Animated,
+  LayoutAnimation,
   LayoutChangeEvent,
+  Platform,
+  UIManager,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -50,6 +53,10 @@ interface WalkthroughOverlayProps {
   hideTooltip?: boolean;
 }
 
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function WalkthroughOverlay({
@@ -76,7 +83,17 @@ export default function WalkthroughOverlay({
   const [measuredTooltipHeight, setMeasuredTooltipHeight] = useState(0);
   const onTooltipLayout = useCallback((e: LayoutChangeEvent) => {
     const h = e.nativeEvent.layout.height;
-    if (h > 0) setMeasuredTooltipHeight(h);
+    if (h > 0) {
+      setMeasuredTooltipHeight(prev => {
+        if (prev > 0 && Math.abs(prev - h) > 2) {
+          LayoutAnimation.configureNext({
+            duration: 150,
+            update: { type: LayoutAnimation.Types.easeInEaseOut },
+          });
+        }
+        return h;
+      });
+    }
   }, []);
   // Animated opacity for cross-fade transitions between steps
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -155,8 +172,12 @@ export default function WalkthroughOverlay({
     const stepChanged = previousStepIdRef.current !== currentStep.id;
     if (stepChanged) {
       previousStepIdRef.current = currentStep.id;
-      // Reset opacity when step changes
-      layoutReadyAnim.setValue(0);
+      // Only reset layoutReadyAnim when waiting for measurement. If layout is already
+      // available (e.g. pre-measured buttons), keep it at 1 to avoid double flash
+      // (both layoutReadyAnim and fadeAnim going 0→1 caused full blackout then reappear).
+      if (!isLayoutReady) {
+        layoutReadyAnim.setValue(0);
+      }
     }
 
     if (isLayoutReady) {
@@ -171,6 +192,8 @@ export default function WalkthroughOverlay({
   }, [visible, currentStep?.id, isLayoutReady, layoutReadyAnim, isClosing]);
 
   // Trigger fade animation on step change (for cross-fade between steps)
+  // When layout is already ready (e.g. pre-measured translate/wordscope/edit buttons),
+  // skip the fade to avoid flash: going 0→1 causes visible "disappear then reappear"
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
@@ -179,14 +202,19 @@ export default function WalkthroughOverlay({
 
     if (isClosing) return; // Don't animate steps when closing
 
-    // Fade out, then fade in
-    fadeAnim.setValue(0);
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-  }, [currentStepIndex, isClosing]);
+    if (isLayoutReady) {
+      // Layout ready: keep at 1 to avoid flash; content updates in place
+      fadeAnim.setValue(1);
+    } else {
+      // Waiting for measurement: fade out then in
+      fadeAnim.setValue(0);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [currentStepIndex, isClosing, isLayoutReady]);
 
   // Float animation for congratulations, go-home-prompt, final-congratulations, and swipe instruction steps
   useEffect(() => {

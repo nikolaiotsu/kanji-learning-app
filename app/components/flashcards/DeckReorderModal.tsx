@@ -176,9 +176,6 @@ export default function DeckReorderModal({
 
   const renderItem = useCallback(({ item, drag, isActive, getIndex }: RenderItemParams<Deck>) => {
     const index = getIndex() ?? 0;
-    // #region agent log
-    console.log('[DEBUG-AB] renderItem called:', JSON.stringify({index,itemId:item?.id,itemName:item?.name,isActive,hasItem:!!item}));
-    // #endregion
     return (
       <ReorderDeckItem 
         item={item} 
