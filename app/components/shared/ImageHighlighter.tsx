@@ -1928,6 +1928,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
             }
           ]}
           resizeMode="contain"
+          onError={() => {}}
           onLoad={() => {
             // Notify parent that image is loaded (for hiding loading overlays)
             onImageLoaded?.();

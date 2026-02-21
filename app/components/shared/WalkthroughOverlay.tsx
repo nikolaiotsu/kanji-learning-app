@@ -1,14 +1,15 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Modal,
   TouchableOpacity,
   Pressable,
   Dimensions,
   Animated,
+  LayoutChangeEvent,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { COLORS } from '../../constants/colors';
 import { FONTS } from '../../constants/typography';
@@ -69,8 +70,14 @@ export default function WalkthroughOverlay({
   hideTooltip = false,
 }: WalkthroughOverlayProps) {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const onClosedRef = useRef(onClosed);
   onClosedRef.current = onClosed;
+  const [measuredTooltipHeight, setMeasuredTooltipHeight] = useState(0);
+  const onTooltipLayout = useCallback((e: LayoutChangeEvent) => {
+    const h = e.nativeEvent.layout.height;
+    if (h > 0) setMeasuredTooltipHeight(h);
+  }, []);
   // Animated opacity for cross-fade transitions between steps
   const fadeAnim = useRef(new Animated.Value(1)).current;
   // Separate animated value to track if layout is ready (prevents flicker on initial render)
@@ -206,13 +213,9 @@ export default function WalkthroughOverlay({
     return () => floatLoop.stop();
   }, [currentStep?.id, visible, floatAnim]);
 
-  // Don't render if not visible and not in the process of closing
-  if (!shouldRender || !currentStep) {
-    return null;
-  }
+  const shouldShow = visible && shouldRender && !!currentStep && (!!targetLayout || canUseFallback);
 
-  if (!targetLayout && !canUseFallback) {
-    // Wait for layout measurement before showing overlay on steps where we expect a measured layout
+  if (!shouldShow) {
     return null;
   }
   
@@ -230,71 +233,32 @@ export default function WalkthroughOverlay({
 
   // Calculate position for the tooltip box - position it above the button
   const TOOLTIP_PADDING = 16;
-  const TOOLTIP_SPACING = 20; // Space between button and tooltip
   const TOOLTIP_WIDTH = Math.min(SCREEN_WIDTH - 32, 300);
-  const TOOLTIP_HEIGHT = 160; // Approximate height
+  const TOOLTIP_HEIGHT_ESTIMATE = 240; // Conservative fallback; real value comes from onLayout
+  const tooltipH = measuredTooltipHeight > 0 ? measuredTooltipHeight : TOOLTIP_HEIGHT_ESTIMATE;
+  // Skip button sits 35px above the tooltip container; account for it as extra overhead
+  const SKIP_OVERHEAD = 35;
+  const safeTop = insets.top + TOOLTIP_PADDING + SKIP_OVERHEAD;
+  const safeBottom = SCREEN_HEIGHT - insets.bottom - TOOLTIP_PADDING;
 
-  // Use fallback layout if not measured yet (only for collections/choose-translation)
-  const layout = targetLayout || { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2, width: 100, height: 50 };
-
-  // Center tooltip horizontally
-  // collections, review-button, choose-translation, congratulations, go-home-prompt, final-congratulations, find-text ALWAYS center
-  // All other steps (including final-save-prompt) position over the measured button
-  const alwaysCenterSteps = isCollectionsStep || isReviewButtonStep || isChooseTranslationStep || centeredModalSteps;
-  
-  const tooltipLeft = alwaysCenterSteps
-    ? (SCREEN_WIDTH - TOOLTIP_WIDTH) / 2  // Always center for collections, etc.
-    : targetLayout
-      ? Math.max(
-          TOOLTIP_PADDING,
-          Math.min(
-            layout.x + layout.width / 2 - TOOLTIP_WIDTH / 2,
-            SCREEN_WIDTH - TOOLTIP_WIDTH - TOOLTIP_PADDING
-          )
-        )
-      : (SCREEN_WIDTH - TOOLTIP_WIDTH) / 2; // Fallback center if no layout
-
-  // For collections, choose-translation, congratulations, go-home-prompt, final-congratulations: ALWAYS center
-  // For all other buttons (including final-save-prompt): position above or below the measured button
+  // Center all tooltips on screen
+  const tooltipLeft = (SCREEN_WIDTH - TOOLTIP_WIDTH) / 2;
   let tooltipTop: number;
-  if (alwaysCenterSteps) {
-    // Always use centered position for collections, choose-translation, modal steps
-    if (isChooseTranslationStep) {
-      // Position tooltip in the middle-lower portion of screen, above where buttons typically are
-      tooltipTop = SCREEN_HEIGHT * 0.4; // About 40% down from top
-    } else if (centeredModalSteps) {
-      // Center congratulations, go-home-prompt, final-congratulations message on screen
-      tooltipTop = (SCREEN_HEIGHT - TOOLTIP_HEIGHT) / 2;
-    } else {
-      // Center vertically on screen for collections
-      tooltipTop = (SCREEN_HEIGHT - TOOLTIP_HEIGHT) / 2;
-    }
-  } else if (targetLayout) {
-    // Try to position above button first, but fall back to below if not enough space
-    const spaceAbove = layout.y;
-    const spaceBelow = SCREEN_HEIGHT - (layout.y + layout.height);
-    const positionAbove = spaceAbove >= TOOLTIP_HEIGHT + TOOLTIP_SPACING || spaceAbove > spaceBelow;
-
-    tooltipTop = positionAbove
-      ? Math.max(TOOLTIP_PADDING, layout.y - TOOLTIP_HEIGHT - TOOLTIP_SPACING)
-      : layout.y + layout.height + TOOLTIP_SPACING;
+  if (isChooseTranslationStep) {
+    tooltipTop = SCREEN_HEIGHT * 0.4;
   } else {
-    // Fallback: center vertically (shouldn't reach here due to earlier checks, but TypeScript needs this)
-    tooltipTop = (SCREEN_HEIGHT - TOOLTIP_HEIGHT) / 2;
+    tooltipTop = (SCREEN_HEIGHT - tooltipH) / 2;
   }
+  // Clamp to stay fully within safe bounds
+  const maxTop = safeBottom - tooltipH;
+  const clampedTooltipTop = Math.max(safeTop, Math.min(tooltipTop, maxTop));
 
   const isLastStep = currentStepIndex === totalSteps - 1;
   const isFirstStep = currentStepIndex === 0;
   const isEffectivelyLastStep = !treatAsNonFinal && isLastStep;
 
   return (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType="none"
-      statusBarTranslucent={true}
-    >
-      <View style={[styles.container, { zIndex }]}>
+      <View style={[styles.container, { zIndex }]} pointerEvents="box-none">
         {/* Dimmed overlay background - when allowTouchThrough, do not render block so parent can hide overlay instead */}
         <Animated.View 
           style={[
@@ -323,12 +287,13 @@ export default function WalkthroughOverlay({
           </Animated.View>
         ) : (
           <Animated.View
+            onLayout={onTooltipLayout}
             style={[
               styles.tooltipContainer,
               isCardInteractionStep && styles.tooltipContainerCardStep,
               {
                 left: tooltipLeft,
-                top: tooltipTop,
+                top: clampedTooltipTop,
                 width: TOOLTIP_WIDTH,
                 opacity: combinedOpacity,
                 transform: centeredModalSteps ? [{ translateY: floatTranslateY }] : [],
@@ -390,13 +355,12 @@ export default function WalkthroughOverlay({
           </Animated.View>
         )}
       </View>
-    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
   },
   dimmedBackground: {
     ...StyleSheet.absoluteFillObject,

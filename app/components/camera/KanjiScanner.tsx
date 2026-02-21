@@ -3416,7 +3416,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Walkthrough Overlay - completely excluded from tree when navigating or after walkthrough ends to prevent native Modal flash */}
+      {/* Walkthrough Overlay - excluded from tree when navigating or after walkthrough ends */}
       {!walkthroughOverlayDismissed && !isNavigatingToFlashcards && !isNavigatingToFlashcardsRef.current && (
         <WalkthroughOverlay
           visible={isWalkthroughActive && !hideWalkthroughOverlay && !isImageProcessing && !isGlobalOverlayVisible && !(currentStep?.id === 'find-text' && findTextIntroDismissed)}
