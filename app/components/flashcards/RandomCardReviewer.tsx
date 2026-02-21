@@ -584,6 +584,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   // Rainbow border animation effect for review button
   // Stops when review mode (SRS mode) is active OR when session is finished
   // Uses Animated.interpolate instead of setState to prevent re-render cascades
+  // Re-runs when isSplashVisible becomes false so animation starts on app load if data was ready during splash
   useEffect(() => {
     logger.log('🌈 [Rainbow Animation] Effect triggered:', { shouldShowRainbowBorder, hasCardsDueForReview, isSrsModeActive, isSessionFinished });
     
@@ -621,7 +622,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     } else {
       logger.log('🌈 [Rainbow Animation] Not starting - shouldShowRainbowBorder:', shouldShowRainbowBorder);
     }
-  }, [shouldShowRainbowBorder, reviewButtonRainbowAnim]);
+  }, [shouldShowRainbowBorder, reviewButtonRainbowAnim, isSplashVisible]);
 
   // Floating animation for streak congrats modal (fire + number) - gentle up/down loop
   useEffect(() => {
@@ -1532,7 +1533,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const handleReviewInstructionModalProceed = useCallback(() => {
     setShowReviewInstructionModal(false);
     performReviewModeToggle();
-  }, [performReviewModeToggle]);
+  }, [performReviewModeToggle, isSrsModeActive]);
 
   const handleCollectionsButtonPress = useCallback(() => {
     if (isCardTransitioning || isInitializing) return;
@@ -1888,8 +1889,9 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           startReviewWithCards([], true);
         }
         
-        // Also refresh data in background to ensure we have latest SRS data
-        fetchAllFlashcards(true).catch(error => {
+        // Background refresh without force flag to avoid SKELETON_LOADING
+        // which would cause onContentReady(false) and hide the reviewer
+        fetchAllFlashcards(false).catch(error => {
           logger.error('❌ [SRS Mode] Error refreshing flashcards:', error);
         });
       } else {
