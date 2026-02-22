@@ -86,8 +86,14 @@ export default function KanjiScanner({ onCardSwipe, onContentReady, onWalkthroug
   const { isSplashVisible } = useAppReady();
   
   // Calculate responsive dimensions based on actual device safe areas
-  const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-  const BUTTON_HEIGHT = 65;
+  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+  // Responsive button spacing: tighter on large screens so buttons don't exceed review area; 8px for small iPhones (SE 3rd, iPhone 8)
+  const ROW_BUTTON_MARGIN = Platform.OS === 'ios'
+    ? (SCREEN_WIDTH >= 390 ? 6 : SCREEN_WIDTH >= 375 ? 8 : 12)
+    : 12;
+  // Badge/settings position: higher to clear reviewer; responsive - extra clearance on small screens (SE 3rd: 667pt) where layout is tighter
+  const HEADER_BUTTONS_TOP = SCREEN_HEIGHT < 700 ? -2 : -4;
+  const BUTTON_HEIGHT = 75;
   const BUTTON_BOTTOM_POSITION = 25;
   const BUTTON_ROW_HEIGHT = BUTTON_HEIGHT + BUTTON_BOTTOM_POSITION + insets.bottom;
   const BOTTOM_CLEARANCE = 50;
@@ -2650,8 +2656,10 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   // Create dynamic styles based on calculated dimensions
   const styles = useMemo(() => createStyles(
     REVIEWER_TOP_OFFSET,
-    REVIEWER_MAX_HEIGHT
-  ), [REVIEWER_TOP_OFFSET, REVIEWER_MAX_HEIGHT]);
+    REVIEWER_MAX_HEIGHT,
+    ROW_BUTTON_MARGIN,
+    HEADER_BUTTONS_TOP
+  ), [REVIEWER_TOP_OFFSET, REVIEWER_MAX_HEIGHT, ROW_BUTTON_MARGIN, HEADER_BUTTONS_TOP]);
 
   const showTouchBlock = blockTouchesBeforeWalkthrough && !isWalkthroughActive && !walkthroughEverEndedRef.current;
 
@@ -2732,7 +2740,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 >
                   <Ionicons
                     name="medal-outline"
-                    size={28}
+                    size={32}
                     color="grey"
                   />
                 </TouchableOpacity>
@@ -2747,7 +2755,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                   >
                     <Ionicons 
                       name="menu-outline" 
-                      size={30} 
+                      size={34} 
                       color={(localProcessing || isImageProcessing || isWalkthroughActive) ? '#CCCCCC' : 'grey'} 
                     />
                   </TouchableOpacity>
@@ -2813,8 +2821,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
             />
           </View>
           
-          {/* Button Row - moved below the reviewer */}
-          <View style={styles.buttonRow}>
+          {/* Button Row - centered in gap between bottom of black area and bottom of app */}
+          <View style={[styles.buttonRow, { bottom: 12 }]}>
             {/* Add Custom Card Button (leftmost) */}
             <Animated.View style={isWalkthroughActive && currentStep?.id === 'custom-card' ? { opacity: walkthroughBorderFlashOpacity } : undefined}>
             <View 
@@ -2834,7 +2842,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                     : 'grey'
                 }
                 color="grey"
-                size="medium"
+                size="large"
                 shape="square"
                 style={styles.rowButton}
                 disabled={isAPILimitExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'custom-card')}
@@ -2861,7 +2869,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                     : 'grey'
                 }
                 color="grey"
-                size="medium"
+                size="large"
                 shape="square"
                 style={styles.rowButton}
                 disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'flashcards')}
@@ -2888,7 +2896,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 icon={isWalkthroughActive ? "images" : ((isAPILimitExhausted || !canCreateFlashcard || !isConnected || isImageProcessing || localProcessing) ? "lock-closed" : "images")}
                 iconColor="grey"
                 color="grey"
-                size="medium"
+                size="large"
                 shape="square"
                 style={styles.rowButton}
                 disabled={
@@ -2914,7 +2922,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                   icon="camera"
                   iconColor="#94A3B8"
                   color="grey"
-                  size="medium"
+                  size="large"
                   shape="square"
                   style={styles.rowButton}
                   disabled={true}
@@ -2934,7 +2942,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                   icon="lock-closed"
                   iconColor="#64748B"
                   color="grey"
-                  size="medium"
+                  size="large"
                   shape="square"
                   style={styles.rowButton}
                   disabled={true}
@@ -3460,7 +3468,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
 }
 
 // Create styles dynamically based on calculated dimensions
-const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => StyleSheet.create({
+const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number, rowButtonMargin: number, headerButtonsTop: number) => StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
@@ -3579,7 +3587,7 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
   },
   topRightButtonRow: {
     position: 'absolute',
-    top: 5,
+    top: headerButtonsTop,
     right: 10,
     flexDirection: 'row',
     alignItems: 'center',
@@ -3587,16 +3595,16 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     zIndex: 800,
   },
   badgeButtonTouchable: {
-    padding: 6,
-    borderRadius: 12,
+    padding: 8,
+    borderRadius: 14,
     backgroundColor: 'rgba(0,0,0,0.2)',
   },
   settingsButton: {
     // No position - lives inside topRightButtonRow
   },
   settingsButtonTouchable: {
-    padding: 6,
-    borderRadius: 12,
+    padding: 8,
+    borderRadius: 14,
     backgroundColor: 'rgba(0,0,0,0.2)',
   },
   highlightedSettingsButtonWrapper: {
@@ -3953,7 +3961,7 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
   },
   buttonRow: {
     position: 'absolute',
-    bottom: 25, // Adjusted from 40 to ensure buttons are above Pokedex bottom decorations
+    bottom: 25, // Override with inline style for centering
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
@@ -3961,14 +3969,14 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     zIndex: 800,
   },
   rowButton: {
-    marginHorizontal: 12, // Keep the spacing between buttons
-    width: 65, // Keep the button size
-    height: 65, // Keep the button size
+    marginHorizontal: rowButtonMargin,
+    width: 75,  // Slightly larger for better tap targets
+    height: 75,
   },
-  // Same dimensions as rowButton (65x65) + marginHorizontal 12 so both gallery and camera borders match
+  // Same dimensions as rowButton (75x75) + marginHorizontal so both gallery and camera borders match
   highlightedButtonWrapper: {
-    width: 89,  // 65 + 12 + 12
-    height: 65,
+    width: 75 + rowButtonMargin * 2,
+    height: 75,
     borderRadius: 8,
     borderWidth: 2,
     borderColor: '#FBBF24',

@@ -375,13 +375,12 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     }, 100);
   }, [isWalkthroughActive, updateStepLayout]);
 
-  // Disable swipe-down gesture during final-save-prompt walkthrough step
+  // Disable swipe-down gesture during entire walkthrough (prevents accidentally dismissing the flashcard input screen)
   useEffect(() => {
-    const shouldDisableGesture = isWalkthroughActive && currentStep?.id === 'final-save-prompt';
     navigation.setOptions({
-      gestureEnabled: !shouldDisableGesture,
+      gestureEnabled: !isWalkthroughActive,
     });
-  }, [isWalkthroughActive, currentStep?.id, navigation]);
+  }, [isWalkthroughActive, navigation]);
 
   // Auto-scroll to save button when walkthrough reaches final-save-prompt step
   // (Scroll from choose-translation to final-save-prompt is handled in the translation completion effect)

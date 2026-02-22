@@ -192,7 +192,7 @@ export default function CameraButton({ onPhotoCapture, style, onProcessingStateC
           icon="arrow-back"
           iconColor="grey"
           color="grey"
-          size="medium"
+          size="large"
           shape="square"
         />
       ) : (
@@ -201,7 +201,7 @@ export default function CameraButton({ onPhotoCapture, style, onProcessingStateC
           icon={disabled ? "lock-closed" : "camera"}
           iconColor="grey"
           color="grey"
-          size="medium"
+          size="large"
           shape="square"
           disabled={false}
           darkDisabled={darkDisabled}
