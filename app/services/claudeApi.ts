@@ -27,6 +27,7 @@ import {
   buildGeneralLanguageSystemPromptLite,
   buildScopeInstructionsLite,
   getGrammarLabels,
+  ACCURATE_TRANSLATION_POLICY,
 } from './claude/prompts';
 import {
   validatePinyinAccuracy,
@@ -2080,7 +2081,7 @@ Format your response as valid JSON with these exact keys:
       // - CJK languages use specialized prompts with reading annotations (cached due to size)
       // - Romanization languages (Arabic, Hindi, Thai) use specialized prompts with romanization rules (cached due to size)
       // - Other languages use simple translation prompt (small, no caching needed)
-      const systemPrompt = isChineseWithCaching ? chineseTranslationSystemPromptLite :
+      const baseSystemPromptForTranslate = isChineseWithCaching ? chineseTranslationSystemPromptLite :
                            isJapaneseWithCaching ? japaneseTranslationSystemPromptLite :
                            isKoreanWithCaching ? koreanTranslationSystemPromptLite :
                            isArabicWithRomanization ? arabicTranslationSystemPromptLite :
@@ -2088,6 +2089,7 @@ Format your response as valid JSON with these exact keys:
                            isThaiWithRomanization ? thaiTranslationSystemPromptLite :
                            isRussianWithRomanization ? russianTranslationSystemPromptLite :
                            simpleTranslationPromptLite;
+      const systemPrompt = baseSystemPromptForTranslate + ACCURATE_TRANSLATION_POLICY;
       
       // Determine language name for logging
       const languageDisplayNames: Record<string, string> = {
@@ -4454,7 +4456,8 @@ CRITICAL REQUIREMENTS:
                          isThaiWithReadings ? thaiWordScopeSystemPromptLite :
                          isRussianWithReadings ? russianWordScopeSystemPromptLite :
                          buildGeneralLanguageSystemPromptLite(forcedLanguage);
-    const systemPrompt = needsReadings ? baseSystemPrompt + '\n' + READINGS_VERIFY_LINE : baseSystemPrompt;
+    const systemPromptWithReadings = needsReadings ? baseSystemPrompt + '\n' + READINGS_VERIFY_LINE : baseSystemPrompt;
+    const systemPrompt = systemPromptWithReadings + ACCURATE_TRANSLATION_POLICY;
     
     // Determine language name for logging
     const languageDisplayNames: Record<string, string> = {

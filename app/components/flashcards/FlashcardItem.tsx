@@ -3,7 +3,7 @@ import { View, Text, TextInput, StyleSheet, TouchableOpacity, Dimensions, Animat
 import { useTranslation } from 'react-i18next';
 import i18next from '../../i18n';
 import { Flashcard } from '../../types/Flashcard';
-import { localizeScopeAnalysisHeadings } from '../../utils/textFormatting';
+import { localizeScopeAnalysisHeadings, parseScopeAnalysisForStyling } from '../../utils/textFormatting';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { FONTS } from '../../constants/typography';
@@ -1059,29 +1059,50 @@ const readingsText = flashcard.readingsText;
                   commonContext: targetT('flashcard.wordscope.commonContext'),
                   alternativeExpressions: targetT('flashcard.wordscope.alternativeExpressions'),
                 });
+                const segments = parseScopeAnalysisForStyling(localizedScopeAnalysis);
                 return (
                   <>
                     <Text style={styles.sectionTitle}>Wordscope</Text>
-                    <TextInput
-                      value={localizedScopeAnalysis}
-                      editable={false}
-                      multiline
-                      scrollEnabled={false}
-                      caretHidden
-                      style={styles.wordscopeBaseText}
-                      underlineColorAndroid="transparent"
-                      selectTextOnFocus={false}
-                      onFocus={() => {
-                        isTextSelectionActiveRef.current = true;
-                        setIsTextSelectionActive(true);
-                        onTextSelectionActiveChange?.(true);
-                      }}
-                      onBlur={() => {
-                        isTextSelectionActiveRef.current = false;
-                        setIsTextSelectionActive(false);
-                        onTextSelectionActiveChange?.(false);
-                      }}
-                    />
+                    <View style={styles.wordscopeCopyableContainer}>
+                      <TextInput
+                        value={localizedScopeAnalysis}
+                        editable={false}
+                        multiline
+                        scrollEnabled={false}
+                        caretHidden
+                        style={[styles.wordscopeBaseText, styles.wordscopeSelectionLayer]}
+                        underlineColorAndroid="transparent"
+                        selectTextOnFocus={false}
+                        onFocus={() => {
+                          isTextSelectionActiveRef.current = true;
+                          setIsTextSelectionActive(true);
+                          onTextSelectionActiveChange?.(true);
+                        }}
+                        onBlur={() => {
+                          isTextSelectionActiveRef.current = false;
+                          setIsTextSelectionActive(false);
+                          onTextSelectionActiveChange?.(false);
+                        }}
+                      />
+                      <View style={styles.wordscopeColoredOverlay} pointerEvents="none">
+                        <Text style={styles.wordscopeBaseText}>
+                          {segments.map((seg, i) => (
+                            <Text
+                              key={i}
+                              style={
+                                seg.isTargetLanguage
+                                  ? styles.scopeAnalysisTargetText
+                                  : seg.isSourceLanguage
+                                    ? styles.scopeAnalysisSourceText
+                                    : undefined
+                              }
+                            >
+                              {seg.text}
+                            </Text>
+                          ))}
+                        </Text>
+                      </View>
+                    </View>
                   </>
                 );
               })()}
@@ -1507,6 +1528,26 @@ const createStyles = (responsiveCardHeight: number, useScreenBackground: boolean
     color: COLORS.text,
     fontStyle: 'italic',
     marginTop: 10,
+  },
+  wordscopeSelectionLayer: {
+    color: 'transparent',
+    backgroundColor: 'transparent',
+  },
+  wordscopeCopyableContainer: {
+    position: 'relative',
+  },
+  wordscopeColoredOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    padding: 0,
+  },
+  scopeAnalysisSourceText: {
+    color: '#4ADE80',
+  },
+  scopeAnalysisTargetText: {
+    color: '#A78BFA',
   },
   scopeAnalysisText: {
     fontFamily: FONTS.sans,

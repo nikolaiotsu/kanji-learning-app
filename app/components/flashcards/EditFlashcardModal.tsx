@@ -19,7 +19,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import i18next from '../../i18n';
 import { Flashcard } from '../../types/Flashcard';
-import { localizeScopeAnalysisHeadings } from '../../utils/textFormatting';
+import { localizeScopeAnalysisHeadings, parseScopeAnalysisForStyling } from '../../utils/textFormatting';
 import { updateFlashcard } from '../../services/supabaseStorage';
 import { processWithClaude, processWithClaudeAndScope } from '../../services/claudeApi';
 // Removed text formatting imports - no longer needed for direct content analysis
@@ -416,17 +416,38 @@ const readingsText = flashcard.readingsText;
                           commonContext: targetT('flashcard.wordscope.commonContext'),
                           alternativeExpressions: targetT('flashcard.wordscope.alternativeExpressions'),
                         });
+                        const segments = parseScopeAnalysisForStyling(localizedScopeAnalysis);
                         return (
-                          <TextInput
-                            value={localizedScopeAnalysis}
-                            editable={false}
-                            multiline
-                            scrollEnabled={false}
-                            caretHidden
-                            style={styles.wordscopeBaseText}
-                            underlineColorAndroid="transparent"
-                            selectTextOnFocus={false}
-                          />
+                          <View style={styles.wordscopeCopyableContainer}>
+                            <TextInput
+                              value={localizedScopeAnalysis}
+                              editable={false}
+                              multiline
+                              scrollEnabled={false}
+                              caretHidden
+                              style={[styles.wordscopeBaseText, styles.wordscopeSelectionLayer]}
+                              underlineColorAndroid="transparent"
+                              selectTextOnFocus={false}
+                            />
+                            <View style={styles.wordscopeColoredOverlay} pointerEvents="none">
+                              <Text style={styles.wordscopeBaseText}>
+                                {segments.map((seg, i) => (
+                                  <Text
+                                    key={i}
+                                    style={
+                                      seg.isTargetLanguage
+                                        ? styles.scopeAnalysisTargetText
+                                        : seg.isSourceLanguage
+                                          ? styles.scopeAnalysisSourceText
+                                          : undefined
+                                    }
+                                  >
+                                    {seg.text}
+                                  </Text>
+                                ))}
+                              </Text>
+                            </View>
+                          </View>
                         );
                       })()}
                   </View>
@@ -658,6 +679,26 @@ const styles = StyleSheet.create({
     textAlign: 'left',
     padding: 0,
     margin: 0,
+  },
+  wordscopeSelectionLayer: {
+    color: 'transparent',
+    backgroundColor: 'transparent',
+  },
+  wordscopeCopyableContainer: {
+    position: 'relative',
+  },
+  wordscopeColoredOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    padding: 0,
+  },
+  scopeAnalysisSourceText: {
+    color: '#4ADE80',
+  },
+  scopeAnalysisTargetText: {
+    color: '#A78BFA',
   },
   footer: {
     paddingHorizontal: 20,

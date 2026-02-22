@@ -80,6 +80,17 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const { isSplashVisible } = useAppReady();
   const isSplashVisibleRef = useRef(isSplashVisible);
   isSplashVisibleRef.current = isSplashVisible;
+  // Delayed retry for rainbow animation when splash hides (catches data-load race)
+  const [rainbowRetryTrigger, setRainbowRetryTrigger] = useState(0);
+  const prevSplashVisibleRef = useRef(isSplashVisible);
+  useEffect(() => {
+    const wasVisible = prevSplashVisibleRef.current;
+    prevSplashVisibleRef.current = isSplashVisible;
+    if (wasVisible && !isSplashVisible) {
+      const t = setTimeout(() => setRainbowRetryTrigger(prev => prev + 1), 400);
+      return () => clearTimeout(t);
+    }
+  }, [isSplashVisible]);
   // Track if the initial app load has completed (splash dismissed at least once)
   const hasInitialLoadCompletedRef = useRef(false);
   if (!isSplashVisible && !hasInitialLoadCompletedRef.current) {
@@ -582,23 +593,14 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const SWIPE_THRESHOLD = 120;
 
   // Rainbow border animation effect for review button
-  // Stops when review mode (SRS mode) is active OR when session is finished
-  // Uses Animated.interpolate instead of setState to prevent re-render cascades
-  // Re-runs when isSplashVisible becomes false so animation starts on app load if data was ready during splash
+  // Best practice: only start/stop on state transitions to avoid jumpy restarts
+  // Re-runs on multiple triggers for reliability; skips restart if already running
   useEffect(() => {
-    logger.log('🌈 [Rainbow Animation] Effect triggered:', { shouldShowRainbowBorder, hasCardsDueForReview, isSrsModeActive, isSessionFinished });
-    
-    // Stop any existing animation first
-    if (rainbowAnimationLoopRef.current) {
-      rainbowAnimationLoopRef.current.stop();
-      rainbowAnimationLoopRef.current = null;
-    }
-    reviewButtonRainbowAnim.stopAnimation();
-    reviewButtonRainbowAnim.setValue(0);
-    
     if (shouldShowRainbowBorder) {
+      // Already animating - don't restart (avoids jumpiness from multiple triggers)
+      if (rainbowAnimationLoopRef.current) return;
+
       logger.log('🌈 [Rainbow Animation] Starting animation loop');
-      // Start rainbow animation only when cards are due AND not in review mode AND session is not finished
       const loop = Animated.loop(
         Animated.timing(reviewButtonRainbowAnim, {
           toValue: 1,
@@ -609,9 +611,8 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       );
       rainbowAnimationLoopRef.current = loop;
       loop.start();
-      
+
       return () => {
-        logger.log('🌈 [Rainbow Animation] Cleaning up animation');
         if (rainbowAnimationLoopRef.current) {
           rainbowAnimationLoopRef.current.stop();
           rainbowAnimationLoopRef.current = null;
@@ -620,9 +621,15 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         reviewButtonRainbowAnim.setValue(0);
       };
     } else {
-      logger.log('🌈 [Rainbow Animation] Not starting - shouldShowRainbowBorder:', shouldShowRainbowBorder);
+      // Stop animation when conditions no longer met
+      if (rainbowAnimationLoopRef.current) {
+        rainbowAnimationLoopRef.current.stop();
+        rainbowAnimationLoopRef.current = null;
+      }
+      reviewButtonRainbowAnim.stopAnimation();
+      reviewButtonRainbowAnim.setValue(0);
     }
-  }, [shouldShowRainbowBorder, reviewButtonRainbowAnim, isSplashVisible]);
+  }, [shouldShowRainbowBorder, reviewButtonRainbowAnim, isSplashVisible, loadingState, dataVersion, deckIdsLoaded, rainbowRetryTrigger]);
 
   // Floating animation for streak congrats modal (fire + number) - gentle up/down loop
   useEffect(() => {
@@ -1551,7 +1558,10 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
 
   const handleCollectionsInstructionModalProceed = useCallback(() => {
     setShowCollectionsInstructionModal(false);
-    setShowDeckSelector(true);
+    // Delay opening deck selector so the instruction modal can fully unmount first.
+    // React Native has a known issue where opening a modal while closing another
+    // leaves an invisible overlay blocking touch events (collections and other buttons).
+    setTimeout(() => setShowDeckSelector(true), 400);
   }, []);
 
   const onKeepCard = () => {

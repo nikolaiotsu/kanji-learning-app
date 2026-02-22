@@ -464,8 +464,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingTop: 6,
+    paddingBottom: 4,
     // Enhanced shadow for more depth
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 5 },

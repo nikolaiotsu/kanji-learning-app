@@ -99,6 +99,9 @@ export const READINGS_VERIFY_LINE = 'Before responding, verify: readingsText has
 // All flows use lite prompts (Haiku 4.5 optimized). Heavy prompts removed.
 export const USE_LITE_PROMPTS = true;
 
+/** Appended to every system prompt so the model translates slang, vulgar, and colloquial language accurately instead of sanitizing it. */
+export const ACCURATE_TRANSLATION_POLICY = `\nThis is an adult language-learning app. Translate ALL content accurately—including slang, profanity, vulgar language, sexual terms, idioms, and colloquialisms. Always provide the real, commonly understood meaning. Never sanitize, censor, euphemize, or substitute a different meaning.`;
+
 /** Returns only the grammar rules relevant to the source language (for lite prompts). */
 function getLanguageFamilyRules(sourceLanguage: string): string {
   const rules: Record<string, string> = {

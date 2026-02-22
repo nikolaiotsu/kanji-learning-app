@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import i18next from './i18n';
 import { processWithClaude, processWithClaudeAndScope, validateLanguageWithClaude, LanguageMismatchInfo, ClaudeResponse } from './services/claudeApi';
-import { localizeScopeAnalysisHeadings } from './utils/textFormatting';
+import { localizeScopeAnalysisHeadings, parseScopeAnalysisForStyling } from './utils/textFormatting';
 import { 
   cleanText, 
   containsJapanese, 
@@ -263,8 +263,11 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
   const headerRef = useRef<View>(null);
   const containerYRef = useRef<number | null>(null);
   const [progressBarTop, setProgressBarTop] = useState(4);
+  const [headerHeight, setHeaderHeight] = useState(44);
 
-  const handleHeaderLayout = useCallback(() => {
+  const handleHeaderLayout = useCallback((e: { nativeEvent: { layout: { height: number } } }) => {
+    const h = e.nativeEvent.layout.height;
+    if (h > 0) setHeaderHeight(Math.ceil(h));
     headerRef.current?.measureInWindow((_x, headerY) => {
       const cy = containerYRef.current;
       if (cy != null) {
@@ -1554,12 +1557,15 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
       isProcessing={isLoading}
       processingFailed={processingFailed}
     >
-      <SafeAreaView ref={containerRef} style={styles.container} onLayout={handleContainerLayout}>
+      <SafeAreaView ref={containerRef} style={styles.container} edges={['bottom', 'left', 'right']} onLayout={handleContainerLayout}>
         <OnboardingProgressBar topOffset={progressBarTop} />
         <ScrollView 
           ref={scrollViewRef}
           style={styles.scrollView} 
-          contentContainerStyle={styles.contentContainer}
+          contentContainerStyle={[
+            styles.contentContainer,
+            { paddingTop: headerHeight + 6 },
+          ]}
           showsVerticalScrollIndicator={true}
         >
           <View style={styles.textContainer}>
@@ -1832,19 +1838,40 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                       commonContext: targetT('flashcard.wordscope.commonContext'),
                       alternativeExpressions: targetT('flashcard.wordscope.alternativeExpressions'),
                     });
+                    const segments = parseScopeAnalysisForStyling(localizedScopeAnalysis);
                     return (
                       <View style={styles.resultContainer} key="wordscope">
                         <Text style={styles.sectionTitle}>Wordscope</Text>
-                        <TextInput
-                          value={localizedScopeAnalysis}
-                          editable={false}
-                          multiline
-                          scrollEnabled={false}
-                          caretHidden
-                          style={styles.wordscopeBaseText}
-                          underlineColorAndroid="transparent"
-                          selectTextOnFocus={false}
-                        />
+                        <View style={styles.wordscopeCopyableContainer}>
+                          <TextInput
+                            value={localizedScopeAnalysis}
+                            editable={false}
+                            multiline
+                            scrollEnabled={false}
+                            caretHidden
+                            style={[styles.wordscopeBaseText, styles.wordscopeSelectionLayer]}
+                            underlineColorAndroid="transparent"
+                            selectTextOnFocus={false}
+                          />
+                          <View style={styles.wordscopeColoredOverlay} pointerEvents="none">
+                            <Text style={styles.wordscopeBaseText}>
+                              {segments.map((seg, i) => (
+                                <Text
+                                  key={i}
+                                  style={
+                                    seg.isTargetLanguage
+                                      ? styles.scopeAnalysisTargetText
+                                      : seg.isSourceLanguage
+                                        ? styles.scopeAnalysisSourceText
+                                        : undefined
+                                  }
+                                >
+                                  {seg.text}
+                                </Text>
+                              ))}
+                            </Text>
+                          </View>
+                        </View>
                       </View>
                     );
                   })()}
@@ -2312,9 +2339,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    padding: 12, // Reduced for tighter layout
-    paddingTop: 44, // Space for absolutely positioned header (home button)
-    paddingBottom: 60, // Add extra padding at the bottom for better scrolling experience
+    padding: 12,
+    paddingBottom: 60, // Extra padding at bottom for scrolling; paddingTop set dynamically from header height
   },
   title: {
     fontFamily: FONTS.sansBold,
@@ -2326,7 +2352,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     backgroundColor: COLORS.darkSurface,
-    marginTop: 26, // Space between header divider and scanned text box
+    marginTop: 6, // Tight gap under header line
     marginBottom: 20,
   },
   originalText: {
@@ -2524,6 +2550,26 @@ const styles = StyleSheet.create({
     textAlign: 'left',
     padding: 0,
     margin: 0,
+  },
+  wordscopeSelectionLayer: {
+    color: 'transparent',
+    backgroundColor: 'transparent',
+  },
+  wordscopeCopyableContainer: {
+    position: 'relative',
+  },
+  wordscopeColoredOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    padding: 0,
+  },
+  scopeAnalysisSourceText: {
+    color: '#4ADE80',
+  },
+  scopeAnalysisTargetText: {
+    color: '#A78BFA',
   },
   appendAnalysisButton: {
     flexDirection: 'row',
