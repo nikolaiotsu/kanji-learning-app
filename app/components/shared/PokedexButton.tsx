@@ -14,15 +14,8 @@ import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-ic
 import { createPokedexTextStyle } from '../../utils/styleUtils';
 import * as Haptics from 'expo-haptics';
 
-const RAINBOW_COLORS = [
-  'rgba(255, 0, 0, 0.55)',
-  'rgba(255, 127, 0, 0.55)',
-  'rgba(255, 255, 0, 0.55)',
-  'rgba(0, 255, 0, 0.55)',
-  'rgba(0, 0, 255, 0.55)',
-  'rgba(139, 0, 255, 0.55)',
-  'rgba(255, 0, 0, 0.55)',
-] as const;
+const LONG_PRESS_BAR_HEIGHT = 3;
+const RAINBOW_COLORS = ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#8B00FF', '#FF0000'] as const;
 
 interface PokedexButtonProps {
   onPress: () => void;
@@ -157,10 +150,10 @@ export default function PokedexButton({
     }).start();
   }, [onLongPress, longPressProgress]);
 
-  const buttonHeight = currentSize.height;
-  const fillHeight = longPressProgress.interpolate({
+  const barWidth = currentSize.width ?? currentSize.height * 2;
+  const fillWidth = longPressProgress.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, buttonHeight],
+    outputRange: [0, barWidth],
   });
 
   return (
@@ -210,28 +203,40 @@ export default function PokedexButton({
           />
         )}
         
-        {/* Long-press rainbow fill - rises from bottom as user holds */}
+        {/* Long-press progress bar - thin bar at top fills left-to-right (standard hold-to-confirm pattern) */}
         {onLongPress && (
-          <Animated.View
+          <View
             style={[
-              styles.longPressFillWrap,
+              styles.longPressBarTrack,
               {
-                bottom: 0,
+                top: 0,
                 left: 0,
                 right: 0,
-                height: fillHeight,
-                borderRadius: currentSize.borderRadius,
+                height: LONG_PRESS_BAR_HEIGHT,
+                borderTopLeftRadius: currentSize.borderRadius,
+                borderTopRightRadius: currentSize.borderRadius,
               },
             ]}
             pointerEvents="none"
           >
-            <LinearGradient
-              colors={RAINBOW_COLORS}
-              start={{ x: 0.5, y: 1 }}
-              end={{ x: 0.5, y: 0 }}
-              style={[StyleSheet.absoluteFill, { borderRadius: currentSize.borderRadius }]}
-            />
-          </Animated.View>
+            <Animated.View
+              style={[
+                styles.longPressBarFill,
+                {
+                  width: fillWidth,
+                  height: LONG_PRESS_BAR_HEIGHT,
+                  overflow: 'hidden',
+                },
+              ]}
+            >
+              <LinearGradient
+                colors={[...RAINBOW_COLORS]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[StyleSheet.absoluteFill, { width: barWidth }]}
+              />
+            </Animated.View>
+          </View>
         )}
         {/* Button content */}
         <View style={[styles.buttonContent, !title && styles.iconOnlyContent]}>
@@ -337,9 +342,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  longPressFillWrap: {
+  longPressBarTrack: {
     position: 'absolute',
     overflow: 'hidden',
     zIndex: 0,
+    justifyContent: 'flex-end',
+  },
+  longPressBarFill: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
   },
 });

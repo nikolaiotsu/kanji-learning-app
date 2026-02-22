@@ -196,6 +196,12 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     // Filter cards by selected deck IDs
     const filtered = allFlashcards.filter(card => selectedDeckIds.includes(card.deckId));
     logger.log('🔍 [useMemo] Filtered', allFlashcards.length, 'cards by', selectedDeckIds.length, 'decks →', filtered.length, 'cards');
+    // #region agent log
+    if (allFlashcards.length > 0 && filtered.length === 0 && selectedDeckIds.length > 0) {
+      const cardDeckIds = allFlashcards.map(c => c.deckId);
+      fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'510184'},body:JSON.stringify({sessionId:'510184',location:'RandomCardReviewer.tsx:filteredCards',message:'Filter mismatch: cards exist but filtered=0',data:{allFlashcardsCount:allFlashcards.length,selectedDeckIds,cardDeckIds},hypothesisId:'B',timestamp:Date.now()})}).catch(()=>{});
+    }
+    // #endregion
     return filtered;
   }, [selectedDeckIds, allFlashcards, deckIdsLoaded]);
 
@@ -1127,6 +1133,9 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         !isInitializing) {
       
       logger.log('✅ [Component] Starting smooth card transition for:', currentCard.id);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'510184'},body:JSON.stringify({sessionId:'510184',location:'RandomCardReviewer.tsx:cardTransition',message:'Fade-in starting for currentCard',data:{currentCardId:currentCard.id},hypothesisId:'E',timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       
       // Reset position and rotation
       slideAnim.setValue(0);
@@ -1151,6 +1160,9 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       opacityAnim.setValue(0);
       setLastCardId(null);
       setIsCardTransitioning(false);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'510184'},body:JSON.stringify({sessionId:'510184',location:'RandomCardReviewer.tsx:cardTransition',message:'No currentCard - clearing isCardTransitioning',data:{},hypothesisId:'A',timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
     }
   }, [currentCard, lastCardId, isProcessing, isInitializing]);
 
@@ -1676,6 +1688,9 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         }
         
         logger.log('🚀 [Component] Starting review session with', cardsToReview.length, 'cards (from', filteredCards.length, 'filtered, SRS mode:', isSrsModeActive, '), dataVersion:', dataVersion);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'510184'},body:JSON.stringify({sessionId:'510184',location:'RandomCardReviewer.tsx:initEffect',message:'Calling startReviewWithCards - cards will load',data:{cardsToReviewLength:cardsToReview.length,filteredCardsLength:filteredCards.length,isInitializing},hypothesisId:'C',timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         
         // Mark initialization as in progress
         initializationInProgressRef.current = true;
@@ -1703,11 +1718,17 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         // This prevents the "No cards in selection" flicker during refresh
         if (!delayedCompletionTimeoutRef.current) {
           logger.log('🔄 [Component] No filtered cards available, scheduling delayed completion');
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'510184'},body:JSON.stringify({sessionId:'510184',location:'RandomCardReviewer.tsx:initEffect',message:'No filtered cards - scheduling 300ms delayed completion',data:{filteredCardsLength:filteredCards.length,allFlashcardsLength:allFlashcards.length,selectedDeckIdsLength:selectedDeckIds.length},hypothesisId:'D',timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
           delayedCompletionTimeoutRef.current = setTimeout(() => {
             delayedCompletionTimeoutRef.current = null;
             setIsInitializing(false);
             lastFilteredCardsHashRef.current = '';
             logger.log('🔄 [Component] Delayed initialization complete (no filtered cards)');
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'510184'},body:JSON.stringify({sessionId:'510184',location:'RandomCardReviewer.tsx:delayedCompletion',message:'Delayed completion fired - isInitializing=false now',data:{},hypothesisId:'D',timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
           }, 300);
         }
       }
@@ -1948,6 +1969,9 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     // Only do a full reset if the selection actually changed
     const currentSorted = [...selectedDeckIds].sort().join(',');
     const newSorted = [...deckIds].sort().join(',');
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/c2cdc465-043c-4255-832b-9b0a48e37cd8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'510184'},body:JSON.stringify({sessionId:'510184',location:'RandomCardReviewer.tsx:handleDeckSelection',message:'handleDeckSelection called',data:{deckIds,currentSorted,newSorted,willReset:newSorted!==currentSorted},hypothesisId:'A',timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     
     if (newSorted !== currentSorted) {
       logger.log('🎯 [Component] Deck selection changed:', deckIds.length, 'decks');

@@ -80,6 +80,20 @@ export default function CameraButton({ onPhotoCapture, style, onProcessingStateC
 
         // Get standard processing configuration
         const standardConfig = memoryManager.getStandardImageConfig();
+        const assetWidth = asset.width || 0;
+        const assetHeight = asset.height || 0;
+
+        // Resize to max 2000px (same as gallery large-image path) so subsequent rotate/crop
+        // are fast. Camera photos are typically 12MP (4032x3024) - without resize, rotation is slow.
+        const safeMaxDimension = 2000;
+        const needsResize = assetWidth > safeMaxDimension || assetHeight > safeMaxDimension;
+        const scale = needsResize ? safeMaxDimension / Math.max(assetWidth, assetHeight) : 1;
+        const resizeWidth = Math.round(assetWidth * scale);
+        const resizeHeight = Math.round(assetHeight * scale);
+
+        const transformations = needsResize
+          ? [{ resize: { width: resizeWidth, height: resizeHeight } }]
+          : [];
 
         let normalised;
         let retryCount = 0;
@@ -95,41 +109,37 @@ export default function CameraButton({ onPhotoCapture, style, onProcessingStateC
             
             normalised = await ImageManipulator.manipulateAsync(
               asset.uri,
-              [],
+              transformations,
               { 
                 compress: compressionLevel, 
                 format: ImageManipulator.SaveFormat.JPEG
               }
             );
 
-                         // Validate the processed image by actually loading it
-             if (normalised && normalised.width > 0 && normalised.height > 0) {
-               // Additional validation: verify the image file can be loaded properly
-               try {
-                 const imageInfo = await ImageManipulator.manipulateAsync(
-                   normalised.uri,
-                   [],
-                   { format: ImageManipulator.SaveFormat.JPEG, compress: 0.1 }
-                 );
-                 if (imageInfo.width === normalised.width && imageInfo.height === normalised.height) {
-                   logger.log('[CameraButton] Processed captured image validated:', 
-                     `${normalised.width}x${normalised.height}`, 'URI:', normalised.uri);
-                   break; // Success
-                 } else {
-                   throw new Error(`Image file dimensions mismatch: expected ${normalised.width}x${normalised.height}, got ${imageInfo.width}x${imageInfo.height}`);
-                 }
-               } catch (validationError) {
-                 throw new Error(`Image validation failed: ${validationError instanceof Error ? validationError.message : 'Unknown error'}`);
-               }
-             } else {
-               throw new Error('Invalid processed image dimensions');
-             }
+            if (normalised && normalised.width > 0 && normalised.height > 0) {
+              logger.log('[CameraButton] Processed captured image:', 
+                `${normalised.width}x${normalised.height}`, 'URI:', normalised.uri);
+              break;
+            } else {
+              throw new Error('Invalid processed image dimensions');
+            }
             
           } catch (processingError) {
             logger.error(`[CameraButton] Processing attempt ${retryCount + 1} failed:`, processingError);
             
             if (retryCount < maxRetries) {
-              // Additional cleanup between retries
+              // Retry with smaller dimensions on memory pressure
+              if (needsResize) {
+                const retryMax = Math.round(safeMaxDimension * 0.6);
+                const retryScale = retryMax / Math.max(assetWidth, assetHeight);
+                transformations.length = 0;
+                transformations.push({
+                  resize: {
+                    width: Math.round(assetWidth * retryScale),
+                    height: Math.round(assetHeight * retryScale),
+                  },
+                });
+              }
               await memoryManager.forceCleanup();
               retryCount++;
             } else {

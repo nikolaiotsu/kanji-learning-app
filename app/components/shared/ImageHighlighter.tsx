@@ -292,6 +292,10 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   
   // Fade-in animation for images
   const imageOpacity = useRef(new Animated.Value(0)).current;
+  // When true, the next imageUri change skips the opacity-to-0 reset (e.g. after rotation confirmation)
+  const skipNextFadeInRef = useRef(false);
+  // When true, defer rotation reset until onLoad so we don't snap old image to 0deg before new image loads
+  const deferRotationResetUntilLoadedRef = useRef(false);
   
   useEffect(() => {
     const loop = Animated.loop(
@@ -404,7 +408,11 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   useEffect(() => {
     if (prevImageUriRef.current !== imageUri) {
       setIsProcessing(false);
-      imageOpacity.setValue(0);
+      if (skipNextFadeInRef.current) {
+        skipNextFadeInRef.current = false;
+      } else {
+        imageOpacity.setValue(0);
+      }
       setCropMode(false);
       setCropBox({ x: 0, y: 0, width: 0, height: 0 });
       setStrokes([]);
@@ -1095,10 +1103,8 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       logger.log('[ImageHighlighter] Confirming rotation:', rotation);
       
       try {
-        // Perform the rotation directly using ImageManipulator for simplicity
-        // This avoids any potential dimension issues from complex processing chains
-        // Use PNG format to avoid white background in rotated corners (JPEG fills with white)
-        const result = await ImageManipulator.manipulateAsync(
+        // First rotate (expands canvas to bounding box)
+        const rotated = await ImageManipulator.manipulateAsync(
           imageUri,
           [{ rotate: rotation }],
           { 
@@ -1106,13 +1112,26 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           }
         );
         
-        logger.log('[ImageHighlighter] Rotation applied. New dimensions:', result.width, 'x', result.height, 
+        // Center-crop back to original dimensions so the image doesn't shrink on each rotation
+        const cropX = Math.max(0, (rotated.width - imageWidth) / 2);
+        const cropY = Math.max(0, (rotated.height - imageHeight) / 2);
+        const cropW = Math.min(imageWidth, rotated.width);
+        const cropH = Math.min(imageHeight, rotated.height);
+
+        const result = await ImageManipulator.manipulateAsync(
+          rotated.uri,
+          [{ crop: { originX: cropX, originY: cropY, width: cropW, height: cropH } }],
+          { format: ImageManipulator.SaveFormat.PNG }
+        );
+        
+        logger.log('[ImageHighlighter] Rotation applied (cropped to original). New dimensions:', result.width, 'x', result.height, 
           '(original was', imageWidth, 'x', imageHeight, ')');
         
-        // After confirmation, reset rotation state for future operations
-        setRotation(0); 
-        setInitialRotation(0);
-        setRotateMode(false);  // Explicitly exit rotate mode
+        setRotateMode(false);  // Exit rotate mode so toolbar/gestures update
+        // Defer setRotation(0) until new image loads - otherwise we briefly show old image at 0deg (snap-back)
+        deferRotationResetUntilLoadedRef.current = true;
+        // Skip the fade-to-zero on the upcoming imageUri change so the image stays visible
+        skipNextFadeInRef.current = true;
         
         // Return the dimensions directly from the result
         return { 
@@ -1980,13 +1999,22 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
           onLoad={() => {
             // Notify parent that image is loaded (for hiding loading overlays)
             onImageLoaded?.();
-            // Trigger fade-in animation when image loads
-            Animated.timing(imageOpacity, {
-              toValue: 1,
-              duration: 300,
-              easing: Easing.out(Easing.ease),
-              useNativeDriver: true,
-            }).start();
+            // After rotation, reset rotation state only once new image is visible (avoids snap-back)
+            if (deferRotationResetUntilLoadedRef.current) {
+              deferRotationResetUntilLoadedRef.current = false;
+              rotationAnimatedValue.setValue(0); // Update visual immediately to avoid one-frame flash
+              setRotation(0);
+              setInitialRotation(0);
+              // Skip opacity animation - already 1, avoids any animation-induced flicker
+            } else {
+              // Trigger fade-in animation when image loads (non-rotation case)
+              Animated.timing(imageOpacity, {
+                toValue: 1,
+                duration: 300,
+                easing: Easing.out(Easing.ease),
+                useNativeDriver: true,
+              }).start();
+            }
           }}
         />
         {/* OCR scan blocks: clickable bounding boxes when ocrScanModeActive */}

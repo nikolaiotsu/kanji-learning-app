@@ -180,6 +180,16 @@ export default function KanjiScanner({ onCardSwipe, onContentReady, onWalkthroug
       useNativeDriver: true,
     }).start(() => setIsGlobalOverlayVisible(false));
   }, [globalOverlayOpacity]);
+
+  // Camera: show overlay when processing starts (matches gallery flow - overlay covers transition)
+  const handleCameraProcessingStateChange = React.useCallback((processing: boolean) => {
+    setIsImageProcessing(processing);
+    if (processing) {
+      showGlobalOverlay('cameraProcessing');
+    } else {
+      hideGlobalOverlay('cameraProcessingEnd');
+    }
+  }, [showGlobalOverlay, hideGlobalOverlay]);
   
   // Safety timeout ref to automatically reset stuck processing states
   const processingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -238,6 +248,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   const flipButtonRef = useRef<View>(null);
   const imageButtonRef = useRef<View>(null);
   const cropConfirmingRef = useRef(false);
+  /** When true, we just completed rotation and set a new image - keep localProcessing overlay until onImageLoaded. */
+  const rotationCompletedWaitingForImageRef = useRef(false);
   /** Tracks whether current image came from camera or gallery; used to vary rotate step (camera = enter rotate, gallery = skip to crop). */
   const imageSourceRef = useRef<'camera' | 'gallery' | null>(null);
 
@@ -2758,8 +2770,12 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     if (!imageHighlighterRef.current || !capturedImage) return;
     logger.log('[KanjiScanner] Confirming rotation...', 'Current image dimensions:', capturedImage.width, 'x', capturedImage.height);
     
-    // Set loading state before starting the rotation process
+    // Set loading state and full-screen overlay (same UX as image picker) before starting
     setLocalProcessing(true);
+    showGlobalOverlay('rotationStart');
+    
+    // Yield one frame so overlay and spinner paint before heavy work blocks the thread
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     
     try {
       const result = await imageHighlighterRef.current.confirmCurrentRotation();
@@ -2775,6 +2791,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
         // Simple direct replacement - preserve exact dimensions from result
         logger.log('[KanjiScanner] Setting new image with UNMODIFIED dimensions:', result.width, 'x', result.height);
         
+        rotationCompletedWaitingForImageRef.current = true;
         setCapturedImage({
           uri: result.uri,
           width: result.width,
@@ -2787,6 +2804,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       }
     } catch (error) {
       logger.error('[KanjiScanner] Error confirming rotation:', error);
+      setLocalProcessing(false);
+      hideGlobalOverlay('rotationError');
       Alert.alert(t('common.error'), t('camera.rotationError'));
       // On error, confirmCurrentRotation did not run to completion, so IH may still be in rotate mode - exit it
       imageHighlighterRef.current?.toggleRotateMode();
@@ -2795,7 +2814,11 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       // already calls setRotateMode(false) in ImageHighlighter. Calling toggleRotateMode when
       // rotateMode is already false would TOGGLE IT BACK ON (bug: highlight tap would trigger rotation).
       setRotateModeActive(false); // Exit rotate mode in KanjiScanner state
-      setLocalProcessing(false);
+      // Defer hiding overlay until onImageLoaded when we set a new image - prevents flicker
+      if (!rotationCompletedWaitingForImageRef.current) {
+        setLocalProcessing(false);
+        hideGlobalOverlay('rotationCancelled');
+      }
       // If we were in walkthrough rotate step (camera flow), advance to crop
       if (isWalkthroughActive && currentStep?.id === 'rotate') {
         nextStep();
@@ -3102,7 +3125,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 <CameraButton
                   onPhotoCapture={(info) => handlePhotoCapture(info, 'camera')}
                   style={styles.rowButton}
-                  onProcessingStateChange={setIsImageProcessing}
+                  onProcessingStateChange={handleCameraProcessingStateChange}
                   disabled={isAPILimitExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
                   onDisabledPress={showUpgradeAlert}
                   darkDisabled={isAPILimitExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
@@ -3123,7 +3146,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 <CameraButton 
                   onPhotoCapture={(info) => handlePhotoCapture(info, 'camera')}
                   style={styles.rowButton}
-                  onProcessingStateChange={setIsImageProcessing}
+                  onProcessingStateChange={handleCameraProcessingStateChange}
                   disabled={isAPILimitExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
                   onDisabledPress={showUpgradeAlert}
                   darkDisabled={isAPILimitExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
@@ -3151,6 +3174,17 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
               // Hide overlay only after image has loaded to prevent flicker
               setIsImageProcessing(false);
               hideGlobalOverlay('imageLoaded');
+              // After rotation, defer clearing localProcessing until the new image loads.
+              // Use double rAF (faster than InteractionManager) so overlay and spinner clear together
+              // and user doesn't see "freeze" from delayed InteractionManager.
+              if (rotationCompletedWaitingForImageRef.current) {
+                rotationCompletedWaitingForImageRef.current = false;
+                requestAnimationFrame(() => {
+                  requestAnimationFrame(() => {
+                    setLocalProcessing(false);
+                  });
+                });
+              }
             }}
             onHighlightDrawingChange={setHighlightDrawing}
             ocrScanBlocks={ocrScanBlocks}
@@ -3463,8 +3497,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
             </View>
           </View>
           
-          {/* Loading indicator for local processing (OCR, rotation, etc.) */}
-          {localProcessing && (
+          {/* Loading indicator for local processing (OCR, crop, etc.). Hidden when global overlay is shown (e.g. rotation) to avoid duplicate spinners. */}
+          {localProcessing && !isGlobalOverlayVisible && (
             <View style={styles.localProcessingOverlay}>
               <ActivityIndicator size="large" color="black" />
             </View>
