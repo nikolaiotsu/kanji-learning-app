@@ -528,7 +528,23 @@
     "ocrTimeoutMessage": "Text recognition is taking longer than usual. Check your internet connection and try again, or select a smaller area.",
     "rotationError": "Could not apply rotation.",
     "permissionDenied": "Sorry, we need camera permissions to make this work!",
-    "failedToTakePhoto": "Failed to take photo"
+    "failedToTakePhoto": "Failed to take photo",
+    "customCardInstruction": {
+      "title": "Add Custom Card",
+      "body": "Type or paste any text to create a flashcard without scanning.",
+      "typeBullet": "Type or paste text in any language",
+      "translateBullet": "Get translations and Wordscope analysis",
+      "dontShowAgain": "Don't show again",
+      "gotIt": "Got it"
+    },
+    "yourCollectionsInstruction": {
+      "title": "Your Collections",
+      "body": "All your flashcards in one place.",
+      "browseBullet": "Swipe through decks to see your collections",
+      "organizeBullet": "Organize cards into new collections, reorder, and delete",
+      "dontShowAgain": "Don't show again",
+      "gotIt": "Got it"
+    }
   },
   "reviewPrompt": {
     "title": "Enjoying collecting?",

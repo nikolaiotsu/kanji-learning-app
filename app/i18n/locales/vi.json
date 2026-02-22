@@ -525,7 +525,23 @@
     "ocrTimeoutMessage": "Nhận dạng văn bản đang mất nhiều thời gian hơn bình thường. Kiểm tra kết nối và thử lại, hoặc chọn vùng nhỏ hơn.",
     "rotationError": "Không thể áp dụng xoay.",
     "permissionDenied": "Xin lỗi, chúng tôi cần quyền truy cập camera để tính năng này hoạt động!",
-    "failedToTakePhoto": "Không thể chụp ảnh"
+    "failedToTakePhoto": "Không thể chụp ảnh",
+    "customCardInstruction": {
+      "title": "Thêm thẻ tùy chỉnh",
+      "body": "Nhập hoặc dán văn bản bất kỳ để tạo thẻ ghi nhớ mà không cần quét.",
+      "typeBullet": "Nhập hoặc dán văn bản bằng bất kỳ ngôn ngữ nào",
+      "translateBullet": "Nhận bản dịch và phân tích Wordscope",
+      "dontShowAgain": "Không hiển thị lại",
+      "gotIt": "Đã hiểu"
+    },
+    "yourCollectionsInstruction": {
+      "title": "Bộ sưu tập của bạn",
+      "body": "Tất cả thẻ ghi nhớ của bạn ở một nơi.",
+      "browseBullet": "Vuốt qua các bộ thẻ để xem bộ sưu tập",
+      "organizeBullet": "Sắp xếp thẻ, tạo bộ sưu tập mới, sắp xếp lại và xóa",
+      "dontShowAgain": "Không hiển thị lại",
+      "gotIt": "Đã hiểu"
+    }
   },
   "reviewPrompt": {
     "title": "Thích sưu tập chứ?",

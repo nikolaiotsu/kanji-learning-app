@@ -523,7 +523,23 @@
     "ocrTimeoutMessage": "الاعتراف بالنص يستغرق وقتاً أطول من المعتاد. تحقق من اتصالك وحاول مرة أخرى، أو حدد منطقة أصغر.",
     "rotationError": "تعذر تطبيق التدوير.",
     "permissionDenied": "عذراً، نحتاج إلى أذونات الكاميرا لتعمل هذه الميزة!",
-    "failedToTakePhoto": "فشل في التقاط الصورة"
+    "failedToTakePhoto": "فشل في التقاط الصورة",
+    "customCardInstruction": {
+      "title": "إضافة بطاقة مخصصة",
+      "body": "اكتب أو الصق أي نص لإنشاء بطاقة بدون مسح.",
+      "typeBullet": "اكتب أو الصق نصًا بأي لغة",
+      "translateBullet": "الحصول على الترجمات وتحليل Wordscope",
+      "dontShowAgain": "عدم العرض مجددًا",
+      "gotIt": "تم"
+    },
+    "yourCollectionsInstruction": {
+      "title": "مجموعاتك",
+      "body": "جميع بطاقاتك في مكان واحد.",
+      "browseBullet": "مرر عبر الرزم لعرض مجموعاتك",
+      "organizeBullet": "تنظيم البطاقات، إنشاء مجموعات جديدة، إعادة الترتيب والحذف",
+      "dontShowAgain": "عدم العرض مجددًا",
+      "gotIt": "تم"
+    }
   },
   "reviewPrompt": {
     "title": "هل تستمتع بالجمع؟",

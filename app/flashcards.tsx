@@ -1686,10 +1686,12 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                       color="#ffffff" 
                       style={styles.buttonIcon} 
                     />
-                    <Text style={[
-                      styles.buttonText,
-                      null
-                    ]}>
+                    <Text
+                      style={[styles.buttonText, { alignSelf: 'stretch' }]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.6}
+                    >
                       Edit Text
                     </Text>
                   </View>
@@ -1736,11 +1738,16 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                         </>
                       )}
                     </View>
-                    <Text style={[
-                      styles.buttonText, 
-                      !canUseWordscope ? { color: COLORS.darkGray } : null,
-                      null
-                    ]}>
+                    <Text
+                      style={[
+                        styles.buttonText,
+                        !canUseWordscope ? { color: COLORS.darkGray } : null,
+                        { alignSelf: 'stretch' },
+                      ]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.6}
+                    >
                       {!canUseWordscope ? 'Locked' : 'Wordscope'}
                     </Text>
                   </View>
@@ -1775,11 +1782,16 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
                       color={!canUseTranslate ? COLORS.darkGray : '#ffffff'} 
                       style={styles.buttonIcon} 
                     />
-                    <Text style={[
-                      styles.buttonText, 
-                      !canUseTranslate ? { color: COLORS.darkGray } : null,
-                      null
-                    ]}>
+                    <Text
+                      style={[
+                        styles.buttonText,
+                        !canUseTranslate ? { color: COLORS.darkGray } : null,
+                        { alignSelf: 'stretch' },
+                      ]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.6}
+                    >
                       {!canUseTranslate ? 'Locked' : 'Translate'}
                     </Text>
                   </View>

@@ -525,7 +525,23 @@
     "ocrTimeoutMessage": "Die Texterkennung dauert länger als üblich. Prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut, oder wählen Sie einen kleineren Bereich.",
     "rotationError": "Drehung konnte nicht angewendet werden.",
     "permissionDenied": "Entschuldigung, wir benötigen Kameraberechtigungen, damit dies funktioniert!",
-    "failedToTakePhoto": "Foto konnte nicht aufgenommen werden"
+    "failedToTakePhoto": "Foto konnte nicht aufgenommen werden",
+    "customCardInstruction": {
+      "title": "Eigene Karte hinzufügen",
+      "body": "Tippen oder fügen Sie Text ein, um ohne Scannen eine Karteikarte zu erstellen.",
+      "typeBullet": "Text in beliebiger Sprache eingeben oder einfügen",
+      "translateBullet": "Übersetzungen und Wordscope-Analyse erhalten",
+      "dontShowAgain": "Nicht mehr anzeigen",
+      "gotIt": "Verstanden"
+    },
+    "yourCollectionsInstruction": {
+      "title": "Deine Sammlungen",
+      "body": "Alle deine Karteikarten an einem Ort.",
+      "browseBullet": "Durch Decks wischen, um Sammlungen anzuzeigen",
+      "organizeBullet": "Karten organisieren, neue Sammlungen erstellen, sortieren und löschen",
+      "dontShowAgain": "Nicht mehr anzeigen",
+      "gotIt": "Verstanden"
+    }
   },
   "reviewPrompt": {
     "title": "Sammeln macht Spaß?",

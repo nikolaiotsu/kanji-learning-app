@@ -76,7 +76,7 @@ export default function BadgeDetailModal({
       ]}
     >
       <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
-      <View style={styles.modalCard} pointerEvents="box-only">
+      <View style={styles.modalCard} pointerEvents="auto">
         <View style={styles.badgeContainer}>
           <FloatingBadgeImage badge={displayedBadge} size="large" withBackground />
         </View>

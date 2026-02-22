@@ -525,7 +525,23 @@
     "ocrTimeoutMessage": "O reconhecimento de texto está demorando mais que o normal. Verifique sua conexão e tente novamente, ou selecione uma área menor.",
     "rotationError": "Não foi possível aplicar a rotação.",
     "permissionDenied": "Desculpe, precisamos de permissões da câmera para que isso funcione!",
-    "failedToTakePhoto": "Falha ao tirar foto"
+    "failedToTakePhoto": "Falha ao tirar foto",
+    "customCardInstruction": {
+      "title": "Adicionar cartão personalizado",
+      "body": "Digite ou cole qualquer texto para criar um cartão sem digitalizar.",
+      "typeBullet": "Digite ou cole texto em qualquer idioma",
+      "translateBullet": "Obter traduções e análise Wordscope",
+      "dontShowAgain": "Não mostrar novamente",
+      "gotIt": "Entendi"
+    },
+    "yourCollectionsInstruction": {
+      "title": "Suas coleções",
+      "body": "Todos os seus cartões em um só lugar.",
+      "browseBullet": "Deslize pelos baralhos para ver suas coleções",
+      "organizeBullet": "Organizar cartões, criar coleções, reordenar e excluir",
+      "dontShowAgain": "Não mostrar novamente",
+      "gotIt": "Entendi"
+    }
   },
   "reviewPrompt": {
     "title": "Gostando de colecionar?",

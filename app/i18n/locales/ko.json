@@ -523,7 +523,23 @@
     "ocrTimeoutMessage": "텍스트 인식이 평소보다 오래 걸리고 있습니다. 인터넷 연결을 확인하고 다시 시도하거나, 더 작은 영역을 선택해 주세요.",
     "rotationError": "회전을 적용할 수 없습니다.",
     "permissionDenied": "죄송합니다. 카메라 권한이 필요합니다!",
-    "failedToTakePhoto": "사진 촬영에 실패했습니다"
+    "failedToTakePhoto": "사진 촬영에 실패했습니다",
+    "customCardInstruction": {
+      "title": "맞춤 카드 추가",
+      "body": "스캔 없이 텍스트를 입력하거나 붙여넣어 플래시카드를 만드세요.",
+      "typeBullet": "어떤 언어로든 텍스트 입력 또는 붙여넣기",
+      "translateBullet": "번역 및 Wordscope 분석 받기",
+      "dontShowAgain": "다시 표시하지 않기",
+      "gotIt": "확인"
+    },
+    "yourCollectionsInstruction": {
+      "title": "컬렉션",
+      "body": "모든 플래시카드가 한곳에 있습니다.",
+      "browseBullet": "덱을 스와이프하여 컬렉션 보기",
+      "organizeBullet": "카드 정리, 새 컬렉션 만들기, 순서 변경 및 삭제",
+      "dontShowAgain": "다시 표시하지 않기",
+      "gotIt": "확인"
+    }
   },
   "reviewPrompt": {
     "title": "수집을 즐기고 계신가요?",

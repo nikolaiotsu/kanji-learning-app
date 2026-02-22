@@ -523,7 +523,23 @@
     "ocrTimeoutMessage": "認識に時間がかかっています。接続を確認するか、もう一度お試しください。または、より小さい範囲を選択してください。",
     "rotationError": "回転を適用できませんでした。",
     "permissionDenied": "申し訳ありませんが、カメラの権限が必要です！",
-    "failedToTakePhoto": "写真の撮影に失敗しました"
+    "failedToTakePhoto": "写真の撮影に失敗しました",
+    "customCardInstruction": {
+      "title": "カスタムカードを追加",
+      "body": "スキャンせずに、入力または貼り付けたテキストでフラッシュカードを作成できます。",
+      "typeBullet": "任意の言語のテキストを入力または貼り付け",
+      "translateBullet": "翻訳と Wordscope 分析を取得",
+      "dontShowAgain": "今後表示しない",
+      "gotIt": "了解"
+    },
+    "yourCollectionsInstruction": {
+      "title": "コレクション",
+      "body": "すべてのフラッシュカードがここにあります。",
+      "browseBullet": "デッキをスワイプしてコレクションを表示",
+      "organizeBullet": "カードを整理、新規コレクション作成、並べ替え、削除",
+      "dontShowAgain": "今後表示しない",
+      "gotIt": "了解"
+    }
   },
   "reviewPrompt": {
     "title": "コレクションを楽しんでいますか？",

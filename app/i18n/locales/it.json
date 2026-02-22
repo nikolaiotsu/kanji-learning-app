@@ -525,7 +525,23 @@
     "ocrTimeoutMessage": "Il riconoscimento del testo sta impiegando più del solito. Controlla la connessione e riprova, o seleziona un'area più piccola.",
     "rotationError": "Impossibile applicare la rotazione.",
     "permissionDenied": "Scusa, abbiamo bisogno dei permessi della fotocamera per far funzionare questo!",
-    "failedToTakePhoto": "Scatto foto fallito"
+    "failedToTakePhoto": "Scatto foto fallito",
+    "customCardInstruction": {
+      "title": "Aggiungi scheda personalizzata",
+      "body": "Digita o incolla qualsiasi testo per creare una scheda senza scansionare.",
+      "typeBullet": "Digita o incolla testo in qualsiasi lingua",
+      "translateBullet": "Ottieni traduzioni e analisi Wordscope",
+      "dontShowAgain": "Non mostrare più",
+      "gotIt": "Capito"
+    },
+    "yourCollectionsInstruction": {
+      "title": "Le tue raccolte",
+      "body": "Tutte le tue schede in un unico posto.",
+      "browseBullet": "Scorri i mazzi per vedere le tue raccolte",
+      "organizeBullet": "Organizza le schede, crea raccolte, riordina ed elimina",
+      "dontShowAgain": "Non mostrare più",
+      "gotIt": "Capito"
+    }
   },
   "reviewPrompt": {
     "title": "Ti piace collezionare?",

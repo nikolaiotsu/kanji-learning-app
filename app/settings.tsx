@@ -24,6 +24,8 @@ import { setReviewButtonInstructionsDontShowAgain } from './services/reviewButto
 import { setCollectionsButtonInstructionsDontShowAgain } from './services/collectionsButtonInstructionService';
 import { setDeckNameInstructionsDontShowAgain } from './services/deckNameInstructionService';
 import { setBadgesButtonInstructionsDontShowAgain } from './services/badgesButtonInstructionService';
+import { setCustomCardButtonInstructionsDontShowAgain } from './services/customCardButtonInstructionService';
+import { setYourCollectionsButtonInstructionsDontShowAgain } from './services/yourCollectionsButtonInstructionService';
 import { useBadge } from './context/BadgeContext';
 import { resetWalkthrough } from './hooks/useWalkthrough';
 import { hasEnergyBarsRemaining } from './utils/walkthroughEnergyCheck';
@@ -304,13 +306,15 @@ export default function SettingsScreen() {
     }
   };
 
-  // Function to reset all 4 instruction modals (Review, Collections, Deck Name, Badges)
+  // Function to reset all 6 instruction modals (Review, Collections, Deck Name, Badges, Custom Card, Your Collections)
   const handleResetInstructionModals = async () => {
     try {
       await setReviewButtonInstructionsDontShowAgain(false);
       await setCollectionsButtonInstructionsDontShowAgain(false);
       await setDeckNameInstructionsDontShowAgain(false);
       await setBadgesButtonInstructionsDontShowAgain(false);
+      await setCustomCardButtonInstructionsDontShowAgain(false);
+      await setYourCollectionsButtonInstructionsDontShowAgain(false);
       Alert.alert('Success', 'All instruction modals have been reset. They will show again the next time you tap their buttons.');
     } catch (error) {
       logger.error('Error resetting instruction modals:', error);

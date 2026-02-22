@@ -516,7 +516,23 @@
     "ocrTimeoutMessage": "文字识别比平时慢。请检查网络后重试，或选择更小的区域。",
     "rotationError": "无法应用旋转。",
     "permissionDenied": "抱歉，我们需要相机权限才能使用此功能！",
-    "failedToTakePhoto": "拍照失败"
+    "failedToTakePhoto": "拍照失败",
+    "customCardInstruction": {
+      "title": "添加自定义卡片",
+      "body": "输入或粘贴任意文字即可创建闪卡，无需扫描。",
+      "typeBullet": "输入或粘贴任意语言的文字",
+      "translateBullet": "获取翻译和 Wordscope 分析",
+      "dontShowAgain": "不再显示",
+      "gotIt": "知道了"
+    },
+    "yourCollectionsInstruction": {
+      "title": "你的收藏",
+      "body": "你的所有闪卡都在这里。",
+      "browseBullet": "滑动浏览牌组查看收藏",
+      "organizeBullet": "整理卡片、创建收藏、排序和删除",
+      "dontShowAgain": "不再显示",
+      "gotIt": "知道了"
+    }
   },
   "reviewPrompt": {
     "title": "享受收藏吗？",

@@ -525,7 +525,23 @@
     "ocrTimeoutMessage": "La reconnaissance de texte prend plus de temps que d'habitude. Vérifiez votre connexion et réessayez, ou sélectionnez une zone plus petite.",
     "rotationError": "Impossible d'appliquer la rotation.",
     "permissionDenied": "Désolé, nous avons besoin des autorisations de la caméra pour que cela fonctionne !",
-    "failedToTakePhoto": "Échec de la prise de photo"
+    "failedToTakePhoto": "Échec de la prise de photo",
+    "customCardInstruction": {
+      "title": "Ajouter une carte personnalisée",
+      "body": "Saisissez ou collez du texte pour créer une fiche sans scanner.",
+      "typeBullet": "Saisir ou coller du texte dans n'importe quelle langue",
+      "translateBullet": "Obtenir des traductions et l'analyse Wordscope",
+      "dontShowAgain": "Ne plus afficher",
+      "gotIt": "Compris"
+    },
+    "yourCollectionsInstruction": {
+      "title": "Vos collections",
+      "body": "Toutes vos fiches au même endroit.",
+      "browseBullet": "Faites défiler les decks pour voir vos collections",
+      "organizeBullet": "Organiser les cartes, créer des collections, réordonner et supprimer",
+      "dontShowAgain": "Ne plus afficher",
+      "gotIt": "Compris"
+    }
   },
   "reviewPrompt": {
     "title": "Vous appréciez la collection ?",

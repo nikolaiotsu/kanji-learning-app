@@ -1,8 +1,8 @@
 /**
- * CollectionsButtonInstructionModal
+ * YourCollectionsButtonInstructionModal
  *
- * Instructional modal shown when the user presses the collections button for the first time.
- * Explains deck selection, long press to focus, and swipe to delete.
+ * Instructional modal shown when the user presses the Your Collections (Check Flashcards) button
+ * for the first time. Explains how to view and manage saved flashcards.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -18,19 +18,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { COLORS } from '../../constants/colors';
 import { FONTS } from '../../constants/typography';
-import { setCollectionsButtonInstructionsDontShowAgain } from '../../services/collectionsButtonInstructionService';
+import { setYourCollectionsButtonInstructionsDontShowAgain } from '../../services/yourCollectionsButtonInstructionService';
 
-interface CollectionsButtonInstructionModalProps {
+interface YourCollectionsButtonInstructionModalProps {
   visible: boolean;
   onClose: () => void;
   onProceed: () => void;
 }
 
-export default function CollectionsButtonInstructionModal({
+export default function YourCollectionsButtonInstructionModal({
   visible,
   onClose,
   onProceed,
-}: CollectionsButtonInstructionModalProps) {
+}: YourCollectionsButtonInstructionModalProps) {
   const { t } = useTranslation();
   const [dontShowAgain, setDontShowAgain] = useState(false);
 
@@ -40,11 +40,9 @@ export default function CollectionsButtonInstructionModal({
 
   const handleGotIt = async () => {
     if (dontShowAgain) {
-      await setCollectionsButtonInstructionsDontShowAgain(true);
+      await setYourCollectionsButtonInstructionsDontShowAgain(true);
     }
     onClose();
-    // Only open deck selector AFTER this modal has fully dismissed to avoid invisible overlay bug.
-    // onDismiss (iOS) fires when modal is gone. Android has no onDismiss, so use setTimeout fallback.
     if (Platform.OS === 'android') {
       setTimeout(onProceed, 280);
     }
@@ -62,18 +60,18 @@ export default function CollectionsButtonInstructionModal({
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
-          <Text style={styles.title}>{t('review.collectionsInstruction.title')}</Text>
+          <Text style={styles.title}>{t('camera.yourCollectionsInstruction.title')}</Text>
 
-          <Text style={styles.body}>{t('review.collectionsInstruction.body')}</Text>
+          <Text style={styles.body}>{t('camera.yourCollectionsInstruction.body')}</Text>
 
           <View style={styles.bullets}>
             <View style={styles.bulletRow}>
-              <Ionicons name="hand-left" size={18} color={COLORS.primary} style={styles.bulletIcon} />
-              <Text style={styles.bulletText}>{t('review.collectionsInstruction.longPressBullet')}</Text>
+              <Ionicons name="folder-open" size={18} color={COLORS.primary} style={styles.bulletIcon} />
+              <Text style={styles.bulletText}>{t('camera.yourCollectionsInstruction.browseBullet')}</Text>
             </View>
             <View style={styles.bulletRow}>
-              <Ionicons name="chevron-back" size={18} color={COLORS.primary} style={styles.bulletIcon} />
-              <Text style={styles.bulletText}>{t('review.collectionsInstruction.swipeBullet')}</Text>
+              <Ionicons name="create" size={18} color={COLORS.primary} style={styles.bulletIcon} />
+              <Text style={styles.bulletText}>{t('camera.yourCollectionsInstruction.organizeBullet')}</Text>
             </View>
           </View>
 
@@ -86,12 +84,12 @@ export default function CollectionsButtonInstructionModal({
               {dontShowAgain && <Ionicons name="checkmark" size={14} color={COLORS.text} />}
             </View>
             <Text style={styles.checkboxLabel}>
-              {t('review.collectionsInstruction.dontShowAgain')}
+              {t('camera.yourCollectionsInstruction.dontShowAgain')}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.button} onPress={handleGotIt}>
-            <Text style={styles.buttonText}>{t('review.collectionsInstruction.gotIt')}</Text>
+            <Text style={styles.buttonText}>{t('camera.yourCollectionsInstruction.gotIt')}</Text>
           </TouchableOpacity>
         </View>
       </View>

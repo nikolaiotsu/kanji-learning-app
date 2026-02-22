@@ -1367,9 +1367,23 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
         // Pass the current card ID to track unique right swipes
         if (cardIdToTrack) {
           logger.log('👉 [SRS] Card swiped RIGHT - incrementing right counter, will increase box by 1');
-          incrementRightSwipe(cardIdToTrack).then((newRightCount) => {
+          incrementRightSwipe(cardIdToTrack).then(async (newRightCount) => {
             if (newRightCount === 3) {
-              setShowStreakCongratsOverlay(true);
+              // Only show streak modal once per day - prevent double show (e.g. on refresh deck)
+              const today = getLocalDateString();
+              const storageKey = `streak_congrats_shown_${today}`;
+              try {
+                const alreadyShown = await AsyncStorage.getItem(storageKey);
+                if (!alreadyShown) {
+                  await AsyncStorage.setItem(storageKey, '1');
+                  setShowStreakCongratsOverlay(true);
+                } else {
+                  logger.log('🎯 [Streak] Congrats already shown today, skipping');
+                }
+              } catch (e) {
+                logger.error('Streak congrats persistence check failed:', e);
+                setShowStreakCongratsOverlay(true); // Fallback: show anyway
+              }
             }
           });
 

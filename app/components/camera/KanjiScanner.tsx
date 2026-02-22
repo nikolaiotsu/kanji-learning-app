@@ -43,7 +43,11 @@ import { useAppReady } from '../../context/AppReadyContext';
 import { ensureMeasuredThenAdvance, measureButton } from '../../utils/walkthroughUtils';
 import APIUsageEnergyBar from '../shared/APIUsageEnergyBar';
 import BadgesButtonInstructionModal from '../shared/BadgesButtonInstructionModal';
+import CustomCardButtonInstructionModal from '../shared/CustomCardButtonInstructionModal';
+import YourCollectionsButtonInstructionModal from '../shared/YourCollectionsButtonInstructionModal';
 import { getBadgesButtonInstructionsDontShowAgain } from '../../services/badgesButtonInstructionService';
+import { getCustomCardButtonInstructionsDontShowAgain } from '../../services/customCardButtonInstructionService';
+import { getYourCollectionsButtonInstructionsDontShowAgain } from '../../services/yourCollectionsButtonInstructionService';
 import { hasEnergyBarsRemaining } from '../../utils/walkthroughEnergyCheck';
 import { useSignInPromptTrigger } from '../../context/SignInPromptTriggerContext';
 
@@ -540,6 +544,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   // Track when user completes walkthrough via Done button (parent may use for sign-in prompt timing)
   const [walkthroughJustCompleted, setWalkthroughJustCompleted] = useState(false);
   const [showBadgesInstructionModal, setShowBadgesInstructionModal] = useState(false);
+  const [showCustomCardInstructionModal, setShowCustomCardInstructionModal] = useState(false);
+  const [showYourCollectionsInstructionModal, setShowYourCollectionsInstructionModal] = useState(false);
   // Once walkthrough has ended (completed or skipped), never show the pre-walkthrough touch block again
   const walkthroughEverEndedRef = useRef(false);
   // When true, the WalkthroughOverlay has fully closed and been removed from the tree.
@@ -1102,6 +1108,25 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       showUpgradeAlert();
       return;
     }
+    if (isAPILimitExhausted || !isConnected) {
+      showUpgradeAlert();
+      return;
+    }
+    if (isWalkthroughActive) {
+      setShowTextInputModal(true);
+      return;
+    }
+    getCustomCardButtonInstructionsDontShowAgain().then((dontShow) => {
+      if (dontShow) {
+        setShowTextInputModal(true);
+      } else {
+        setShowCustomCardInstructionModal(true);
+      }
+    });
+  };
+
+  const handleCustomCardInstructionModalProceed = () => {
+    setShowCustomCardInstructionModal(false);
     setShowTextInputModal(true);
   };
 
@@ -1111,6 +1136,20 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   };
   
   const handleNavigateToSavedFlashcards = () => {
+    if (isWalkthroughActive) {
+      doNavigateToSavedFlashcards();
+      return;
+    }
+    getYourCollectionsButtonInstructionsDontShowAgain().then((dontShow) => {
+      if (dontShow) {
+        doNavigateToSavedFlashcards();
+      } else {
+        setShowYourCollectionsInstructionModal(true);
+      }
+    });
+  };
+
+  const doNavigateToSavedFlashcards = () => {
     logger.log('🔗 [KanjiScanner] Navigating to saved-flashcards screen...');
     logger.log('🔗 [KanjiScanner] Current network status:', isConnected ? 'ONLINE' : 'OFFLINE');
     logger.log('🔗 [KanjiScanner] User authenticated:', !!user);
@@ -1120,6 +1159,11 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     } catch (error) {
       logger.error('❌ [KanjiScanner] Navigation error:', error);
     }
+  };
+
+  const handleYourCollectionsInstructionModalProceed = () => {
+    setShowYourCollectionsInstructionModal(false);
+    doNavigateToSavedFlashcards();
   };
 
   const handleSubmitTextInput = async () => {
@@ -3383,10 +3427,16 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                         </>
                       )}
                     </View>
-                    <Text style={[
-                      styles.modalWordScopeButtonText,
-                      isAPILimitExhausted ? { color: COLORS.darkGray } : null
-                    ]}>
+                    <Text
+                      style={[
+                        styles.modalWordScopeButtonText,
+                        isAPILimitExhausted ? { color: COLORS.darkGray } : null,
+                        { alignSelf: 'stretch' },
+                      ]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.6}
+                    >
                       {isAPILimitExhausted ? 'Locked' : t('textInput.wordScope')}
                     </Text>
                   </View>
@@ -3462,6 +3512,16 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
         visible={showBadgesInstructionModal}
         onClose={() => setShowBadgesInstructionModal(false)}
         onProceed={handleBadgesInstructionModalProceed}
+      />
+      <CustomCardButtonInstructionModal
+        visible={showCustomCardInstructionModal}
+        onClose={() => setShowCustomCardInstructionModal(false)}
+        onProceed={handleCustomCardInstructionModalProceed}
+      />
+      <YourCollectionsButtonInstructionModal
+        visible={showYourCollectionsInstructionModal}
+        onClose={() => setShowYourCollectionsInstructionModal(false)}
+        onProceed={handleYourCollectionsInstructionModalProceed}
       />
     </View>
   );
