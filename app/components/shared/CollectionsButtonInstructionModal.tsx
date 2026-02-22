@@ -12,6 +12,7 @@ import {
   Modal,
   TouchableOpacity,
   StyleSheet,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -42,7 +43,11 @@ export default function CollectionsButtonInstructionModal({
       await setCollectionsButtonInstructionsDontShowAgain(true);
     }
     onClose();
-    onProceed();
+    // Only open deck selector AFTER this modal has fully dismissed to avoid invisible overlay bug.
+    // onDismiss (iOS) fires when modal is gone. Android has no onDismiss, so use setTimeout fallback.
+    if (Platform.OS === 'android') {
+      setTimeout(onProceed, 500);
+    }
   };
 
   return (
@@ -53,6 +58,7 @@ export default function CollectionsButtonInstructionModal({
       onRequestClose={() => {
         handleGotIt();
       }}
+      onDismiss={Platform.OS === 'ios' ? onProceed : undefined}
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>

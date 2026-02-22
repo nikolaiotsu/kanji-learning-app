@@ -401,7 +401,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
     displayImageOffsetX = (measuredLayout.width - scaledContainerWidth) / 2;
     displayImageOffsetY = (measuredLayout.height - scaledContainerHeight) / 2;
   }
-  
+
   // Update layout refs for use in PanResponder callbacks (prevents stale closure issues)
   scaledContainerWidthRef.current = scaledContainerWidth;
   scaledContainerHeightRef.current = scaledContainerHeight;
@@ -1823,22 +1823,12 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
 
   const onLayout = (event: import('react-native').LayoutChangeEvent) => {
     const { width, height, x, y } = event.nativeEvent.layout;
-    // logger.log(`[ImageHighlighter] onLayout (for main styles.container): width: ${width}, height: ${height}, screenX (relative): ${x}, screenY (relative): ${y}`); // Removed debug log
     setMeasuredLayout({ width, height });
 
     // Measure the absolute screen position of the PanResponder view
     // This is crucial and should happen after the main container layout is established.
     if (panResponderViewRef.current) {
       panResponderViewRef.current.measure((fx, fy, w, h, px, py) => {
-        // logger.log(`[ImageHighlighter] Measured panResponderViewRef: screenX:${px}, screenY:${py}, width:${w}, height:${h}`); // Removed debug log
-        /* // Removed debug log
-        logger.log(`[ImageHighlighter] Layout comparison - onLayout vs measure:`, {
-          onLayoutWidth: width, measureWidth: w,
-          onLayoutHeight: height, measureHeight: h,
-          onLayoutX: x, onLayoutY: y,
-          measureScreenX: px, measureScreenY: py
-        });
-        */
         setContainerScreenOffset({ x: px, y: py });
       });
     }

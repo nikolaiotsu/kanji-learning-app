@@ -72,13 +72,15 @@ export const AuthGuard = ({ children }: { children: React.ReactNode }) => {
     // User is authenticated but tries to access login/signup/reset-password → go home (onboarding allowed for beta testing)
     if (user && AUTH_ONLY_REDIRECT_SEGMENTS.includes(currentSegment)) {
       logger.log('🔐 [AuthGuard] User authenticated, resetting navigation to /');
-      // Dismiss all modal/pushed screens first to prevent home from appearing as a modal.
-      // Without this, signing in from guest mode (e.g. home → flashcards modal → signup)
-      // leaves the modal in the stack, causing the new home screen to slide up as a modal.
-      if (router.canDismiss()) {
-        router.dismissAll();
+      // Dismiss all modal/pushed screens and navigate to home. Use dismissTo instead of
+      // dismissAll + replace to avoid "POP_TO_TOP was not handled" when signing in from
+      // guest (e.g. home → flashcards modal → signup). dismissTo uses proper path-based
+      // navigation that works across nested navigators.
+      try {
+        router.dismissTo('/');
+      } catch {
+        router.replace('/');
       }
-      router.replace('/');
       return;
     }
 

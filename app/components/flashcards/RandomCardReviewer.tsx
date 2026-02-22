@@ -1558,10 +1558,9 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
 
   const handleCollectionsInstructionModalProceed = useCallback(() => {
     setShowCollectionsInstructionModal(false);
-    // Delay opening deck selector so the instruction modal can fully unmount first.
-    // React Native has a known issue where opening a modal while closing another
-    // leaves an invisible overlay blocking touch events (collections and other buttons).
-    setTimeout(() => setShowDeckSelector(true), 400);
+    // Instruction modal triggers onProceed only after it has fully dismissed (onDismiss on iOS,
+    // 500ms delay on Android), so we can open the deck selector immediately here.
+    setShowDeckSelector(true);
   }, []);
 
   const onKeepCard = () => {
@@ -1976,14 +1975,17 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   }, [selectedDeckIds, setCurrentCard, user?.id, fadeAnim, resetReviewSession]);
 
   // Memoize the MultiDeckSelector to prevent unnecessary re-renders
+  const handleDeckSelectorClose = useCallback(() => {
+    setShowDeckSelector(false);
+  }, []);
   const deckSelector = useMemo(() => (
     <MultiDeckSelector 
       visible={showDeckSelector}
-      onClose={() => setShowDeckSelector(false)}
+      onClose={handleDeckSelectorClose}
       onSelectDecks={handleDeckSelection}
       initialSelectedDeckIds={selectedDeckIds}
     />
-  ), [showDeckSelector, selectedDeckIds, handleDeckSelection]);
+  ), [showDeckSelector, selectedDeckIds, handleDeckSelection, handleDeckSelectorClose]);
 
   // Interpolate overlay opacities based on swipe distance
   const rightSwipeOpacity = slideAnim.interpolate({

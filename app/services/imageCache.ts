@@ -7,6 +7,9 @@ import { logger } from '../utils/logger';
  * Manages downloading and caching of flashcard images
  */
 
+/** Set to true for verbose cache logging during image-cache debugging */
+const IMAGE_CACHE_VERBOSE = false;
+
 // Directory for cached images
 const CACHE_DIR = `${FileSystem.documentDirectory}image_cache/`;
 
@@ -16,7 +19,7 @@ const ensureCacheDir = async (): Promise<void> => {
     const dirInfo = await FileSystem.getInfoAsync(CACHE_DIR);
     if (!dirInfo.exists) {
       await FileSystem.makeDirectoryAsync(CACHE_DIR, { intermediates: true });
-      logger.log('📁 [ImageCache] Created cache directory');
+      if (IMAGE_CACHE_VERBOSE) logger.log('📁 [ImageCache] Created cache directory');
     }
   } catch (error) {
     logger.error('Error creating cache directory:', error);
@@ -49,7 +52,7 @@ export const cacheImage = async (
     if (cachedPath) {
       const fileInfo = await FileSystem.getInfoAsync(cachedPath);
       if (fileInfo.exists) {
-        logger.log('🖼️ [ImageCache] Image already cached:', imageUrl);
+        if (IMAGE_CACHE_VERBOSE) logger.log('🖼️ [ImageCache] Image already cached:', imageUrl);
         return cachedPath;
       }
     }
@@ -62,13 +65,13 @@ export const cacheImage = async (
     const localPath = `${CACHE_DIR}${userId}_${filename}`;
 
     // Download image
-    logger.log('🖼️ [ImageCache] Downloading image:', imageUrl);
+    if (IMAGE_CACHE_VERBOSE) logger.log('🖼️ [ImageCache] Downloading image:', imageUrl);
     const downloadResult = await FileSystem.downloadAsync(imageUrl, localPath);
 
     if (downloadResult.status === 200) {
       // Save mapping
       await cacheImageMapping(userId, imageUrl, localPath);
-      logger.log('🖼️ [ImageCache] Image cached successfully:', localPath);
+      if (IMAGE_CACHE_VERBOSE) logger.log('🖼️ [ImageCache] Image cached successfully:', localPath);
       return localPath;
     } else {
       logger.error('🖼️ [ImageCache] Download failed with status:', downloadResult.status);
@@ -94,7 +97,7 @@ export const getCachedImageUri = async (
     if (cachedPath) {
       const fileInfo = await FileSystem.getInfoAsync(cachedPath);
       if (fileInfo.exists) {
-        logger.log('🖼️ [ImageCache] Using cached image:', cachedPath);
+        if (IMAGE_CACHE_VERBOSE) logger.log('🖼️ [ImageCache] Using cached image:', cachedPath);
         return cachedPath;
       }
     }
@@ -116,7 +119,7 @@ export const batchCacheImages = async (
   imageUrls: string[]
 ): Promise<void> => {
   try {
-    logger.log(`🖼️ [ImageCache] Starting batch cache of ${imageUrls.length} images`);
+    if (IMAGE_CACHE_VERBOSE) logger.log(`🖼️ [ImageCache] Starting batch cache of ${imageUrls.length} images`);
     
     // Cache images one at a time to avoid overwhelming the system
     for (const url of imageUrls) {
@@ -128,7 +131,7 @@ export const batchCacheImages = async (
       }
     }
     
-    logger.log('🖼️ [ImageCache] Batch cache complete');
+    if (IMAGE_CACHE_VERBOSE) logger.log('🖼️ [ImageCache] Batch cache complete');
   } catch (error) {
     logger.error('Error in batch cache:', error);
   }
@@ -153,7 +156,7 @@ export const clearImageCache = async (userId: string): Promise<void> => {
         }
       }
       
-      logger.log('🖼️ [ImageCache] Cleared image cache for user:', userId);
+      if (IMAGE_CACHE_VERBOSE) logger.log('🖼️ [ImageCache] Cleared image cache for user:', userId);
     }
   } catch (error) {
     logger.error('Error clearing image cache:', error);
@@ -174,7 +177,7 @@ export const deleteCachedImage = async (userId: string, imageUrl: string): Promi
       }
     }
     await removeImageMapping(userId, imageUrl);
-    logger.log('🖼️ [ImageCache] Deleted cached image + mapping:', imageUrl);
+    if (IMAGE_CACHE_VERBOSE) logger.log('🖼️ [ImageCache] Deleted cached image + mapping:', imageUrl);
   } catch (error) {
     logger.error('Error deleting cached image:', error);
   }

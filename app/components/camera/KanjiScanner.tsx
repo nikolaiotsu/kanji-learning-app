@@ -3475,6 +3475,7 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#000000', // Black screen behind uploaded image
+    paddingBottom: 70, // Reserve space for absolutely positioned toolbar so image doesn't shift when toolbar content changes
   },
   cropHintOverlay: {
     position: 'absolute',
@@ -3906,12 +3907,17 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number) => S
     zIndex: 999,
   },
   toolbar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: 'transparent',
     paddingHorizontal: 15,
     paddingVertical: 10,
+    zIndex: 100,
   },
   toolbarCenterControls: {
     position: 'relative',

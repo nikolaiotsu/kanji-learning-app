@@ -265,9 +265,7 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
   const [progressBarTop, setProgressBarTop] = useState(4);
   const [headerHeight, setHeaderHeight] = useState(44);
 
-  const handleHeaderLayout = useCallback((e: { nativeEvent: { layout: { height: number } } }) => {
-    const h = e.nativeEvent.layout.height;
-    if (h > 0) setHeaderHeight(Math.ceil(h));
+  const updateProgressBarPosition = useCallback(() => {
     headerRef.current?.measureInWindow((_x, headerY) => {
       const cy = containerYRef.current;
       if (cy != null) {
@@ -276,11 +274,29 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
     });
   }, []);
 
+  const handleHeaderLayout = useCallback((e: { nativeEvent: { layout: { height: number } } }) => {
+    const h = e.nativeEvent.layout.height;
+    if (h > 0) setHeaderHeight(Math.ceil(h));
+    headerRef.current?.measureInWindow((_x, headerY) => {
+      const cy = containerYRef.current;
+      if (cy != null) {
+        setProgressBarTop(Math.max(0, headerY - cy - 8));
+      } else {
+        // Race: container not measured yet; retry after layout settles
+        requestAnimationFrame(() => {
+          requestAnimationFrame(updateProgressBarPosition);
+        });
+      }
+    });
+  }, [updateProgressBarPosition]);
+
   const handleContainerLayout = useCallback(() => {
     containerRef.current?.measureInWindow((_x, y) => {
       containerYRef.current = y;
+      // Container measured; update bar in case header already measured (handles reverse race)
+      updateProgressBarPosition();
     });
-  }, []);
+  }, [updateProgressBarPosition]);
 
   // Sync progress bar with flashcards walkthrough step
   useEffect(() => {
@@ -1506,6 +1522,32 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
   // Function to handle going back to home
   const handleGoHome = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // During walkthrough, show confirmation before navigating away
+    if (isWalkthroughActive) {
+      Alert.alert(
+        t('walkthrough.endWalkthroughTitle', 'End Walkthrough?'),
+        t('walkthrough.endWalkthroughMessage', 'Pressing x or the back button will take you out of the walkthrough. Are you sure?'),
+        [
+          {
+            text: t('walkthrough.continueWalkthrough', 'No, Continue Walkthrough'),
+            onPress: () => { /* Stay in walkthrough */ }
+          },
+          {
+            text: t('walkthrough.endWalkthrough', 'Yes, End Walkthrough'),
+            style: 'destructive',
+            onPress: async () => {
+              hideProgressBar();
+              await skipWalkthrough();
+              if (router.canDismiss()) {
+                router.dismissAll();
+              }
+              router.replace('/');
+            }
+          }
+        ]
+      );
+      return;
+    }
     // Clear navigation stack completely, then navigate to home
     if (router.canDismiss()) {
       router.dismissAll();

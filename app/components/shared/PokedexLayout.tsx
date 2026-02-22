@@ -438,7 +438,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 10,
-    backgroundColor: 'transparent',
+    backgroundColor: COLORS.background,
     // Bottom border for depth separation
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0, 0, 0, 0.25)',
@@ -586,7 +586,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 10,
     borderRadius: 16,
-    backgroundColor: 'transparent',
+    backgroundColor: COLORS.screenBackground, // Solid color needed for efficient shadow; matches textured background
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
