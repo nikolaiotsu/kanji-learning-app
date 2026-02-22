@@ -1564,11 +1564,16 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
       openDeckSelector();
       return;
     }
+    // On "no cards" screen, user just used collections—open directly without instruction modal
+    if (filteredCards.length === 0) {
+      openDeckSelector();
+      return;
+    }
     getCollectionsButtonInstructionsDontShowAgain().then(dontShow => {
       if (dontShow) openDeckSelector();
       else setShowCollectionsInstructionModal(true);
     });
-  }, [isCardTransitioning, isInitializing, isWalkthroughActive]);
+  }, [isCardTransitioning, isInitializing, isWalkthroughActive, filteredCards.length]);
 
   const handleCollectionsInstructionModalProceed = useCallback(() => {
     setShowCollectionsInstructionModal(false);
@@ -1992,14 +1997,17 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const handleDeckSelectorClose = useCallback(() => {
     setShowDeckSelector(false);
   }, []);
-  const deckSelector = useMemo(() => (
-    <MultiDeckSelector 
-      visible={showDeckSelector}
-      onClose={handleDeckSelectorClose}
-      onSelectDecks={handleDeckSelection}
-      initialSelectedDeckIds={selectedDeckIds}
-    />
-  ), [showDeckSelector, selectedDeckIds, handleDeckSelection, handleDeckSelectorClose]);
+  // Unmount Modal entirely when closed to avoid invisible overlay blocking touches (RN Modal bug)
+  const deckSelector = useMemo(() =>
+    showDeckSelector ? (
+      <MultiDeckSelector
+        visible={true}
+        onClose={handleDeckSelectorClose}
+        onSelectDecks={handleDeckSelection}
+        initialSelectedDeckIds={selectedDeckIds}
+      />
+    ) : null,
+  [showDeckSelector, selectedDeckIds, handleDeckSelection, handleDeckSelectorClose]);
 
   // Interpolate overlay opacities based on swipe distance
   const rightSwipeOpacity = slideAnim.interpolate({
