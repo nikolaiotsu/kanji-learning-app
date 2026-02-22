@@ -188,6 +188,19 @@ export default function SavedFlashcardsScreen() {
     scrollToDeck(rightmostIdx, viewPosition);
     setHasAppliedRequestedDeck(true);
   }, [decks.length, requestedDeckId, hasAppliedRequestedDeck, selectedDeckId]);
+
+  // When deck selector becomes visible, ensure it scrolls to show the focused deck
+  // (e.g. when opening Your Collections - selector has no initialScrollIndex so it would show index 0)
+  useEffect(() => {
+    if (isLoadingDecks || decks.length === 0 || selectedDeckIndex < 0) return;
+    const timer = setTimeout(() => {
+      try {
+        const viewPosition = getViewPosition(selectedDeckIndex, decks.length);
+        scrollDeckSelectorToIndex(selectedDeckIndex, viewPosition, false);
+      } catch {}
+    }, 150); // Allow deck selector FlatList to complete layout
+    return () => clearTimeout(timer);
+  }, [isLoadingDecks, decks.length, selectedDeckIndex]);
   
   // Load decks and flashcards on mount
   useEffect(() => {
@@ -1235,7 +1248,9 @@ export default function SavedFlashcardsScreen() {
               const scrollOffset = e.nativeEvent.contentOffset.x;
               const currentExpectedOffset = selectedDeckIndex * contentWidth;
               const offsetFromCurrent = scrollOffset - currentExpectedOffset;
-              const swipeDirection = Math.abs(offsetFromCurrent) > contentWidth / 2 ? Math.sign(offsetFromCurrent) : 0;
+              // Trigger deck change earlier: ~25% of screen instead of 50%
+              const DECK_SWIPE_THRESHOLD = contentWidth / 4;
+              const swipeDirection = Math.abs(offsetFromCurrent) > DECK_SWIPE_THRESHOLD ? Math.sign(offsetFromCurrent) : 0;
               const targetIndex = Math.max(0, Math.min(selectedDeckIndex + swipeDirection, decks.length - 1));
 
               // Only process deck changes if user actually dragged (not just a tap)

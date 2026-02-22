@@ -590,7 +590,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   const walkthroughSwipeHintAnim = useRef(new Animated.Value(0)).current;
 
   // Define swipe threshold
-  const SWIPE_THRESHOLD = 120;
+  const SWIPE_THRESHOLD = 80;
 
   // Rainbow border animation effect for review button
   // Best practice: only start/stop on state transitions to avoid jumpy restarts
