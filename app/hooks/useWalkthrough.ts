@@ -25,6 +25,8 @@ export interface WalkthroughStep {
   id: string;
   title: string;
   description: string;
+  /** When set, renders bullet points instead of plain description */
+  descriptionBullets?: string[];
   targetRef?: React.RefObject<any>;
   targetLayout?: {
     x: number;

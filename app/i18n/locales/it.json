@@ -483,7 +483,18 @@
   "imageHighlighter": {
     "dragToRotate": "Trascina per ruotare l'immagine",
     "dragToHighlight": "trascina per evidenziare",
-    "dragToCrop": "trascina per ritagliare"
+    "dragToCrop": "trascina per ritagliare",
+    "ocrScanTapToSelect": "Tocca i blocchi di testo per selezionarli, poi conferma.",
+    "ocrScanSelectedCount": "{{count}} selezionati",
+    "longPressTooltip": {
+      "title": "Suggerimenti per evidenziare",
+      "body": "Due modi per catturare il testo:",
+      "tapBullet": "Tocca: disegna un'evidenziazione per selezionare testo specifico",
+      "longPressBullet": "Premi a lungo: scansiona l'intera pagina e scegli ciò che ti serve",
+      "dontShowAgain": "Non mostrare più",
+      "continueToHighlight": "Continua a evidenziare",
+      "gotIt": "Capito"
+    }
   },
   "textInput": {
     "placeholder": "Inserisci testo da tradurre",
@@ -523,6 +534,9 @@
     "ocrErrorMessage": "C'è stato un problema nel riconoscere il testo nell'area selezionata. Riprova.",
     "ocrTimeoutTitle": "Sta impiegando troppo tempo",
     "ocrTimeoutMessage": "Il riconoscimento del testo sta impiegando più del solito. Controlla la connessione e riprova, o seleziona un'area più piccola.",
+    "ocrScanNoSelectionTitle": "Nessuna selezione",
+    "ocrScanNoSelectionMessage": "Tocca i blocchi di testo per selezionarli, poi conferma.",
+    "ocrScanInstruction": "Tocca i blocchi di testo per selezionarli, poi conferma.",
     "rotationError": "Impossibile applicare la rotazione.",
     "permissionDenied": "Scusa, abbiamo bisogno dei permessi della fotocamera per far funzionare questo!",
     "failedToTakePhoto": "Scatto foto fallito",
@@ -604,7 +618,9 @@
     },
     "highlight": {
       "title": "Evidenzia testo",
-      "description": "Disegna un'evidenziazione sul testo che vuoi imparare. Facile!",
+      "description": "Disegna un'evidenziazione sul testo che vuoi imparare.",
+      "descriptionBullet1": "Disegna un'evidenziazione sul testo che vuoi imparare.",
+      "descriptionBullet2": "Oppure tieni premuto il pulsante evidenzia per scansionare l'intera pagina e scegliere ciò che ti serve.",
       "cta": "Evidenzia"
     },
     "confirmHighlight": {

@@ -1,19 +1,34 @@
-import React from 'react';
+import React, { useRef, useCallback } from 'react';
 import { 
   Text, 
   StyleSheet, 
   ViewStyle, 
   TextStyle,
   Pressable,
-  View
+  View,
+  Animated,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../constants/colors';
 import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import { createPokedexTextStyle } from '../../utils/styleUtils';
 import * as Haptics from 'expo-haptics';
 
+const RAINBOW_COLORS = [
+  'rgba(255, 0, 0, 0.55)',
+  'rgba(255, 127, 0, 0.55)',
+  'rgba(255, 255, 0, 0.55)',
+  'rgba(0, 255, 0, 0.55)',
+  'rgba(0, 0, 255, 0.55)',
+  'rgba(139, 0, 255, 0.55)',
+  'rgba(255, 0, 0, 0.55)',
+] as const;
+
 interface PokedexButtonProps {
   onPress: () => void;
+  onLongPress?: () => void;
+  /** When true and onLongPress exists, shows a tiny hold-icon badge in corner to indicate long-press is available */
+  longPressHint?: boolean;
   title?: string;
   icon?: keyof typeof Ionicons.glyphMap;
   materialCommunityIcon?: keyof typeof MaterialCommunityIcons.glyphMap;
@@ -30,6 +45,8 @@ interface PokedexButtonProps {
 
 export default function PokedexButton({
   onPress,
+  onLongPress,
+  longPressHint = false,
   title,
   icon,
   materialCommunityIcon,
@@ -49,6 +66,14 @@ export default function PokedexButton({
     if (!disabled) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       onPress();
+    }
+  };
+
+  // Handle long press with heavy haptic feedback
+  const handleLongPress = () => {
+    if (!disabled && onLongPress) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      onLongPress();
     }
   };
 
@@ -99,10 +124,53 @@ export default function PokedexButton({
 
   const showTopHighlight = !darkDisabled;
   
+  const showLongPressHint = longPressHint && !!onLongPress;
+
+  // Long-press progress animation (fills over delayLongPress ms)
+  const longPressProgress = useRef(new Animated.Value(0)).current;
+  const longPressAnimRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  const DELAY_LONG_PRESS = 500;
+
+  const handlePressIn = useCallback(() => {
+    if (!onLongPress || disabled) return;
+    longPressAnimRef.current?.stop();
+    longPressProgress.setValue(0);
+    longPressAnimRef.current = Animated.timing(longPressProgress, {
+      toValue: 1,
+      duration: DELAY_LONG_PRESS,
+      useNativeDriver: false,
+    });
+    longPressAnimRef.current.start(() => {
+      longPressAnimRef.current = null;
+    });
+  }, [onLongPress, disabled, longPressProgress]);
+
+  const handlePressOut = useCallback(() => {
+    if (!onLongPress) return;
+    longPressAnimRef.current?.stop();
+    longPressAnimRef.current = null;
+    Animated.timing(longPressProgress, {
+      toValue: 0,
+      duration: 120,
+      useNativeDriver: false,
+    }).start();
+  }, [onLongPress, longPressProgress]);
+
+  const buttonHeight = currentSize.height;
+  const fillHeight = longPressProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, buttonHeight],
+  });
+
   return (
     <View style={[styles.buttonContainer, style, { width: currentSize.width }]}>
       <Pressable
         onPress={handlePress}
+        onPressIn={onLongPress ? handlePressIn : undefined}
+        onPressOut={onLongPress ? handlePressOut : undefined}
+        onLongPress={onLongPress ? handleLongPress : undefined}
+        delayLongPress={onLongPress ? DELAY_LONG_PRESS : undefined}
         disabled={disabled}
         style={({pressed}) => [
           styles.buttonBase,
@@ -142,6 +210,29 @@ export default function PokedexButton({
           />
         )}
         
+        {/* Long-press rainbow fill - rises from bottom as user holds */}
+        {onLongPress && (
+          <Animated.View
+            style={[
+              styles.longPressFillWrap,
+              {
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: fillHeight,
+                borderRadius: currentSize.borderRadius,
+              },
+            ]}
+            pointerEvents="none"
+          >
+            <LinearGradient
+              colors={RAINBOW_COLORS}
+              start={{ x: 0.5, y: 1 }}
+              end={{ x: 0.5, y: 0 }}
+              style={[StyleSheet.absoluteFill, { borderRadius: currentSize.borderRadius }]}
+            />
+          </Animated.View>
+        )}
         {/* Button content */}
         <View style={[styles.buttonContent, !title && styles.iconOnlyContent]}>
           {icon && !materialCommunityIcon && !materialIcon && (
@@ -180,6 +271,14 @@ export default function PokedexButton({
           )}
         </View>
       </Pressable>
+      {showLongPressHint && (
+        <View
+          style={[styles.longPressBadge, { right: 4, bottom: 4 }]}
+          pointerEvents="none"
+        >
+          <Ionicons name="timer-outline" size={10} color="rgba(255,255,255,0.7)" />
+        </View>
+      )}
     </View>
   );
 }
@@ -228,5 +327,19 @@ const styles = StyleSheet.create({
   },
   iconOnlyContent: {
     justifyContent: 'center',
+  },
+  longPressBadge: {
+    position: 'absolute',
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  longPressFillWrap: {
+    position: 'absolute',
+    overflow: 'hidden',
+    zIndex: 0,
   },
 });

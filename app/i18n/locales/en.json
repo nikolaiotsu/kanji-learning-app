@@ -486,7 +486,18 @@
   "imageHighlighter": {
     "dragToRotate": "Drag to rotate the image",
     "dragToHighlight": "drag to highlight",
-    "dragToCrop": "drag to crop"
+    "dragToCrop": "drag to crop",
+    "ocrScanTapToSelect": "Tap text blocks to select, then confirm",
+    "ocrScanSelectedCount": "{{count}} selected",
+    "longPressTooltip": {
+      "title": "Highlight Tips",
+      "body": "Two ways to capture text:",
+      "tapBullet": "Tap: Draw a highlight to select specific text",
+      "longPressBullet": "Long press: Scan the whole page and pick what you need",
+      "dontShowAgain": "Don't show again",
+      "continueToHighlight": "Continue to highlight",
+      "gotIt": "Got it"
+    }
   },
   "textInput": {
     "placeholder": "Enter text to translate",
@@ -526,6 +537,9 @@
     "ocrErrorMessage": "There was a problem recognizing text in the selected area. Please try again.",
     "ocrTimeoutTitle": "Taking Too Long",
     "ocrTimeoutMessage": "Text recognition is taking longer than usual. Check your internet connection and try again, or select a smaller area.",
+    "ocrScanNoSelectionTitle": "No Selection",
+    "ocrScanNoSelectionMessage": "Tap text blocks to select them, then confirm.",
+    "ocrScanInstruction": "Tap text blocks to select, then confirm.",
     "rotationError": "Could not apply rotation.",
     "permissionDenied": "Sorry, we need camera permissions to make this work!",
     "failedToTakePhoto": "Failed to take photo",
@@ -599,7 +613,9 @@
     },
     "highlight": {
       "title": "Highlight Text",
-      "description": "Draw a highlight on the text you want to learn. Easy!",
+      "description": "Draw a highlight on the text you want to learn.",
+      "descriptionBullet1": "Draw a highlight on the text you want to learn.",
+      "descriptionBullet2": "Or long press the highlight button to scan the whole page and pick out what you need.",
       "cta": "Highlight"
     },
     "confirmHighlight": {

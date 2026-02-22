@@ -660,6 +660,266 @@ export async function detectJapaneseText(
   }
 }
 
+/** A text block with bounding box, returned by detectTextBlocks for OCR scan mode. */
+export interface TextBlock {
+  id: string;
+  text: string;
+  boundingBox: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+}
+
+/** Vertex from Google Vision API boundingBox.vertices */
+interface Vertex {
+  x?: number;
+  y?: number;
+}
+
+/**
+ * Converts vertices array to { x, y, width, height } in the given coordinate space.
+ * Vertices are typically [topLeft, topRight, bottomRight, bottomLeft].
+ */
+function verticesToRect(vertices: Vertex[]): { x: number; y: number; width: number; height: number } | null {
+  if (!vertices || vertices.length < 2) return null;
+  const xs = vertices.map((v) => v.x ?? 0).filter((x) => !isNaN(x));
+  const ys = vertices.map((v) => v.y ?? 0).filter((y) => !isNaN(y));
+  if (xs.length === 0 || ys.length === 0) return null;
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  return {
+    x: minX,
+    y: minY,
+    width: Math.max(1, maxX - minX),
+    height: Math.max(1, maxY - minY),
+  };
+}
+
+/**
+ * Scans the full image with Google Vision OCR and returns text blocks/paragraphs
+ * with their bounding boxes. Used for OCR scan mode (long-press on highlight button).
+ * Coordinates are scaled to match the original image dimensions.
+ */
+export async function detectTextBlocks(imageUri: string): Promise<TextBlock[]> {
+  const API_KEY = EXPO_PUBLIC_GOOGLE_CLOUD_VISION_API_KEY;
+  if (!API_KEY) {
+    throw new VisionOCRError('Google Cloud Vision API key not found', VISION_OCR_ERROR_CODES.API);
+  }
+
+  const API_URL = `https://vision.googleapis.com/v1/images:annotate?key=${API_KEY}`;
+
+  const info = await getImageInfo(imageUri);
+  const originalWidth = info.width;
+  const originalHeight = info.height;
+
+  let base64Image: string | null = null;
+  let resizedWidth = originalWidth;
+  let resizedHeight = originalHeight;
+
+  try {
+    const ocrReadyUri = await resizeImageForOcr(imageUri);
+    base64Image = await getBase64ForImage(ocrReadyUri);
+
+    const maxDim = OCR_MAX_DIMENSION;
+    if (originalWidth > maxDim || originalHeight > maxDim) {
+      const scale = maxDim / Math.max(originalWidth, originalHeight);
+      resizedWidth = Math.round(originalWidth * scale);
+      resizedHeight = Math.round(originalHeight * scale);
+    }
+  } catch (error) {
+    logger.error('[detectTextBlocks] Error preparing image:', error);
+    throw new VisionOCRError('Failed to prepare image for OCR', VISION_OCR_ERROR_CODES.IMAGE_PREP);
+  }
+
+  if (!base64Image) {
+    throw new VisionOCRError('Failed to convert image to base64', VISION_OCR_ERROR_CODES.IMAGE_PREP);
+  }
+
+  const requestBody = {
+    requests: [
+      {
+        image: { content: (base64Image as string).split(',')[1] },
+        features: [{ type: 'DOCUMENT_TEXT_DETECTION', model: 'builtin/stable' }],
+        imageContext: {
+          languageHints: [
+            'ja',
+            'ja-t-i0-handwrit',
+            'ja-Hira',
+            'ja-Kana',
+            'en',
+            'zh',
+            'zh-TW',
+            'ko',
+            'es',
+            'fr',
+            'de',
+            'pt',
+            'ru',
+            'ar',
+            'hi',
+            'it',
+            'th',
+            'vi',
+          ],
+          textDetectionParams: {
+            enableTextDetectionConfidenceScore: true,
+            advancedOcrOptions: ['enable_image_quality_scores', 'enable_super_resolution'],
+          },
+        },
+      },
+    ],
+  };
+
+  const timeoutDuration = 60000;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
+
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new VisionOCRError(
+        `Google Cloud Vision API returned status ${response.status}`,
+        VISION_OCR_ERROR_CODES.API
+      );
+    }
+
+    const data = await response.json();
+    const response0 = data.responses?.[0];
+    const fullText = response0?.fullTextAnnotation;
+    const textAnnotations = response0?.textAnnotations;
+    const scaleX = originalWidth / resizedWidth;
+    const scaleY = originalHeight / resizedHeight;
+
+    /** Extract vertices from either boundingBox or boundingPoly (API uses both in different contexts). */
+    const getVertices = (obj: unknown): Vertex[] => {
+      const o = obj as { boundingBox?: { vertices?: Vertex[] }; boundingPoly?: { vertices?: Vertex[] } };
+      return o?.boundingBox?.vertices ?? o?.boundingPoly?.vertices ?? [];
+    };
+
+    const blocks: TextBlock[] = [];
+    let blockIndex = 0;
+
+    // Primary: parse fullTextAnnotation hierarchical structure (pages -> blocks -> paragraphs)
+    if (fullText?.pages?.length) {
+      for (const page of fullText.pages) {
+        for (const block of page.blocks ?? []) {
+          const paras = block.paragraphs ?? [];
+          if (paras.length === 0) {
+            const blockText = block.text ?? '';
+            if (blockText.trim()) {
+              const rect = verticesToRect(getVertices(block));
+              if (rect) {
+                blocks.push({
+                  id: `block-${blockIndex++}`,
+                  text: blockText.trim(),
+                  boundingBox: {
+                    x: Math.round(rect.x * scaleX),
+                    y: Math.round(rect.y * scaleY),
+                    width: Math.round(rect.width * scaleX),
+                    height: Math.round(rect.height * scaleY),
+                  },
+                });
+              }
+            }
+          } else {
+            for (const para of paras) {
+              const paraText = para.text ?? '';
+              if (paraText.trim()) {
+                const rect = verticesToRect(getVertices(para));
+                if (rect) {
+                  blocks.push({
+                    id: `block-${blockIndex++}`,
+                    text: paraText.trim(),
+                    boundingBox: {
+                      x: Math.round(rect.x * scaleX),
+                      y: Math.round(rect.y * scaleY),
+                      width: Math.round(rect.width * scaleX),
+                      height: Math.round(rect.height * scaleY),
+                    },
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Fallback 1: use textAnnotations (word-level with boundingPoly) when fullText hierarchy yields no blocks
+    if (blocks.length === 0 && Array.isArray(textAnnotations) && textAnnotations.length > 0) {
+      for (let i = 0; i < textAnnotations.length; i++) {
+        const ann = textAnnotations[i];
+        const desc = (ann as { description?: string }).description ?? '';
+        if (!desc.trim()) continue;
+        const rect = verticesToRect((ann as { boundingPoly?: { vertices?: Vertex[] } }).boundingPoly?.vertices ?? []);
+        if (rect) {
+          blocks.push({
+            id: `block-${blockIndex++}`,
+            text: desc.trim(),
+            boundingBox: {
+              x: Math.round(rect.x * scaleX),
+              y: Math.round(rect.y * scaleY),
+              width: Math.round(rect.width * scaleX),
+              height: Math.round(rect.height * scaleY),
+            },
+          });
+        }
+      }
+      logger.log('[detectTextBlocks] Used textAnnotations fallback, found', blocks.length, 'blocks');
+    }
+
+    // Fallback 2: fullText.text exists but no blocks - create single block for whole image
+    if (blocks.length === 0 && fullText?.text?.trim()) {
+      blocks.push({
+        id: 'block-0',
+        text: fullText.text.trim(),
+        boundingBox: { x: 0, y: 0, width: originalWidth, height: originalHeight },
+      });
+      logger.log('[detectTextBlocks] Used fullText.text fallback (single block)');
+    }
+
+    if (blocks.length === 0) {
+      logger.log('[detectTextBlocks] No text detected in image');
+    }
+    return blocks;
+  } catch (error: unknown) {
+    clearTimeout(timeoutId);
+    const isTimeout = error instanceof Error && error.name === 'AbortError';
+    const isNetwork = isNetworkError(error);
+
+    if (isTimeout) {
+      throw new VisionOCRError(
+        'Text recognition took too long. Check your connection and try again.',
+        VISION_OCR_ERROR_CODES.TIMEOUT
+      );
+    }
+    if (isNetwork) {
+      throw new VisionOCRError(
+        'Connection problem. Check your internet and try again.',
+        VISION_OCR_ERROR_CODES.NETWORK
+      );
+    }
+    if (error instanceof VisionOCRError) throw error;
+    logger.error('[detectTextBlocks] Error:', error);
+    throw new VisionOCRError(
+      error instanceof Error ? error.message : 'Text recognition failed. Please try again.',
+      VISION_OCR_ERROR_CODES.API
+    );
+  }
+}
+
 export async function analyzeImage(imageUri: string, region?: Region) {
   const apiKey = EXPO_PUBLIC_GOOGLE_CLOUD_VISION_API_KEY;
   logger.log('API Key available:', !!apiKey);

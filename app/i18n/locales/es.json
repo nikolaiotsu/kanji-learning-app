@@ -482,7 +482,18 @@
   "imageHighlighter": {
     "dragToRotate": "Arrastra para rotar la imagen",
     "dragToHighlight": "arrastra para resaltar",
-    "dragToCrop": "arrastra para recortar"
+    "dragToCrop": "arrastra para recortar",
+    "ocrScanTapToSelect": "Toca los bloques de texto para seleccionarlos y confirma.",
+    "ocrScanSelectedCount": "{{count}} seleccionados",
+    "longPressTooltip": {
+      "title": "Consejos de resaltado",
+      "body": "Dos formas de capturar texto:",
+      "tapBullet": "Toca: dibuja un resaltado para seleccionar texto específico",
+      "longPressBullet": "Mantén presionado: escanea toda la página y elige lo que necesitas",
+      "dontShowAgain": "No mostrar de nuevo",
+      "continueToHighlight": "Continuar a resaltar",
+      "gotIt": "Entendido"
+    }
   },
   "textInput": {
     "placeholder": "Ingresa texto para traducir",
@@ -521,6 +532,9 @@
     "ocrErrorMessage": "Hubo un problema al reconocer el texto en el área seleccionada. Por favor intenta de nuevo.",
     "ocrTimeoutTitle": "Tarda demasiado",
     "ocrTimeoutMessage": "El reconocimiento de texto está tardando más de lo habitual. Comprueba tu conexión e inténtalo de nuevo, o selecciona un área más pequeña.",
+    "ocrScanNoSelectionTitle": "Sin selección",
+    "ocrScanNoSelectionMessage": "Toca los bloques de texto para seleccionarlos y confirma.",
+    "ocrScanInstruction": "Toca los bloques de texto para seleccionarlos y confirma.",
     "rotationError": "No se pudo aplicar la rotación.",
     "permissionDenied": "¡Lo sentimos, necesitamos permisos de cámara para que esto funcione!",
     "failedToTakePhoto": "Error al tomar la foto",
@@ -607,7 +621,9 @@
     },
     "highlight": {
       "title": "Resaltar texto",
-      "description": "Dibuja un resaltado sobre el texto que quieres aprender. ¡Fácil!",
+      "description": "Dibuja un resaltado sobre el texto que quieres aprender.",
+      "descriptionBullet1": "Dibuja un resaltado sobre el texto que quieres aprender.",
+      "descriptionBullet2": "O mantén pulsado el botón de resaltar para escanear toda la página y elegir lo que necesitas.",
       "cta": "Resaltar"
     },
     "confirmHighlight": {

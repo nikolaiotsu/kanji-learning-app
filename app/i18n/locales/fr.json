@@ -483,7 +483,18 @@
   "imageHighlighter": {
     "dragToRotate": "Glissez pour faire pivoter l'image",
     "dragToHighlight": "glissez pour surligner",
-    "dragToCrop": "glissez pour recadrer"
+    "dragToCrop": "glissez pour recadrer",
+    "ocrScanTapToSelect": "Appuyez sur les blocs de texte pour les sélectionner, puis confirmez.",
+    "ocrScanSelectedCount": "{{count}} sélectionné(s)",
+    "longPressTooltip": {
+      "title": "Conseils de surlignage",
+      "body": "Deux façons de capturer du texte :",
+      "tapBullet": "Appuyez : dessinez un surlignage pour sélectionner du texte spécifique",
+      "longPressBullet": "Appui long : scannez toute la page et choisissez ce dont vous avez besoin",
+      "dontShowAgain": "Ne plus afficher",
+      "continueToHighlight": "Continuer au surlignage",
+      "gotIt": "Compris"
+    }
   },
   "textInput": {
     "placeholder": "Entrez le texte à traduire",
@@ -523,6 +534,9 @@
     "ocrErrorMessage": "Il y a eu un problème lors de la reconnaissance du texte dans la zone sélectionnée. Veuillez réessayer.",
     "ocrTimeoutTitle": "Cela prend trop de temps",
     "ocrTimeoutMessage": "La reconnaissance de texte prend plus de temps que d'habitude. Vérifiez votre connexion et réessayez, ou sélectionnez une zone plus petite.",
+    "ocrScanNoSelectionTitle": "Aucune sélection",
+    "ocrScanNoSelectionMessage": "Appuyez sur les blocs de texte pour les sélectionner, puis confirmez.",
+    "ocrScanInstruction": "Appuyez sur les blocs de texte pour les sélectionner, puis confirmez.",
     "rotationError": "Impossible d'appliquer la rotation.",
     "permissionDenied": "Désolé, nous avons besoin des autorisations de la caméra pour que cela fonctionne !",
     "failedToTakePhoto": "Échec de la prise de photo",
@@ -604,7 +618,9 @@
     },
     "highlight": {
       "title": "Surligner le texte",
-      "description": "Dessinez un surlignage sur le texte que vous voulez apprendre. Facile !",
+      "description": "Dessinez un surlignage sur le texte que vous voulez apprendre.",
+      "descriptionBullet1": "Dessinez un surlignage sur le texte que vous voulez apprendre.",
+      "descriptionBullet2": "Ou maintenez le bouton de surlignage pour scanner toute la page et choisir ce dont vous avez besoin.",
       "cta": "Surligner"
     },
     "confirmHighlight": {

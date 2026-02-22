@@ -25,6 +25,7 @@ import { setCollectionsButtonInstructionsDontShowAgain } from './services/collec
 import { setDeckNameInstructionsDontShowAgain } from './services/deckNameInstructionService';
 import { setBadgesButtonInstructionsDontShowAgain } from './services/badgesButtonInstructionService';
 import { setCustomCardButtonInstructionsDontShowAgain } from './services/customCardButtonInstructionService';
+import { setHighlightButtonLongPressTooltipDontShowAgain } from './services/highlightButtonLongPressTooltipService';
 import { setYourCollectionsButtonInstructionsDontShowAgain } from './services/yourCollectionsButtonInstructionService';
 import { useBadge } from './context/BadgeContext';
 import { resetWalkthrough } from './hooks/useWalkthrough';
@@ -314,6 +315,7 @@ export default function SettingsScreen() {
       await setDeckNameInstructionsDontShowAgain(false);
       await setBadgesButtonInstructionsDontShowAgain(false);
       await setCustomCardButtonInstructionsDontShowAgain(false);
+      await setHighlightButtonLongPressTooltipDontShowAgain(false);
       await setYourCollectionsButtonInstructionsDontShowAgain(false);
       Alert.alert('Success', 'All instruction modals have been reset. They will show again the next time you tap their buttons.');
     } catch (error) {

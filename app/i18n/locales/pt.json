@@ -483,7 +483,18 @@
   "imageHighlighter": {
     "dragToRotate": "Arraste para girar a imagem",
     "dragToHighlight": "arraste para destacar",
-    "dragToCrop": "arraste para cortar"
+    "dragToCrop": "arraste para cortar",
+    "ocrScanTapToSelect": "Toque nos blocos de texto para selecionar e confirme.",
+    "ocrScanSelectedCount": "{{count}} selecionados",
+    "longPressTooltip": {
+      "title": "Dicas de destaque",
+      "body": "Duas formas de capturar texto:",
+      "tapBullet": "Toque: desenhe um destaque para selecionar texto específico",
+      "longPressBullet": "Pressione longamente: escaneie a página inteira e escolha o que precisa",
+      "dontShowAgain": "Não mostrar novamente",
+      "continueToHighlight": "Continuar para destacar",
+      "gotIt": "Entendi"
+    }
   },
   "textInput": {
     "placeholder": "Digite o texto para traduzir",
@@ -523,6 +534,9 @@
     "ocrErrorMessage": "Houve um problema ao reconhecer o texto na área selecionada. Por favor, tente novamente.",
     "ocrTimeoutTitle": "Demorando demais",
     "ocrTimeoutMessage": "O reconhecimento de texto está demorando mais que o normal. Verifique sua conexão e tente novamente, ou selecione uma área menor.",
+    "ocrScanNoSelectionTitle": "Nenhuma seleção",
+    "ocrScanNoSelectionMessage": "Toque nos blocos de texto para selecioná-los e confirme.",
+    "ocrScanInstruction": "Toque nos blocos de texto para selecionar e confirme.",
     "rotationError": "Não foi possível aplicar a rotação.",
     "permissionDenied": "Desculpe, precisamos de permissões da câmera para que isso funcione!",
     "failedToTakePhoto": "Falha ao tirar foto",
@@ -604,7 +618,9 @@
     },
     "highlight": {
       "title": "Destacar texto",
-      "description": "Desenhe um destaque sobre o texto que você quer aprender. Fácil!",
+      "description": "Desenhe um destaque sobre o texto que você quer aprender.",
+      "descriptionBullet1": "Desenhe um destaque sobre o texto que você quer aprender.",
+      "descriptionBullet2": "Ou mantenha pressionado o botão de destaque para escanear a página inteira e escolher o que precisa.",
       "cta": "Destacar"
     },
     "confirmHighlight": {

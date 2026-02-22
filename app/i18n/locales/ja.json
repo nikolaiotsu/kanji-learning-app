@@ -482,7 +482,18 @@
   "imageHighlighter": {
     "dragToRotate": "ドラッグして画像を回転",
     "dragToHighlight": "ドラッグしてハイライト",
-    "dragToCrop": "ドラッグしてクロップ"
+    "dragToCrop": "ドラッグしてクロップ",
+    "ocrScanTapToSelect": "テキストブロックをタップして選択し、確認してください。",
+    "ocrScanSelectedCount": "{{count}}件選択中",
+    "longPressTooltip": {
+      "title": "ハイライトのヒント",
+      "body": "テキストをキャプチャする2つの方法：",
+      "tapBullet": "タップ：特定のテキストを選択するためにハイライトを描く",
+      "longPressBullet": "長押し：ページ全体をスキャンして必要な部分を選ぶ",
+      "dontShowAgain": "次から表示しない",
+      "continueToHighlight": "ハイライトへ進む",
+      "gotIt": "了解"
+    }
   },
   "textInput": {
     "placeholder": "翻訳するテキストを入力",
@@ -521,6 +532,9 @@
     "ocrErrorMessage": "選択した領域でテキストを認識できませんでした。もう一度お試しください。",
     "ocrTimeoutTitle": "時間がかかっています",
     "ocrTimeoutMessage": "認識に時間がかかっています。接続を確認するか、もう一度お試しください。または、より小さい範囲を選択してください。",
+    "ocrScanNoSelectionTitle": "選択なし",
+    "ocrScanNoSelectionMessage": "テキストブロックをタップして選択し、確認してください。",
+    "ocrScanInstruction": "テキストブロックをタップして選択し、確認してください。",
     "rotationError": "回転を適用できませんでした。",
     "permissionDenied": "申し訳ありませんが、カメラの権限が必要です！",
     "failedToTakePhoto": "写真の撮影に失敗しました",
@@ -607,7 +621,9 @@
     },
     "highlight": {
       "title": "テキストをハイライト",
-      "description": "学びたいテキストをハイライト。簡単!",
+      "description": "学びたいテキストをハイライト。",
+      "descriptionBullet1": "学びたいテキストをハイライトしてください。",
+      "descriptionBullet2": "または、ハイライトボタンを長押ししてページ全体をスキャンし、必要な部分を選びます。",
       "cta": "ハイライト"
     },
     "confirmHighlight": {

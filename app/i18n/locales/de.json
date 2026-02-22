@@ -483,7 +483,18 @@
   "imageHighlighter": {
     "dragToRotate": "Ziehen, um das Bild zu drehen",
     "dragToHighlight": "ziehen, um hervorzuheben",
-    "dragToCrop": "ziehen, um zuzuschneiden"
+    "dragToCrop": "ziehen, um zuzuschneiden",
+    "ocrScanTapToSelect": "Tippen Sie auf Textblöcke, um sie auszuwählen, und bestätigen Sie.",
+    "ocrScanSelectedCount": "{{count}} ausgewählt",
+    "longPressTooltip": {
+      "title": "Markierungs-Tipps",
+      "body": "Zwei Wege, Text zu erfassen:",
+      "tapBullet": "Tippen: Zeichnen Sie eine Markierung für bestimmten Text",
+      "longPressBullet": "Langes Drücken: Gesamte Seite scannen und auswählen",
+      "dontShowAgain": "Nicht mehr anzeigen",
+      "continueToHighlight": "Weiter zum Markieren",
+      "gotIt": "Verstanden"
+    }
   },
   "textInput": {
     "placeholder": "Text zum Übersetzen eingeben",
@@ -523,6 +534,9 @@
     "ocrErrorMessage": "Beim Erkennen von Text in der ausgewählten Region gab es ein Problem. Bitte versuchen Sie es erneut.",
     "ocrTimeoutTitle": "Dauert zu lange",
     "ocrTimeoutMessage": "Die Texterkennung dauert länger als üblich. Prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut, oder wählen Sie einen kleineren Bereich.",
+    "ocrScanNoSelectionTitle": "Keine Auswahl",
+    "ocrScanNoSelectionMessage": "Tippen Sie auf Textblöcke, um sie auszuwählen, und bestätigen Sie.",
+    "ocrScanInstruction": "Tippen Sie auf Textblöcke, um sie auszuwählen, und bestätigen Sie.",
     "rotationError": "Drehung konnte nicht angewendet werden.",
     "permissionDenied": "Entschuldigung, wir benötigen Kameraberechtigungen, damit dies funktioniert!",
     "failedToTakePhoto": "Foto konnte nicht aufgenommen werden",
@@ -604,7 +618,9 @@
     },
     "highlight": {
       "title": "Text markieren",
-      "description": "Zeichnen Sie eine Markierung auf den Text, den Sie lernen möchten. Einfach!",
+      "description": "Zeichnen Sie eine Markierung auf den Text, den Sie lernen möchten.",
+      "descriptionBullet1": "Zeichnen Sie eine Markierung auf den Text, den Sie lernen möchten.",
+      "descriptionBullet2": "Oder halten Sie die Markieren-Taste gedrückt, um die ganze Seite zu scannen und auszuwählen, was Sie brauchen.",
       "cta": "Markieren"
     },
     "confirmHighlight": {

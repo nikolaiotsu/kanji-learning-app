@@ -22,6 +22,8 @@ interface WalkthroughStep {
   id: string;
   title: string;
   description: string;
+  /** When set, renders bullet points instead of plain description */
+  descriptionBullets?: string[];
   targetRef?: React.RefObject<View>;
   targetLayout?: {
     x: number;
@@ -340,7 +342,18 @@ export default function WalkthroughOverlay({
             {/* Tooltip content */}
             <View style={styles.tooltipContent}>
               <Text style={styles.tooltipTitle}>{currentStep.title}</Text>
-              <Text style={styles.tooltipDescription}>{currentStep.description}</Text>
+              {currentStep.descriptionBullets && currentStep.descriptionBullets.length > 0 ? (
+                <View style={styles.tooltipDescriptionBullets}>
+                  {currentStep.descriptionBullets.map((bullet, i) => (
+                    <View key={i} style={styles.tooltipBulletRow}>
+                      <Text style={styles.tooltipBullet}>•</Text>
+                      <Text style={[styles.tooltipDescription, styles.tooltipBulletText]}>{bullet}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.tooltipDescription}>{currentStep.description}</Text>
+              )}
 
               {/* Action buttons - hidden when hideNextButton (user must complete action to advance) */}
               {!hideNextButton && (
@@ -457,6 +470,24 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     lineHeight: 30,
     marginBottom: 16,
+  },
+  tooltipDescriptionBullets: {
+    marginBottom: 16,
+  },
+  tooltipBulletRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  tooltipBullet: {
+    fontFamily: FONTS.sans,
+    fontSize: 20,
+    color: COLORS.textSecondary,
+    marginRight: 8,
+  },
+  tooltipBulletText: {
+    flex: 1,
+    marginBottom: 0,
   },
   actionButtons: {
     flexDirection: 'row',

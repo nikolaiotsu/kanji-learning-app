@@ -483,7 +483,18 @@
   "imageHighlighter": {
     "dragToRotate": "Kéo để xoay hình ảnh",
     "dragToHighlight": "kéo để làm nổi bật",
-    "dragToCrop": "kéo để cắt"
+    "dragToCrop": "kéo để cắt",
+    "ocrScanTapToSelect": "Chạm vào các khối văn bản để chọn, rồi xác nhận.",
+    "ocrScanSelectedCount": "Đã chọn {{count}}",
+    "longPressTooltip": {
+      "title": "Mẹo đánh dấu",
+      "body": "Hai cách chụp văn bản:",
+      "tapBullet": "Chạm: Vẽ đánh dấu để chọn văn bản cụ thể",
+      "longPressBullet": "Nhấn giữ: Quét toàn bộ trang và chọn nội dung cần thiết",
+      "dontShowAgain": "Không hiển thị nữa",
+      "continueToHighlight": "Tiếp tục đánh dấu",
+      "gotIt": "Đã hiểu"
+    }
   },
   "textInput": {
     "placeholder": "Nhập văn bản để dịch",
@@ -523,6 +534,9 @@
     "ocrErrorMessage": "Đã xảy ra vấn đề khi nhận dạng văn bản trong vùng đã chọn. Vui lòng thử lại.",
     "ocrTimeoutTitle": "Mất quá nhiều thời gian",
     "ocrTimeoutMessage": "Nhận dạng văn bản đang mất nhiều thời gian hơn bình thường. Kiểm tra kết nối và thử lại, hoặc chọn vùng nhỏ hơn.",
+    "ocrScanNoSelectionTitle": "Chưa chọn",
+    "ocrScanNoSelectionMessage": "Chạm vào các khối văn bản để chọn, rồi xác nhận.",
+    "ocrScanInstruction": "Chạm vào các khối văn bản để chọn, rồi xác nhận.",
     "rotationError": "Không thể áp dụng xoay.",
     "permissionDenied": "Xin lỗi, chúng tôi cần quyền truy cập camera để tính năng này hoạt động!",
     "failedToTakePhoto": "Không thể chụp ảnh",
@@ -604,7 +618,9 @@
     },
     "highlight": {
       "title": "Tô sáng văn bản",
-      "description": "Vẽ tô sáng trên văn bản bạn muốn học. Dễ mà!",
+      "description": "Vẽ tô sáng trên văn bản bạn muốn học.",
+      "descriptionBullet1": "Vẽ tô sáng trên văn bản bạn muốn học.",
+      "descriptionBullet2": "Hoặc nhấn giữ nút tô sáng để quét cả trang và chọn nội dung cần thiết.",
       "cta": "Tô sáng"
     },
     "confirmHighlight": {

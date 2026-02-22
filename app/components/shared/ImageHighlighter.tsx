@@ -106,6 +106,14 @@ interface ImageHighlighterProps {
   onImageLoaded?: () => void; // Called when the image has finished loading and is visible
   /** Called when the user starts or stops drawing a highlight stroke (so parent can hide hint animation). */
   onHighlightDrawingChange?: (drawing: boolean) => void;
+  /** OCR scan mode: text blocks detected from full-image scan, displayed as clickable boxes. */
+  ocrScanBlocks?: Array<{ id: string; text: string; boundingBox: { x: number; y: number; width: number; height: number } }>;
+  /** Which block IDs are selected (tapped by user). */
+  selectedBlockIds?: Set<string>;
+  /** Called when user taps a block to select/deselect it. */
+  onBlockTapped?: (blockId: string) => void;
+  /** When true, OCR scan mode is active; drawing is disabled so block taps register. */
+  ocrScanModeActive?: boolean;
 }
 
 // Let's define a type for our crop box to ensure type consistency
@@ -154,6 +162,10 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   onRotationStateChange,
   onImageLoaded,
   onHighlightDrawingChange,
+  ocrScanBlocks,
+  selectedBlockIds,
+  onBlockTapped,
+  ocrScanModeActive = false,
 }, ref) => {
   const { t } = useTranslation();
   const effectiveStrokeWidth = (Platform.OS === 'ios' && Platform.isPad && imageIsCropped)
@@ -229,6 +241,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   const rotateModeRef = useRef(false);
   const highlightModeActiveRef = useRef(highlightModeActive);
   const cropModeRef = useRef(false);
+  const ocrScanModeActiveRef = useRef(ocrScanModeActive);
   const rotationRef = useRef(0);
   const containerScreenOffsetRef = useRef<{x: number, y: number} | null>(null);
   const measuredLayoutRef = useRef<{width: number, height: number} | null>(null);
@@ -257,6 +270,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   useEffect(() => { rotateModeRef.current = rotateMode; }, [rotateMode]);
   useEffect(() => { highlightModeActiveRef.current = highlightModeActive; }, [highlightModeActive]);
   useEffect(() => { cropModeRef.current = cropMode; }, [cropMode]);
+  useEffect(() => { ocrScanModeActiveRef.current = ocrScanModeActive; }, [ocrScanModeActive]);
   useEffect(() => { rotationRef.current = rotation; }, [rotation]);
   useEffect(() => { containerScreenOffsetRef.current = containerScreenOffset; }, [containerScreenOffset]);
   useEffect(() => { measuredLayoutRef.current = measuredLayout; }, [measuredLayout]);
@@ -307,6 +321,14 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
     inputRange: [0, 0.17, 0.33, 0.5, 0.67, 0.83, 1],
     outputRange: ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#8B00FF', '#FF0000'],
   });
+
+  // White-to-black flash animation for unselected OCR blocks
+  const selectedFlashAnim = useRef(new Animated.Value(0)).current;
+  const selectedFlashLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+  const selectedFlashColor = selectedFlashAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['#FFFFFF', '#000000'],
+  });
   
   // Helper function to restart animation loop
   const restartAnimationLoop = () => {
@@ -341,6 +363,41 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       restartAnimationLoop();
     }
   }, [cropMode, rainbowAnim]);
+
+  // Effect to track ocrScanModeActive - ensure rainbow animation runs for OCR block borders
+  useEffect(() => {
+    if (ocrScanModeActive) {
+      restartAnimationLoop();
+    }
+  }, [ocrScanModeActive, rainbowAnim]);
+
+  // Unselected block flash: white-to-black loop when OCR scan has blocks (unselected use this)
+  const hasOcrBlocks = (ocrScanBlocks?.length ?? 0) > 0;
+  useEffect(() => {
+    if (hasOcrBlocks && ocrScanModeActive) {
+      selectedFlashLoopRef.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(selectedFlashAnim, {
+            toValue: 1,
+            duration: 1500,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: false,
+          }),
+          Animated.timing(selectedFlashAnim, {
+            toValue: 0,
+            duration: 1500,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: false,
+          }),
+        ])
+      );
+      selectedFlashLoopRef.current.start();
+    }
+    return () => {
+      selectedFlashLoopRef.current?.stop();
+      selectedFlashLoopRef.current = null;
+    };
+  }, [hasOcrBlocks, ocrScanModeActive, selectedFlashAnim]);
   
   // Effect to track image changes: reset processing, highlight strokes, and crop state.
   // Keeps accuracy high when the image changes (e.g. after crop, restore original, or fresh load).
@@ -1111,6 +1168,7 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   // This prevents stale closure issues that can occur when PanResponder is recreated on every render
   const panResponder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: (evt) => {
+      if (ocrScanModeActiveRef.current) return false; // Let touches go to OCR block overlays
       const offset = containerScreenOffsetRef.current;
       const layout = measuredLayoutRef.current;
       if (!offset || !layout) return false; // Not ready yet
@@ -1931,21 +1989,38 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
             }).start();
           }}
         />
-        {/* Detected regions are relative to the image, so they go inside imageContainer */}
-        {detectedRegions.map((region, index) => (
-            <View
-              key={region.id || `region-${index}`}
-              style={[
-                styles.detectedRegion,
-                {
-                  left: (region.boundingBox.x / imageWidth) * scaledContainerWidth,
-                  top: (region.boundingBox.y / imageHeight) * scaledContainerHeight,
-                  width: (region.boundingBox.width / imageWidth) * scaledContainerWidth,
-                  height: (region.boundingBox.height / imageHeight) * scaledContainerHeight,
-                }
-              ]}
-            />
-        ))}
+        {/* OCR scan blocks: clickable bounding boxes when ocrScanModeActive */}
+        {ocrScanBlocks && ocrScanBlocks.length > 0 && (
+          <>
+            {ocrScanBlocks.map((block) => {
+              const isSelected = selectedBlockIds?.has(block.id) ?? false;
+              const left = (block.boundingBox.x / imageWidth) * scaledContainerWidth;
+              const top = (block.boundingBox.y / imageHeight) * scaledContainerHeight;
+              const width = (block.boundingBox.width / imageWidth) * scaledContainerWidth;
+              const height = (block.boundingBox.height / imageHeight) * scaledContainerHeight;
+              return (
+                <TouchableOpacity
+                  key={block.id}
+                  activeOpacity={0.8}
+                  onPress={() => onBlockTapped?.(block.id)}
+                  style={[styles.ocrScanBlock, { left, top, width, height }]}
+                >
+                  <Animated.View
+                    style={[
+                      StyleSheet.absoluteFill,
+                      styles.ocrScanBlockInner,
+                      {
+                        borderColor: isSelected ? rainbowColor : selectedFlashColor,
+                        borderWidth: isSelected ? 3 : 2,
+                        backgroundColor: isSelected ? 'rgba(34, 197, 94, 0.25)' : 'rgba(0, 0, 0, 0.1)',
+                      },
+                    ]}
+                  />
+                </TouchableOpacity>
+              );
+            })}
+          </>
+        )}
       </View>
 
       {/* Hidden view to keep rainbow animation running even when no boxes are visible */}
@@ -2020,6 +2095,15 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
       {cropMode && !isCropDrawing && activeCropHandle === null && (
         <View style={styles.instructionContainer}>
           <Text style={styles.instructionText}>{t('imageHighlighter.dragToCrop')}</Text>
+        </View>
+      )}
+      {ocrScanModeActive && ocrScanBlocks && ocrScanBlocks.length > 0 && (
+        <View style={styles.instructionContainer}>
+          <Text style={styles.instructionText}>
+            {(selectedBlockIds?.size ?? 0) > 0
+              ? t('imageHighlighter.ocrScanSelectedCount', { count: selectedBlockIds?.size ?? 0 })
+              : t('imageHighlighter.ocrScanTapToSelect')}
+          </Text>
         </View>
       )}
 
@@ -2293,6 +2377,14 @@ const styles = StyleSheet.create({
     borderColor: COLORS.secondary,
     backgroundColor: 'rgba(97, 160, 175, 0.1)',
     pointerEvents: 'none',
+  },
+  ocrScanBlock: {
+    position: 'absolute',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  ocrScanBlockInner: {
+    borderRadius: 4,
   },
   cropBox: {
     position: 'absolute',

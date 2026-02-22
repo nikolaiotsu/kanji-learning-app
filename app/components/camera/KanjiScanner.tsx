@@ -22,7 +22,7 @@ import { FONTS } from '../../constants/typography';
 import { PRODUCT_IDS } from '../../constants/config';
 import { CapturedImage, TextAnnotation, VisionApiResponse } from '../../../types';
 import { captureRef } from 'react-native-view-shot';
-import { detectJapaneseText, convertToOriginalImageCoordinates, cropImageToRegion, resizeImageToRegion, VisionOCRError, VISION_OCR_ERROR_CODES } from '../../services/visionApi';
+import { detectJapaneseText, detectTextBlocks, TextBlock, convertToOriginalImageCoordinates, cropImageToRegion, resizeImageToRegion, VisionOCRError, VISION_OCR_ERROR_CODES } from '../../services/visionApi';
 import { imageUriToBase64DataUri, convertStrokesToCropRelative } from '../../services/imageMaskUtils';
 import MaskedImageCapture from '../shared/MaskedImageCapture';
 import { ImageHighlighterRef, ImageHighlighterRotationState } from '../shared/ImageHighlighter';
@@ -44,9 +44,11 @@ import { ensureMeasuredThenAdvance, measureButton } from '../../utils/walkthroug
 import APIUsageEnergyBar from '../shared/APIUsageEnergyBar';
 import BadgesButtonInstructionModal from '../shared/BadgesButtonInstructionModal';
 import CustomCardButtonInstructionModal from '../shared/CustomCardButtonInstructionModal';
+import HighlightButtonLongPressTooltipModal from '../shared/HighlightButtonLongPressTooltipModal';
 import YourCollectionsButtonInstructionModal from '../shared/YourCollectionsButtonInstructionModal';
 import { getBadgesButtonInstructionsDontShowAgain } from '../../services/badgesButtonInstructionService';
 import { getCustomCardButtonInstructionsDontShowAgain } from '../../services/customCardButtonInstructionService';
+import { getHighlightButtonLongPressTooltipDontShowAgain } from '../../services/highlightButtonLongPressTooltipService';
 import { getYourCollectionsButtonInstructionsDontShowAgain } from '../../services/yourCollectionsButtonInstructionService';
 import { hasEnergyBarsRemaining } from '../../utils/walkthroughEnergyCheck';
 import { useSignInPromptTrigger } from '../../context/SignInPromptTriggerContext';
@@ -130,6 +132,9 @@ export default function KanjiScanner({ onCardSwipe, onContentReady, onWalkthroug
     strokes?: { x: number; y: number }[][];
     strokeWidth?: number;
   } | null>(null);
+  const [ocrScanModeActive, setOcrScanModeActive] = useState(false);
+  const [ocrScanBlocks, setOcrScanBlocks] = useState<TextBlock[]>([]);
+  const [selectedOcrBlockIds, setSelectedOcrBlockIds] = useState<Set<string>>(new Set());
   const [maskCaptureParams, setMaskCaptureParams] = useState<{
     imageDataUri: string;
     width: number;
@@ -257,6 +262,10 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       id: 'highlight',
       title: t('walkthrough.highlight.title'),
       description: t('walkthrough.highlight.description'),
+      descriptionBullets: [
+        t('walkthrough.highlight.descriptionBullet1'),
+        t('walkthrough.highlight.descriptionBullet2'),
+      ],
     },
     {
       id: 'confirm-highlight',
@@ -378,7 +387,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   }, [showCropDragHint, cropHintOpenAnim]);
 
   // Flash loop for walkthrough steps with yellow borders (pulse to draw attention)
-  const walkthroughStepsWithFlash = ['find-text', 'custom-card', 'flashcards', 'confirm-highlight', 'crop'];
+  const walkthroughStepsWithFlash = ['find-text', 'custom-card', 'flashcards', 'confirm-highlight', 'crop', 'highlight'];
   useEffect(() => {
     const shouldFlash = isWalkthroughActive && walkthroughStepsWithFlash.includes(currentStep?.id ?? '');
     if (!shouldFlash) {
@@ -545,7 +554,12 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   const [walkthroughJustCompleted, setWalkthroughJustCompleted] = useState(false);
   const [showBadgesInstructionModal, setShowBadgesInstructionModal] = useState(false);
   const [showCustomCardInstructionModal, setShowCustomCardInstructionModal] = useState(false);
+  const [showHighlightLongPressTooltipModal, setShowHighlightLongPressTooltipModal] = useState(false);
+  const [highlightTooltipDontShowAgain, setHighlightTooltipDontShowAgain] = useState(true); // start true to avoid flash; effect will set correctly
   const [showYourCollectionsInstructionModal, setShowYourCollectionsInstructionModal] = useState(false);
+  useEffect(() => {
+    getHighlightButtonLongPressTooltipDontShowAgain().then(setHighlightTooltipDontShowAgain);
+  }, []);
   // Once walkthrough has ended (completed or skipped), never show the pre-walkthrough touch block again
   const walkthroughEverEndedRef = useRef(false);
   // When true, the WalkthroughOverlay has fully closed and been removed from the tree.
@@ -1893,6 +1907,137 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     }
   };
 
+  const handleHighlightButtonPress = useCallback(() => {
+    // Outside walkthrough: show long-press tooltip first if user hasn't dismissed it
+    if (!isWalkthroughActive && !highlightTooltipDontShowAgain) {
+      setShowHighlightLongPressTooltipModal(true);
+      return;
+    }
+    activateHighlightMode();
+  }, [isWalkthroughActive, highlightTooltipDontShowAgain]);
+
+  const handleHighlightLongPressTooltipProceed = useCallback(() => {
+    setShowHighlightLongPressTooltipModal(false);
+    getHighlightButtonLongPressTooltipDontShowAgain().then(setHighlightTooltipDontShowAgain);
+  }, []);
+
+  const handleHighlightLongPressTooltipContinueToHighlight = useCallback(() => {
+    setShowHighlightLongPressTooltipModal(false);
+    getHighlightButtonLongPressTooltipDontShowAgain().then(setHighlightTooltipDontShowAgain);
+    activateHighlightMode();
+  }, []);
+
+  const activateOcrScanMode = async () => {
+    if (!capturedImage) return;
+    if (!canPerformOCR) {
+      Alert.alert(
+        t('camera.ocrLimitReachedTitle'),
+        t('camera.ocrLimitReachedMessage', { remaining: remainingScans }),
+        [
+          { text: t('common.ok'), style: 'default' },
+          { text: t('subscription.limit.upgradeToPremium'), style: 'default', onPress: () => router.push('/settings') },
+        ]
+      );
+      return;
+    }
+    if (rotateModeActive) {
+      imageHighlighterRef.current?.toggleRotateMode();
+      setRotateModeActive(false);
+    }
+    if (cropModeActive) {
+      setCropModeActive(false);
+      imageHighlighterRef.current?.toggleCropMode();
+    }
+    if (highlightModeActive) {
+      setHighlightModeActive(false);
+      setHasHighlightSelection(false);
+      setHighlightRegion(null);
+      imageHighlighterRef.current?.clearHighlightBox?.();
+    }
+    setLocalProcessing(true);
+    setOcrScanBlocks([]);
+    setSelectedOcrBlockIds(new Set());
+    try {
+      logger.log('[KanjiScanner] Starting OCR scan mode - scanning full image');
+      const blocks = await detectTextBlocks(capturedImage.uri);
+      setOcrScanBlocks(blocks);
+      setOcrScanModeActive(true);
+      if (blocks.length === 0) {
+        Alert.alert(
+          t('camera.noTextFoundTitle', { language: DETECTABLE_LANGUAGES[forcedDetectionLanguage as keyof typeof DETECTABLE_LANGUAGES] || 'text' }),
+          t('camera.noTextFoundMessage', { language: (DETECTABLE_LANGUAGES[forcedDetectionLanguage as keyof typeof DETECTABLE_LANGUAGES] || 'text').toLowerCase() }),
+          [{ text: t('common.ok') }]
+        );
+        setOcrScanModeActive(false);
+      }
+    } catch (error) {
+      logger.error('[KanjiScanner] OCR scan failed:', error);
+      const isTimeoutOrNetwork = error instanceof VisionOCRError &&
+        (error.code === VISION_OCR_ERROR_CODES.TIMEOUT || error.code === VISION_OCR_ERROR_CODES.NETWORK);
+      if (isTimeoutOrNetwork) {
+        Alert.alert(t('camera.ocrTimeoutTitle'), t('camera.ocrTimeoutMessage'), [{ text: t('common.ok') }]);
+      } else {
+        Alert.alert(t('camera.ocrErrorTitle'), t('camera.ocrErrorMessage'), [{ text: t('common.ok') }]);
+      }
+      setOcrScanModeActive(false);
+    } finally {
+      setLocalProcessing(false);
+    }
+  };
+
+  const handleOcrBlockTapped = (blockId: string) => {
+    setSelectedOcrBlockIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(blockId)) {
+        next.delete(blockId);
+      } else {
+        next.add(blockId);
+      }
+      return next;
+    });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const confirmOcrScanSelection = async () => {
+    if (selectedOcrBlockIds.size === 0 || !capturedImage) {
+      Alert.alert(
+        t('camera.ocrScanNoSelectionTitle'),
+        t('camera.ocrScanNoSelectionMessage'),
+        [{ text: t('common.ok') }]
+      );
+      return;
+    }
+    const selectedBlocks = ocrScanBlocks.filter((b) => selectedOcrBlockIds.has(b.id));
+    const combinedText = selectedBlocks.map((b) => b.text).join('\n');
+    await incrementOCRCount();
+    setIsNavigating(true);
+    isNavigatingToFlashcardsRef.current = true;
+    if (!originalImage) {
+      setOriginalImage(capturedImage);
+      const memoryManager = MemoryManager.getInstance();
+      memoryManager.markAsOriginalImage(capturedImage.uri);
+    }
+    imageHighlighterRef.current?.clearHighlightBox?.();
+    const params: Record<string, string> = { text: combinedText, imageUri: capturedImage.uri };
+    if (isWalkthroughActive) {
+      params.walkthrough = 'true';
+      walkthroughEverEndedRef.current = true;
+      completeWalkthrough();
+      onWalkthroughComplete?.({ fromFinalStep: false });
+    }
+    router.push({ pathname: '/flashcards', params });
+    setOcrScanModeActive(false);
+    setOcrScanBlocks([]);
+    setSelectedOcrBlockIds(new Set());
+  };
+
+  const cancelOcrScanMode = () => {
+    setOcrScanModeActive(false);
+    setOcrScanBlocks([]);
+    setSelectedOcrBlockIds(new Set());
+    logger.log('[KanjiScanner] OCR scan mode cancelled');
+  };
+
   // Walkthrough Next handler: on find-text, Continue dismisses the modal so user can tap gallery or camera
   const handleWalkthroughNext = useCallback(() => {
     if (currentStep?.id === 'find-text' && !capturedImage) {
@@ -1900,9 +2045,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       return;
     }
     if (currentStep?.id === 'highlight') {
-      activateHighlightMode();
-      // Hide overlay so user can draw a highlight
-      // Don't advance yet - wait for user to draw a highlight
+      // Hide overlay so user can tap (draw) or long-press (OCR scan) the highlight button
       setHideWalkthroughOverlay(true);
       return;
     }
@@ -1980,31 +2123,12 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   // Renamed from cancelHighlightMode and made more generic
   const cancelActiveMode = async () => {
     // If we're in walkthrough mode during highlight or crop phase, show confirmation dialog
-    // Note: We check for highlight, confirm-highlight, and crop steps, and don't require hideWalkthroughOverlay
-    // because the user might press X while the walkthrough overlay is still visible
-    if (isWalkthroughActive && (currentStep?.id === 'highlight' || currentStep?.id === 'confirm-highlight' || currentStep?.id === 'crop' || currentStep?.id === 'rotate' || rotateModeActive)) {
-      Alert.alert(
-        t('walkthrough.endWalkthroughTitle', 'End Walkthrough?'),
-        t('walkthrough.endWalkthroughMessage', 'Pressing x will take you out of the walkthrough. Are you sure?'),
-        [
-          {
-            text: t('walkthrough.continueWalkthrough', 'No, Continue Walkthrough'),
-            onPress: () => {
-              logger.log('[KanjiScanner] User chose to continue walkthrough');
-              // Do nothing - stay in current walkthrough mode
-            }
-          },
-          {
-            text: t('walkthrough.endWalkthrough', 'Yes, End Walkthrough'),
-            style: 'destructive',
-            onPress: skipWalkthroughFromHighlight
-          }
-        ]
-      );
-      return;
-    }
+    // X cancels the current mode. Do NOT show End Walkthrough - lets user go back and try long-press instead.
 
-    if (rotateModeActive) {
+    if (ocrScanModeActive) {
+      cancelOcrScanMode();
+      logger.log('[KanjiScanner] OCR scan mode cancelled via cancelActiveMode');
+    } else if (rotateModeActive) {
       imageHighlighterRef.current?.cancelRotationChanges(); // 1. IH reverts visual rotation & clears its session
       imageHighlighterRef.current?.toggleRotateMode();    // 2. IH formally exits rotate mode
       setRotateModeActive(false);                           // 3. KS updates its state (triggers effect cleanup)
@@ -2664,9 +2788,12 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     } catch (error) {
       logger.error('[KanjiScanner] Error confirming rotation:', error);
       Alert.alert(t('common.error'), t('camera.rotationError'));
+      // On error, confirmCurrentRotation did not run to completion, so IH may still be in rotate mode - exit it
+      imageHighlighterRef.current?.toggleRotateMode();
     } finally {
-      // Always clean up state regardless of success or failure
-      imageHighlighterRef.current?.toggleRotateMode(); // Explicitly exit rotate mode in ImageHighlighter
+      // Always clean up state. Do NOT call toggleRotateMode here on success - confirmCurrentRotation()
+      // already calls setRotateMode(false) in ImageHighlighter. Calling toggleRotateMode when
+      // rotateMode is already false would TOGGLE IT BACK ON (bug: highlight tap would trigger rotation).
       setRotateModeActive(false); // Exit rotate mode in KanjiScanner state
       setLocalProcessing(false);
       // If we were in walkthrough rotate step (camera flow), advance to crop
@@ -3026,6 +3153,10 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
               hideGlobalOverlay('imageLoaded');
             }}
             onHighlightDrawingChange={setHighlightDrawing}
+            ocrScanBlocks={ocrScanBlocks}
+            selectedBlockIds={selectedOcrBlockIds}
+            onBlockTapped={handleOcrBlockTapped}
+            ocrScanModeActive={ocrScanModeActive}
           />
           {/* Walkthrough: cursor-drag crop box hint — box opens as if user is dragging (non-blocking) */}
           {showCropDragHint && (
@@ -3109,7 +3240,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
             <View style={styles.toolbarCenterControls}>
               {/* Image History Undo/Redo Buttons - translucent overlay above mode buttons, no layout displacement */}
               {!localProcessing && 
-               (!highlightModeActive && !cropModeActive && !rotateModeActive) && 
+               (!highlightModeActive && !cropModeActive && !rotateModeActive && !ocrScanModeActive) && 
                (imageHistory.length > 0 || forwardHistory.length > 0) && (
                 <View style={[styles.toolbarButtonGroup, styles.historyButtonsOverlay]}>
                   <PokedexButton
@@ -3136,7 +3267,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
               {/* Mode Activation / Confirmation Buttons (Bottom row in center) */}
               <View style={styles.toolbarButtonGroup}>
                 {/* Mode Activation Buttons (Highlight, Crop, Rotate) */}
-                {!highlightModeActive && !cropModeActive && !rotateModeActive && !localProcessing && !isNavigating && (
+                {!highlightModeActive && !cropModeActive && !rotateModeActive && !ocrScanModeActive && !localProcessing && !isNavigating && (
                   <>
                     <WalkthroughTarget
                       targetRef={rotateButtonRef}
@@ -3169,7 +3300,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                     >
                       <PokedexButton
                         onPress={toggleCropMode}
-                        icon="crop"
+                        materialCommunityIcon="selection"
                         iconColor={
                           isWalkthroughActive
                             ? (currentStep?.id === 'crop' ? '#FFFF00' : '#CCCCCC')
@@ -3180,32 +3311,36 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                         disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'crop')}
                       />
                     </WalkthroughTarget>
-                    <WalkthroughTarget
-                      targetRef={highlightButtonRef}
-                      stepId="highlight"
-                      currentStepId={currentStep?.id}
-                      isWalkthroughActive={isWalkthroughActive}
-                      highlightStyle={styles.highlightedToolbarButtonWrapper}
-                      dimStyle={styles.dimmedToolbarButton}
-                    >
-                      <PokedexButton
-                        onPress={activateHighlightMode}
-                        icon="create-outline"
-                        iconColor={
-                          isWalkthroughActive
-                            ? (currentStep?.id === 'highlight' ? '#FFFF00' : '#CCCCCC')
-                            : '#FFFFFF'
-                        }
-                        size="medium"
-                        shape="square"
-                        disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'highlight')}
-                      />
-                    </WalkthroughTarget>
+                    <Animated.View style={isWalkthroughActive && currentStep?.id === 'highlight' ? { opacity: walkthroughBorderFlashOpacity } : undefined}>
+                      <WalkthroughTarget
+                        targetRef={highlightButtonRef}
+                        stepId="highlight"
+                        currentStepId={currentStep?.id}
+                        isWalkthroughActive={isWalkthroughActive}
+                        highlightStyle={styles.highlightedToolbarButtonWrapper}
+                        dimStyle={styles.dimmedToolbarButton}
+                      >
+                        <PokedexButton
+                          onPress={handleHighlightButtonPress}
+                          onLongPress={capturedImage ? activateOcrScanMode : undefined}
+                          longPressHint={!!capturedImage}
+                          materialCommunityIcon="marker"
+                          iconColor={
+                            isWalkthroughActive
+                              ? (currentStep?.id === 'highlight' ? '#FFFF00' : '#CCCCCC')
+                              : '#FFFFFF'
+                          }
+                          size="medium"
+                          shape="square"
+                          disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'highlight')}
+                        />
+                      </WalkthroughTarget>
+                    </Animated.View>
                   </>
                 )}
                 
                 {/* Confirmation buttons when a mode IS active */}
-                {(highlightModeActive || cropModeActive || rotateModeActive) && !localProcessing && !isNavigating && (
+                {(highlightModeActive || cropModeActive || rotateModeActive || ocrScanModeActive) && !localProcessing && !isNavigating && (
                   <>
                     <PokedexButton
                       onPress={cancelActiveMode} 
@@ -3216,6 +3351,16 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                       disabled={localProcessing || isImageProcessing}
                     />
                     
+                    {ocrScanModeActive && (
+                      <PokedexButton
+                        onPress={confirmOcrScanSelection}
+                        icon="checkmark"
+                        iconColor="#FFFFFF"
+                        size="medium"
+                        shape="square"
+                        disabled={localProcessing || isImageProcessing || selectedOcrBlockIds.size === 0}
+                      />
+                    )}
                     {hasHighlightSelection && highlightModeActive && (
                       <>
                         <PokedexButton
@@ -3493,7 +3638,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           onDone={handleWalkthroughDone}
           customNextLabel={
             currentStep?.id === 'crop' ? t('walkthrough.crop.cta') :
-            currentStep?.id === 'highlight' ? t('walkthrough.highlight.cta') :
+            currentStep?.id === 'highlight' ? t('common.continue') :
             currentStep?.id === 'rotate' && imageSourceRef.current === 'camera' ? t('walkthrough.rotate.cta') :
             currentStep?.id === 'confirm-highlight' ? t('common.continue') :
             currentStep?.id === 'final-congratulations' ? t('walkthrough.finalCongratulations.buttonLabel') :
@@ -3517,6 +3662,12 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
         visible={showCustomCardInstructionModal}
         onClose={() => setShowCustomCardInstructionModal(false)}
         onProceed={handleCustomCardInstructionModalProceed}
+      />
+      <HighlightButtonLongPressTooltipModal
+        visible={showHighlightLongPressTooltipModal}
+        onClose={() => setShowHighlightLongPressTooltipModal(false)}
+        onProceed={handleHighlightLongPressTooltipProceed}
+        onContinueToHighlight={handleHighlightLongPressTooltipContinueToHighlight}
       />
       <YourCollectionsButtonInstructionModal
         visible={showYourCollectionsInstructionModal}

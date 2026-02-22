@@ -482,7 +482,18 @@
   "imageHighlighter": {
     "dragToRotate": "드래그하여 이미지 회전",
     "dragToHighlight": "드래그하여 강조 표시",
-    "dragToCrop": "드래그하여 자르기"
+    "dragToCrop": "드래그하여 자르기",
+    "ocrScanTapToSelect": "텍스트 블록을 탭하여 선택한 후 확인하세요.",
+    "ocrScanSelectedCount": "{{count}}개 선택됨",
+    "longPressTooltip": {
+      "title": "하이라이트 팁",
+      "body": "텍스트 캡처 두 가지 방법:",
+      "tapBullet": "탭: 특정 텍스트 선택을 위해 하이라이트를 그리세요",
+      "longPressBullet": "길게 누르기: 전체 페이지를 스캔하고 필요한 부분을 선택하세요",
+      "dontShowAgain": "다시 표시 안 함",
+      "continueToHighlight": "하이라이트로 계속",
+      "gotIt": "알겠습니다"
+    }
   },
   "textInput": {
     "placeholder": "번역할 텍스트 입력",
@@ -521,6 +532,9 @@
     "ocrErrorMessage": "선택한 영역에서 텍스트를 인식하는 데 문제가 있었습니다. 다시 시도해주세요.",
     "ocrTimeoutTitle": "시간이 너무 오래 걸립니다",
     "ocrTimeoutMessage": "텍스트 인식이 평소보다 오래 걸리고 있습니다. 인터넷 연결을 확인하고 다시 시도하거나, 더 작은 영역을 선택해 주세요.",
+    "ocrScanNoSelectionTitle": "선택 없음",
+    "ocrScanNoSelectionMessage": "텍스트 블록을 탭하여 선택한 후 확인하세요.",
+    "ocrScanInstruction": "텍스트 블록을 탭하여 선택한 후 확인하세요.",
     "rotationError": "회전을 적용할 수 없습니다.",
     "permissionDenied": "죄송합니다. 카메라 권한이 필요합니다!",
     "failedToTakePhoto": "사진 촬영에 실패했습니다",
@@ -607,7 +621,9 @@
     },
     "highlight": {
       "title": "텍스트 강조",
-      "description": "배우고 싶은 텍스트에 강조 표시를 그리세요. 쉽죠!",
+      "description": "배우고 싶은 텍스트에 강조 표시를 그리세요.",
+      "descriptionBullet1": "배우고 싶은 텍스트에 강조 표시를 그리세요.",
+      "descriptionBullet2": "또는 강조 버튼을 길게 눌러 페이지 전체를 스캔하고 필요한 부분을 선택하세요.",
       "cta": "강조"
     },
     "confirmHighlight": {

@@ -475,7 +475,18 @@
   "imageHighlighter": {
     "dragToRotate": "拖动旋转图像",
     "dragToHighlight": "拖动高亮",
-    "dragToCrop": "拖动裁剪"
+    "dragToCrop": "拖动裁剪",
+    "ocrScanTapToSelect": "点击文本框进行选择，然后确认。",
+    "ocrScanSelectedCount": "已选 {{count}} 项",
+    "longPressTooltip": {
+      "title": "高亮提示",
+      "body": "两种捕获文本的方式：",
+      "tapBullet": "点击：绘制高亮以选择特定文本",
+      "longPressBullet": "长按：扫描整页并选择所需内容",
+      "dontShowAgain": "不再显示",
+      "continueToHighlight": "继续高亮",
+      "gotIt": "知道了"
+    }
   },
   "textInput": {
     "placeholder": "输入要翻译的文本",
@@ -514,6 +525,9 @@
     "ocrErrorMessage": "识别所选区域的文本时出现问题。请重试。",
     "ocrTimeoutTitle": "耗时过长",
     "ocrTimeoutMessage": "文字识别比平时慢。请检查网络后重试，或选择更小的区域。",
+    "ocrScanNoSelectionTitle": "未选择",
+    "ocrScanNoSelectionMessage": "点击文本框进行选择，然后确认。",
+    "ocrScanInstruction": "点击文本框进行选择，然后确认。",
     "rotationError": "无法应用旋转。",
     "permissionDenied": "抱歉，我们需要相机权限才能使用此功能！",
     "failedToTakePhoto": "拍照失败",
@@ -600,7 +614,9 @@
     },
     "highlight": {
       "title": "高亮文字",
-      "description": "在你想学习的文字上画一个高亮。简单!",
+      "description": "在你想学习的文字上画一个高亮。",
+      "descriptionBullet1": "在你想学习的文字上画一个高亮。",
+      "descriptionBullet2": "或长按高亮按钮扫描整页并选择所需内容。",
       "cta": "高亮"
     },
     "confirmHighlight": {

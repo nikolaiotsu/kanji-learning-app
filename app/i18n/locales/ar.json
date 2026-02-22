@@ -482,7 +482,18 @@
   "imageHighlighter": {
     "dragToRotate": "اسحب لتدوير الصورة",
     "dragToHighlight": "اسحب للتحديد",
-    "dragToCrop": "اسحب للقص"
+    "dragToCrop": "اسحب للقص",
+    "ocrScanTapToSelect": "اضغط على مربعات النص لتحديدها، ثم أكد.",
+    "ocrScanSelectedCount": "{{count}} محدد",
+    "longPressTooltip": {
+      "title": "نصائح التحديد",
+      "body": "طريقتان لالتقاط النص:",
+      "tapBullet": "اضغط: ارسم تحديداً لاختيار نص محدد",
+      "longPressBullet": "اضغط مطولاً: امسح الصفحة بالكامل واختر ما تحتاجه",
+      "dontShowAgain": "عدم العرض مجدداً",
+      "continueToHighlight": "المتابعة للتحديد",
+      "gotIt": "فهمت"
+    }
   },
   "textInput": {
     "placeholder": "أدخل نصاً للترجمة",
@@ -521,6 +532,9 @@
     "ocrErrorMessage": "حدثت مشكلة في التعرف على النص في المنطقة المحددة. يرجى المحاولة مرة أخرى.",
     "ocrTimeoutTitle": "يستغرق وقتاً طويلاً",
     "ocrTimeoutMessage": "الاعتراف بالنص يستغرق وقتاً أطول من المعتاد. تحقق من اتصالك وحاول مرة أخرى، أو حدد منطقة أصغر.",
+    "ocrScanNoSelectionTitle": "لا يوجد تحديد",
+    "ocrScanNoSelectionMessage": "اضغط على مربعات النص لتحديدها، ثم أكد.",
+    "ocrScanInstruction": "اضغط على مربعات النص لتحديدها، ثم أكد.",
     "rotationError": "تعذر تطبيق التدوير.",
     "permissionDenied": "عذراً، نحتاج إلى أذونات الكاميرا لتعمل هذه الميزة!",
     "failedToTakePhoto": "فشل في التقاط الصورة",
@@ -607,7 +621,9 @@
     },
     "highlight": {
       "title": "تحديد النص",
-      "description": "ارسم تحديدًا على النص الذي تريد تعلمه. سهل!",
+      "description": "ارسم تحديدًا على النص الذي تريد تعلمه.",
+      "descriptionBullet1": "ارسم تحديدًا على النص الذي تريد تعلمه.",
+      "descriptionBullet2": "أو اضغط مطولاً على زر التحديد لمسح الصفحة بالكامل واختيار ما تحتاجه.",
       "cta": "تحديد"
     },
     "confirmHighlight": {
