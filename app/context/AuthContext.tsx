@@ -24,10 +24,7 @@ type AuthContextType = {
   isOfflineMode: boolean;
   isGuest: boolean;
   setGuestMode: (value: boolean) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<{ user: User | null; session: Session | null } | null>;
   signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
   deleteAccount: () => Promise<{ success: boolean; error?: string }>;
 };
 
@@ -248,83 +245,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     };
   }, []);
 
-  // Sign in function. We do NOT set global isLoading here so AuthGuard keeps
-  // rendering the app (e.g. login screen). Otherwise a full-screen spinner would
-  // replace the login form and, on failure, can leave a blank screen. The login
-  // screen uses its own local loading state for the submit button.
-  const signIn = async (email: string, password: string) => {
-    logger.log('🔐 [AuthContext] signIn called with email:', email);
-    try {
-      logger.log('🔐 [AuthContext] Calling authService.signIn...');
-      const { session } = await authService.signIn(email, password);
-      logger.log('🔐 [AuthContext] authService.signIn returned session:', !!session);
-      logger.log('🔐 [AuthContext] Session user email:', session?.user?.email);
-      setSession(session);
-      setUser(session?.user ?? null);
-      logger.log('✅ [AuthContext] Session and user state updated');
-      
-      // Trigger proactive cache sync after successful login
-      logger.log('🔄 [AuthContext] Triggering proactive cache sync...');
-      syncAllUserData().catch(err => {
-        logger.error('❌ [AuthContext] Failed to sync user data after login:', err);
-        // Don't throw - login was successful, sync is just a bonus
-      });
-    } catch (error) {
-      logger.error('❌ [AuthContext] Error signing in:', error);
-      throw error;
-    }
-  };
-
-  // Sign up function
-  // CRITICAL: When guest has local data, run migration BEFORE setting user so UI fetches
-  // the migrated data (same flow as SIGNED_IN auth listener). Otherwise cards won't load.
-  const signUp = async (email: string, password: string) => {
-    setIsLoading(true);
-    try {
-      logger.log('🔐 [AuthContext] signUp called with email:', email);
-      const data = await authService.signUp(email, password);
-      
-      if (data?.session) {
-        const signedInUser = data.session.user;
-        setSession(data.session);
-        
-        // Run guest migration BEFORE setting user (matches getInitialSession + SIGNED_IN flow)
-        // so that syncAllUserData fetches migrated data and UI doesn't render with empty state
-        await clearGuestMode();
-        await storeUserIdOffline(signedInUser.id);
-        const hadLocal = await hasLocalDataToMigrate();
-        if (hadLocal) {
-          try {
-            logger.log('🔄 [AuthContext] Migrating guest data before setting user (signUp)...');
-            await migrateLocalDataToSupabase(signedInUser.id);
-            Alert.alert(t('sync.syncedTitle'), t('sync.syncedMessage'));
-          } catch (migErr) {
-            const msg = migErr instanceof Error ? migErr.message : String(migErr);
-            logger.error('Migration on signUp failed:', msg, migErr);
-            Alert.alert(
-              'Sync issue',
-              'Guest cards could not be synced to your account. You can try again later or use your existing cards. ' + (msg ? `(${msg})` : '')
-            );
-          }
-        }
-        
-        logger.log('🔐 [AuthContext] Migration complete, setting user state...');
-        setUser(signedInUser);
-        logger.log('🔄 [AuthContext] Syncing cache after signUp...');
-        await syncAllUserData().catch(err => {
-          logger.error('❌ [AuthContext] Failed to sync user data after signup:', err);
-        });
-      }
-      
-      return data ? { user: data.user, session: data.session } : null;
-    } catch (error) {
-      logger.error('❌ [AuthContext] Error signing up:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // Sign out function
   const signOut = async () => {
     setIsLoading(true);
@@ -377,16 +297,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  // Reset password function
-  const resetPassword = async (email: string) => {
-    try {
-      await authService.resetPassword(email);
-    } catch (error) {
-      logger.error('Error resetting password:', error);
-      throw error;
-    }
-  };
-
   // Context value
   const value = {
     user,
@@ -395,10 +305,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     isOfflineMode,
     isGuest,
     setGuestMode,
-    signIn,
-    signUp,
     signOut,
-    resetPassword,
     deleteAccount,
   };
 

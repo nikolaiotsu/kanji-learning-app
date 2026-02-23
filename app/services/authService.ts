@@ -4,78 +4,6 @@ import { Platform } from 'react-native';
 import appleAuth from '@invertase/react-native-apple-authentication';
 import { logger } from '../utils/logger';
 
-// Sign up with email and password
-export const signUp = async (email: string, password: string) => {
-  try {
-    logger.log('🔐 [authService] signUp called with email:', email);
-    
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          email: email,
-        }
-      }
-    });
-    
-    logger.log('🔐 [authService] signUp response:', {
-      user: !!data?.user,
-      session: !!data?.session,
-      error: !!error
-    });
-    
-    if (error) {
-      // Account already exists - try signing in (same flow as Google/Apple)
-      if (error.message?.includes('already registered') || error.message?.includes('User already registered')) {
-        logger.log('🔐 [authService] Account exists, attempting sign in with provided credentials');
-        const signInResult = await supabase.auth.signInWithPassword({ email, password });
-        if (!signInResult.error && signInResult.data.session) {
-          logger.log('🔐 [authService] Sign in successful - existing user signed in');
-          return signInResult.data;
-        }
-        // Sign in failed (wrong password) - throw a clear message for UI
-        throw new Error('User already registered');
-      }
-      logger.error('❌ [authService] signUp error:', error.message);
-      throw error;
-    }
-    
-    return data;
-  } catch (error) {
-    logger.error('❌ [authService] Error signing up:', error);
-    throw error;
-  }
-};
-
-// Sign in with email and password
-export const signIn = async (email: string, password: string) => {
-  try {
-    logger.log('🔐 [authService] signIn called with email:', email);
-    logger.log('🔐 [authService] Calling supabase.auth.signInWithPassword...');
-    
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    
-    logger.log('🔐 [authService] Supabase response - error:', !!error);
-    logger.log('🔐 [authService] Supabase response - session:', !!data?.session);
-    logger.log('🔐 [authService] Supabase response - user:', !!data?.user);
-    
-    if (error) {
-      logger.error('❌ [authService] Supabase auth error:', error.message);
-      throw error;
-    }
-    
-    logger.log('✅ [authService] Sign in successful, returning data');
-    return data;
-  } catch (error) {
-    logger.error('❌ [authService] Error signing in:', error);
-    throw error;
-  }
-};
-
 // Sign up with Google OAuth (checks if user already exists)
 export const signUpWithGoogle = async () => {
   try {
@@ -601,21 +529,6 @@ export const getSession = async () => {
   }
 };
 
-// Reset password
-export const resetPassword = async (email: string) => {
-  try {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'kanjilearningapp://reset-password',
-    });
-    
-    if (error) throw error;
-    return true;
-  } catch (error) {
-    logger.error('Error resetting password:', error);
-    throw error;
-  }
-};
-
 // Update user profile
 export const updateProfile = async (profile: { username?: string, avatar_url?: string }) => {
   try {
@@ -638,11 +551,8 @@ export const onAuthStateChange = (callback: (event: string, session: any) => voi
 
 // Add default export to satisfy Expo Router's requirement
 export default {
-  signUp,
-  signIn,
   signOut,
   getSession,
-  resetPassword,
   updateProfile,
   onAuthStateChange,
   signInWithGoogle,

@@ -13,10 +13,10 @@ import { logger } from '../../utils/logger';
 const PROTECTED_SEGMENTS = ['flashcards', 'saved-flashcards', '(screens)'];
 
 // Auth routes (accessible without authentication)
-const AUTH_SEGMENTS = ['login', 'signup', 'reset-password', 'onboarding'];
+const AUTH_SEGMENTS = ['login', 'signup', 'onboarding'];
 
 // Auth-only routes: when user is logged in, redirect these to home (onboarding is allowed for testing)
-const AUTH_ONLY_REDIRECT_SEGMENTS = ['login', 'signup', 'reset-password'];
+const AUTH_ONLY_REDIRECT_SEGMENTS = ['login', 'signup'];
 
 export const AuthGuard = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading, isOfflineMode, isGuest } = useAuth();
@@ -69,7 +69,7 @@ export const AuthGuard = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
-    // User is authenticated but tries to access login/signup/reset-password → go home (onboarding allowed for beta testing)
+    // User is authenticated but tries to access login/signup → go home (onboarding allowed for beta testing)
     if (user && AUTH_ONLY_REDIRECT_SEGMENTS.includes(currentSegment)) {
       logger.log('🔐 [AuthGuard] User authenticated, resetting navigation to /');
       // Dismiss all modal/pushed screens and navigate to home. Use dismissTo instead of

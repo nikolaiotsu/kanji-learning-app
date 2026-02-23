@@ -333,7 +333,6 @@ function RootLayoutContent() {
                               <Stack.Screen name="onboarding-educational" options={{ headerShown: false }} />
                               <Stack.Screen name="login" options={{ title: 'Login', headerShown: false }} />
                               <Stack.Screen name="signup" options={{ title: 'Sign Up', headerShown: false }} />
-                              <Stack.Screen name="reset-password" options={{ title: 'Reset Password' }} />
                             </Stack>
                             <BadgeModalGate />
                             </>
