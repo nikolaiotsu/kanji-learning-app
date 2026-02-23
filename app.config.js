@@ -41,7 +41,7 @@ module.exports = {
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.bluve01.kanjilearningapp",
-      buildNumber: "2",
+      buildNumber: "3",
       orientation: "portrait",
       config: {
         usesNonExemptEncryption: false,
