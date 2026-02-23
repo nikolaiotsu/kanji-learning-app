@@ -3,6 +3,7 @@ import { View, StyleSheet, AppState, AppStateStatus, Animated, Easing } from 're
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
 import { apiLogger, APIUsageUpdateEvent } from '../../services/apiUsageLogger';
+import { useNetworkState } from '../../services/networkManager';
 import { getCurrentSubscriptionPlan } from '../../services/receiptValidationService';
 import { useSubscription } from '../../context/SubscriptionContext';
 import { logger } from '../../utils/logger';
@@ -19,13 +20,44 @@ const PREMIUM_TOTAL_LIMIT = 1000; // Premium users get 1000 API calls per month 
 
 export default function APIUsageEnergyBar({ style }: APIUsageEnergyBarProps) {
   const { subscription, isSubscriptionReady } = useSubscription();
+  const { isConnected } = useNetworkState();
   const [remainingBars, setRemainingBars] = useState<number | null>(null); // null = not yet loaded (first mount only)
   const [hasLoadedOnce, setHasLoadedOnce] = useState<boolean>(false); // Track if we've ever loaded data
 
   // Only treat as premium after subscription has loaded; before that, avoid showing free-tier (4 bars) for premium users
   const isPremiumUser = isSubscriptionReady && subscription.plan === 'PREMIUM';
 
+  /** Load from in-memory cache or persisted storage when offline. Prevents showing full/reset bar. Returns true if data was found. */
+  const loadFromOfflineCache = useCallback(async (): Promise<boolean> => {
+    const cached = apiLogger.getCachedRemainingApiCalls();
+    if (cached !== null) {
+      const remaining = isPremiumUser
+        ? Math.ceil(cached / PREMIUM_CALLS_PER_BAR)
+        : cached;
+      setRemainingBars(remaining);
+      setHasLoadedOnce(true);
+      logger.log(`[APIUsageEnergyBar] Offline: using in-memory cache, bars: ${remaining}`);
+      return true;
+    }
+    const persisted = await apiLogger.getLastKnownUsageOffline();
+    if (persisted !== null) {
+      const remaining = persisted.isPremium
+        ? Math.ceil(persisted.remainingApiCalls / PREMIUM_CALLS_PER_BAR)
+        : persisted.remainingApiCalls;
+      setRemainingBars(remaining);
+      setHasLoadedOnce(true);
+      logger.log(`[APIUsageEnergyBar] Offline: using persisted cache, bars: ${remaining}`);
+      return true;
+    }
+    return false;
+  }, [isPremiumUser]);
+
   const fetchUsage = useCallback(async (isInitialLoad: boolean = false) => {
+    // When offline, skip network fetch - it would return wrong "full" data. Use cache instead.
+    if (!isConnected) {
+      await loadFromOfflineCache();
+      return;
+    }
     try {
       // Use subscription from context (real-time updates) but also get from service for consistency
       const subscriptionPlan = subscription.plan;
@@ -65,14 +97,17 @@ export default function APIUsageEnergyBar({ style }: APIUsageEnergyBarProps) {
       setHasLoadedOnce(true);
     } catch (error) {
       logger.error('[APIUsageEnergyBar] Error fetching usage:', error);
-      // Never default to free-tier (4 bars) for premium users; keep previous value or wait for subscription
-      setRemainingBars((prev) => {
-        if (prev !== null) return prev;
-        if (!isSubscriptionReady) return null; // Don't assume free while subscription still loading
-        return isPremiumUser ? PREMIUM_MAX_BARS : FREE_MAX_BARS;
-      });
+      // On error (e.g. network failure): try offline cache first to avoid showing full bar
+      const foundInCache = await loadFromOfflineCache();
+      if (!foundInCache) {
+        setRemainingBars((prev) => {
+          if (prev !== null) return prev;
+          if (!isSubscriptionReady) return null; // Don't assume free while subscription still loading
+          return isPremiumUser ? PREMIUM_MAX_BARS : FREE_MAX_BARS;
+        });
+      }
     }
-  }, [subscription.plan, isPremiumUser, isSubscriptionReady]);
+  }, [subscription.plan, isPremiumUser, isSubscriptionReady, isConnected, loadFromOfflineCache]);
 
   // Initialize only after subscription is ready so we never show free-tier (4 bars) for premium users
   useEffect(() => {
@@ -167,6 +202,13 @@ export default function APIUsageEnergyBar({ style }: APIUsageEnergyBarProps) {
     logger.log(`[APIUsageEnergyBar] Subscription plan changed to: ${subscription.plan}`);
     fetchUsage(false);
   }, [isSubscriptionReady, subscription.plan, fetchUsage]);
+
+  // When going offline, immediately load from cache so we don't show full bar
+  useEffect(() => {
+    if (!isConnected && isSubscriptionReady) {
+      loadFromOfflineCache();
+    }
+  }, [isConnected, isSubscriptionReady, loadFromOfflineCache]);
 
   // Always render the component to maintain stable layout
   // Wait for subscription to be ready before showing bar count so we never show free-tier (3) for premium users

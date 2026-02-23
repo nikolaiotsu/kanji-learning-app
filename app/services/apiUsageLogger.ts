@@ -10,6 +10,9 @@ import { getLocalDateString } from '../utils/dateUtils';
 /** AsyncStorage key for guest daily API usage (translate + wordscope). Resets by date. */
 const GUEST_DAILY_USAGE_KEY = '@guest_api_daily_usage';
 
+/** AsyncStorage key for last known API usage - used to display correct energy bar when offline. */
+const LAST_KNOWN_USAGE_KEY = '@api_usage_last_known';
+
 // Event listener type for API usage updates
 // Now includes the updated remaining API calls count for immediate UI updates
 export interface APIUsageUpdateEvent {
@@ -130,6 +133,9 @@ class APIUsageLogger {
               const dailyLimit = SUBSCRIPTION_PLANS[plan]?.apiCallsPerDay ?? 4;
               const remainingApiCalls = Math.max(0, dailyLimit - apiCallsUsedToday);
               this.cachedRemainingApiCalls = remainingApiCalls;
+              this.persistLastKnownUsageForOffline().catch((err) =>
+                logger.error('[APILogger] Failed to persist guest usage for offline:', err)
+              );
               this.emitUsageUpdate({
                 operationType: entry.operationType,
                 remainingApiCalls,
@@ -366,6 +372,54 @@ class APIUsageLogger {
   }
 
   /**
+   * Persist last known usage to AsyncStorage for offline display.
+   * Call whenever we successfully update cachedRemainingApiCalls.
+   */
+  private async persistLastKnownUsageForOffline(): Promise<void> {
+    try {
+      if (this.cachedRemainingApiCalls === null) return;
+      const isPremium = this.cachedSubscriptionPlan === 'PREMIUM';
+      await AsyncStorage.setItem(
+        LAST_KNOWN_USAGE_KEY,
+        JSON.stringify({
+          remainingApiCalls: this.cachedRemainingApiCalls,
+          isPremium,
+          timestamp: Date.now(),
+        })
+      );
+    } catch (error) {
+      logger.error('[APILogger] Error persisting last known usage:', error);
+    }
+  }
+
+  /**
+   * Get last known API usage from AsyncStorage (for offline display).
+   * Returns null if never persisted or data is stale (> 7 days).
+   */
+  public async getLastKnownUsageOffline(): Promise<{
+    remainingApiCalls: number;
+    isPremium: boolean;
+  } | null> {
+    try {
+      const raw = await AsyncStorage.getItem(LAST_KNOWN_USAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as {
+        remainingApiCalls: number;
+        isPremium: boolean;
+        timestamp: number;
+      };
+      const maxAgeMs = 7 * 24 * 60 * 60 * 1000; // 7 days
+      if (Date.now() - (parsed.timestamp || 0) > maxAgeMs) return null;
+      return {
+        remainingApiCalls: parsed.remainingApiCalls ?? 0,
+        isPremium: parsed.isPremium ?? false,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Check if user is approaching rate limits
    * Uses UNIFIED API limits - only translate and wordscope calls count against the limit
    * OCR and vision calls are NOT counted against the unified limit
@@ -419,9 +473,10 @@ class APIUsageLogger {
       
       logger.log(`[APILogger] Final apiCallsRemaining: ${apiCallsRemaining}`);
       
-      // Update cache with fresh data
+      // Update cache with fresh data and persist for offline display
       this.cachedRemainingApiCalls = apiCallsRemaining;
       this.cachedSubscriptionPlan = subscriptionPlan;
+      await this.persistLastKnownUsageForOffline();
       
       // Flashcard limit (unlimited for premium is represented as -1)
       const flashcardLimit = planConfig.flashcardsPerDay;
@@ -503,8 +558,9 @@ class APIUsageLogger {
         const subscriptionPlan = this.cachedSubscriptionPlan || 'FREE';
         const rateLimitStatus = await this.checkRateLimitStatus(subscriptionPlan);
         
-        // Update cache with fresh data
+        // Update cache with fresh data and persist for offline display
         this.cachedRemainingApiCalls = rateLimitStatus.apiCallsRemaining;
+        await this.persistLastKnownUsageForOffline();
         
         // Emit event with updated data for immediate UI updates
         this.emitUsageUpdate({

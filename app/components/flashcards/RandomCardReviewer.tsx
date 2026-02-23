@@ -569,7 +569,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
   useEffect(() => {
     isSrsModeActiveRef.current = isSrsModeActive;
   }, [isSrsModeActive]);
-  
+
   // Sync button display state with actual state (but allow immediate updates on press)
   useEffect(() => {
     if (!isTransitionLoading) {
@@ -1535,6 +1535,8 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
 
   const handleReviewButtonPress = useCallback(() => {
     if (isTransitionLoading || isCardTransitioning || isInitializing) return;
+    // Block entering SRS mode when offline (allow walkthrough demo)
+    if (!isWalkthroughActive && !isConnected && !isSrsModeActive) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const runToggle = () => performReviewModeToggle();
     if (isWalkthroughActive) {
@@ -1549,12 +1551,21 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
     } else {
       runToggle();
     }
-  }, [isTransitionLoading, isCardTransitioning, isInitializing, isWalkthroughActive, isSrsModeActive, performReviewModeToggle]);
+  }, [isTransitionLoading, isCardTransitioning, isInitializing, isWalkthroughActive, isSrsModeActive, performReviewModeToggle, isConnected]);
 
   const handleReviewInstructionModalProceed = useCallback(() => {
     setShowReviewInstructionModal(false);
+    if (!isConnected) return; // Don't enter SRS when offline
     performReviewModeToggle();
-  }, [performReviewModeToggle, isSrsModeActive]);
+  }, [performReviewModeToggle, isSrsModeActive, isConnected]);
+
+  // Auto-exit SRS mode when going offline (SRS updates need to sync)
+  useEffect(() => {
+    if (!isConnected && isSrsModeActive && !isWalkthroughActive) {
+      logger.log('📶 [SRS] Going offline - switching to browse mode');
+      performReviewModeToggle();
+    }
+  }, [isConnected, isSrsModeActive, isWalkthroughActive, performReviewModeToggle]);
 
   const handleCollectionsButtonPress = useCallback(() => {
     if (isCardTransitioning || isInitializing) return;
@@ -2224,10 +2235,11 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 styles.reviewModeButton,
                 buttonDisplayActive && styles.reviewModeButtonActive,
                 (reviewSessionCards.length === 0 && filteredCards.length === 0) && styles.reviewModeButtonDisabled,
+                (!isConnected && !isSrsModeActive && !isWalkthroughActive) && styles.reviewModeButtonDisabled,
                 rainbowBorderStyle,
                 showCompletionPulse && completionPulseStyle,
               ]}
-              disabled={(reviewSessionCards.length === 0 && filteredCards.length === 0) || (isWalkthroughActive && currentWalkthroughStepId !== 'review-button')}
+              disabled={(reviewSessionCards.length === 0 && filteredCards.length === 0) || (!isConnected && !isSrsModeActive && !isWalkthroughActive) || (isWalkthroughActive && currentWalkthroughStepId !== 'review-button')}
               onPress={() => {
                 if (reviewSessionCards.length === 0 && filteredCards.length === 0) return;
                 handleReviewButtonPress();
@@ -2238,7 +2250,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 size={18} 
                 color={isWalkthroughActive && currentWalkthroughStepId === 'review-button'
                   ? '#FBBF24'
-                  : ((reviewSessionCards.length === 0 && filteredCards.length === 0) 
+                  : ((reviewSessionCards.length === 0 && filteredCards.length === 0) || (!isConnected && !isSrsModeActive && !isWalkthroughActive)
                     ? COLORS.lightGray 
                     : (buttonDisplayActive ? COLORS.text : 'grey'))}
               />
@@ -2246,7 +2258,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 style={[
                   styles.reviewModeButtonText,
                   buttonDisplayActive && styles.reviewModeButtonTextActive,
-                  (reviewSessionCards.length === 0 && filteredCards.length === 0) && styles.reviewModeButtonTextDisabled,
+                  ((reviewSessionCards.length === 0 && filteredCards.length === 0) || (!isConnected && !isSrsModeActive && !isWalkthroughActive)) && styles.reviewModeButtonTextDisabled,
                 ]}
               >
                 {t('review.reviewMode')}
@@ -2403,11 +2415,11 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
               style={[
                 styles.reviewModeButton,
                 buttonDisplayActive && styles.reviewModeButtonActive,
-                isSessionFinished && styles.reviewModeButtonDisabled,
+                (isSessionFinished || (!isConnected && !isSrsModeActive && !isWalkthroughActive)) && styles.reviewModeButtonDisabled,
                 rainbowBorderStyle,
                 showCompletionPulse && completionPulseStyle,
               ]}
-              disabled={isSessionFinished || (isWalkthroughActive && currentWalkthroughStepId !== 'review-button')}
+              disabled={isSessionFinished || (!isConnected && !isSrsModeActive && !isWalkthroughActive) || (isWalkthroughActive && currentWalkthroughStepId !== 'review-button')}
               onPress={handleReviewButtonPress}
             >
               <Ionicons 
@@ -2415,7 +2427,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 size={18} 
                 color={isWalkthroughActive && currentWalkthroughStepId === 'review-button'
                   ? '#FBBF24'
-                  : (isSessionFinished 
+                  : (isSessionFinished || (!isConnected && !isSrsModeActive && !isWalkthroughActive)
                     ? COLORS.lightGray 
                     : (buttonDisplayActive ? COLORS.text : 'grey'))}
               />
@@ -2423,7 +2435,7 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
                 style={[
                   styles.reviewModeButtonText,
                   buttonDisplayActive && styles.reviewModeButtonTextActive,
-                  isSessionFinished && styles.reviewModeButtonTextDisabled,
+                  (isSessionFinished || (!isConnected && !isSrsModeActive && !isWalkthroughActive)) && styles.reviewModeButtonTextDisabled,
                 ]}
               >
                 {t('review.reviewMode')}
@@ -2614,25 +2626,26 @@ const RandomCardReviewer: React.FC<RandomCardReviewerProps> = ({ onCardSwipe, on
           style={[
             styles.reviewModeButton,
             buttonDisplayActive && styles.reviewModeButtonActive,
-,
             (!isWalkthroughActive && (isCardTransitioning || isInitializing)) && styles.deckButtonDisabled,
+            (!isConnected && !isSrsModeActive && !isWalkthroughActive) && styles.reviewModeButtonDisabled,
             isResettingSRS && { opacity: 0.6 },
             rainbowBorderStyle,
             showCompletionPulse && completionPulseStyle
           ]}
           onPress={handleReviewButtonPress}
           onLongPress={handleResetSRSProgress}
-          disabled={isCardTransitioning || isInitializing || isResettingSRS || (isWalkthroughActive && currentWalkthroughStepId !== 'review-button')}
+          disabled={isCardTransitioning || isInitializing || isResettingSRS || (!isConnected && !isSrsModeActive && !isWalkthroughActive) || (isWalkthroughActive && currentWalkthroughStepId !== 'review-button')}
         >
           <Ionicons 
             name={buttonDisplayActive ? "school" : "school-outline"} 
             size={18} 
-            color={buttonDisplayActive ? COLORS.text : 'grey'}
+            color={(!isConnected && !isSrsModeActive && !isWalkthroughActive) ? COLORS.lightGray : (buttonDisplayActive ? COLORS.text : 'grey')}
           />
           <Text 
             style={[
               styles.reviewModeButtonText,
-              buttonDisplayActive && styles.reviewModeButtonTextActive
+              buttonDisplayActive && styles.reviewModeButtonTextActive,
+              (!isConnected && !isSrsModeActive && !isWalkthroughActive) && styles.reviewModeButtonTextDisabled,
             ]}
           >
             {t('review.reviewMode')}
