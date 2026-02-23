@@ -98,6 +98,14 @@ export const AuthGuard = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
+    // User just signed out from settings → redirect to login (avoids dual navigation where
+    // handleSignOut's replace would dismiss modal to (screens), then AuthGuard would also redirect)
+    if (!user && !isGuest && currentSegment === 'settings') {
+      logger.log('🔐 [AuthGuard] User signed out from settings, redirecting to /login');
+      router.replace('/login');
+      return;
+    }
+
     // User is not authenticated and not guest → protected routes require login (unless walkthrough mode)
     if (!user && !isGuest && PROTECTED_SEGMENTS.includes(currentSegment) && !isWalkthroughMode) {
       logger.log('🔐 [AuthGuard] User not authenticated, redirecting to /login');

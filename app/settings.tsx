@@ -89,7 +89,9 @@ export default function SettingsScreen() {
   const handleSignOut = async () => {
     try {
       await signOut();
-      router.replace('/');
+      // Do NOT navigate here. AuthGuard redirects when segment=settings and user=null.
+      // Navigating here caused dual redirect: our replace dismissed modal to (screens),
+      // then AuthGuard saw (screens) and also redirected → two login screens.
     } catch (error) {
       logger.error('Error signing out:', error);
       Alert.alert(t('common.error'), t('settings.signOutError'));
