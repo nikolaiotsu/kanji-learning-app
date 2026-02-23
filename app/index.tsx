@@ -25,7 +25,7 @@ const worddexLogo = require('../assets/images/worddexlogo.png'); // Adjusted pat
 export default function App() {
   const { t } = useTranslation();
   const navigation = useNavigation();
-  const { user, isGuest, setGuestMode } = useAuth();
+  const { user, isGuest, setGuestMode, isLoading: isAuthLoading } = useAuth();
   const { setShowTransitionLoading } = useTransitionLoading();
   const { pendingBadge } = useBadge();
   const { registerTrigger } = useSignInPromptTrigger();
@@ -63,7 +63,7 @@ export default function App() {
 
   const handleWalkthroughComplete = useCallback(async (options?: { fromFinalStep?: boolean }) => {
     if (options?.fromFinalStep !== true) return;
-    if (pendingBadge || user) return;
+    if (pendingBadge || user || isAuthLoading) return;
     // Sign-in prompt is shown only after walkthrough overlay has fully closed (onClosed from WalkthroughOverlay).
     try {
       const dismissed = await getSignInPromptDismissed();
@@ -73,7 +73,7 @@ export default function App() {
     } catch {
       setShowSignInPrompt(true);
     }
-  }, [user, pendingBadge]);
+  }, [user, pendingBadge, isAuthLoading]);
 
   const handleContinueAsGuest = useCallback(() => {
     setGuestMode(true);

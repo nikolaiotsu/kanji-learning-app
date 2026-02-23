@@ -17,7 +17,7 @@ import { getSignInPromptDismissed } from '../auth/SignInPrompt';
 export default function BadgeModalGate() {
   const pathname = usePathname();
   const { pendingBadge, clearPendingBadge } = useBadge();
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const { requestShowSignInPrompt } = useSignInPromptTrigger();
 
   // Show modal only when user is on home screen with a pending badge
@@ -34,8 +34,9 @@ export default function BadgeModalGate() {
     clearPendingBadge();
     // Show sign-in prompt after badge modal for users who skipped walkthrough
     // (e.g. made first flashcard without completing onboarding flow)
-    // Include guests - they're the ones we want to prompt to sign up
-    if (!user) {
+    // Include guests - they're the ones we want to prompt to sign up.
+    // Skip when auth is still loading - user may be signed in but not yet hydrated (preview build race).
+    if (!user && !isAuthLoading) {
       try {
         const dismissed = await getSignInPromptDismissed();
         if (!dismissed) {

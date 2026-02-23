@@ -1144,9 +1144,11 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
         }, 500);
       }
 
-      // Show sign-in / premium prompt every 10 cards for guest or free (non-premium) users
+      // Show sign-in / premium prompt every 10 cards for guest or free (non-premium) users.
+      // Skip when user is signed in - subscription may still be loading (preview build race),
+      // and the "Sign Up / Continue as Guest" prompt doesn't apply to signed-in users.
       const isFreeOrGuest = isGuest || subscription.plan !== 'PREMIUM';
-      if (isFreeOrGuest && newLifetimeCount > 0 && newLifetimeCount % 10 === 0) {
+      if (!user && isFreeOrGuest && newLifetimeCount > 0 && newLifetimeCount % 10 === 0) {
         setTimeout(() => {
           requestShowSignInPrompt();
         }, 600);
