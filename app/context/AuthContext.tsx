@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { Alert, InteractionManager } from 'react-native';
+import { Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Session, User } from '@supabase/supabase-js';
@@ -179,14 +179,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         
         // For SIGNED_IN events, we need to complete migration BEFORE setting user state.
         // Otherwise UI components will fetch cards before migration finishes.
-        // Defer with InteractionManager so we don't block the UI when returning from OAuth browser.
+        // Use setTimeout instead of InteractionManager.runAfterInteractions - the latter can
+        // fail to fire (known issue with react-native-screens in production), leaving the
+        // user stuck on the login screen after OAuth/Apple sign-in.
         if (event === 'SIGNED_IN' && session?.user) {
           logger.log('🔐 [AuthContext] SIGNED_IN - deferring guest data migration...');
           setSession(session);
           setIsOfflineMode(false);
           const signedInUser = session.user;
 
-          InteractionManager.runAfterInteractions(() => {
+          const runMigration = () => {
             (async () => {
               try {
                 await clearGuestMode();
@@ -218,7 +220,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 });
               }
             })();
-          });
+          };
+          // Short delay lets the OAuth/Apple sheet fully dismiss; avoids blocking the UI.
+          setTimeout(runMigration, 50);
         } else {
           // For all other events (SIGNED_OUT, TOKEN_REFRESHED, etc.), set state immediately
           logger.log('🔐 [AuthContext] Setting session and user state...');
