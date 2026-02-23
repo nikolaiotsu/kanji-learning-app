@@ -20,7 +20,7 @@
         "buildType": "apk"
       },
       "ios": {
-        "resourceClass": "m-large"
+        "resourceClass": "m-medium"
       },
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://osbxxmfblgmytndszfxz.supabase.co",
