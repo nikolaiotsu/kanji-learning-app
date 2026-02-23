@@ -26,6 +26,17 @@ export const signUp = async (email: string, password: string) => {
     });
     
     if (error) {
+      // Account already exists - try signing in (same flow as Google/Apple)
+      if (error.message?.includes('already registered') || error.message?.includes('User already registered')) {
+        logger.log('🔐 [authService] Account exists, attempting sign in with provided credentials');
+        const signInResult = await supabase.auth.signInWithPassword({ email, password });
+        if (!signInResult.error && signInResult.data.session) {
+          logger.log('🔐 [authService] Sign in successful - existing user signed in');
+          return signInResult.data;
+        }
+        // Sign in failed (wrong password) - throw a clear message for UI
+        throw new Error('User already registered');
+      }
       logger.error('❌ [authService] signUp error:', error.message);
       throw error;
     }
@@ -144,16 +155,11 @@ export const signUpWithGoogle = async () => {
             const isNewUser = new Date(user.created_at).getTime() === new Date(user.last_sign_in_at || user.created_at).getTime();
             
             if (!isNewUser) {
-              // User already exists - this should be a sign-in instead
-              logger.log('🔗 Existing user detected during sign-up:', user.email);
-              
-              // Sign out the user since they should use sign-in instead
-              await supabase.auth.signOut();
-              
-              throw new Error('Account already exists. Please use "Continue with Google" to sign in instead.');
+              // User already exists - sign them in (industry standard: no error, no friction)
+              logger.log('🔗 Existing user detected during sign-up, signing in:', user.email);
+            } else {
+              logger.log('🔗 New user account created via Google:', user.email);
             }
-            
-            logger.log('🔗 New user account created via Google:', user.email);
             return sessionData;
           }
         } else {
@@ -185,16 +191,10 @@ export const signUpWithGoogle = async () => {
                 const isNewUser = new Date(user.created_at).getTime() === new Date(user.last_sign_in_at || user.created_at).getTime();
                 
                 if (!isNewUser) {
-                  // User already exists - this should be a sign-in instead
-                  logger.log('🔗 Existing user detected during sign-up:', user.email);
-                  
-                  // Sign out the user since they should use sign-in instead
-                  await supabase.auth.signOut();
-                  
-                  throw new Error('Account already exists. Please use "Continue with Google" to sign in instead.');
+                  logger.log('🔗 Existing user detected during sign-up, signing in:', user.email);
+                } else {
+                  logger.log('🔗 New user account created via Google:', user.email);
                 }
-                
-                logger.log('🔗 New user account created via Google:', user.email);
                 return sessionData;
               }
             }
@@ -211,9 +211,7 @@ export const signUpWithGoogle = async () => {
     logger.error('❌ Error signing up with Google:', error);
     
     // Provide more specific error messages
-    if (error.message?.includes('Account already exists')) {
-      throw error; // Re-throw our custom message
-    } else if (error.message?.includes('Invalid login credentials')) {
+    if (error.message?.includes('Invalid login credentials')) {
       throw new Error('Google authentication failed. Please try again.');
     } else if (error.message?.includes('OAuth client not found')) {
       throw new Error('Google OAuth is not properly configured. Please contact support.');

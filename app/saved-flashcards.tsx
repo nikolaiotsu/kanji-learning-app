@@ -758,6 +758,7 @@ export default function SavedFlashcardsScreen() {
   // Function to handle swipe between decks
   const handleDeckSwipe = (index: number) => {
       if (index >= 0 && index < decks.length) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         const deck = decks[index];
 
         // Trigger the light animation by incrementing the counter
