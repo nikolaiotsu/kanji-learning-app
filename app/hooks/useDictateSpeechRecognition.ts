@@ -1,10 +1,46 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Platform } from 'react-native';
+import { useSharedValue } from 'react-native-reanimated';
+import { Audio } from 'expo-av';
 import {
+  AVAudioSessionCategory,
+  AVAudioSessionCategoryOptions,
+  AVAudioSessionMode,
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent,
 } from 'expo-speech-recognition';
 import { logger } from '../utils/logger';
+
+/**
+ * Restore playback-friendly audio mode after speech recognition stops (fixes reduced output volume).
+ * Best practice per expo-speech-recognition docs: explicitly deactivate the iOS audio session
+ * so expo-av (TTS, video) can use full volume when playing.
+ */
+async function restoreAudioModeForPlayback() {
+  try {
+    if (Platform.OS === 'ios') {
+      ExpoSpeechRecognitionModule.setAudioSessionActiveIOS(false, {
+        notifyOthersOnDeactivation: true,
+      });
+      await new Promise((r) => setTimeout(r, 100));
+      // Switch to playback category+mode; speech recognition leaves session in
+      // playAndRecord+measurement which causes "lower-output playback level" (Apple docs)
+      ExpoSpeechRecognitionModule.setCategoryIOS({
+        category: AVAudioSessionCategory.playback,
+        categoryOptions: [AVAudioSessionCategoryOptions.mixWithOthers],
+        mode: AVAudioSessionMode.default,
+      });
+    }
+    await Audio.setAudioModeAsync({
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: false,
+      shouldDuckAndroid: true,
+      playThroughEarpieceAndroid: false,
+    });
+  } catch (e) {
+    logger.warn('Failed to restore audio mode after speech recognition:', e);
+  }
+}
 
 const SPEECH_LOCALE_MAP: Record<string, string> = {
   ja: 'ja-JP',
@@ -45,6 +81,7 @@ export function useDictateSpeechRecognition({
   const [error, setError] = useState<string | null>(null);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
+  const volume = useSharedValue(0);
 
   useSpeechRecognitionEvent('start', () => {
     setIsListening(true);
@@ -53,6 +90,12 @@ export function useDictateSpeechRecognition({
 
   useSpeechRecognitionEvent('end', () => {
     setIsListening(false);
+    volume.value = 0;
+    restoreAudioModeForPlayback();
+  });
+
+  useSpeechRecognitionEvent('volumechange', (event) => {
+    volume.value = event.value ?? 0;
   });
 
   useSpeechRecognitionEvent('result', (event) => {
@@ -64,6 +107,8 @@ export function useDictateSpeechRecognition({
 
   useSpeechRecognitionEvent('error', (event) => {
     setIsListening(false);
+    volume.value = 0;
+    restoreAudioModeForPlayback();
     const code = event.error ?? 'unknown';
     const msg = event.message ?? '';
     logger.warn('Speech recognition error:', code, msg);
@@ -87,7 +132,13 @@ export function useDictateSpeechRecognition({
         return;
       }
 
-      const startOpts = { lang: locale, interimResults: true, continuous: true, ...(Platform.OS === 'ios' && { iosTaskHint: 'dictation' }) };
+      const startOpts = {
+        lang: locale,
+        interimResults: true,
+        continuous: true,
+        ...(Platform.OS === 'ios' && { iosTaskHint: 'dictation' as const }),
+        volumeChangeEventOptions: { enabled: true, intervalMillis: 100 },
+      };
       ExpoSpeechRecognitionModule.start(startOpts);
     } catch (err) {
       logger.error('Speech recognition start error:', err);
@@ -98,6 +149,9 @@ export function useDictateSpeechRecognition({
   const stopListening = useCallback(() => {
     try {
       ExpoSpeechRecognitionModule.stop();
+      // Restore audio mode immediately when user stops - don't rely on 'end' event
+      // which may fire late or never if component unmounts (e.g. closing modal/navigating)
+      restoreAudioModeForPlayback();
     } catch {
       // ignore
     }
@@ -117,5 +171,6 @@ export function useDictateSpeechRecognition({
     error,
     hasPermission,
     isAvailable,
+    volume,
   };
 }

@@ -8,6 +8,7 @@ import { Ionicons, FontAwesome5, AntDesign, FontAwesome6, Feather, MaterialCommu
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import CameraButton from './CameraButton';
+import DictateWaveform from './DictateWaveform';
 import ImageHighlighter from '../shared/ImageHighlighter';
 import { useKanjiRecognition } from '../../hooks/useKanjiRecognition';
 import { useAuth } from '../../context/AuthContext';
@@ -257,6 +258,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady, onWalkthroug
     startListening: startDictateListening,
     stopListening: stopDictateListening,
     error: dictateSpeechError,
+    volume: dictateVolume,
   } = useDictateSpeechRecognition({
     locale: getSpeechLocaleForLanguage(isDictateSwapped ? forcedDetectionLanguage : targetLanguage),
     onTranscript: onDictateTranscript,
@@ -3900,27 +3902,38 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                         editable={!(textModalActionButtonsFadingOut || textModalOutput?.translatedText)}
                       />
                     </View>
-                    <Animated.View style={[styles.dictateRecordButton, { opacity: recordButtonOpacity }]} pointerEvents={(textModalActionButtonsFadingOut || textModalOutput?.translatedText) ? 'none' : 'auto'}>
-                      <TouchableOpacity
-                        style={styles.dictateRecordButtonTouchable}
-                        onPress={() => {
-                          Keyboard.dismiss();
-                          if (isDictateListening) {
-                            stopDictateListening();
-                          } else {
-                            startDictateListening();
-                          }
-                        }}
-                        accessibilityLabel={isDictateListening ? t('camera.dictate.stopRecordButton') : t('camera.dictate.recordButton')}
-                        accessibilityState={{ selected: isDictateListening }}
-                        disabled={!!(textModalActionButtonsFadingOut || textModalOutput?.translatedText)}
-                      >
-                        <MaterialCommunityIcons
-                          name={isDictateListening ? 'stop-circle' : 'record-circle-outline'}
-                          size={46}
-                          color={isDictateListening ? COLORS.error : COLORS.primary}
-                        />
-                      </TouchableOpacity>
+                    <Animated.View
+                      style={[
+                        styles.dictateRecordButton,
+                        { opacity: recordButtonOpacity, width: isDictateListening ? 130 : 76 },
+                      ]}
+                      pointerEvents={(textModalActionButtonsFadingOut || textModalOutput?.translatedText) ? 'none' : 'auto'}
+                    >
+                      <View style={styles.dictateRecordButtonRow}>
+                        {isDictateListening && (
+                          <DictateWaveform volume={dictateVolume} />
+                        )}
+                        <TouchableOpacity
+                          style={styles.dictateRecordButtonTouchable}
+                          onPress={() => {
+                            Keyboard.dismiss();
+                            if (isDictateListening) {
+                              stopDictateListening();
+                            } else {
+                              startDictateListening();
+                            }
+                          }}
+                          accessibilityLabel={isDictateListening ? t('camera.dictate.stopRecordButton') : t('camera.dictate.recordButton')}
+                          accessibilityState={{ selected: isDictateListening }}
+                          disabled={!!(textModalActionButtonsFadingOut || textModalOutput?.translatedText)}
+                        >
+                          <MaterialCommunityIcons
+                            name={isDictateListening ? 'stop-circle' : 'record-circle-outline'}
+                            size={46}
+                            color={isDictateListening ? COLORS.error : COLORS.primary}
+                          />
+                        </TouchableOpacity>
+                      </View>
                     </Animated.View>
                   </View>
                 </View>
@@ -4690,13 +4703,18 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number, rowB
     position: 'absolute',
     top: 8,
     right: 8,
-    width: 76,
     height: 76,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  dictateRecordButtonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 76,
+  },
   dictateRecordButtonTouchable: {
-    ...StyleSheet.absoluteFillObject,
+    width: 76,
+    height: 76,
     justifyContent: 'center',
     alignItems: 'center',
   },
