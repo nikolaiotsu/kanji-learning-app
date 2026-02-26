@@ -11,6 +11,7 @@ import { requestAccountDeletion } from '../services/userDataControlService';
 import { clearCache } from '../services/offlineStorage';
 import { isOnline } from '../services/networkManager';
 import { hasLocalDataToMigrate, migrateLocalDataToSupabase } from '../services/localFlashcardStorage';
+import { logInRevenueCat, logOutRevenueCat } from '../services/revenueCatService';
 
 import { logger } from '../utils/logger';
 
@@ -133,6 +134,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           }
           // NOW set user state - UI will fetch cards (even if migration failed, so user can still use the app)
           setUser(session.user);
+          logInRevenueCat(session.user.id).catch((err) =>
+            logger.warn('[AuthContext] RevenueCat logIn on init failed:', err)
+          );
           logger.log('🔄 [AuthContext] User already authenticated on app start, syncing cache...');
           syncAllUserData().catch(err => {
             // Silent error - don't log network errors during sync
@@ -211,6 +215,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
               } finally {
                 setUser(signedInUser);
                 setIsLoading(false);
+                logInRevenueCat(signedInUser.id).catch((err) =>
+                  logger.warn('[AuthContext] RevenueCat logIn on sign-in failed:', err)
+                );
                 logger.log('✅ [AuthContext] Auth state updated (after migration)');
                 syncAllUserData().catch(syncErr => {
                   logger.error('❌ [AuthContext] Failed to sync user data after auth state change:', syncErr);
@@ -232,7 +239,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           if (session?.user) {
             await clearGuestMode();
             await storeUserIdOffline(session.user.id);
+            logInRevenueCat(session.user.id).catch((err) =>
+              logger.warn('[AuthContext] RevenueCat logIn failed:', err)
+            );
           } else if (event === 'SIGNED_OUT') {
+            logOutRevenueCat().catch((err) =>
+              logger.warn('[AuthContext] RevenueCat logOut failed:', err)
+            );
             await clearUserIdOffline();
           }
         }
@@ -250,6 +263,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setIsLoading(true);
     try {
       await authService.signOut();
+      logOutRevenueCat().catch((err) =>
+        logger.warn('[AuthContext] RevenueCat logOut on signOut failed:', err)
+      );
       await clearUserIdOffline();
       await clearGuestMode();
       setSession(null);

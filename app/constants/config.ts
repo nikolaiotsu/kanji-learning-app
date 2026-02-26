@@ -47,14 +47,22 @@ export const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanConfig> = {
   }
 };
 
-// Product IDs for App Store/Play Store - must match App Store Connect exactly
+// Product IDs for App Store/Play Store - must match RevenueCat dashboard and App Store Connect
 export const PRODUCT_IDS = {
+  PREMIUM_WEEKLY: 'worddex_premium_weekly',
   PREMIUM_MONTHLY: 'worddex_premium_monthly',
   PREMIUM_YEARLY: 'worddex_premium_yearly',
 };
 
 // Product details for display in the app
 export const PRODUCT_DETAILS = {
+  [PRODUCT_IDS.PREMIUM_WEEKLY]: {
+    displayName: 'Premium Weekly',
+    duration: 'week',
+    priceUSD: '$1.99',
+    priceJPY: '¥298',
+    savings: null,
+  },
   [PRODUCT_IDS.PREMIUM_MONTHLY]: {
     displayName: 'Premium Monthly',
     duration: 'month',

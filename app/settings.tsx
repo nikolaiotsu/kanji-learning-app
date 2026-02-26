@@ -16,7 +16,6 @@ import { supabase } from './services/supabaseClient';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { COLORS } from './constants/colors';
 import { FONTS } from './constants/typography';
-import { PRODUCT_IDS, PRODUCT_DETAILS } from './constants/config';
 import PokedexLayout from './components/shared/PokedexLayout';
 import { resetReviewPromptState, resetLifetimeCount, getReviewStatus } from './services/reviewPromptService';
 import { resetBadgeProgress } from './services/badgeService';
@@ -31,6 +30,8 @@ import { useBadge } from './context/BadgeContext';
 import { resetWalkthrough } from './hooks/useWalkthrough';
 import { hasEnergyBarsRemaining } from './utils/walkthroughEnergyCheck';
 
+import RevenueCatUI from 'react-native-purchases-ui';
+import { presentPaywall } from './utils/presentPaywall';
 import { logger } from './utils/logger';
 import { getLocalDateString } from './utils/dateUtils';
 import { apiLogger } from './services/apiUsageLogger';
@@ -53,10 +54,8 @@ export default function SettingsScreen() {
     subscription, 
     setTestingSubscriptionPlan, 
     getMaxFlashcards,
-    purchaseSubscription,
     restorePurchases,
     isLoading: isSubscriptionLoading,
-    availableProducts
   } = useSubscription();
   const { setHasCompletedOnboarding } = useOnboarding();
   const { setShowTransitionLoading } = useTransitionLoading();
@@ -408,43 +407,6 @@ export default function SettingsScreen() {
     }
   };
 
-  // Function to handle premium purchase
-  const handlePurchase = async (productId: string) => {
-    if (isPurchasing || isSubscriptionLoading) {
-      return;
-    }
-
-    try {
-      setIsPurchasing(true);
-      logger.log('Initiating purchase for:', productId);
-      
-      const success = await purchaseSubscription(productId);
-      
-      if (success) {
-        Alert.alert(
-          'Success!',
-          'Premium subscription activated! Enjoy unlimited flashcards and features.',
-          [{ text: 'OK' }]
-        );
-      } else {
-        Alert.alert(
-          'Purchase Failed',
-          'Unable to complete the purchase. Please try again.',
-          [{ text: 'OK' }]
-        );
-      }
-    } catch (error) {
-      logger.error('Error purchasing subscription:', error);
-      Alert.alert(
-        'Error',
-        'An error occurred while processing your purchase. Please try again.',
-        [{ text: 'OK' }]
-      );
-    } finally {
-      setIsPurchasing(false);
-    }
-  };
-
   // Function to restore purchases
   const handleRestorePurchases = async () => {
     if (isPurchasing || isSubscriptionLoading) {
@@ -616,25 +578,45 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>{t('settings.subscription')}</Text>
           
           {subscription.plan === 'PREMIUM' ? (
-            // Premium user - show current status
-            <View style={styles.settingItem}>
-              <Ionicons 
-                name="diamond" 
-                size={24} 
-                color={COLORS.premium} 
-                style={styles.settingIcon} 
-              />
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingLabel}>
-                  {t('settings.premiumPlan')}
-                </Text>
-                <Text style={styles.settingDescription}>
-                  {t('settings.premiumPlanDescription')}
-                </Text>
+            // Premium user - show current status + Manage Subscription (Customer Center)
+            <View>
+              <View style={styles.settingItem}>
+                <Ionicons 
+                  name="diamond" 
+                  size={24} 
+                  color={COLORS.premium} 
+                  style={styles.settingIcon} 
+                />
+                <View style={styles.settingTextContainer}>
+                  <Text style={styles.settingLabel}>
+                    {t('settings.premiumPlan')}
+                  </Text>
+                  <Text style={styles.settingDescription}>
+                    {t('settings.premiumPlanDescription')}
+                  </Text>
+                </View>
+                <View style={[styles.counterBadge, { backgroundColor: COLORS.premium }]}>
+                  <Ionicons name="diamond" size={16} color="white" />
+                </View>
               </View>
-              <View style={[styles.counterBadge, { backgroundColor: COLORS.premium }]}>
-                <Ionicons name="diamond" size={16} color="white" />
-              </View>
+              <TouchableOpacity
+                style={styles.settingItem}
+                onPress={async () => {
+                  try {
+                    await RevenueCatUI.presentCustomerCenter();
+                  } catch (err) {
+                    logger.error('Error presenting Customer Center:', err);
+                    Alert.alert(t('common.error'), 'Unable to open subscription management.');
+                  }
+                }}
+              >
+                <Ionicons name="card-outline" size={24} color={COLORS.primary} style={styles.settingIcon} />
+                <View style={styles.settingTextContainer}>
+                  <Text style={styles.settingLabel}>Manage Subscription</Text>
+                  <Text style={styles.settingDescription}>Cancel, restore, or change your plan</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={COLORS.darkGray} />
+              </TouchableOpacity>
             </View>
           ) : (
             // Free user - show upgrade options
@@ -647,54 +629,38 @@ export default function SettingsScreen() {
                 </View>
               </View>
 
-              {/* Monthly Subscription Button */}
+              {/* Upgrade - presents full RevenueCat Paywall with Weekly/Monthly/Yearly */}
               <TouchableOpacity
                 style={[
                   styles.purchaseButton,
                   (isPurchasing || isSubscriptionLoading) && styles.purchaseButtonDisabled
                 ]}
-                onPress={() => handlePurchase(PRODUCT_IDS.PREMIUM_MONTHLY)}
+                onPress={async () => {
+                  if (isPurchasing || isSubscriptionLoading) return;
+                  setIsPurchasing(true);
+                  try {
+                    const result = await presentPaywall();
+                    if (result.purchased) {
+                      Alert.alert('Success!', 'Premium subscription activated! Enjoy unlimited flashcards and features.', [{ text: 'OK' }]);
+                    }
+                  } catch (err) {
+                    logger.error('Error presenting paywall:', err);
+                  } finally {
+                    setIsPurchasing(false);
+                  }
+                }}
                 disabled={isPurchasing || isSubscriptionLoading}
               >
                 {isPurchasing || isSubscriptionLoading ? (
                   <ActivityIndicator color="white" size="small" />
                 ) : (
-                  <>
-                    <View style={styles.purchaseButtonContent}>
-                      <View style={styles.purchaseButtonLeft}>
-                        <Ionicons name="diamond" size={20} color="white" style={{ marginRight: 8 }} />
-                        <Text style={styles.purchaseButtonTitle}>Premium Monthly</Text>
-                      </View>
-                      <Text style={styles.purchaseButtonPrice}>{PRODUCT_DETAILS[PRODUCT_IDS.PREMIUM_MONTHLY].priceUSD}/mo</Text>
+                  <View style={styles.purchaseButtonContent}>
+                    <View style={styles.purchaseButtonLeft}>
+                      <Ionicons name="diamond" size={20} color="white" style={{ marginRight: 8 }} />
+                      <Text style={styles.purchaseButtonTitle}>Upgrade to Premium</Text>
                     </View>
-                  </>
-                )}
-              </TouchableOpacity>
-
-              {/* Yearly Subscription Button */}
-              <TouchableOpacity
-                style={[
-                  styles.purchaseButton,
-                  (isPurchasing || isSubscriptionLoading) && styles.purchaseButtonDisabled
-                ]}
-                onPress={() => handlePurchase(PRODUCT_IDS.PREMIUM_YEARLY)}
-                disabled={isPurchasing || isSubscriptionLoading}
-              >
-                {isPurchasing || isSubscriptionLoading ? (
-                  <ActivityIndicator color="white" size="small" />
-                ) : (
-                  <>
-                    <View style={styles.purchaseButtonContent}>
-                      <View style={styles.purchaseButtonLeft}>
-                        <Ionicons name="diamond" size={20} color="white" style={{ marginRight: 8 }} />
-                        <View>
-                          <Text style={styles.purchaseButtonTitle}>Premium Yearly</Text>
-                          <Text style={styles.purchaseButtonSavings}>Save 17%!</Text>
-                        </View>
-                      </View>
-                      <Text style={styles.purchaseButtonPrice}>{PRODUCT_DETAILS[PRODUCT_IDS.PREMIUM_YEARLY].priceUSD}/yr</Text>
-                    </View>
-                  </>
+                    <Ionicons name="chevron-forward" size={20} color="white" />
+                  </View>
                 )}
               </TouchableOpacity>
 

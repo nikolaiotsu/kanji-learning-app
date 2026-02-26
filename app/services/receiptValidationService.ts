@@ -3,6 +3,7 @@ import { ValidateReceiptResponse, DBSubscription } from '../../types';
 import { logger } from '../utils/logger';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { checkEntitlement } from './revenueCatService';
 
 const EDGE_FUNCTION_URL = 'validate-receipt';
 
@@ -180,21 +181,15 @@ export async function getCurrentSubscriptionPlan(
     logger.error('[Subscription] Error reading testing override:', error);
   }
   
-  // In production (without testing override), use database as source of truth
-  if (!isDevelopment && !forceContext) {
-    const dbSubscription = await fetchSubscriptionStatus();
-    return getSubscriptionPlan(dbSubscription);
-  }
-  
-  // In development or when forced, allow context override
+  // When context plan is provided (e.g. from SubscriptionContext), use it
   if (contextSubscriptionPlan) {
     logger.log(`[Subscription] Using context subscription plan: ${contextSubscriptionPlan}`);
     return contextSubscriptionPlan;
   }
-  
-  // Fallback to database even in development
-  const dbSubscription = await fetchSubscriptionStatus();
-  return getSubscriptionPlan(dbSubscription);
+
+  // Otherwise use RevenueCat as source of truth (replaces legacy DB/Supabase)
+  const hasPremium = await checkEntitlement();
+  return hasPremium ? 'PREMIUM' : 'FREE';
 }
 
 /**

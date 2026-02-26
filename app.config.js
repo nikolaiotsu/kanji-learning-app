@@ -37,6 +37,10 @@ module.exports = {
           deploymentTarget: '16.0',
         },
       }],
+      ['expo-speech-recognition', {
+        microphonePermission: 'WordDex uses the microphone for voice input when you dictate text.',
+        speechRecognitionPermission: 'WordDex uses speech recognition to transcribe your voice.',
+      }],
     ],
     ios: {
       supportsTablet: true,
@@ -56,6 +60,8 @@ module.exports = {
         "UISupportedInterfaceOrientations~ipad": [
           "UIInterfaceOrientationPortrait",
         ],
+        NSSpeechRecognitionUsageDescription: "WordDex uses speech recognition to transcribe your voice.",
+        NSMicrophoneUsageDescription: "WordDex uses the microphone for voice input when you dictate text.",
       },
     },
     android: {
@@ -76,6 +82,7 @@ module.exports = {
         projectId: "8d650758-11ac-4561-9757-e635a031ac9b",
       },
       EXPO_PUBLIC_CLAUDE_API_KEY: process.env.EXPO_PUBLIC_CLAUDE_API_KEY || process.env.CLAUDE_API_KEY,
+      EXPO_PUBLIC_REVENUECAT_API_KEY: process.env.EXPO_PUBLIC_REVENUECAT_API_KEY || process.env.REVENUECAT_API_KEY,
     },
   },
 };

@@ -498,6 +498,9 @@
   },
   "textInput": {
     "placeholder": "Text zum Übersetzen eingeben",
+    "placeholderWithLanguage": "Text zum Übersetzen ins {{language}} eingeben",
+    "targetPlaceholder": "Übersetzung erscheint hier",
+    "targetPlaceholderWithLanguage": "{{language}} erscheint hier",
     "cancel": "Abbrechen",
     "wordScope": "WordScope",
     "translate": "Übersetzen"
@@ -555,6 +558,19 @@
       "organizeBullet": "Karten organisieren, neue Sammlungen erstellen, sortieren und löschen",
       "dontShowAgain": "Nicht mehr anzeigen",
       "gotIt": "Verstanden"
+    },
+    "customCard": {
+      "title": "Benutzerdefinierte Karte hinzufügen",
+      "description": "Erstellen Sie manuell eine benutzerdefinierte Karteikarte, indem Sie Text direkt eingeben. Perfekt zum Hinzufügen von Karten ohne Foto."
+    },
+    "dictate": {
+      "title": "Diktieren",
+      "recordButton": "Spracheingabe starten",
+      "stopRecordButton": "Spracheingabe beenden",
+      "recording": "Wird angehört...",
+      "permissionDenied": "Für die Spracheingabe ist Mikrofonzugriff erforderlich.",
+      "permissionDeniedTitle": "Mikrofonzugriff",
+      "openSettings": "Einstellungen öffnen"
     }
   },
   "reviewPrompt": {
@@ -585,6 +601,9 @@
     "customCard": {
       "title": "Benutzerdefinierte Karte hinzufügen",
       "description": "Erstellen Sie manuell eine benutzerdefinierte Karteikarte, indem Sie Text direkt eingeben. Perfekt zum Hinzufügen von Karten ohne Foto."
+    },
+    "dictate": {
+      "title": "Diktieren"
     },
     "reviewCards": {
       "title": "Karten wiederholen",

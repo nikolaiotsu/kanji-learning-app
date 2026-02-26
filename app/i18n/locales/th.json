@@ -498,6 +498,8 @@
   },
   "textInput": {
     "placeholder": "กรอกข้อความเพื่อแปล",
+    "placeholderWithLanguage": "กรอกข้อความเพื่อแปลเป็น {{language}}",
+    "targetPlaceholderWithLanguage": "{{language}} จะปรากฏที่นี่",
     "cancel": "ยกเลิก",
     "wordScope": "WordScope",
     "translate": "แปล"
@@ -555,6 +557,19 @@
       "organizeBullet": "จัดระเบียบการ์ด สร้างคอลเลกชันใหม่ เรียงลำดับและลบ",
       "dontShowAgain": "ไม่แสดงอีก",
       "gotIt": "เข้าใจ"
+    },
+    "customCard": {
+      "title": "เพิ่มการ์ดแบบกำหนดเอง",
+      "description": "สร้างการ์ดแบบกำหนดเองด้วยตนเองโดยกรอกข้อความโดยตรง เหมาะสำหรับเพิ่มการ์ดโดยไม่ต้องถ่ายรูป"
+    },
+    "dictate": {
+      "title": "บอกให้เขียน",
+      "recordButton": "เริ่มป้อนด้วยเสียง",
+      "stopRecordButton": "หยุดป้อนด้วยเสียง",
+      "recording": "กำลังฟัง...",
+      "permissionDenied": "ต้องเข้าถึงไมโครโฟนสำหรับการป้อนด้วยเสียง",
+      "permissionDeniedTitle": "การเข้าถึงไมโครโฟน",
+      "openSettings": "เปิดการตั้งค่า"
     }
   },
   "reviewPrompt": {
@@ -585,6 +600,9 @@
     "customCard": {
       "title": "เพิ่มการ์ดแบบกำหนดเอง",
       "description": "สร้างการ์ดแบบกำหนดเองด้วยตนเองโดยกรอกข้อความโดยตรง เหมาะสำหรับเพิ่มการ์ดโดยไม่ต้องถ่ายรูป"
+    },
+    "dictate": {
+      "title": "บอกให้เขียน"
     },
     "reviewCards": {
       "title": "ทบทวนการ์ด",

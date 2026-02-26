@@ -5,7 +5,7 @@ import { apiLogger, logClaudeAPI, APIUsageMetrics } from './apiUsageLogger';
 import { validateTextLength } from '../utils/inputValidation';
 import { logger } from '../utils/logger';
 import { sanitizeKoreanRomanization, analyzeKoreanRomanization } from './koreanRomanizationGuards';
-import { fetchSubscriptionStatus, getSubscriptionPlan } from './receiptValidationService';
+import { getCurrentSubscriptionPlan } from './receiptValidationService';
 import {
   japaneseWordScopeSystemPromptLite,
   japaneseTranslationSystemPromptLite,
@@ -38,6 +38,7 @@ import {
   validateArabicRomanization,
   stripArabicDiacritics,
   validateHindiRomanization,
+  validateThaiRomanization,
 } from './claude/readingValidation';
 import {
   assessTranslationQuality,
@@ -92,7 +93,61 @@ function setCachedValidation(text: string, forcedLanguage: string, result: Cache
   logger.log(`[Validation Cache] Cached result for ${forcedLanguage}`);
 }
 
-import { normalizeQuotationMarks } from '../utils/textFormatting';
+/**
+ * Strips parenthetical readings from readingsText (e.g. "君(きみ)とセックスしたい" → "君とセックスしたい").
+ * Used when the model echoes the source in translatedText but puts the correct translation in readingsText
+ * (e.g. vulgar content triggering Claude to avoid outputting target language directly).
+ */
+function stripReadingsFromText(text: string): string {
+  if (!text) return text;
+  return text.replace(/\s*\([^)]*\)/g, '').replace(/\s+/g, ' ').trim();
+}
+
+/** Returns true if text contains the expected script for the given target language code. */
+function hasTargetScript(text: string, targetLanguage: string): boolean {
+  switch (targetLanguage) {
+    case 'ja': return containsJapanese(text);
+    case 'zh': return containsChineseJapanese(text);
+    case 'ko': return containsKoreanText(text);
+    case 'ru': return containsRussianText(text);
+    case 'ar': return containsArabicText(text);
+    case 'hi': return containsHindiText(text);
+    case 'th': return containsThaiText(text);
+    default: return false;
+  }
+}
+
+/**
+ * When outputNeedsReadings is true and we're translating TO a reading language, Claude may
+ * echo the source in translatedText while putting the correct translation in readingsText
+ * (e.g. for vulgar content). Fix by using the stripped readingsText as translatedText.
+ */
+function correctEchoedTranslationInOutputReadingsMode(
+  parsedContent: { readingsText?: string; translatedText?: string },
+  targetLanguage: string,
+  outputNeedsReadings: boolean
+): void {
+  if (!outputNeedsReadings || !parsedContent.readingsText?.trim()) return;
+  const readingsText = parsedContent.readingsText;
+  const translatedText = parsedContent.translatedText || '';
+  if (!hasTargetScript(readingsText, targetLanguage)) return;
+  if (hasTargetScript(translatedText, targetLanguage)) return; // translatedText already has target script
+  const cleaned = stripReadingsFromText(readingsText);
+  if (!cleaned) return;
+  logger.log(`[Claude API] Correcting echoed translation: translatedText had no ${targetLanguage} script, using stripped readingsText as translatedText`);
+  parsedContent.translatedText = cleaned;
+}
+
+import {
+  normalizeQuotationMarks,
+  containsJapanese,
+  containsChineseJapanese,
+  containsKoreanText,
+  containsRussianText,
+  containsArabicText,
+  containsHindiText,
+  containsThaiText,
+} from '../utils/textFormatting';
 
 // Define response structure
 export interface LanguageMismatchInfo {
@@ -171,6 +226,9 @@ interface ClaudeContentItem {
  * @param ms Milliseconds to sleep
  */
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+/** Languages that support readings (furigana, pinyin, romanization) on output - used when outputNeedsReadings is true (Dictate mode). */
+const OUTPUT_READING_LANGUAGES = ['ja', 'zh', 'ko', 'ru', 'ar', 'hi', 'th'] as const;
 
 /**
  * Validates text language using Claude AI's superior language detection
@@ -343,6 +401,7 @@ Be precise and return ONLY the JSON with no additional explanation.`;
  * @param onProgress Optional callback for progress updates
  * @param includeScope Whether to include scope analysis (etymology/grammar)
  * @param subscriptionPlan Optional subscription plan to use for rate limiting (avoids re-fetching)
+ * @param outputNeedsReadings When true, request readings on the translated output (Dictate mode - output becomes card front)
  * @returns Object containing text with furigana/romanization, translation, and optional scope analysis
  */
 export async function processWithClaude(
@@ -351,7 +410,8 @@ export async function processWithClaude(
   forcedLanguage: string = 'ja',
   onProgress?: (checkpoint: number) => void,
   includeScope: boolean = false,
-  subscriptionPlan?: 'PREMIUM' | 'FREE'
+  subscriptionPlan?: 'PREMIUM' | 'FREE',
+  outputNeedsReadings?: boolean
 ): Promise<ClaudeResponse> {
   // CRITICAL: Normalize quotation marks and special characters BEFORE processing
   // This prevents JSON parsing issues when Claude includes quotes in translations
@@ -411,11 +471,10 @@ export async function processWithClaude(
 
   // Check unified rate limits for all API calls
   try {
-    // Use passed subscription plan if provided, otherwise fetch from database
+    // Use passed subscription plan if provided, otherwise fetch from RevenueCat
     let effectiveSubscriptionPlan = subscriptionPlan;
     if (!effectiveSubscriptionPlan) {
-      const subscription = await fetchSubscriptionStatus();
-      effectiveSubscriptionPlan = getSubscriptionPlan(subscription);
+      effectiveSubscriptionPlan = await getCurrentSubscriptionPlan();
     }
     logger.log(`[Claude API] Using subscription plan for rate limit: ${effectiveSubscriptionPlan}`);
     const rateLimitStatus = await apiLogger.checkRateLimitStatus(effectiveSubscriptionPlan);
@@ -655,7 +714,8 @@ export async function processWithClaude(
   logger.log(`Using forced language detection: ${forcedLanguage} (${primaryLanguage})`);
 
   const shouldEnforceKoreanRomanization =
-    primaryLanguage === "Korean" || forcedLanguage === 'ko';
+    primaryLanguage === "Korean" || forcedLanguage === 'ko' ||
+    (!!outputNeedsReadings && targetLanguage === 'ko');
 
   const applyKoreanRomanizationGuards = (value: string, context: string) => {
     if (!shouldEnforceKoreanRomanization || !value) {
@@ -783,8 +843,32 @@ If the target language is Vietnamese, the translation must use Vietnamese script
         primaryLanguage !== 'Japanese' &&
         !hasSourceReadingPrompt
       ) {
-        logger.log(`[DEBUG] TRANSLATING TO JAPANESE: Using natural Japanese translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
-        if (USE_LITE_PROMPTS) {
+        logger.log(`[DEBUG] TRANSLATING TO JAPANESE: Using ${outputNeedsReadings ? 'output-readings' : 'natural'} prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
+        if (outputNeedsReadings) {
+          if (USE_LITE_PROMPTS) {
+            userMessage = `Translate to ${targetLangName}. Add furigana in parentheses IMMEDIATELY AFTER EACH kanji word in readingsText. Format: word1(reading1) word2(reading2). CORRECT: 日本語(にほんご)を勉強(べんきょう)する. WRONG: putting all readings at end. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+          } else {
+            userMessage = `
+${promptTopSection}
+You are a professional Japanese translator. Translate this text into natural Japanese: "${text}"
+
+CRITICAL: The output will be shown to learners who need pronunciation help.
+1. Translate into natural Japanese (kanji, hiragana, katakana)
+2. In readingsText: Add furigana in parentheses IMMEDIATELY AFTER EACH word containing kanji. Each word gets its own (reading) right after it.
+3. In translatedText: Same Japanese translation, clean (no furigana)
+
+FORMAT RULE - EACH WORD GETS ITS OWN ANNOTATION:
+- CORRECT: 日本語(にほんご)を勉強(べんきょう)する
+- WRONG: Putting all furigana at the end of the phrase - never do this
+
+Format your response as valid JSON:
+{
+  "readingsText": "Japanese with furigana after each kanji word, e.g. 日本語(にほんご)を勉強(べんきょう)する",
+  "translatedText": "Same Japanese translation, clean"
+}`;
+          }
+        } else if (USE_LITE_PROMPTS) {
           // Lite user message for any source → Japanese (German, French, English, etc.) to cut tokens
           userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
 "${text}"`;
@@ -817,8 +901,32 @@ Format your response as valid JSON with these exact keys:
       }
       // Check if we're translating TO Chinese from a non-Chinese source (but NOT from a reading language)
       else if (targetLanguage === 'zh' && forcedLanguage !== 'zh' && primaryLanguage !== 'Chinese' && !hasSourceReadingPrompt) {
-        logger.log(`[DEBUG] TRANSLATING TO CHINESE: Using natural Chinese translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
-        if (USE_LITE_PROMPTS) {
+        logger.log(`[DEBUG] TRANSLATING TO CHINESE: Using ${outputNeedsReadings ? 'output-readings' : 'natural'} prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
+        if (outputNeedsReadings) {
+          if (USE_LITE_PROMPTS) {
+            userMessage = `Translate to ${targetLangName}. Add pinyin in parentheses IMMEDIATELY AFTER EACH word in readingsText. Format: word1(reading1) word2(reading2). CORRECT: 你好(nǐhǎo)世界(shìjiè). WRONG: 你好世界(nǐhǎo shìjiè) - never put all pinyin at end. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+          } else {
+            userMessage = `
+${promptTopSection}
+You are a professional Chinese translator. Translate this text into natural Chinese: "${text}"
+
+CRITICAL: The output will be shown to learners who need pronunciation help.
+1. Translate into natural Chinese (simplified or traditional characters)
+2. In readingsText: Add pinyin in parentheses IMMEDIATELY AFTER EACH word. Each word gets its own (pinyin) right after it. Include tone marks.
+3. In translatedText: Same Chinese translation, clean (no pinyin)
+
+FORMAT RULE - EACH WORD GETS ITS OWN ANNOTATION:
+- CORRECT: 你好(nǐhǎo)世界(shìjiè)
+- WRONG: 你好世界(nǐhǎo shìjiè) - never put all pinyin at the end of the phrase
+
+Format your response as valid JSON:
+{
+  "readingsText": "Chinese with pinyin after each word, e.g. 你好(nǐhǎo)世界(shìjiè)",
+  "translatedText": "Same Chinese translation, clean"
+}`;
+          }
+        } else if (USE_LITE_PROMPTS) {
           // Lite user message for any source → Chinese (German, French, English, etc.) to cut tokens
           userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
 "${text}"`;
@@ -988,6 +1096,9 @@ Format your response as valid JSON with these exact keys:
                 }
               }
 
+              // Fix vulgar-content echo bug: when model puts translation in readingsText but echoes source in translatedText
+              correctEchoedTranslationInOutputReadingsMode(parsedContent, targetLanguage, !!outputNeedsReadings);
+
               const translatedText = parsedContent.translatedText || "";
               const translatedPreview = translatedText.substring(0, 60) + (translatedText.length > 60 ? "..." : "");
               logger.log(`Translation complete: "${translatedPreview}"`);
@@ -996,8 +1107,10 @@ Format your response as valid JSON with these exact keys:
               // This ensures we catch cases where Claude returns romanization-only without Korean characters
               let earlyFuriganaText = applyKoreanRomanizationGuards(parsedContent.readingsText || "", "initial-parse-early");
               
-              if ((primaryLanguage === "Korean" || forcedLanguage as string === 'ko') && earlyFuriganaText) {
-                const koreanValidation = validateKoreanRomanization(text, earlyFuriganaText);
+              const isKoreanReadingsPath = (primaryLanguage === "Korean" || forcedLanguage as string === 'ko' || (outputNeedsReadings && targetLanguage === 'ko'));
+              const koreanRefEarly = (outputNeedsReadings && targetLanguage === 'ko') ? translatedText : text;
+              if (isKoreanReadingsPath && earlyFuriganaText) {
+                const koreanValidation = validateKoreanRomanization(koreanRefEarly, earlyFuriganaText);
                 logger.log(`Korean romanization validation (early path): ${koreanValidation.details}`);
                 
                 if (!koreanValidation.isValid && koreanValidation.accuracy < 50) {
@@ -1005,8 +1118,10 @@ Format your response as valid JSON with these exact keys:
                   
                   // Check if this is a critical failure (romanization-only without Korean)
                   const isCriticalFailure = koreanValidation.accuracy === 0 && koreanValidation.issues.some(i => i.includes('CRITICAL'));
+                  // Skip retry in Dictate mode - retry prompt assumes source is Korean
+                  const shouldRetryKorean = isCriticalFailure && retryCount === 0 && !(outputNeedsReadings && targetLanguage === 'ko');
                   
-                  if (isCriticalFailure && retryCount === 0) {
+                  if (shouldRetryKorean) {
                     logger.log("Retrying with explicit Korean preservation prompt...");
                     retryCount++;
                     
@@ -1268,14 +1383,17 @@ Format your response as valid JSON with these exact keys:
 
               let furiganaText = applyKoreanRomanizationGuards(parsedContent.readingsText || "", "initial-parse");
 
-              if ((primaryLanguage === "Japanese" || forcedLanguage === 'ja') && furiganaText) {
-                const validation = validateJapaneseFurigana(text, furiganaText);
+              const isJapaneseReadingsPath = (primaryLanguage === "Japanese" || forcedLanguage === 'ja' || (outputNeedsReadings && targetLanguage === 'ja'));
+              const japaneseRefPath = (outputNeedsReadings && targetLanguage === 'ja') ? (parsedContent.translatedText || "") : text;
+              if (isJapaneseReadingsPath && furiganaText) {
+                const validation = validateJapaneseFurigana(japaneseRefPath, furiganaText);
                 logger.log(`Furigana validation: ${validation.details}`);
 
                 if (!validation.isValid) {
                   logger.warn(`Incomplete furigana coverage: ${validation.details}`);
 
-                  if (retryCount === 0 && (validation.missingKanjiCount > 0 || validation.details.includes("incorrect readings"))) {
+                  // Skip retry in Dictate mode - retry prompt assumes source is Japanese
+                  if (retryCount === 0 && (validation.missingKanjiCount > 0 || validation.details.includes("incorrect readings")) && !(outputNeedsReadings && targetLanguage === 'ja')) {
                     logger.log("Retrying with more aggressive furigana prompt...");
                     retryCount++;
 
@@ -1472,8 +1590,34 @@ Format your response as valid JSON with these exact keys:
       }
       // Check if we're translating TO Korean from a non-Korean source (but NOT from a reading language)
       else if (targetLanguage === 'ko' && forcedLanguage !== 'ko' && primaryLanguage !== 'Korean' && !hasSourceReadingPrompt) {
-        logger.log(`[DEBUG] TRANSLATING TO KOREAN: Using natural Korean translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
-        if (USE_LITE_PROMPTS) {
+        logger.log(`[DEBUG] TRANSLATING TO KOREAN: Using ${outputNeedsReadings ? 'output-readings' : 'natural'} prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
+        if (outputNeedsReadings) {
+          if (USE_LITE_PROMPTS) {
+            userMessage = `Translate to ${targetLangName}. In readingsText, add Revised Romanization in parentheses IMMEDIATELY AFTER EACH WORD. Format: word1(reading1) word2(reading2). WRONG: 저기 뭐예요?(jeogi mwoe-yo?) - romanization at end. CORRECT: 저기(jeogi) 뭐예요?(mwoe-yo?). Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+          } else {
+            userMessage = `
+${promptTopSection}
+You are a professional Korean translator. Translate this text into natural Korean: "${text}"
+
+CRITICAL: The output will be shown to learners who need pronunciation help.
+1. Translate into natural Korean (Hangul)
+2. In readingsText: Add Revised Romanization in parentheses IMMEDIATELY AFTER EACH WORD. Each word must have its own (romanization) right after it.
+3. In translatedText: Same Korean translation, clean (no romanization)
+
+FORMAT RULE - EACH WORD GETS ITS OWN ANNOTATION:
+- CORRECT: 저기(jeogi) 뭐예요?(mwoe-yo?) - each word has romanization in parens right after it
+- CORRECT: 정말(jeong-mal) 감사합니다(gam-sa-ham-ni-da)
+- WRONG: 저기 뭐예요?(jeogi mwoe-yo?) - never put all romanization at the end of the phrase
+- WRONG: 안녕하세요(annyeonghaseyo) when there are multiple words - each word needs its own (reading)
+
+Format your response as valid JSON:
+{
+  "readingsText": "Korean with Revised Romanization after EACH word, e.g. 저기(jeogi) 뭐예요?(mwoe-yo?)",
+  "translatedText": "Same Korean translation, clean"
+}`;
+          }
+        } else if (USE_LITE_PROMPTS) {
           userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
 "${text}"`;
         } else {
@@ -1503,8 +1647,32 @@ Format your response as valid JSON with these exact keys:
 }`;
         }
       } else if (targetLanguage === 'th' && forcedLanguage !== 'th' && primaryLanguage !== 'Thai' && !hasSourceReadingPrompt) {
-        logger.log(`[DEBUG] TRANSLATING TO THAI: Using natural Thai translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
-        if (USE_LITE_PROMPTS) {
+        logger.log(`[DEBUG] TRANSLATING TO THAI: Using ${outputNeedsReadings ? 'output-readings' : 'natural'} prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
+        if (outputNeedsReadings) {
+          if (USE_LITE_PROMPTS) {
+            userMessage = `Translate to ${targetLangName}. Add RTGS romanization in parentheses IMMEDIATELY AFTER EACH word in readingsText. Format: word1(reading1) word2(reading2). CORRECT: สวัสดี(sawatdi) ครับ(khrap). WRONG: putting all romanization at end. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+          } else {
+            userMessage = `
+${promptTopSection}
+You are a professional Thai translator. Translate this text into natural Thai: "${text}"
+
+CRITICAL: The output will be shown to learners who need pronunciation help.
+1. Translate into natural Thai (Thai script)
+2. In readingsText: Add RTGS romanization in parentheses IMMEDIATELY AFTER EACH word. Each word gets its own (romanization) right after it.
+3. In translatedText: Same Thai translation, clean (no romanization)
+
+FORMAT RULE - EACH WORD GETS ITS OWN ANNOTATION:
+- CORRECT: สวัสดี(sawatdi) ครับ(khrap)
+- WRONG: Putting all romanization at the end of the phrase - never do this
+
+Format your response as valid JSON:
+{
+  "readingsText": "Thai with RTGS romanization after each word, e.g. สวัสดี(sawatdi) ครับ(khrap)",
+  "translatedText": "Same Thai translation, clean"
+}`;
+          }
+        } else if (USE_LITE_PROMPTS) {
           userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
 "${text}"`;
         } else {
@@ -1569,8 +1737,32 @@ Format your response as valid JSON with these exact keys:
       }
       // Check if we're translating TO Russian from a non-Russian source (but NOT from a reading language)
       else if (targetLanguage === 'ru' && forcedLanguage !== 'ru' && primaryLanguage !== 'Russian' && !hasSourceReadingPrompt) {
-        logger.log(`[DEBUG] TRANSLATING TO RUSSIAN: Using natural Russian translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
-        if (USE_LITE_PROMPTS) {
+        logger.log(`[DEBUG] TRANSLATING TO RUSSIAN: Using ${outputNeedsReadings ? 'output-readings' : 'natural'} prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
+        if (outputNeedsReadings) {
+          if (USE_LITE_PROMPTS) {
+            userMessage = `Translate to ${targetLangName}. Add practical romanization in parentheses IMMEDIATELY AFTER EACH word in readingsText. Format: word1(reading1) word2(reading2). CORRECT: Привет(privet) как(kak). WRONG: putting all romanization at end. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+          } else {
+            userMessage = `
+${promptTopSection}
+You are a professional Russian translator. Translate this text into natural Russian: "${text}"
+
+CRITICAL: The output will be shown to learners who need pronunciation help.
+1. Translate into natural Russian (Cyrillic)
+2. In readingsText: Add practical romanization in parentheses IMMEDIATELY AFTER EACH word. Each word gets its own (romanization) right after it.
+3. In translatedText: Same Russian translation, clean (no romanization)
+
+FORMAT RULE - EACH WORD GETS ITS OWN ANNOTATION:
+- CORRECT: Привет(privet) как(kak) дела(dela)
+- WRONG: Putting all romanization at the end of the phrase - never do this
+
+Format your response as valid JSON:
+{
+  "readingsText": "Russian with romanization after each word, e.g. Привет(privet) как(kak)",
+  "translatedText": "Same Russian translation, clean"
+}`;
+          }
+        } else if (USE_LITE_PROMPTS) {
           userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
 "${text}"`;
         } else {
@@ -1633,8 +1825,32 @@ Format your response as valid JSON with these exact keys:
       }
       // Check if we're translating TO Arabic from a non-Arabic source (but NOT from a reading language)
       else if (targetLanguage === 'ar' && forcedLanguage !== 'ar' && primaryLanguage !== 'Arabic' && !hasSourceReadingPrompt) {
-        logger.log(`[DEBUG] TRANSLATING TO ARABIC: Using natural Arabic translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
-        if (USE_LITE_PROMPTS) {
+        logger.log(`[DEBUG] TRANSLATING TO ARABIC: Using ${outputNeedsReadings ? 'output-readings' : 'natural'} prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
+        if (outputNeedsReadings) {
+          if (USE_LITE_PROMPTS) {
+            userMessage = `Translate to ${targetLangName}. Add transliteration in parentheses IMMEDIATELY AFTER EACH word in readingsText. Format: word1(reading1) word2(reading2). CORRECT: مرحبا(marhaba) كيف(kayfa). WRONG: putting all transliteration at end. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+          } else {
+            userMessage = `
+${promptTopSection}
+You are a professional Arabic translator. Translate this text into natural Arabic: "${text}"
+
+CRITICAL: The output will be shown to learners who need pronunciation help.
+1. Translate into natural Arabic (Arabic script)
+2. In readingsText: Add transliteration in parentheses IMMEDIATELY AFTER EACH word. Each word gets its own (transliteration) right after it.
+3. In translatedText: Same Arabic translation, clean (no transliteration)
+
+FORMAT RULE - EACH WORD GETS ITS OWN ANNOTATION:
+- CORRECT: مرحبا(marhaba) كيف(kayfa) حالك(haluk)
+- WRONG: Putting all transliteration at the end of the phrase - never do this
+
+Format your response as valid JSON:
+{
+  "readingsText": "Arabic with transliteration after each word, e.g. مرحبا(marhaba) كيف(kayfa)",
+  "translatedText": "Same Arabic translation, clean"
+}`;
+          }
+        } else if (USE_LITE_PROMPTS) {
           userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
 "${text}"`;
         } else {
@@ -1715,8 +1931,32 @@ Format your response as valid JSON with these exact keys:
       }
       // Check if we're translating TO Hindi from a non-Hindi source (but NOT from a reading language)
       else if (targetLanguage === 'hi' && forcedLanguage !== 'hi' && primaryLanguage !== 'Hindi' && !hasSourceReadingPrompt) {
-        logger.log(`[DEBUG] TRANSLATING TO HINDI: Using natural Hindi translation prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
-        if (USE_LITE_PROMPTS) {
+        logger.log(`[DEBUG] TRANSLATING TO HINDI: Using ${outputNeedsReadings ? 'output-readings' : 'natural'} prompt (primaryLanguage: ${primaryLanguage}, targetLanguage: ${targetLanguage})`);
+        if (outputNeedsReadings) {
+          if (USE_LITE_PROMPTS) {
+            userMessage = `Translate to ${targetLangName}. Add IAST romanization in parentheses IMMEDIATELY AFTER EACH word in readingsText. Format: word1(reading1) word2(reading2). CORRECT: नमस्ते(namaste) कैसे(kaise). WRONG: putting all romanization at end. Output valid JSON with keys readingsText and translatedText.
+"${text}"`;
+          } else {
+            userMessage = `
+${promptTopSection}
+You are a professional Hindi translator. Translate this text into natural Hindi: "${text}"
+
+CRITICAL: The output will be shown to learners who need pronunciation help.
+1. Translate into natural Hindi (Devanagari)
+2. In readingsText: Add IAST romanization in parentheses IMMEDIATELY AFTER EACH word. Each word gets its own (romanization) right after it.
+3. In translatedText: Same Hindi translation, clean (no romanization)
+
+FORMAT RULE - EACH WORD GETS ITS OWN ANNOTATION:
+- CORRECT: नमस्ते(namaste) कैसे(kaise) हो(ho)
+- WRONG: Putting all romanization at the end of the phrase - never do this
+
+Format your response as valid JSON:
+{
+  "readingsText": "Hindi with IAST romanization after each word, e.g. नमस्ते(namaste) कैसे(kaise)",
+  "translatedText": "Same Hindi translation, clean"
+}`;
+          }
+        } else if (USE_LITE_PROMPTS) {
           userMessage = `Translate to ${targetLangName} only. Output valid JSON with keys readingsText and translatedText.
 "${text}"`;
         } else {
@@ -2356,6 +2596,9 @@ Format your response as valid JSON with these exact keys:
               }
             }
             
+            // Fix vulgar-content echo bug: when model puts translation in readingsText but echoes source in translatedText
+            correctEchoedTranslationInOutputReadingsMode(parsedContent, targetLanguage, !!outputNeedsReadings);
+            
             // Check if the translation appears to be in the target language or if it's likely still in English
             const translatedText = parsedContent.translatedText || "";
             const translatedPreview = translatedText.substring(0, 60) + (translatedText.length > 60 ? "..." : "");
@@ -2365,8 +2608,10 @@ Format your response as valid JSON with these exact keys:
             // This ensures we catch cases where Claude returns romanization-only without Korean characters
             let earlyFuriganaText2 = applyKoreanRomanizationGuards(parsedContent.readingsText || "", "initial-parse-early-path2");
             
-            if ((primaryLanguage === "Korean" || forcedLanguage === 'ko') && earlyFuriganaText2) {
-              const koreanValidation = validateKoreanRomanization(text, earlyFuriganaText2);
+            const isKoreanReadingsPath2 = (primaryLanguage === "Korean" || forcedLanguage === 'ko' || (outputNeedsReadings && targetLanguage === 'ko'));
+            const koreanRefEarly2 = (outputNeedsReadings && targetLanguage === 'ko') ? translatedText : text;
+            if (isKoreanReadingsPath2 && earlyFuriganaText2) {
+              const koreanValidation = validateKoreanRomanization(koreanRefEarly2, earlyFuriganaText2);
               logger.log(`Korean romanization validation (early path 2): ${koreanValidation.details}`);
               
               if (!koreanValidation.isValid && koreanValidation.accuracy < 50) {
@@ -2374,8 +2619,10 @@ Format your response as valid JSON with these exact keys:
                 
                 // Check if this is a critical failure (romanization-only without Korean)
                 const isCriticalFailure = koreanValidation.accuracy === 0 && koreanValidation.issues.some(i => i.includes('CRITICAL'));
+                // Skip retry in Dictate mode - retry prompt assumes source is Korean
+                const shouldRetryKorean2 = isCriticalFailure && retryCount === 0 && !(outputNeedsReadings && targetLanguage === 'ko');
                 
-                if (isCriticalFailure && retryCount === 0) {
+                if (shouldRetryKorean2) {
                   logger.log("Retrying with explicit Korean preservation prompt (path 2)...");
                   retryCount++;
                   
@@ -2662,15 +2909,18 @@ Format your response as valid JSON with these exact keys:
             onProgress?.(3);
             
             // Japanese furigana validation and smart retry logic
-            if ((primaryLanguage === "Japanese" || forcedLanguage === 'ja') && furiganaText) {
-              const validation = validateJapaneseFurigana(text, furiganaText);
+            const isJapaneseReadingsMain = (primaryLanguage === "Japanese" || forcedLanguage === 'ja' || (outputNeedsReadings && targetLanguage === 'ja'));
+            const japaneseRefMain = (outputNeedsReadings && targetLanguage === 'ja') ? translatedText : text;
+            if (isJapaneseReadingsMain && furiganaText) {
+              const validation = validateJapaneseFurigana(japaneseRefMain, furiganaText);
               logger.log(`Furigana validation: ${validation.details}`);
               
               if (!validation.isValid) {
                 logger.warn(`Incomplete furigana coverage: ${validation.details}`);
                 
                 // If this is the first attempt and we have significant missing furigana, retry with more aggressive prompt
-                if (retryCount === 0 && (validation.missingKanjiCount > 0 || validation.details.includes("incorrect readings"))) {
+                // Skip retry in Dictate mode - retry prompt assumes source is Japanese
+                if (retryCount === 0 && (validation.missingKanjiCount > 0 || validation.details.includes("incorrect readings")) && !(outputNeedsReadings && targetLanguage === 'ja')) {
                   logger.log("Retrying with more aggressive furigana prompt...");
                   trackInternalApiCall(`Furigana retry (${validation.missingKanjiCount} missing kanji, ${validation.details})`);
                   retryCount++;
@@ -2849,15 +3099,18 @@ Format as JSON:
             }
 
             // Chinese pinyin validation and smart retry logic
-            if ((primaryLanguage === "Chinese" || forcedLanguage === 'zh') && furiganaText) {
-              const validation = validatePinyinAccuracy(text, furiganaText);
+            const isChineseReadingsMain = (primaryLanguage === "Chinese" || forcedLanguage === 'zh' || (outputNeedsReadings && targetLanguage === 'zh'));
+            const chineseRefMain = (outputNeedsReadings && targetLanguage === 'zh') ? translatedText : text;
+            if (isChineseReadingsMain && furiganaText) {
+              const validation = validatePinyinAccuracy(chineseRefMain, furiganaText);
               logger.log(`Pinyin validation: ${validation.details}`);
               
               if (!validation.isValid && validation.accuracy < 85) {
                 logger.warn(`Pinyin quality issues detected: ${validation.details}`);
                 
                 // If this is the first attempt and we have significant issues, retry with enhanced correction prompt
-                if (retryCount === 0 && validation.issues.length > 0) {
+                // Skip retry in Dictate mode - retry prompt assumes source is Chinese
+                if (retryCount === 0 && validation.issues.length > 0 && !(outputNeedsReadings && targetLanguage === 'zh')) {
                   logger.log("Retrying with enhanced pinyin correction prompt...");
                   retryCount++;
                   
@@ -2973,15 +3226,18 @@ Format as JSON:
             }
 
             // Korean romanization validation and smart retry logic
-            if ((primaryLanguage === "Korean" || forcedLanguage === 'ko') && furiganaText) {
-              const validation = validateKoreanRomanization(text, furiganaText);
+            const isKoreanReadingsMain = (primaryLanguage === "Korean" || forcedLanguage === 'ko' || (outputNeedsReadings && targetLanguage === 'ko'));
+            const koreanRefMain = (outputNeedsReadings && targetLanguage === 'ko') ? translatedText : text;
+            if (isKoreanReadingsMain && furiganaText) {
+              const validation = validateKoreanRomanization(koreanRefMain, furiganaText);
               logger.log(`Korean romanization validation: ${validation.details}`);
               
               if (!validation.isValid && validation.accuracy < 90) {
                 logger.warn(`Korean romanization quality issues detected: ${validation.details}`);
                 
                 // If this is the first attempt and we have significant issues, retry with enhanced correction prompt
-                if (retryCount === 0 && validation.issues.length > 0) {
+                // Skip retry in Dictate mode - retry prompt assumes source is Korean
+                if (retryCount === 0 && validation.issues.length > 0 && !(outputNeedsReadings && targetLanguage === 'ko')) {
                   logger.log("Retrying with enhanced Korean romanization correction prompt...");
                   retryCount++;
                   
@@ -3134,8 +3390,10 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
             }
 
           // Russian with readings: validate Cyrillic + romanization quality (re-enabled now that we request readings)
-          if ((primaryLanguage === "Russian" || forcedLanguage === 'ru') && furiganaText) {
-            const validation = validateRussianTransliteration(text, furiganaText);
+          const isRussianReadingsMain = (primaryLanguage === "Russian" || forcedLanguage === 'ru' || (outputNeedsReadings && targetLanguage === 'ru'));
+          const russianRefMain = (outputNeedsReadings && targetLanguage === 'ru') ? translatedText : text;
+          if (isRussianReadingsMain && furiganaText) {
+            const validation = validateRussianTransliteration(russianRefMain, furiganaText);
             logger.log(`Russian transliteration validation: ${validation.details}`);
             
             if (!validation.isValid && validation.cyrillicCoverage < 90) {
@@ -3144,10 +3402,10 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
               // FIRST: Try automatic rebuild if Cyrillic is missing
               if (validation.cyrillicCoverage < 50) {
                 logger.log('Attempting automatic rebuild of Russian text with Cyrillic base...');
-                const rebuilt = rebuildRussianFuriganaFromRomanization(text, furiganaText);
+                const rebuilt = rebuildRussianFuriganaFromRomanization(russianRefMain, furiganaText);
                 
                 if (rebuilt) {
-                  const rebuildValidation = validateRussianTransliteration(text, rebuilt);
+                  const rebuildValidation = validateRussianTransliteration(russianRefMain, rebuilt);
                   logger.log(`Rebuild validation: ${rebuildValidation.details}`);
                   
                   if (rebuildValidation.cyrillicCoverage > validation.cyrillicCoverage) {
@@ -3163,8 +3421,9 @@ CRITICAL: Address every issue listed above. Double-check vowel distinctions and 
               }
               
               // SECOND: If still not valid and this is first attempt, retry with corrective prompt
-              const finalValidation = validateRussianTransliteration(text, furiganaText);
-              if (!finalValidation.isValid && finalValidation.cyrillicCoverage < 90 && retryCount === 0 && validation.issues.length > 0) {
+              const finalValidation = validateRussianTransliteration(russianRefMain, furiganaText);
+              // Skip retry in Dictate mode - retry prompt assumes source is Russian
+              if (!finalValidation.isValid && finalValidation.cyrillicCoverage < 90 && retryCount === 0 && validation.issues.length > 0 && !(outputNeedsReadings && targetLanguage === 'ru')) {
                 logger.log("Retrying with enhanced Russian transliteration correction prompt...");
                 retryCount++;
                 
@@ -3276,7 +3535,9 @@ CRITICAL: Every Russian word must have its ORIGINAL CYRILLIC text preserved with
           }
 
           // Arabic romanization validation and smart retry logic
-          if ((primaryLanguage === "Arabic" || forcedLanguage === 'ar') && furiganaText) {
+          const isArabicReadingsMain = (primaryLanguage === "Arabic" || forcedLanguage === 'ar' || (outputNeedsReadings && targetLanguage === 'ar'));
+          const arabicRefMain = (outputNeedsReadings && targetLanguage === 'ar') ? translatedText : text;
+          if (isArabicReadingsMain && furiganaText) {
             // FIRST: Strip any diacritical marks that Claude may have used
             // This converts academic transliteration (k̲h̲, ṣ, ḍ) to simple Chat Alphabet (kh, s, d)
             const hasDiacritics = /[\u0300-\u036F\u0323-\u0333]/.test(furiganaText);
@@ -3285,14 +3546,15 @@ CRITICAL: Every Russian word must have its ORIGINAL CYRILLIC text preserved with
               furiganaText = stripArabicDiacritics(furiganaText);
             }
             
-            const validation = validateArabicRomanization(text, furiganaText);
+            const validation = validateArabicRomanization(arabicRefMain, furiganaText);
             logger.log(`Arabic romanization validation: ${validation.details}`);
             
             if (!validation.isValid && validation.accuracy < 90) {
               logger.warn(`Arabic romanization quality issues detected: ${validation.details}`);
               
               // If this is first attempt and we have significant issues, retry with corrective prompt
-              if (retryCount === 0 && validation.issues.length > 0) {
+              // Skip retry in Dictate mode - retry prompt assumes source is Arabic
+              if (retryCount === 0 && validation.issues.length > 0 && !(outputNeedsReadings && targetLanguage === 'ar')) {
                 logger.log("Retrying with enhanced Arabic romanization correction prompt...");
                 retryCount++;
                 
@@ -3406,15 +3668,18 @@ CRITICAL: Every Arabic word must have its ORIGINAL ARABIC text preserved with ro
           }
 
           // Hindi romanization validation and smart retry logic
-          if ((primaryLanguage === "Hindi" || forcedLanguage === 'hi') && furiganaText) {
-            const validation = validateHindiRomanization(text, furiganaText);
+          const isHindiReadingsMain = (primaryLanguage === "Hindi" || forcedLanguage === 'hi' || (outputNeedsReadings && targetLanguage === 'hi'));
+          const hindiRefMain = (outputNeedsReadings && targetLanguage === 'hi') ? translatedText : text;
+          if (isHindiReadingsMain && furiganaText) {
+            const validation = validateHindiRomanization(hindiRefMain, furiganaText);
             logger.log(`Hindi romanization validation: ${validation.details}`);
             
             if (!validation.isValid && validation.accuracy < 90) {
               logger.warn(`Hindi romanization quality issues detected: ${validation.details}`);
               
               // If this is first attempt and we have significant issues, retry with corrective prompt
-              if (retryCount === 0 && validation.issues.length > 0) {
+              // Skip retry in Dictate mode - retry prompt assumes source is Hindi
+              if (retryCount === 0 && validation.issues.length > 0 && !(outputNeedsReadings && targetLanguage === 'hi')) {
                 logger.log("Retrying with enhanced Hindi romanization correction prompt...");
                 retryCount++;
                 
@@ -3531,6 +3796,111 @@ CRITICAL: Every Hindi word must have its ORIGINAL DEVANAGARI text preserved with
               logger.log(`Hindi romanization validation passed with ${validation.hindiCoverage}% Hindi coverage and ${validation.accuracy}% accuracy`);
             }
           }
+
+          // Thai romanization validation and smart retry logic
+          const isThaiReadingsMain = (primaryLanguage === "Thai" || forcedLanguage === 'th' || (outputNeedsReadings && targetLanguage === 'th'));
+          const thaiRefMain = (outputNeedsReadings && targetLanguage === 'th') ? translatedText : text;
+          if (isThaiReadingsMain && furiganaText) {
+            const validation = validateThaiRomanization(thaiRefMain, furiganaText);
+            logger.log(`Thai romanization validation: ${validation.details}`);
+            
+            if (!validation.isValid && validation.accuracy < 90) {
+              logger.warn(`Thai romanization quality issues detected: ${validation.details}`);
+              
+              // If this is first attempt and we have significant issues, retry with corrective prompt
+              // Skip retry in Dictate mode - retry prompt assumes source is Thai
+              if (retryCount === 0 && validation.issues.length > 0 && !(outputNeedsReadings && targetLanguage === 'th')) {
+                logger.log("Retrying with enhanced Thai romanization correction prompt...");
+                retryCount++;
+                
+                const correctionPrompt = `
+${promptTopSection}
+CRITICAL THAI ROMANIZATION RETRY - PREVIOUS ATTEMPT HAD FORMATTING ISSUES
+
+You are a Thai language expert. The previous attempt had these specific issues that must be fixed:
+
+DETECTED ISSUES:
+${validation.issues.map(issue => `- ${issue}`).join('\n')}
+
+SUGGESTED CORRECTIONS:
+${validation.suggestions.map(suggestion => `- ${suggestion}`).join('\n')}
+
+Original text: "${text}"
+Previous result Thai coverage: ${validation.thaiCoverage}%
+Previous result accuracy: ${validation.accuracy}%
+
+MANDATORY CORRECTIONS - Fix these specific problems:
+1. PRESERVE ORIGINAL THAI TEXT - DO NOT replace with romanization
+2. Format must be: Thai(RTGS), NOT (RTGS)Thai
+3. Use RTGS (Royal Thai General System of Transcription)
+4. Ensure all Thai words have romanization in parentheses immediately after
+
+Examples of CORRECT formatting:
+- "สวัสดี" → "สวัสดี(sawatdi)"
+- "ครับ" → "ครับ(khrap)"
+- "ขอบคุณ" → "ขอบคุณ(khopkhun)"
+
+Format your response as valid JSON with these exact keys:
+{
+  "readingsText": "Thai text with Thai base + RTGS romanization addressing all issues above",
+  "translatedText": "Accurate translation in ${targetLangName} language"
+}
+`;
+
+                try {
+                  logger.log('Making Thai romanization correction request to Claude...');
+                  const retryResponse = await axios.post(
+                    'https://api.anthropic.com/v1/messages',
+                    {
+                      model: "claude-haiku-4-5-20251001",
+                      max_tokens: 4000,
+                      temperature: 0,
+                      messages: [{
+                        role: "user",
+                        content: correctionPrompt
+                      }]
+                    },
+                    {
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'anthropic-version': '2023-06-01',
+                        'x-api-key': apiKey
+                      },
+                      timeout: 60000
+                    }
+                  );
+
+                  if (retryResponse.data && retryResponse.data.content && retryResponse.data.content[0] && retryResponse.data.content[0].text) {
+                    try {
+                      const retryResponseText = retryResponse.data.content[0].text;
+                      logger.log("Thai retry response received:", retryResponseText.substring(0, 200) + "...");
+                      
+                      const retryCleanedJson = cleanJsonString(retryResponseText);
+                      const retryParsedResponse = JSON.parse(retryCleanedJson);
+                      const retryRomanizedText = retryParsedResponse.readingsText;
+                      
+                      const retryValidation = validateThaiRomanization(thaiRefMain, retryRomanizedText);
+                      logger.log(`Thai retry validation: ${retryValidation.details}`);
+                      
+                      if (retryValidation.accuracy > validation.accuracy + 10 || 
+                          (retryValidation.isValid && !validation.isValid)) {
+                        furiganaText = retryRomanizedText;
+                        logger.log(`Thai retry successful - improved accuracy from ${validation.accuracy}% to ${retryValidation.accuracy}%`);
+                      } else {
+                        logger.log(`Thai retry did not significantly improve romanization quality - using current result`);
+                      }
+                    } catch (retryParseError) {
+                      logger.error("Error parsing Thai retry response:", retryParseError);
+                    }
+                  }
+                } catch (retryError) {
+                  logger.error("Error during Thai romanization retry:", retryError);
+                }
+              }
+            } else if (validation.isValid) {
+              logger.log(`Thai romanization validation passed with ${validation.thaiCoverage}% Thai coverage and ${validation.accuracy}% accuracy`);
+            }
+          }
           
             // ============================================================================
             // STEP 2: UNIVERSAL READING VERIFICATION (Completeness Check)
@@ -3540,7 +3910,7 @@ CRITICAL: Every Hindi word must have its ORIGINAL DEVANAGARI text preserved with
             
             // Universal verification for readings (furigana, pinyin, etc.)
             // Skip if target is a reading language (causes Claude to rewrite source in target script)
-            const targetIsReadingLanguage = ['ja', 'zh', 'ko', 'ru', 'ar', 'hi'].includes(targetLanguage);
+            const targetIsReadingLanguage = ['ja', 'zh', 'ko', 'ru', 'ar', 'hi', 'th'].includes(targetLanguage);
             if (furiganaText && retryCount < MAX_RETRIES - 1 && !targetIsReadingLanguage) {
               logger.log("Verifying reading completeness...");
               trackInternalApiCall(`Reading verification (${primaryLanguage || forcedLanguage})`);
@@ -3986,6 +4356,7 @@ Format your response as valid JSON with these exact keys:
  * @param forcedLanguage Forced source language detection code
  * @param onProgress Optional callback for progress updates
  * @param subscriptionPlan Optional subscription plan to use for rate limiting (avoids re-fetching)
+ * @param outputNeedsReadings When true, request readings on the translated output (Dictate mode)
  * @returns Promise with furiganaText, translatedText, and scopeAnalysis
  */
 export async function processWithClaudeAndScope(
@@ -3993,8 +4364,16 @@ export async function processWithClaudeAndScope(
   targetLanguage: string = 'en',
   forcedLanguage: string = 'ja',
   onProgress?: (checkpoint: number) => void,
-  subscriptionPlan?: 'PREMIUM' | 'FREE'
+  subscriptionPlan?: 'PREMIUM' | 'FREE',
+  outputNeedsReadings?: boolean
 ): Promise<ClaudeResponse> {
+  // When outputNeedsReadings is true (Dictate), the combined path expects source-language readings.
+  // Use fallback so processWithClaude can apply output-readings prompts.
+  if (outputNeedsReadings && (OUTPUT_READING_LANGUAGES as readonly string[]).includes(targetLanguage)) {
+    logger.log('[WordScope Combined] outputNeedsReadings=true, using fallback for output readings');
+    return await processWithClaudeAndScopeFallback(text, targetLanguage, forcedLanguage, onProgress, subscriptionPlan, outputNeedsReadings);
+  }
+
   // OPTIMIZED: Combined single API call for translation + scope analysis
   // This saves ~40-50% of API costs compared to making two separate calls
   logger.log('[WordScope Combined] Starting combined translation + scope analysis...');
@@ -4012,11 +4391,10 @@ export async function processWithClaudeAndScope(
 
   // Check unified rate limits for all API calls
   try {
-    // Use passed subscription plan if provided, otherwise fetch from database
+    // Use passed subscription plan if provided, otherwise fetch from RevenueCat
     let effectiveSubscriptionPlan = subscriptionPlan;
     if (!effectiveSubscriptionPlan) {
-      const subscription = await fetchSubscriptionStatus();
-      effectiveSubscriptionPlan = getSubscriptionPlan(subscription);
+      effectiveSubscriptionPlan = await getCurrentSubscriptionPlan();
     }
     logger.log(`[WordScope Combined] Using subscription plan for rate limit: ${effectiveSubscriptionPlan}`);
     const rateLimitStatus = await apiLogger.checkRateLimitStatus(effectiveSubscriptionPlan);
@@ -4960,7 +5338,8 @@ async function processWithClaudeAndScopeFallback(
   targetLanguage: string = 'en',
   forcedLanguage: string = 'ja',
   onProgress?: (checkpoint: number) => void,
-  subscriptionPlan?: 'PREMIUM' | 'FREE'
+  subscriptionPlan?: 'PREMIUM' | 'FREE',
+  outputNeedsReadings?: boolean
 ): Promise<ClaudeResponse> {
   logger.log('[WordScope Fallback] Using separate calls approach...');
   
@@ -4970,7 +5349,7 @@ async function processWithClaudeAndScopeFallback(
   const normalizedText = normalizeQuotationMarks(text);
   
   // First, get the normal translation (pass subscription plan to avoid re-fetching)
-  const translationResult = await processWithClaude(text, targetLanguage, forcedLanguage, onProgress, false, subscriptionPlan);
+  const translationResult = await processWithClaude(text, targetLanguage, forcedLanguage, onProgress, false, subscriptionPlan, outputNeedsReadings);
 
   if (translationResult.errorCode) {
     logger.log('[WordScope Fallback] Translation failed with errorCode, returning');
@@ -5410,4 +5789,5 @@ export {
   validateRussianTransliteration,
   validateArabicRomanization,
   validateHindiRomanization,
+  validateThaiRomanization,
 } from './claude/readingValidation';

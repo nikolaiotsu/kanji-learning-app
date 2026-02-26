@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, ActivityIndicator, Dimensions, Animated, Easing, ScrollView, Image, LayoutAnimation } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, ActivityIndicator, Dimensions, Animated, Easing, Image, LayoutAnimation, Linking } from 'react-native';
+import { ScrollView } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { Ionicons, FontAwesome5, AntDesign, FontAwesome6, Feather } from '@expo/vector-icons';
+import { Ionicons, FontAwesome5, AntDesign, FontAwesome6, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import CameraButton from './CameraButton';
@@ -13,13 +14,13 @@ import { useAuth } from '../../context/AuthContext';
 import { useOCRCounter } from '../../context/OCRCounterContext';
 import { useFlashcardCounter } from '../../context/FlashcardCounterContext';
 import { useSwipeCounter } from '../../context/SwipeCounterContext';
-import { useSettings, DETECTABLE_LANGUAGES } from '../../context/SettingsContext';
+import { useSettings, DETECTABLE_LANGUAGES, AVAILABLE_LANGUAGES } from '../../context/SettingsContext';
 import { useNetworkState } from '../../services/networkManager';
 import { apiLogger } from '../../services/apiUsageLogger';
 import { getCurrentSubscriptionPlan } from '../../services/receiptValidationService';
 import { COLORS } from '../../constants/colors';
 import { FONTS } from '../../constants/typography';
-import { PRODUCT_IDS } from '../../constants/config';
+import { presentPaywall } from '../../utils/presentPaywall';
 import { CapturedImage, TextAnnotation, VisionApiResponse } from '../../../types';
 import { captureRef } from 'react-native-view-shot';
 import { detectJapaneseText, detectTextBlocks, TextBlock, convertToOriginalImageCoordinates, cropImageToRegion, resizeImageToRegion, VisionOCRError, VISION_OCR_ERROR_CODES } from '../../services/visionApi';
@@ -52,6 +53,20 @@ import { getHighlightButtonLongPressTooltipDontShowAgain } from '../../services/
 import { getYourCollectionsButtonInstructionsDontShowAgain } from '../../services/yourCollectionsButtonInstructionService';
 import { hasEnergyBarsRemaining } from '../../utils/walkthroughEnergyCheck';
 import { useSignInPromptTrigger } from '../../context/SignInPromptTriggerContext';
+import { processWithClaude, processWithClaudeAndScope } from '../../services/claudeApi';
+import LoadingVideoScreen from '../LoadingVideoScreen';
+import DeckSelector from '../flashcards/DeckSelector';
+import PokedexLayout from '../shared/PokedexLayout';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { saveFlashcard } from '../../services/supabaseStorage';
+import { saveLocalFlashcard, getLocalDecksWithDefault } from '../../services/localFlashcardStorage';
+import { Flashcard } from '../../types/Flashcard';
+import { useBadge } from '../../context/BadgeContext';
+import { useDictateSpeechRecognition, getSpeechLocaleForLanguage } from '../../hooks/useDictateSpeechRecognition';
+import FuriganaText from '../shared/FuriganaText';
+import { localizeScopeAnalysisHeadings, parseScopeAnalysisForStyling } from '../../utils/textFormatting';
+import { containsJapanese, containsChinese, containsKoreanText, containsRussianText, containsArabicText, containsHindiText, containsThaiText } from '../../utils/textFormatting';
+import i18next from '../../i18n';
 
 import { logger } from '../../utils/logger';
 import * as Haptics from 'expo-haptics';
@@ -119,6 +134,19 @@ export default function KanjiScanner({ onCardSwipe, onContentReady, onWalkthroug
   const [localProcessing, setLocalProcessing] = useState(false);
   const [showTextInputModal, setShowTextInputModal] = useState(false);
   const [inputText, setInputText] = useState('');
+  // Text modal in-place translation state
+  const [isTextModalLoading, setIsTextModalLoading] = useState(false);
+  const [textModalOutput, setTextModalOutput] = useState<{ readingsText: string; translatedText: string; scopeAnalysis?: string } | null>(null);
+  const [textModalError, setTextModalError] = useState('');
+  const [textModalProcessingProgress, setTextModalProcessingProgress] = useState(0);
+  const [textModalActionButtonsFadingOut, setTextModalActionButtonsFadingOut] = useState(false);
+  const [showTextModalDeckSelector, setShowTextModalDeckSelector] = useState(false);
+  const [isTextModalSaving, setIsTextModalSaving] = useState(false);
+  const [isTextModalSaved, setIsTextModalSaved] = useState(false);
+  const [showTextModalEditTranslation, setShowTextModalEditTranslation] = useState(false);
+  const [textModalEditedTranslation, setTextModalEditedTranslation] = useState('');
+  const [textModalEditedReadings, setTextModalEditedReadings] = useState('');
+  const [isDictateSwapped, setIsDictateSwapped] = useState(false);
   const [hasHighlightSelection, setHasHighlightSelection] = useState(false);
   const [highlightDrawing, setHighlightDrawing] = useState(false);
   const [hideWalkthroughOverlay, setHideWalkthroughOverlay] = useState(false);
@@ -202,13 +230,14 @@ export default function KanjiScanner({ onCardSwipe, onContentReady, onWalkthroug
   const [currentRotationUIState, setCurrentRotationUIState] = useState<ImageHighlighterRotationState | null>(null);
   
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const { recognizeKanji, isProcessing, error } = useKanjiRecognition();
   const { incrementOCRCount, canPerformOCR, remainingScans } = useOCRCounter();
-  const { canCreateFlashcard, remainingFlashcards } = useFlashcardCounter();
+  const { canCreateFlashcard, remainingFlashcards, incrementFlashcardCount } = useFlashcardCounter();
+  const { checkAndUnlockBadges } = useBadge();
   const { rightSwipeCount, streakCount, currentDeckSwipedCount, deckTotalCards, resetSwipeCounts } = useSwipeCounter();
-  const { purchaseSubscription, subscription } = useSubscription();
-  const { forcedDetectionLanguage } = useSettings();
+  const { subscription } = useSubscription();
+  const { forcedDetectionLanguage, targetLanguage } = useSettings();
   const learnLanguageName =
     (t(`languageNames.${forcedDetectionLanguage}`, {
       defaultValue:
@@ -217,6 +246,39 @@ export default function KanjiScanner({ onCardSwipe, onContentReady, onWalkthroug
     }) as string) ||
     t('walkthrough.findText.languageFallback');
   const { isConnected } = useNetworkState();
+
+  const onDictateTranscript = useCallback((text: string, isFinal: boolean) => {
+    if (isFinal) {
+      setInputText(prev => prev + (prev ? ' ' : '') + text);
+    }
+  }, []);
+  const {
+    isListening: isDictateListening,
+    startListening: startDictateListening,
+    stopListening: stopDictateListening,
+    error: dictateSpeechError,
+  } = useDictateSpeechRecognition({
+    locale: getSpeechLocaleForLanguage(isDictateSwapped ? forcedDetectionLanguage : targetLanguage),
+    onTranscript: onDictateTranscript,
+    isActive: showTextInputModal,
+  });
+
+  const lastPermissionAlertRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (dictateSpeechError === 'not-allowed' && lastPermissionAlertRef.current !== 'not-allowed') {
+      lastPermissionAlertRef.current = 'not-allowed';
+      Alert.alert(
+        t('camera.dictate.permissionDeniedTitle'),
+        t('camera.dictate.permissionDenied'),
+        [
+          { text: t('camera.dictate.openSettings'), onPress: () => Linking.openSettings() },
+          { text: t('common.cancel'), style: 'cancel' },
+        ]
+      );
+    } else if (dictateSpeechError !== 'not-allowed') {
+      lastPermissionAlertRef.current = null;
+    }
+  }, [dictateSpeechError, t]);
   
   // State for unified API limit (applies to all API call types)
   const [apiCallsRemaining, setApiCallsRemaining] = useState<number>(Number.MAX_SAFE_INTEGER);
@@ -229,7 +291,7 @@ export default function KanjiScanner({ onCardSwipe, onContentReady, onWalkthroug
   // to track rotation changes better
   const rotationRef = useRef<number>(0);
 
-  // Refs for walkthrough buttons (right to left: camera, gallery, flashcards, custom card)
+  // Refs for walkthrough buttons (left to right: flashcards/collections, custom card, gallery, camera)
   const cameraButtonRef = useRef<View>(null);
   const galleryButtonRef = useRef<View>(null);
 const flashcardsButtonRef = useRef<View>(null);
@@ -248,6 +310,10 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   const flipButtonRef = useRef<View>(null);
   const imageButtonRef = useRef<View>(null);
   const cropConfirmingRef = useRef(false);
+  // Text modal loading animation refs (mirror flashcards pattern)
+  const modalButtonsOpacity = useRef(new Animated.Value(1)).current;
+  const modalLoadingOpacity = useRef(new Animated.Value(0)).current;
+  const recordButtonOpacity = useRef(new Animated.Value(1)).current;
   /** When true, we just completed rotation and set a new image - keep localProcessing overlay until onImageLoaded. */
   const rotationCompletedWaitingForImageRef = useRef(false);
   /** Tracks whether current image came from camera or gallery; used to vary rotate step (camera = enter rotate, gallery = skip to crop). */
@@ -1022,8 +1088,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           text: t('subscription.limit.upgradeToPremium'), 
           style: 'default',
           onPress: async () => {
-                         const success = await purchaseSubscription(PRODUCT_IDS.PREMIUM_MONTHLY);
-            if (success) {
+            const result = await presentPaywall();
+            if (result.purchased) {
               Alert.alert(t('common.success'), t('subscription.test.premiumActivated'));
             }
           }
@@ -1044,11 +1110,10 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           text: t('subscription.limit.upgradeToPremium'), 
           style: 'default',
           onPress: async () => {
-            const success = await purchaseSubscription(PRODUCT_IDS.PREMIUM_MONTHLY);
-            if (success) {
+            const result = await presentPaywall();
+            if (result.purchased) {
               Alert.alert(t('common.success'), t('subscription.test.premiumActivated'));
               // Limits will refresh automatically via subscription useEffect
-              // since purchaseSubscription updates the subscription context
             }
           }
         }
@@ -1157,9 +1222,196 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   };
 
   const handleCancelTextInput = () => {
+    Keyboard.dismiss(); // Dismiss keyboard first to reduce layout thrash during swipe-down
     setInputText('');
+    setTextModalOutput(null);
+    setTextModalError('');
     setShowTextInputModal(false);
+    setIsTextModalSaved(false);
+    setIsDictateSwapped(false);
   };
+
+  const handleDictateGoHome = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    handleCancelTextInput();
+    if (router.canDismiss()) {
+      router.dismissAll();
+    }
+    router.replace('/');
+  };
+
+  const handleDictateSwap = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (isDictateListening) {
+      stopDictateListening();
+    }
+    setIsDictateSwapped((prev) => !prev);
+    setInputText(textModalOutput?.translatedText ?? '');
+    setTextModalOutput(null);
+    setTextModalError('');
+    setIsTextModalSaved(false);
+    setTextModalEditedTranslation('');
+    setTextModalEditedReadings('');
+  };
+
+  const handleTextModalShowDeckSelector = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (!isConnected) {
+      Alert.alert(t('common.error'), t('offline.createCardError'));
+      return;
+    }
+    if (!canCreateFlashcard) {
+      Alert.alert(
+        t('subscription.limit.title'),
+        t('subscription.limit.message'),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('subscription.limit.upgradeToPremium'),
+            style: 'default',
+            onPress: async () => {
+              const result = await presentPaywall();
+              if (result.purchased) {
+                Alert.alert(t('common.success'), t('subscription.test.premiumActivated'));
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
+    if (!textModalOutput?.translatedText) {
+      Alert.alert(t('flashcard.save.cannotSaveTitle'), t('flashcard.save.cannotSaveTranslation'));
+      return;
+    }
+    setShowTextModalDeckSelector(true);
+  };
+
+  const handleTextModalSaveFlashcard = async (deckId: string) => {
+    if (!textModalOutput) return;
+    setIsTextModalSaving(true);
+    setShowTextModalDeckSelector(false);
+    try {
+      const frontText = isDictateSwapped ? inputText.trim() : textModalOutput.translatedText;
+      const backText = isDictateSwapped ? textModalOutput.translatedText : inputText.trim();
+      const readingsForFront = isDictateSwapped ? '' : (textModalOutput.readingsText || '');
+      const flashcard: Omit<Flashcard, 'id'> = {
+        originalText: frontText,
+        readingsText: readingsForFront,
+        translatedText: backText,
+        targetLanguage,
+        sourceLanguage: forcedDetectionLanguage,
+        createdAt: Date.now(),
+        deckId,
+        scopeAnalysis: textModalOutput.scopeAnalysis,
+      };
+      if (isGuest) {
+        const decks = await getLocalDecksWithDefault();
+        const effectiveDeckId = decks.some((d) => d.id === deckId) ? deckId : decks[0].id;
+        await saveLocalFlashcard(
+          { ...flashcard, id: '', createdAt: 0 } as Flashcard,
+          effectiveDeckId
+        );
+        await AsyncStorage.setItem('selectedDeckIds_guest', JSON.stringify([effectiveDeckId]));
+      } else {
+        await saveFlashcard(flashcard as Flashcard, deckId);
+        if (user?.id) {
+          const key = `selectedDeckIds_${user.id}`;
+          const raw = await AsyncStorage.getItem(key);
+          const current: string[] = raw ? JSON.parse(raw || '[]') : [];
+          if (!current.includes(deckId)) {
+            current.push(deckId);
+            await AsyncStorage.setItem(key, JSON.stringify(current));
+          }
+        }
+      }
+      await incrementFlashcardCount();
+      await checkAndUnlockBadges('cards_created');
+      setIsTextModalSaved(true);
+      Alert.alert(
+        t('flashcard.save.title'),
+        t('flashcard.save.message', {
+          cardType: t('flashcard.save.cardType', { language: AVAILABLE_LANGUAGES[targetLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'English' }),
+          deckName: deckId === 'deck1' ? t('flashcard.save.deck1') : t('flashcard.save.newDeck'),
+        }),
+        [
+          { text: t('flashcard.save.viewSaved'), onPress: () => { router.push('/saved-flashcards'); setShowTextInputModal(false); } },
+          { text: t('common.ok') },
+        ]
+      );
+    } catch (err: unknown) {
+      logger.error('Error saving flashcard from text modal:', err);
+      const msg = err instanceof Error ? err.message : t('flashcard.save.saveFailed');
+      Alert.alert(t('flashcard.save.saveError'), msg);
+    } finally {
+      setIsTextModalSaving(false);
+    }
+  };
+
+  const handleTextModalEditInputAndRetranslate = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setTextModalOutput(null);
+    setTextModalError('');
+    setIsTextModalSaved(false);
+  };
+
+  const handleTextModalEditTranslation = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (textModalOutput) {
+      setTextModalEditedTranslation(textModalOutput.translatedText);
+      setTextModalEditedReadings(textModalOutput.readingsText || '');
+      setShowTextModalEditTranslation(true);
+    }
+  };
+
+  const handleTextModalSaveEditTranslation = () => {
+    setTextModalOutput((prev) =>
+      prev ? { ...prev, translatedText: textModalEditedTranslation, readingsText: textModalEditedReadings } : null
+    );
+    setShowTextModalEditTranslation(false);
+  };
+
+  // Text modal: fade buttons out, fade loading in (mirror flashcards pattern)
+  useEffect(() => {
+    if (textModalActionButtonsFadingOut) {
+      Animated.timing(modalButtonsOpacity, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [textModalActionButtonsFadingOut]);
+  useEffect(() => {
+    if (isTextModalLoading) {
+      modalLoadingOpacity.setValue(0);
+      Animated.timing(modalLoadingOpacity, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      modalLoadingOpacity.setValue(0);
+    }
+  }, [isTextModalLoading]);
+  useEffect(() => {
+    if (!isTextModalLoading && !textModalActionButtonsFadingOut) {
+      modalButtonsOpacity.setValue(1);
+    }
+  }, [isTextModalLoading, textModalActionButtonsFadingOut]);
+
+  // Fade out record button when WordScope/Translate pressed or output finished
+  useEffect(() => {
+    if (textModalActionButtonsFadingOut || textModalOutput?.translatedText) {
+      stopDictateListening();
+      Animated.timing(recordButtonOpacity, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      recordButtonOpacity.setValue(1);
+    }
+  }, [textModalActionButtonsFadingOut, textModalOutput?.translatedText, stopDictateListening]);
   
   const handleNavigateToSavedFlashcards = () => {
     if (isWalkthroughActive) {
@@ -1192,36 +1444,73 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
     doNavigateToSavedFlashcards();
   };
 
+  const textModalProgressCallback = useCallback((checkpoint: number) => {
+    setTextModalProcessingProgress(checkpoint);
+  }, []);
+
   const handleSubmitTextInput = async () => {
     if (!inputText.trim()) {
       Alert.alert(t('camera.emptyInputTitle'), t('camera.emptyInputMessage'));
       return;
     }
-
-    // Check API limit before navigation
     if (apiCallsRemaining <= 0) {
       showAPILimitUpgradeAlert('translate');
       return;
     }
 
-    // Refresh API limits before navigation
+    setTextModalActionButtonsFadingOut(true);
+    setIsTextModalLoading(true);
+    setTextModalOutput(null);
+    setTextModalError('');
+
     try {
       const subscriptionPlan = await getCurrentSubscriptionPlan(subscription?.plan);
       const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
       setApiCallsRemaining(rateLimitStatus.apiCallsRemaining);
-    } catch (error) {
-      logger.error('Error refreshing API limits before navigation:', error);
+
+      const outputLang = isDictateSwapped ? targetLanguage : forcedDetectionLanguage;
+      const outputNeedsReadings = ['ja', 'zh', 'ko', 'ru', 'ar', 'hi', 'th'].includes(outputLang);
+      const fromLang = isDictateSwapped ? forcedDetectionLanguage : targetLanguage;
+      const toLang = isDictateSwapped ? targetLanguage : forcedDetectionLanguage;
+      const result = await processWithClaude(
+        inputText.trim(),
+        toLang,
+        fromLang,
+        textModalProgressCallback,
+        false,
+        subscriptionPlan,
+        outputNeedsReadings
+      );
+
+      if (result.errorCode) {
+        Alert.alert(
+          t('flashcard.apiUnavailableTitle'),
+          t('flashcard.apiUnavailableMessage'),
+          [{ text: t('common.ok'), style: 'default' }]
+        );
+        return;
+      }
+      if (result.languageMismatch) {
+        setTextModalError(t('flashcard.forcedLanguage.languageMismatch') || 'Language mismatch. Please check your input or settings.');
+        return;
+      }
+      if (result.translatedText) {
+        setTextModalOutput({
+          readingsText: result.readingsText || '',
+          translatedText: result.translatedText,
+        });
+      } else {
+        setTextModalError('Failed to process text. Please try again.');
+      }
+    } catch (err) {
+      logger.error('Error processing with Claude (Translate):', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to process text. Please try again.';
+      setTextModalError(errorMessage);
+      Alert.alert(t('common.error'), errorMessage);
+    } finally {
+      setIsTextModalLoading(false);
+      setTextModalActionButtonsFadingOut(false);
     }
-
-    // Navigate to flashcards with the custom text
-    router.push({
-      pathname: "/flashcards",
-      params: { text: inputText.trim() }
-    });
-
-    // Reset the input and close the modal
-    setInputText('');
-    setShowTextInputModal(false);
   };
 
   const handleWordScopeTextInput = async () => {
@@ -1229,31 +1518,64 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       Alert.alert(t('camera.emptyInputTitle'), t('camera.emptyInputMessage'));
       return;
     }
-
-    // Check API limit before navigation
     if (apiCallsRemaining <= 0) {
       showAPILimitUpgradeAlert('wordscope');
       return;
     }
 
-    // Refresh API limits before navigation
+    setTextModalActionButtonsFadingOut(true);
+    setIsTextModalLoading(true);
+    setTextModalOutput(null);
+    setTextModalError('');
+
     try {
       const subscriptionPlan = await getCurrentSubscriptionPlan(subscription?.plan);
       const rateLimitStatus = await apiLogger.checkRateLimitStatus(subscriptionPlan);
       setApiCallsRemaining(rateLimitStatus.apiCallsRemaining);
-    } catch (error) {
-      logger.error('Error refreshing API limits before navigation:', error);
+
+      const outputLang = isDictateSwapped ? targetLanguage : forcedDetectionLanguage;
+      const outputNeedsReadings = ['ja', 'zh', 'ko', 'ru', 'ar', 'hi', 'th'].includes(outputLang);
+      const fromLang = isDictateSwapped ? forcedDetectionLanguage : targetLanguage;
+      const toLang = isDictateSwapped ? targetLanguage : forcedDetectionLanguage;
+      const result = await processWithClaudeAndScope(
+        inputText.trim(),
+        toLang,
+        fromLang,
+        textModalProgressCallback,
+        subscriptionPlan,
+        outputNeedsReadings
+      );
+
+      if (result.errorCode) {
+        Alert.alert(
+          t('flashcard.apiUnavailableTitle'),
+          t('flashcard.apiUnavailableMessage'),
+          [{ text: t('common.ok'), style: 'default' }]
+        );
+        return;
+      }
+      if (result.languageMismatch) {
+        setTextModalError(t('flashcard.forcedLanguage.languageMismatch') || 'Language mismatch. Please check your input or settings.');
+        return;
+      }
+      if (result.translatedText) {
+        setTextModalOutput({
+          readingsText: result.readingsText || '',
+          translatedText: result.translatedText,
+          scopeAnalysis: result.scopeAnalysis || '',
+        });
+      } else {
+        setTextModalError('Failed to process text. Please try again.');
+      }
+    } catch (err) {
+      logger.error('Error processing with Claude (WordScope):', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to process text. Please try again.';
+      setTextModalError(errorMessage);
+      Alert.alert(t('common.error'), errorMessage);
+    } finally {
+      setIsTextModalLoading(false);
+      setTextModalActionButtonsFadingOut(false);
     }
-
-    // Navigate to flashcards with the custom text and WordScope flag
-    router.push({
-      pathname: "/flashcards",
-      params: { text: inputText.trim(), useScope: 'true' }
-    });
-
-    // Reset the input and close the modal
-    setInputText('');
-    setShowTextInputModal(false);
   };
 
   const pickImage = async () => {
@@ -3017,34 +3339,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
           
           {/* Button Row - centered in gap between bottom of black area and bottom of app */}
           <View style={[styles.buttonRow, { bottom: 12 }]}>
-            {/* Add Custom Card Button (leftmost) */}
-            <Animated.View style={isWalkthroughActive && currentStep?.id === 'custom-card' ? { opacity: walkthroughBorderFlashOpacity } : undefined}>
-            <View 
-              ref={customCardButtonRef} 
-              collapsable={false} 
-              pointerEvents={isWalkthroughActive && currentStep?.id !== 'custom-card' ? 'none' : 'auto'}
-              style={isWalkthroughActive && currentStep?.id === 'custom-card' ? styles.highlightedButtonWrapper : null}
-            >
-              <PokedexButton
-                onPress={(canCreateFlashcard && !isAPILimitExhausted && isConnected) ? handleTextInput : showUpgradeAlert}
-                icon={isWalkthroughActive ? "add" : ((canCreateFlashcard && !isAPILimitExhausted && isConnected) ? "add" : "lock-closed")}
-                iconColor={
-                  isWalkthroughActive && currentStep?.id === 'custom-card'
-                    ? '#FBBF24' // Warm amber for highlighted
-                    : isWalkthroughActive
-                    ? '#94A3B8' // Slate grey for non-highlighted during walkthrough
-                    : 'grey'
-                }
-                color="grey"
-                size="large"
-                shape="square"
-                style={styles.rowButton}
-                disabled={isAPILimitExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'custom-card')}
-                darkDisabled={isAPILimitExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
-              />
-            </View>
-            </Animated.View>
-            {/* Check Flashcards Button */}
+            {/* Check Flashcards Button (See your collections) (leftmost) */}
             <Animated.View style={isWalkthroughActive && currentStep?.id === 'flashcards' ? { opacity: walkthroughBorderFlashOpacity } : undefined}>
             <View 
               ref={flashcardsButtonRef} 
@@ -3067,6 +3362,34 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 shape="square"
                 style={styles.rowButton}
                 disabled={localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'flashcards')}
+              />
+            </View>
+            </Animated.View>
+            {/* Add Custom Card Button */}
+            <Animated.View style={isWalkthroughActive && currentStep?.id === 'custom-card' ? { opacity: walkthroughBorderFlashOpacity } : undefined}>
+            <View 
+              ref={customCardButtonRef} 
+              collapsable={false} 
+              pointerEvents={isWalkthroughActive && currentStep?.id !== 'custom-card' ? 'none' : 'auto'}
+              style={isWalkthroughActive && currentStep?.id === 'custom-card' ? styles.highlightedButtonWrapper : null}
+            >
+              <PokedexButton
+                onPress={(canCreateFlashcard && !isAPILimitExhausted && isConnected) ? handleTextInput : showUpgradeAlert}
+                materialCommunityIcon={isWalkthroughActive || (canCreateFlashcard && !isAPILimitExhausted && isConnected) ? "record-circle-outline" : undefined}
+                icon={!(isWalkthroughActive || (canCreateFlashcard && !isAPILimitExhausted && isConnected)) ? "lock-closed" : undefined}
+                iconColor={
+                  isWalkthroughActive && currentStep?.id === 'custom-card'
+                    ? '#FBBF24' // Warm amber for highlighted
+                    : isWalkthroughActive
+                    ? '#94A3B8' // Slate grey for non-highlighted during walkthrough
+                    : 'grey'
+                }
+                color="grey"
+                size="large"
+                shape="square"
+                style={styles.rowButton}
+                disabled={isAPILimitExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing || (isWalkthroughActive && currentStep?.id !== 'custom-card')}
+                darkDisabled={isAPILimitExhausted || !canCreateFlashcard || !isConnected || localProcessing || isImageProcessing}
               />
             </View>
             </Animated.View>
@@ -3515,146 +3838,461 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
 
       {/* Note: global overlay above replaces conditional overlay */}
 
-      {/* Text Input Modal */}
+      {/* Text Input Modal - pageSheet on iOS for native sheet appearance matching flashcard input */}
       <Modal
         visible={showTextInputModal}
-        transparent={true}
         animationType="slide"
-        onRequestClose={handleCancelTextInput}
+        presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}
+        onRequestClose={() => {
+          if (textModalOutput?.translatedText) return;
+          handleCancelTextInput();
+        }}
+        statusBarTranslucent={Platform.OS === 'android'}
       >
-        <KeyboardAvoidingView 
+        <PokedexLayout
+          variant="flashcards"
+          compactLights
+          loadingProgress={textModalProcessingProgress}
+          isProcessing={isTextModalLoading}
+          processingFailed={!!textModalError && !textModalOutput}
+        >
+          <SafeAreaView style={styles.modalPokedexContainer} edges={['top', 'bottom', 'left', 'right']}>
+            <KeyboardAvoidingView
+                  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                  style={styles.modalKeyboardAvoid}
+                  keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+                >
+                  {/* Header */}
+                  <View style={styles.modalPokedexHeader}>
+                <Text style={styles.modalPokedexTitle}>{t('camera.dictate.title')}</Text>
+                <TouchableOpacity
+                  style={styles.modalPokedexCloseButton}
+                  onPress={handleDictateGoHome}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="home-outline" size={24} color={COLORS.text} />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.modalScrollWrapper}>
+              <ScrollView
+                style={styles.modalPokedexScroll}
+                contentContainerStyle={styles.modalPokedexContentContainer}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+                showsVerticalScrollIndicator={true}
+                nestedScrollEnabled={true}
+              >
+                {/* Input box with label on top */}
+                <View style={styles.modalInputSection}>
+                  <Text style={styles.modalBoxLabel}>{t('textInput.placeholderWithLanguage', { language: AVAILABLE_LANGUAGES[(isDictateSwapped ? forcedDetectionLanguage : targetLanguage) as keyof typeof AVAILABLE_LANGUAGES] || 'English' })}</Text>
+                  <View style={styles.modalTextContainer}>
+                    <View style={styles.modalTextInputWrapper}>
+                      <TextInput
+                        style={styles.modalOriginalTextInput}
+                        value={inputText}
+                        onChangeText={setInputText}
+                        multiline
+                        numberOfLines={3}
+                        textAlignVertical="top"
+                        placeholder=""
+                        placeholderTextColor="#999"
+                        autoFocus={!(textModalActionButtonsFadingOut || textModalOutput?.translatedText)}
+                        editable={!(textModalActionButtonsFadingOut || textModalOutput?.translatedText)}
+                      />
+                    </View>
+                    <Animated.View style={[styles.dictateRecordButton, { opacity: recordButtonOpacity }]} pointerEvents={(textModalActionButtonsFadingOut || textModalOutput?.translatedText) ? 'none' : 'auto'}>
+                      <TouchableOpacity
+                        style={styles.dictateRecordButtonTouchable}
+                        onPress={() => {
+                          Keyboard.dismiss();
+                          if (isDictateListening) {
+                            stopDictateListening();
+                          } else {
+                            startDictateListening();
+                          }
+                        }}
+                        accessibilityLabel={isDictateListening ? t('camera.dictate.stopRecordButton') : t('camera.dictate.recordButton')}
+                        accessibilityState={{ selected: isDictateListening }}
+                        disabled={!!(textModalActionButtonsFadingOut || textModalOutput?.translatedText)}
+                      >
+                        <MaterialCommunityIcons
+                          name={isDictateListening ? 'stop-circle' : 'record-circle-outline'}
+                          size={46}
+                          color={isDictateListening ? COLORS.error : COLORS.primary}
+                        />
+                      </TouchableOpacity>
+                    </Animated.View>
+                  </View>
+                </View>
+                {/* Swap arrow between input and output */}
+                <TouchableOpacity
+                  style={styles.swapIconContainer}
+                  onPress={handleDictateSwap}
+                  activeOpacity={0.7}
+                  disabled={isTextModalLoading}
+                  accessibilityLabel={t('settings.swapLanguages')}
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="swap-vertical" size={24} color={isTextModalLoading ? COLORS.darkGray : COLORS.lightGray} />
+                </TouchableOpacity>
+                {/* Output box with label on top */}
+                <View style={styles.modalResultContainer}>
+                  <Text style={styles.modalBoxLabel}>{t('textInput.targetPlaceholderWithLanguage', { language: DETECTABLE_LANGUAGES[(isDictateSwapped ? targetLanguage : forcedDetectionLanguage) as keyof typeof DETECTABLE_LANGUAGES] || AVAILABLE_LANGUAGES[(isDictateSwapped ? targetLanguage : forcedDetectionLanguage) as keyof typeof AVAILABLE_LANGUAGES] || 'Japanese' })}</Text>
+                  {!textModalOutput ? (
+                    <View style={styles.outputBox} />
+                  ) : (
+                    <View style={styles.outputResultContent}>
+                      {textModalOutput.readingsText && (() => {
+                        const outputLang = isDictateSwapped ? targetLanguage : forcedDetectionLanguage;
+                        const needsRomanization = ['ja', 'zh', 'ko', 'ru', 'ar', 'hi', 'th'].includes(outputLang);
+                        if (!needsRomanization) return null;
+                        const detectedLanguage = AVAILABLE_LANGUAGES[outputLang as keyof typeof AVAILABLE_LANGUAGES] || 'unknown';
+                        return (
+                          <View style={styles.modalResultSection}>
+                            <Text style={styles.modalSectionTitle}>
+                              {detectedLanguage === 'Japanese' ? t('flashcard.sectionTitles.withFurigana') :
+                               detectedLanguage === 'Chinese' ? t('flashcard.sectionTitles.withPinyin') :
+                               detectedLanguage === 'Korean' ? t('flashcard.sectionTitles.withRevisedRomanization') :
+                               detectedLanguage === 'Russian' ? t('flashcard.sectionTitles.withPracticalRomanization') :
+                               detectedLanguage === 'Arabic' ? t('flashcard.sectionTitles.withArabicChatAlphabet') :
+                               detectedLanguage === 'Hindi' ? t('flashcard.sectionTitles.withHindiRomanization') :
+                               detectedLanguage === 'Thai' ? t('flashcard.sectionTitles.withThaiRomanization') :
+                               t('flashcard.sectionTitles.withPronunciationGuide')}
+                            </Text>
+                            {(detectedLanguage === 'Japanese' || detectedLanguage === 'Chinese' || detectedLanguage === 'Korean' || detectedLanguage === 'Russian' || detectedLanguage === 'Arabic' || detectedLanguage === 'Hindi' || detectedLanguage === 'Thai') ? (
+                              <FuriganaText
+                                text={textModalOutput.readingsText}
+                                fontSize={20}
+                                furiganaFontSize={12}
+                                color={COLORS.text}
+                                furiganaColor={COLORS.darkGray}
+                                textAlign="left"
+                              />
+                            ) : (
+                              <Text style={styles.modalReadingsText} numberOfLines={0}>{textModalOutput.readingsText}</Text>
+                            )}
+                          </View>
+                        );
+                      })()}
+                      {textModalOutput.translatedText && (
+                          <View style={styles.modalResultSection}>
+                          <Text style={styles.modalSectionTitle}>
+                            {t('flashcard.sectionTitles.translation', { language: AVAILABLE_LANGUAGES[(isDictateSwapped ? targetLanguage : forcedDetectionLanguage) as keyof typeof AVAILABLE_LANGUAGES] || 'English' })}
+                          </Text>
+                          <Text style={styles.modalTranslatedText} numberOfLines={0}>{textModalOutput.translatedText}</Text>
+                        </View>
+                      )}
+                      {textModalOutput.scopeAnalysis && (() => {
+                        const targetT = i18next.getFixedT(targetLanguage, 'translation');
+                        const localizedScopeAnalysis = localizeScopeAnalysisHeadings(textModalOutput.scopeAnalysis!, {
+                          grammar: targetT('flashcard.wordscope.grammar'),
+                          examples: targetT('flashcard.wordscope.examples'),
+                          commonMistake: targetT('flashcard.wordscope.commonMistake'),
+                          commonContext: targetT('flashcard.wordscope.commonContext'),
+                          alternativeExpressions: targetT('flashcard.wordscope.alternativeExpressions'),
+                        });
+                        const segments = parseScopeAnalysisForStyling(localizedScopeAnalysis);
+                        return (
+                          <View style={styles.modalResultSection} key="wordscope">
+                            <Text style={styles.modalSectionTitle}>Wordscope</Text>
+                            <Text style={styles.modalWordscopeBaseText}>
+                              {segments.map((seg, i) => (
+                                <Text
+                                  key={i}
+                                  style={
+                                    seg.isTargetLanguage
+                                      ? styles.modalScopeAnalysisTargetText
+                                      : seg.isSourceLanguage
+                                        ? styles.modalScopeAnalysisSourceText
+                                        : undefined
+                                  }
+                                >
+                                  {seg.text}
+                                </Text>
+                              ))}
+                            </Text>
+                          </View>
+                        );
+                      })()}
+                    </View>
+                  )}
+                </View>
+                {textModalError ? (
+                  <View style={styles.modalErrorContainer}>
+                    <Text style={styles.modalErrorText}>{textModalError}</Text>
+                  </View>
+                ) : null}
+                {/* Row of buttons below output: Cancel / WordScope / Translate (or 2x2 when we have result) */}
+                {((!isTextModalLoading && !textModalOutput?.translatedText) || textModalActionButtonsFadingOut || isTextModalLoading) && (
+                <View style={styles.modalButtonsAndLoadingSlot}>
+                  {isTextModalLoading && (
+                    <Animated.View
+                      style={[
+                        styles.modalLoadingContainerBehind,
+                        { opacity: modalLoadingOpacity },
+                      ]}
+                      pointerEvents="auto"
+                    >
+                      <LoadingVideoScreen
+                        message={
+                          textModalProcessingProgress === 0 ? t('flashcard.processing.analyzing') :
+                          textModalProcessingProgress === 1 ? t('flashcard.processing.analyzing') :
+                          textModalProcessingProgress === 2 ? t('flashcard.processing.detecting') :
+                          textModalProcessingProgress === 3 ? t('flashcard.processing.cultural') :
+                          textModalProcessingProgress === 4 ? t('flashcard.processing.translating') :
+                          t('flashcard.processing.analyzing')
+                        }
+                      />
+                    </Animated.View>
+                  )}
+                  <Animated.View style={[styles.modalActionButtonsContainer, { opacity: modalButtonsOpacity }]} pointerEvents={isTextModalLoading ? 'none' : 'auto'}>
+                    <TouchableOpacity
+                      style={[
+                        styles.modalEditButton,
+                        (localProcessing || isImageProcessing) ? styles.disabledButton : null
+                      ]}
+                      onPress={handleCancelTextInput}
+                      disabled={localProcessing || isImageProcessing || isTextModalLoading}
+                    >
+                      <View style={[styles.modalFlashcardButtonFill, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]} />
+                      {!(localProcessing || isImageProcessing) && <View style={styles.modalFlashcardButtonTopHighlight} />}
+                      <View style={styles.modalButtonContent}>
+                        <Text style={styles.modalButtonText}>{t('textInput.cancel')}</Text>
+                      </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.modalScopeAndTranslateButton,
+                        isAPILimitExhausted ? styles.disabledButton : null,
+                        isAPILimitExhausted ? styles.darkDisabledButton : null
+                      ]}
+                      onPress={() => {
+                        if (localProcessing || isImageProcessing || isTextModalLoading) return;
+                        if (isAPILimitExhausted) {
+                          showAPILimitUpgradeAlert('wordscope');
+                        } else {
+                          handleWordScopeTextInput();
+                        }
+                      }}
+                      disabled={localProcessing || isImageProcessing || isLoadingAPILimits || isTextModalLoading}
+                    >
+                      <View style={[styles.modalFlashcardButtonFill, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]} />
+                      {!isAPILimitExhausted && <View style={styles.modalFlashcardButtonTopHighlight} />}
+                      <View style={styles.modalButtonContent}>
+                        <View style={styles.modalDualIconContainer}>
+                          {isAPILimitExhausted ? (
+                            <Ionicons name="lock-closed" size={14} color={COLORS.darkGray} />
+                          ) : (
+                            <>
+                              <FontAwesome5 name="microscope" size={12} color="#ffffff" />
+                              <Ionicons name="language" size={12} color="#ffffff" />
+                            </>
+                          )}
+                        </View>
+                        <Text
+                          style={[
+                            styles.modalWordScopeButtonText,
+                            isAPILimitExhausted ? { color: COLORS.darkGray } : null,
+                            { alignSelf: 'stretch' },
+                          ]}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
+                          minimumFontScale={0.6}
+                        >
+                          {isAPILimitExhausted ? 'Locked' : t('textInput.wordScope')}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.modalTranslateButton,
+                        isAPILimitExhausted ? styles.disabledButton : null,
+                        isAPILimitExhausted ? styles.darkDisabledButton : null
+                      ]}
+                      onPress={() => {
+                        if (localProcessing || isImageProcessing || isTextModalLoading) return;
+                        if (isAPILimitExhausted) {
+                          showAPILimitUpgradeAlert('translate');
+                        } else {
+                          handleSubmitTextInput();
+                        }
+                      }}
+                      disabled={localProcessing || isImageProcessing || isLoadingAPILimits || isTextModalLoading}
+                    >
+                      <View style={[styles.modalFlashcardButtonFill, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]} />
+                      {!isAPILimitExhausted && <View style={styles.modalFlashcardButtonTopHighlight} />}
+                      <View style={styles.modalButtonContent}>
+                        <Ionicons
+                          name={isAPILimitExhausted ? "lock-closed" : "language"}
+                          size={20}
+                          color={isAPILimitExhausted ? COLORS.darkGray : "#ffffff"}
+                          style={styles.modalButtonIcon}
+                        />
+                        <Text
+                          style={[
+                            styles.modalButtonText,
+                            isAPILimitExhausted ? { color: COLORS.darkGray } : null,
+                          ]}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
+                          minimumFontScale={0.6}
+                        >
+                          {isAPILimitExhausted ? 'Locked' : t('textInput.translate')}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  </Animated.View>
+                </View>
+                )}
+                {/* 2x2 Button Grid (View Saved, Save, Edit Translation, Edit Input) - appears when we have result */}
+                {textModalOutput?.translatedText && (
+                  <View style={styles.modalResultButtonsContainer}>
+                    <View style={styles.modalGridRow}>
+                      <TouchableOpacity
+                        style={[styles.modalGridButton]}
+                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/saved-flashcards'); setShowTextInputModal(false); }}
+                      >
+                        <View style={[styles.modalFlashcardButtonFill, { backgroundColor: 'rgba(59, 130, 246, 0.28)' }]} />
+                        <View style={styles.modalFlashcardButtonTopHighlight} />
+                        <View style={styles.modalGridButtonContent}>
+                          <Ionicons name="albums-outline" size={18} color="#ffffff" style={styles.modalButtonIcon} />
+                          <Text style={styles.modalGridButtonText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{t('flashcard.save.viewSaved')}</Text>
+                        </View>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.modalGridButton,
+                          styles.modalSaveGridButton,
+                          isTextModalSaved ? styles.modalSavedButton : null,
+                          (isTextModalSaving || !canCreateFlashcard) ? styles.disabledButton : null,
+                          !canCreateFlashcard ? styles.darkDisabledButton : null,
+                        ]}
+                        onPress={handleTextModalShowDeckSelector}
+                        disabled={isTextModalSaving || isTextModalSaved || !canCreateFlashcard}
+                      >
+                        <View style={[styles.modalFlashcardButtonFill, { backgroundColor: isTextModalSaved ? 'rgba(251, 191, 36, 0.4)' : (isTextModalSaving || !canCreateFlashcard) ? 'rgba(51, 65, 85, 0.5)' : 'rgba(59, 130, 246, 0.28)' }]} />
+                        {(!isTextModalSaving && canCreateFlashcard) && <View style={styles.modalFlashcardButtonTopHighlight} />}
+                        <View style={styles.modalGridButtonContent}>
+                          {isTextModalSaving ? (
+                            <ActivityIndicator size="small" color="#ffffff" />
+                          ) : (
+                            <>
+                              <Ionicons name={isTextModalSaved ? "checkmark-circle" : !canCreateFlashcard ? "lock-closed" : "bookmark-outline"} size={18} color={!canCreateFlashcard ? COLORS.darkGray : '#ffffff'} style={styles.modalButtonIcon} />
+                              <Text style={[styles.modalGridButtonText, !canCreateFlashcard ? { color: COLORS.darkGray } : null]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+                                {isTextModalSaved ? t('flashcard.save.savedAsFlashcard') : !canCreateFlashcard ? `Limit reached (${remainingFlashcards} left)` : t('flashcard.save.saveAsFlashcard')}
+                              </Text>
+                            </>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    </View>
+                    <View style={styles.modalGridRow}>
+                      <TouchableOpacity
+                        style={[styles.modalGridButton, styles.modalEditTranslationGridButton]}
+                        onPress={handleTextModalEditTranslation}
+                      >
+                        <View style={[styles.modalFlashcardButtonFill, { backgroundColor: 'rgba(34, 197, 94, 0.28)' }]} />
+                        <View style={styles.modalFlashcardButtonTopHighlight} />
+                        <View style={styles.modalGridButtonContent}>
+                          <Ionicons name="pencil" size={18} color="#ffffff" style={styles.modalButtonIcon} />
+                          <Text style={styles.modalGridButtonText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{t('flashcard.edit.editTranslation')}</Text>
+                        </View>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.modalGridButton, styles.modalEditInputGridButton]}
+                        onPress={handleTextModalEditInputAndRetranslate}
+                      >
+                        <View style={[styles.modalFlashcardButtonFill, { backgroundColor: 'rgba(239, 68, 68, 0.28)' }]} />
+                        <View style={styles.modalFlashcardButtonTopHighlight} />
+                        <View style={styles.modalGridButtonContent}>
+                          <Ionicons name="refresh" size={18} color="#ffffff" style={styles.modalButtonIcon} />
+                          <Text style={styles.modalGridButtonText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{t('flashcard.edit.editInputRetranslate')}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    </View>
+                    <DeckSelector
+                      visible={showTextModalDeckSelector}
+                      onClose={() => setShowTextModalDeckSelector(false)}
+                      onSelectDeck={(deckId) => handleTextModalSaveFlashcard(deckId)}
+                    />
+                  </View>
+                )}
+                </ScrollView>
+              </View>
+                </KeyboardAvoidingView>
+              </SafeAreaView>
+        </PokedexLayout>
+      </Modal>
+
+      {/* Edit Translation Modal for text input modal */}
+      <Modal
+        visible={showTextModalEditTranslation}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowTextModalEditTranslation(false)}
+      >
+        <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
           style={styles.modalContainer}
-          pointerEvents="box-none"
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
         >
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={StyleSheet.absoluteFill} />
           </TouchableWithoutFeedback>
-          <View style={styles.modalContent} pointerEvents="box-none">
-            <View pointerEvents="auto">
-              <ScrollView 
-                style={styles.modalScrollContent}
-                contentContainerStyle={styles.modalScrollContentContainer}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-              >
-                <TextInput
-                  style={styles.textInput}
-                  value={inputText}
-                  onChangeText={setInputText}
-                  multiline
-                  numberOfLines={4}
-                  textAlignVertical="top"
-                  placeholder={t('textInput.placeholder')}
-                  placeholderTextColor="#999"
-                  autoFocus
-                  editable
-                />
-              </ScrollView>
-            </View>
-            <View style={styles.modalFooter} pointerEvents="auto">
-              <View style={styles.modalButtonsContainer}>
-                <TouchableOpacity 
-                  style={[
-                    styles.modalButton,
-                    (localProcessing || isImageProcessing) ? styles.disabledButton : null
-                  ]} 
-                  onPress={handleCancelTextInput}
-                  disabled={localProcessing || isImageProcessing}
-                >
-                  <View style={[styles.modalFlashcardButtonFill, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]} />
-                  {!(localProcessing || isImageProcessing) && <View style={styles.modalFlashcardButtonTopHighlight} />}
-                  <View style={styles.modalButtonContent}>
-                    <Text style={styles.modalButtonText}>{t('textInput.cancel')}</Text>
-                  </View>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[
-                    styles.modalButton,
-                    isAPILimitExhausted ? styles.disabledButton : null,
-                    isAPILimitExhausted ? styles.darkDisabledButton : null
-                  ]} 
-                  onPress={() => {
-                    if (localProcessing || isImageProcessing) return;
-                    if (isAPILimitExhausted) {
-                      showAPILimitUpgradeAlert('wordscope');
-                    } else {
-                      handleWordScopeTextInput();
-                    }
-                  }}
-                  disabled={localProcessing || isImageProcessing || isLoadingAPILimits}
-                >
-                  <View style={[styles.modalFlashcardButtonFill, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]} />
-                  {!isAPILimitExhausted && <View style={styles.modalFlashcardButtonTopHighlight} />}
-                  <View style={styles.modalButtonContent}>
-                    <View style={styles.modalDualIconContainer}>
-                      {isAPILimitExhausted ? (
-                        <Ionicons name="lock-closed" size={14} color={COLORS.darkGray} />
-                      ) : (
-                        <>
-                          <FontAwesome5 
-                            name="microscope" 
-                            size={12} 
-                            color="#ffffff" 
-                          />
-                          <Ionicons 
-                            name="language" 
-                            size={12} 
-                            color="#ffffff" 
-                          />
-                        </>
-                      )}
-                    </View>
-                    <Text
-                      style={[
-                        styles.modalWordScopeButtonText,
-                        isAPILimitExhausted ? { color: COLORS.darkGray } : null,
-                        { alignSelf: 'stretch' },
-                      ]}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.6}
-                    >
-                      {isAPILimitExhausted ? 'Locked' : t('textInput.wordScope')}
+          <View style={[styles.modalContent, { padding: 20, maxHeight: '85%' }]}>
+            <Text style={styles.modalTitle}>{t('flashcard.edit.editTranslation')}</Text>
+            <ScrollView style={styles.modalScrollContent} contentContainerStyle={{ paddingBottom: 20 }} keyboardShouldPersistTaps="handled">
+              <Text style={styles.modalSubtitle}>{t('flashcard.edit.editTranslation')}</Text>
+              <TextInput
+                style={styles.textInput}
+                value={textModalEditedTranslation}
+                onChangeText={setTextModalEditedTranslation}
+                multiline
+                placeholder={t('flashcard.edit.editTranslationPlaceholder')}
+                placeholderTextColor="#aaa"
+                textAlignVertical="top"
+              />
+              {(() => {
+                const needsRomanization = (
+                  containsJapanese(inputText) || containsChinese(inputText) || containsKoreanText(inputText) ||
+                  containsRussianText(inputText) || containsArabicText(inputText) || containsHindiText(inputText) || containsThaiText(inputText)
+                );
+                if (!needsRomanization) return null;
+                const detectedLanguage = AVAILABLE_LANGUAGES[forcedDetectionLanguage as keyof typeof AVAILABLE_LANGUAGES] || 'unknown';
+                return (
+                  <>
+                    <Text style={styles.modalSubtitle}>
+                      {detectedLanguage === 'Japanese' ? t('flashcard.edit.editFurigana') :
+                       detectedLanguage === 'Chinese' ? t('flashcard.edit.editPinyin') :
+                       t('flashcard.edit.editRomanization')}
                     </Text>
-                  </View>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[
-                    styles.modalButton,
-                    isAPILimitExhausted ? styles.disabledButton : null,
-                    isAPILimitExhausted ? styles.darkDisabledButton : null
-                  ]} 
-                  onPress={() => {
-                    if (localProcessing || isImageProcessing) return;
-                    if (isAPILimitExhausted) {
-                      showAPILimitUpgradeAlert('translate');
-                    } else {
-                      handleSubmitTextInput();
-                    }
-                  }}
-                  disabled={localProcessing || isImageProcessing || isLoadingAPILimits}
-                >
-                  <View style={[styles.modalFlashcardButtonFill, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]} />
-                  {!isAPILimitExhausted && <View style={styles.modalFlashcardButtonTopHighlight} />}
-                  <View style={styles.modalButtonContent}>
-                    <Ionicons 
-                      name={isAPILimitExhausted ? "lock-closed" : "language"} 
-                      size={12} 
-                      color={isAPILimitExhausted ? COLORS.darkGray : "#ffffff"} 
-                      style={styles.modalButtonIcon}
+                    <TextInput
+                      style={styles.textInput}
+                      value={textModalEditedReadings}
+                      onChangeText={setTextModalEditedReadings}
+                      multiline
+                      placeholder={t('flashcard.edit.editRomanizationPlaceholder')}
+                      placeholderTextColor="#aaa"
+                      textAlignVertical="top"
                     />
-                    <Text style={[
-                      styles.modalButtonText,
-                      isAPILimitExhausted ? { color: COLORS.darkGray } : null
-                    ]}>
-                      {isAPILimitExhausted ? 'Locked' : t('textInput.translate')}
-                    </Text>
+                  </>
+                );
+              })()}
+              <View style={styles.modalButtonsContainer}>
+                <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowTextModalEditTranslation(false)}>
+                  <View style={[styles.modalFlashcardButtonFill, { backgroundColor: 'rgba(255, 255, 255, 0.15)' }]} />
+                  <View style={styles.modalButtonContent}>
+                    <Text style={styles.modalButtonText}>{t('common.cancel')}</Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.modalSaveButton} onPress={handleTextModalSaveEditTranslation}>
+                  <View style={[styles.modalFlashcardButtonFill, { backgroundColor: 'rgba(255, 255, 255, 0.15)' }]} />
+                  <View style={styles.modalButtonContent}>
+                    <Text style={styles.modalButtonText}>{t('common.save')}</Text>
                   </View>
                 </TouchableOpacity>
               </View>
-            </View>
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -3987,6 +4625,101 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number, rowB
     padding: 20,
     paddingBottom: Platform.OS === 'ios' ? 20 : 20,
   },
+  modalPokedexContainer: {
+    flex: 1,
+  },
+  modalKeyboardAvoid: {
+    flex: 1,
+  },
+  modalPokedexHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.darkGray,
+    backgroundColor: COLORS.pokedexBlack,
+  },
+  modalPokedexTitle: {
+    fontFamily: FONTS.sansBold,
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  modalPokedexCloseButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: COLORS.darkSurface,
+  },
+  modalScrollWrapper: {
+    flex: 1,
+  },
+  modalPokedexScroll: {
+    flex: 1,
+  },
+  modalPokedexContentContainer: {
+    padding: 12,
+    paddingBottom: 120,
+    paddingTop: 6,
+    flexGrow: 1,
+  },
+  modalInputSection: {
+    marginBottom: 8,
+  },
+  modalBoxLabel: {
+    fontSize: 14,
+    color: COLORS.darkGray,
+    marginBottom: 6,
+    marginLeft: 2,
+  },
+  modalTextContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: COLORS.darkSurface,
+    minHeight: 92,
+    maxHeight: 140,
+  },
+  modalTextInputWrapper: {
+    flex: 1,
+    minWidth: 0,
+  },
+  dictateRecordButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 76,
+    height: 76,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dictateRecordButtonTouchable: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalOriginalTextInput: {
+    fontSize: 22,
+    writingDirection: 'ltr',
+    textAlign: 'left',
+    fontFamily: Platform.OS === 'ios' ? 'HiraginoSans-W3' : undefined,
+    letterSpacing: 0.5,
+    ...(Platform.OS === 'android' && { lineHeight: 28 }),
+    flexWrap: 'wrap',
+    color: COLORS.text,
+    minHeight: 72,
+    maxHeight: 100,
+    paddingTop: 0,
+    paddingBottom: 0,
+    paddingHorizontal: 4,
+    paddingRight: 64,
+  },
+  modalResultContainer: {
+    marginBottom: 20,
+    marginTop: 0,
+  },
   modalContent: {
     backgroundColor: COLORS.darkSurface,
     borderRadius: 12,
@@ -4002,7 +4735,7 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number, rowB
     flexDirection: 'column',
   },
   modalScrollContent: {
-    maxHeight: 220,
+    maxHeight: 340,
   },
   modalScrollContentContainer: {
     padding: 14,
@@ -4034,6 +4767,229 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number, rowB
     maxHeight: 160,
     color: COLORS.text,
     backgroundColor: COLORS.mediumSurface,
+  },
+  swapIconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
+  },
+  outputBoxContainer: {
+    marginBottom: 8,
+  },
+  outputBox: {
+    fontFamily: FONTS.sans,
+    borderWidth: 1,
+    borderColor: COLORS.lightGray,
+    borderRadius: 8,
+    padding: 10,
+    minHeight: 92,
+    maxHeight: 140,
+    backgroundColor: 'rgba(80, 80, 80, 0.35)',
+    justifyContent: 'center',
+  },
+  outputBoxPlaceholder: {
+    fontFamily: FONTS.sans,
+    fontSize: 16,
+    color: '#666',
+  },
+  outputResultContent: {
+    paddingBottom: 8,
+  },
+  modalResultSection: {
+    marginTop: 20,
+    marginBottom: 0,
+    padding: 16,
+    borderRadius: 8,
+    backgroundColor: COLORS.darkSurface,
+    width: '100%',
+    minHeight: 60,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.5)',
+  },
+  modalSectionTitle: {
+    fontFamily: FONTS.sansBold,
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: COLORS.darkGray,
+  },
+  modalReadingsText: {
+    fontSize: 20,
+    fontFamily: Platform.OS === 'ios' ? 'HiraginoSans-W3' : undefined,
+    lineHeight: 28,
+    flexWrap: 'wrap',
+    color: COLORS.text,
+  },
+  modalTranslatedText: {
+    fontFamily: FONTS.sans,
+    fontSize: 18,
+    lineHeight: 24,
+    flexWrap: 'wrap',
+    color: COLORS.text,
+  },
+  modalWordscopeBaseText: {
+    fontFamily: FONTS.sans,
+    fontSize: 16,
+    color: COLORS.text,
+    fontStyle: 'italic',
+    lineHeight: 22,
+    textAlign: 'left',
+  },
+  modalScopeAnalysisTargetText: {
+    color: '#A78BFA',
+    fontStyle: 'italic',
+  },
+  modalScopeAnalysisSourceText: {
+    color: '#34D399',
+    fontStyle: 'italic',
+  },
+  modalErrorContainer: {
+    marginTop: 8,
+    padding: 8,
+    borderRadius: 6,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+  },
+  modalErrorText: {
+    fontFamily: FONTS.sans,
+    fontSize: 14,
+    color: COLORS.danger || '#EF4444',
+  },
+  modalActionButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 20,
+    alignItems: 'flex-start',
+  },
+  modalEditButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    width: 90,
+    height: 90,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 8,
+    backgroundColor: 'transparent',
+  },
+  modalScopeAndTranslateButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    width: 90,
+    height: 90,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 8,
+    backgroundColor: 'transparent',
+  },
+  modalTranslateButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    width: 90,
+    height: 90,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 8,
+    backgroundColor: 'transparent',
+  },
+  modalWordScopeButtonText: {
+    fontFamily: FONTS.sansBold,
+    fontSize: 12,
+    color: COLORS.text,
+  },
+  modalButtonsAndLoadingSlot: {
+    position: 'relative',
+    minHeight: 120,
+    marginBottom: 20,
+  },
+  modalLoadingContainerBehind: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalSubtitle: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+    marginTop: 16,
+    color: COLORS.darkGray,
+  },
+  modalCancelButton: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 14,
+    overflow: 'hidden',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalSaveButton: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 14,
+    overflow: 'hidden',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalResultButtonsContainer: {
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  modalGridRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  modalGridButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    minHeight: 72,
+    overflow: 'hidden',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  modalSaveGridButton: {},
+  modalSavedButton: {
+    borderColor: 'rgba(251, 191, 36, 0.5)',
+  },
+  modalEditTranslationGridButton: {},
+  modalEditInputGridButton: {},
+  modalGridButtonContent: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+    paddingHorizontal: 4,
+  },
+  modalGridButtonText: {
+    fontFamily: FONTS.sansBold,
+    fontSize: 13,
+    color: COLORS.text,
   },
   modalButtonsContainer: {
     flexDirection: 'row',
@@ -4103,15 +5059,6 @@ const createStyles = (reviewerTopOffset: number, reviewerMaxHeight: number, rowB
     color: COLORS.text,
     fontWeight: 'bold',
     fontSize: 12,
-    textAlign: 'center',
-    marginTop: 2,
-    zIndex: 1,
-  },
-  modalWordScopeButtonText: {
-    fontFamily: FONTS.sansBold,
-    color: COLORS.text,
-    fontWeight: 'bold',
-    fontSize: 11,
     textAlign: 'center',
     marginTop: 2,
     zIndex: 1,

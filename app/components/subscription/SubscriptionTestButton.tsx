@@ -6,7 +6,7 @@ import { useOCRCounter } from '../../context/OCRCounterContext';
 import { COLORS } from '../../constants/colors';
 import { FONTS } from '../../constants/typography';
 import { Ionicons } from '@expo/vector-icons';
-import { PRODUCT_IDS } from '../../constants/config';
+import { presentPaywall } from '../../utils/presentPaywall';
 
 const SubscriptionTestButton: React.FC = () => {
   const { t } = useTranslation();
@@ -14,7 +14,6 @@ const SubscriptionTestButton: React.FC = () => {
     subscription, 
     isLoading, 
     error, 
-    purchaseSubscription, 
     restorePurchases 
   } = useSubscription();
   
@@ -30,8 +29,8 @@ const SubscriptionTestButton: React.FC = () => {
           text: t('subscription.test.purchase'), 
           style: 'default', 
           onPress: async () => {
-            const success = await purchaseSubscription(PRODUCT_IDS.PREMIUM_MONTHLY);
-            if (success) {
+            const result = await presentPaywall();
+            if (result.purchased) {
               Alert.alert(t('common.success'), t('subscription.test.premiumActivated'));
             }
           }

@@ -4,7 +4,8 @@ import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import KanjiScanner from './components/camera/KanjiScanner';
 import PokedexLayout from './components/shared/PokedexLayout';
-import SignInPrompt, { getSignInPromptDismissed } from './components/auth/SignInPrompt';
+import { getSignInPromptDismissed, setSignInPromptDismissed } from './components/auth/SignInPrompt';
+import { presentPaywallIfNeeded } from './utils/presentPaywall';
 import { Asset } from 'expo-asset';
 import { useAuth } from './context/AuthContext';
 import { useTransitionLoading } from './context/TransitionLoadingContext';
@@ -77,7 +78,26 @@ export default function App() {
 
   const handleContinueAsGuest = useCallback(() => {
     setGuestMode(true);
+    setSignInPromptDismissed(true);
   }, [setGuestMode]);
+
+  // When paywall trigger fires, present RevenueCat Paywall (replaces SignInPrompt)
+  useEffect(() => {
+    if (!showSignInPrompt) return;
+    let cancelled = false;
+    (async () => {
+      const result = await presentPaywallIfNeeded();
+      if (cancelled) return;
+      setShowSignInPrompt(false);
+      if (result.purchased) return; // Subscription updates via listener
+      if (!result.notPresented) {
+        handleContinueAsGuest();
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showSignInPrompt, handleContinueAsGuest]);
 
   // Dismiss post-onboarding loading overlay, then allow walkthrough to start (after fade finishes)
   useEffect(() => {
@@ -187,14 +207,7 @@ export default function App() {
           />
         </View>
       </PokedexLayout>
-      {/* SignInPrompt is rendered OUTSIDE PokedexLayout as an absolute overlay
-          so it covers the full screen. Using a View overlay instead of a native
-          <Modal> eliminates the iOS snapshot-flashing issue entirely. */}
-      <SignInPrompt
-        visible={showSignInPrompt}
-        onDismiss={() => setShowSignInPrompt(false)}
-        onContinueAsGuest={handleContinueAsGuest}
-      />
+      {/* Paywall is presented imperatively via presentPaywallIfNeeded in useEffect above */}
     </View>
   );
 }

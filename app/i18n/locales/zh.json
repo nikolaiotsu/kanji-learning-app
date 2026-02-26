@@ -490,6 +490,9 @@
   },
   "textInput": {
     "placeholder": "输入要翻译的文本",
+    "placeholderWithLanguage": "输入要翻译成{{language}}的文本",
+    "targetPlaceholder": "译文将显示在这里",
+    "targetPlaceholderWithLanguage": "{{language}}将显示在这里",
     "cancel": "取消",
     "translate": "翻译"
   },
@@ -546,6 +549,19 @@
       "organizeBullet": "整理卡片、创建收藏、排序和删除",
       "dontShowAgain": "不再显示",
       "gotIt": "知道了"
+    },
+    "customCard": {
+      "title": "添加自定义卡片",
+      "description": "通过直接输入文本来创建自定义闪卡。非常适合不拍照添加卡片。"
+    },
+    "dictate": {
+      "title": "听写",
+      "recordButton": "开始语音输入",
+      "stopRecordButton": "停止语音输入",
+      "recording": "正在听取...",
+      "permissionDenied": "语音输入需要使用麦克风。",
+      "permissionDeniedTitle": "麦克风访问",
+      "openSettings": "打开设置"
     }
   },
   "reviewPrompt": {
@@ -581,6 +597,9 @@
     "customCard": {
       "title": "添加自定义卡片",
       "description": "通过直接输入文本来创建自定义闪卡。非常适合不拍照添加卡片。"
+    },
+    "dictate": {
+      "title": "听写"
     },
     "reviewCards": {
       "title": "复习卡片",

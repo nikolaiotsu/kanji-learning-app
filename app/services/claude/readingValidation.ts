@@ -681,3 +681,79 @@ export function validateHindiRomanization(originalText: string, romanizedText: s
     details: `Checked ${totalHindiCount} Hindi characters, coverage: ${hindiCoverage}%, accuracy: ${accuracy}%, found ${issues.length} issues`
   };
 }
+
+/**
+ * Validates Thai text with RTGS romanization for accuracy and completeness
+ */
+export function validateThaiRomanization(originalText: string, romanizedText: string): {
+  isValid: boolean;
+  issues: string[];
+  suggestions: string[];
+  thaiCoverage: number;
+  accuracy: number;
+  details: string;
+} {
+  const issues: string[] = [];
+  const suggestions: string[] = [];
+  const addSuggestion = (message: string) => {
+    if (!suggestions.includes(message)) {
+      suggestions.push(message);
+    }
+  };
+
+  const thaiRegex = /[\u0E00-\u0E7F]/g;
+  const originalThai = originalText.match(thaiRegex) || [];
+  const totalThaiCount = originalThai.length;
+
+  if (totalThaiCount === 0) {
+    return {
+      isValid: true,
+      issues: [],
+      suggestions: [],
+      thaiCoverage: 100,
+      accuracy: 100,
+      details: "No Thai characters found in text"
+    };
+  }
+
+  const thaiWordsWithRoman = romanizedText.match(/[\u0E00-\u0E7F]+(?=[!?.,;:'"'"‚""„‹›«»‑–—…\s]*\([^)]+\))/g) || [];
+  const totalCoveredChars = thaiWordsWithRoman.join('').length;
+  const thaiCoverage = totalThaiCount > 0 ? Math.round((totalCoveredChars / totalThaiCount) * 100) : 0;
+
+  if (thaiCoverage < 90) {
+    issues.push(`Missing Thai base text - only ${thaiCoverage}% of original Thai preserved`);
+    addSuggestion("Ensure all Thai words keep their original Thai script with RTGS romanization in parentheses");
+  }
+
+  const wrongOrderPattern = /\([a-zA-Z\-']+\)[\u0E00-\u0E7F]+/g;
+  const wrongOrderMatches = romanizedText.match(wrongOrderPattern);
+  if (wrongOrderMatches && wrongOrderMatches.length > 0) {
+    issues.push(`Romanization before Thai text detected (wrong order): ${wrongOrderMatches.slice(0, 3).join(', ')}`);
+    addSuggestion("Format must be: Thai(romanization), NOT (romanization)Thai");
+  }
+
+  const loneRomanPattern = /(?<![\u0E00-\u0E7F])\([a-zA-Z\-']+\)(?![\u0E00-\u0E7F])/g;
+  const loneRomanMatches = romanizedText.match(loneRomanPattern);
+  if (loneRomanMatches && loneRomanMatches.length > 0) {
+    issues.push(`Romanization without Thai base detected: ${loneRomanMatches.slice(0, 3).join(', ')}`);
+    addSuggestion("Add the original Thai text before each romanization in parentheses");
+  }
+
+  const originalThaiWords = originalText.match(/[\u0E00-\u0E7F]+/g) || [];
+  const coveredThaiWords = romanizedText.match(/[\u0E00-\u0E7F]+(?=[!?.,;:'"'"‚""„‹›«»‑–—…\s]*\([^)]+\))/g) || [];
+  if (coveredThaiWords.length < originalThaiWords.length * 0.9) {
+    issues.push("Incomplete romanization coverage - some Thai words missing RTGS");
+    addSuggestion("Ensure all Thai words have RTGS romanization readings");
+  }
+
+  const issueWeight = Math.min(issues.length * 5, 30);
+  const accuracy = Math.max(0, thaiCoverage - issueWeight);
+  return {
+    isValid: issues.length === 0 && thaiCoverage >= 90,
+    issues,
+    suggestions,
+    thaiCoverage,
+    accuracy,
+    details: `Checked ${totalThaiCount} Thai characters, coverage: ${thaiCoverage}%, accuracy: ${accuracy}%, found ${issues.length} issues`
+  };
+}

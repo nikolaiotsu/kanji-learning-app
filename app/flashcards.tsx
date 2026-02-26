@@ -61,7 +61,7 @@ import { useFlashcardCounter } from './context/FlashcardCounterContext';
 import { useBadge } from './context/BadgeContext';
 import { useSubscription } from './context/SubscriptionContext';
 import { useSignInPromptTrigger } from './context/SignInPromptTriggerContext';
-import { PRODUCT_IDS } from './constants/config';
+import { presentPaywall } from './utils/presentPaywall';
 import MemoryManager from './services/memoryManager';
 import * as Haptics from 'expo-haptics';
 import { useNetworkState } from './services/networkManager';
@@ -78,7 +78,7 @@ export default function LanguageFlashcardsScreen() {
 const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, setBothLanguages } = useSettings();
   const { incrementFlashcardCount, canCreateFlashcard, remainingFlashcards } = useFlashcardCounter();
   const { checkAndUnlockBadges } = useBadge();
-  const { purchaseSubscription, subscription } = useSubscription();
+  const { subscription } = useSubscription();
   const { requestShowSignInPrompt } = useSignInPromptTrigger();
   const { isConnected } = useNetworkState();
   
@@ -1032,8 +1032,8 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
             text: t('subscription.limit.upgradeToPremium'), 
             style: 'default',
             onPress: async () => {
-                             const success = await purchaseSubscription(PRODUCT_IDS.PREMIUM_MONTHLY);
-              if (success) {
+              const result = await presentPaywall();
+              if (result.purchased) {
                 Alert.alert(t('common.success'), t('subscription.test.premiumActivated'));
               }
             }
@@ -1248,11 +1248,10 @@ const { targetLanguage, forcedDetectionLanguage, setForcedDetectionLanguage, set
           text: t('subscription.limit.upgradeToPremium'), 
           style: 'default',
           onPress: async () => {
-            const success = await purchaseSubscription(PRODUCT_IDS.PREMIUM_MONTHLY);
-            if (success) {
+            const result = await presentPaywall();
+            if (result.purchased) {
               Alert.alert(t('common.success'), t('subscription.test.premiumActivated'));
               // Limits will refresh automatically via subscription useEffect
-              // since purchaseSubscription updates the subscription context
             }
           }
         }

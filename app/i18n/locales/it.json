@@ -498,6 +498,8 @@
   },
   "textInput": {
     "placeholder": "Inserisci testo da tradurre",
+    "placeholderWithLanguage": "Inserisci testo da tradurre in {{language}}",
+    "targetPlaceholderWithLanguage": "{{language}} apparirà qui",
     "cancel": "Annulla",
     "wordScope": "WordScope",
     "translate": "Traduci"
@@ -555,6 +557,19 @@
       "organizeBullet": "Organizza le schede, crea raccolte, riordina ed elimina",
       "dontShowAgain": "Non mostrare più",
       "gotIt": "Capito"
+    },
+    "customCard": {
+      "title": "Aggiungi Scheda Personalizzata",
+      "description": "Crea una scheda personalizzata manualmente inserendo testo direttamente. Perfetto per aggiungere schede senza scattare una foto."
+    },
+    "dictate": {
+      "title": "Dettare",
+      "recordButton": "Avvia input vocale",
+      "stopRecordButton": "Interrompi input vocale",
+      "recording": "In ascolto...",
+      "permissionDenied": "L'accesso al microfono è necessario per l'input vocale.",
+      "permissionDeniedTitle": "Accesso al microfono",
+      "openSettings": "Apri impostazioni"
     }
   },
   "reviewPrompt": {
@@ -585,6 +600,9 @@
     "customCard": {
       "title": "Aggiungi Scheda Personalizzata",
       "description": "Crea una scheda personalizzata manualmente inserendo testo direttamente. Perfetto per aggiungere schede senza scattare una foto."
+    },
+    "dictate": {
+      "title": "Dettare"
     },
     "reviewCards": {
       "title": "Rivedi Schede",

@@ -498,6 +498,9 @@
   },
   "textInput": {
     "placeholder": "Entrez le texte à traduire",
+    "placeholderWithLanguage": "Entrez le texte à traduire en {{language}}",
+    "targetPlaceholder": "La traduction apparaîtra ici",
+    "targetPlaceholderWithLanguage": "{{language}} apparaîtra ici",
     "cancel": "Annuler",
     "wordScope": "WordScope",
     "translate": "Traduire"
@@ -555,6 +558,19 @@
       "organizeBullet": "Organiser les cartes, créer des collections, réordonner et supprimer",
       "dontShowAgain": "Ne plus afficher",
       "gotIt": "Compris"
+    },
+    "customCard": {
+      "title": "Ajouter une carte personnalisée",
+      "description": "Créez une flashcard personnalisée manuellement en saisissant du texte directement. Parfait pour ajouter des cartes sans prendre de photo."
+    },
+    "dictate": {
+      "title": "Dicter",
+      "recordButton": "Démarrer la saisie vocale",
+      "stopRecordButton": "Arrêter la saisie vocale",
+      "recording": "À l'écoute...",
+      "permissionDenied": "L'accès au micro est nécessaire pour la saisie vocale.",
+      "permissionDeniedTitle": "Accès au micro",
+      "openSettings": "Ouvrir les paramètres"
     }
   },
   "reviewPrompt": {
@@ -585,6 +601,9 @@
     "customCard": {
       "title": "Ajouter une carte personnalisée",
       "description": "Créez une flashcard personnalisée manuellement en saisissant du texte directement. Parfait pour ajouter des cartes sans prendre de photo."
+    },
+    "dictate": {
+      "title": "Dicter"
     },
     "reviewCards": {
       "title": "Réviser les cartes",

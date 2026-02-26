@@ -497,6 +497,9 @@
   },
   "textInput": {
     "placeholder": "翻訳するテキストを入力",
+    "placeholderWithLanguage": "{{language}}に翻訳するテキストを入力",
+    "targetPlaceholder": "訳文がここに表示されます",
+    "targetPlaceholderWithLanguage": "{{language}}がここに表示されます",
     "cancel": "キャンセル",
     "translate": "翻訳"
   },
@@ -553,6 +556,19 @@
       "organizeBullet": "カードを整理、新規コレクション作成、並べ替え、削除",
       "dontShowAgain": "今後表示しない",
       "gotIt": "了解"
+    },
+    "customCard": {
+      "title": "カスタムカードを追加",
+      "description": "写真がない?聞いたフレーズ?大丈夫。ここに入力すればOK。"
+    },
+    "dictate": {
+      "title": "ディクテーション",
+      "recordButton": "音声入力を開始",
+      "stopRecordButton": "音声入力を停止",
+      "recording": "聞いています...",
+      "permissionDenied": "音声入力にはマイクへのアクセスが必要です。",
+      "permissionDeniedTitle": "マイクへのアクセス",
+      "openSettings": "設定を開く"
     }
   },
   "reviewPrompt": {
@@ -588,6 +604,9 @@
     "customCard": {
       "title": "カスタムカードを追加",
       "description": "写真がない?聞いたフレーズ?大丈夫。ここに入力すればOK。"
+    },
+    "dictate": {
+      "title": "ディクテーション"
     },
     "reviewCards": {
       "title": "カードを復習",

@@ -32,6 +32,7 @@ import { useContentPadding } from './hooks/useContentPadding';
 import { useAuth } from './context/AuthContext';
 import { useOnboarding } from './context/OnboardingContext';
 import { initializeSyncManager } from './services/syncManager';
+import { configurePurchases } from './services/revenueCatService';
 import * as SplashScreen from 'expo-splash-screen';
 import {
   useFonts,
@@ -384,6 +385,13 @@ export default function RootLayout() {
   useEffect(() => {
     const unsubscribe = initializeSyncManager();
     return () => unsubscribe();
+  }, []);
+
+  // Initialize RevenueCat SDK early (before subscription-dependent UI)
+  useEffect(() => {
+    configurePurchases().catch((err) => {
+      logger.warn('[RootLayout] RevenueCat configure failed:', err);
+    });
   }, []);
 
   return (

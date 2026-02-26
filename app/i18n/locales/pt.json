@@ -498,6 +498,8 @@
   },
   "textInput": {
     "placeholder": "Digite o texto para traduzir",
+    "placeholderWithLanguage": "Digite o texto para traduzir para {{language}}",
+    "targetPlaceholderWithLanguage": "{{language}} aparecerá aqui",
     "cancel": "Cancelar",
     "wordScope": "WordScope",
     "translate": "Traduzir"
@@ -555,6 +557,19 @@
       "organizeBullet": "Organizar cartões, criar coleções, reordenar e excluir",
       "dontShowAgain": "Não mostrar novamente",
       "gotIt": "Entendi"
+    },
+    "customCard": {
+      "title": "Adicionar Cartão Personalizado",
+      "description": "Crie um cartão personalizado manualmente digitando texto diretamente. Perfeito para adicionar cartões sem tirar uma foto."
+    },
+    "dictate": {
+      "title": "Ditar",
+      "recordButton": "Iniciar entrada por voz",
+      "stopRecordButton": "Parar entrada por voz",
+      "recording": "Ouvindo...",
+      "permissionDenied": "Acesso ao microfone é necessário para entrada por voz.",
+      "permissionDeniedTitle": "Acesso ao microfone",
+      "openSettings": "Abrir configurações"
     }
   },
   "reviewPrompt": {
@@ -585,6 +600,9 @@
     "customCard": {
       "title": "Adicionar Cartão Personalizado",
       "description": "Crie um cartão personalizado manualmente digitando texto diretamente. Perfeito para adicionar cartões sem tirar uma foto."
+    },
+    "dictate": {
+      "title": "Ditar"
     },
     "reviewCards": {
       "title": "Revisar Cartões",

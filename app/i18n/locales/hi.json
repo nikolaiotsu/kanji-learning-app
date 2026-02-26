@@ -490,6 +490,8 @@
   },
   "textInput": {
     "placeholder": "अनुवाद के लिए पाठ दर्ज करें",
+    "placeholderWithLanguage": "{{language}} में अनुवाद के लिए पाठ दर्ज करें",
+    "targetPlaceholderWithLanguage": "{{language}} यहां दिखाई देगा",
     "cancel": "रद्द करें",
     "translate": "अनुवाद करें"
   },
@@ -546,6 +548,19 @@
       "organizeBullet": "कार्ड व्यवस्थित करें, नए संग्रह बनाएं, क्रम बदलें और हटाएं",
       "dontShowAgain": "दोबारा न दिखाएं",
       "gotIt": "समझ गया"
+    },
+    "customCard": {
+      "title": "कस्टम कार्ड जोड़ें",
+      "description": "सीधे पाठ दर्ज करके कस्टम फ्लैशकार्ड बनाएं। फोटो लिए बिना कार्ड जोड़ने के लिए एकदम सही।"
+    },
+    "dictate": {
+      "title": "डिक्टेट",
+      "recordButton": "वॉयस इनपुट शुरू करें",
+      "stopRecordButton": "वॉयस इनपुट बंद करें",
+      "recording": "सुन रहा है...",
+      "permissionDenied": "वॉयस इनपुट के लिए माइक्रोफ़ोन एक्सेस की आवश्यकता है।",
+      "permissionDeniedTitle": "माइक्रोफ़ोन एक्सेस",
+      "openSettings": "सेटिंग्स खोलें"
     }
   },
   "reviewPrompt": {
@@ -581,6 +596,9 @@
     "customCard": {
       "title": "कस्टम कार्ड जोड़ें",
       "description": "सीधे पाठ दर्ज करके कस्टम फ्लैशकार्ड बनाएं। फोटो लिए बिना कार्ड जोड़ने के लिए एकदम सही।"
+    },
+    "dictate": {
+      "title": "डिक्टेट"
     },
     "reviewCards": {
       "title": "कार्ड की समीक्षा करें",

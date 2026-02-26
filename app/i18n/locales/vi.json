@@ -498,6 +498,8 @@
   },
   "textInput": {
     "placeholder": "Nhập văn bản để dịch",
+    "placeholderWithLanguage": "Nhập văn bản để dịch sang {{language}}",
+    "targetPlaceholderWithLanguage": "{{language}} sẽ xuất hiện tại đây",
     "cancel": "Hủy",
     "wordScope": "WordScope",
     "translate": "Dịch"
@@ -555,6 +557,19 @@
       "organizeBullet": "Sắp xếp thẻ, tạo bộ sưu tập mới, sắp xếp lại và xóa",
       "dontShowAgain": "Không hiển thị lại",
       "gotIt": "Đã hiểu"
+    },
+    "customCard": {
+      "title": "Thêm Thẻ Tùy chỉnh",
+      "description": "Tạo thẻ tùy chỉnh thủ công bằng cách nhập văn bản trực tiếp. Hoàn hảo cho việc thêm thẻ mà không cần chụp ảnh."
+    },
+    "dictate": {
+      "title": "Đọc chính tả",
+      "recordButton": "Bắt đầu nhập bằng giọng nói",
+      "stopRecordButton": "Dừng nhập bằng giọng nói",
+      "recording": "Đang nghe...",
+      "permissionDenied": "Cần quyền truy cập microphone để nhập bằng giọng nói.",
+      "permissionDeniedTitle": "Quyền truy cập microphone",
+      "openSettings": "Mở cài đặt"
     }
   },
   "reviewPrompt": {
@@ -585,6 +600,9 @@
     "customCard": {
       "title": "Thêm Thẻ Tùy chỉnh",
       "description": "Tạo thẻ tùy chỉnh thủ công bằng cách nhập văn bản trực tiếp. Hoàn hảo cho việc thêm thẻ mà không cần chụp ảnh."
+    },
+    "dictate": {
+      "title": "Đọc chính tả"
     },
     "reviewCards": {
       "title": "Ôn tập Thẻ",

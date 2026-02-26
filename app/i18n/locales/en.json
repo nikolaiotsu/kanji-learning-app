@@ -501,6 +501,9 @@
   },
   "textInput": {
     "placeholder": "Enter text to translate",
+    "placeholderWithLanguage": "Enter {{language}} to translate",
+    "targetPlaceholder": "Translation will appear here",
+    "targetPlaceholderWithLanguage": "{{language}} will appear here",
     "cancel": "Cancel",
     "wordScope": "WordScope",
     "translate": "Translate"
@@ -558,6 +561,19 @@
       "organizeBullet": "Organize cards into new collections, reorder, and delete",
       "dontShowAgain": "Don't show again",
       "gotIt": "Got it"
+    },
+    "customCard": {
+      "title": "Add Custom Card",
+      "description": "No image? Heard a phrase? No problem. Type it in here."
+    },
+    "dictate": {
+      "title": "Dictate",
+      "recordButton": "Start voice input",
+      "stopRecordButton": "Stop voice input",
+      "recording": "Listening...",
+      "permissionDenied": "Microphone access is needed for voice input.",
+      "permissionDeniedTitle": "Microphone Access",
+      "openSettings": "Open Settings"
     }
   },
   "reviewPrompt": {
@@ -588,6 +604,9 @@
     "customCard": {
       "title": "Add Custom Card",
       "description": "No image? Heard a phrase? No problem. Type it in here."
+    },
+    "dictate": {
+      "title": "Dictate"
     },
     "collections": {
       "title": "Collections",

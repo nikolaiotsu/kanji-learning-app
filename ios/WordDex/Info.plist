@@ -39,7 +39,7 @@
       </dict>
     </array>
     <key>CFBundleVersion</key>
-    <string>2</string>
+    <string>3</string>
     <key>EXDefaultScreenOrientationMask</key>
     <string>UIInterfaceOrientationMaskPortrait</string>
     <key>ITSAppUsesNonExemptEncryption</key>
@@ -58,9 +58,11 @@
     <key>NSCameraUsageDescription</key>
     <string>WordDex uses your camera to scan text and create flashcards for language learning.</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your microphone</string>
+    <string>WordDex uses the microphone for voice input when you dictate text.</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>WordDex accesses your photos to create flashcards from images containing text.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>WordDex uses speech recognition to transcribe your voice.</string>
     <key>NSUserActivityTypes</key>
     <array>
       <string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>

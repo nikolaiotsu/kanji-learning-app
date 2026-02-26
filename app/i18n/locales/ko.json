@@ -497,6 +497,9 @@
   },
   "textInput": {
     "placeholder": "번역할 텍스트 입력",
+    "placeholderWithLanguage": "{{language}}(으)로 번역할 텍스트 입력",
+    "targetPlaceholder": "번역이 여기에 표시됩니다",
+    "targetPlaceholderWithLanguage": "{{language}}이(가) 여기에 표시됩니다",
     "cancel": "취소",
     "translate": "번역"
   },
@@ -553,6 +556,19 @@
       "organizeBullet": "카드 정리, 새 컬렉션 만들기, 순서 변경 및 삭제",
       "dontShowAgain": "다시 표시하지 않기",
       "gotIt": "확인"
+    },
+    "customCard": {
+      "title": "커스텀 카드 추가",
+      "description": "텍스트를 직접 입력하여 커스텀 플래시카드를 만드세요. 사진 없이 카드를 추가하는 데 완벽합니다."
+    },
+    "dictate": {
+      "title": "받아쓰기",
+      "recordButton": "음성 입력 시작",
+      "stopRecordButton": "음성 입력 중지",
+      "recording": "듣는 중...",
+      "permissionDenied": "음성 입력에는 마이크 권한이 필요합니다.",
+      "permissionDeniedTitle": "마이크 접근",
+      "openSettings": "설정 열기"
     }
   },
   "reviewPrompt": {
@@ -588,6 +604,9 @@
     "customCard": {
       "title": "커스텀 카드 추가",
       "description": "텍스트를 직접 입력하여 커스텀 플래시카드를 만드세요. 사진 없이 카드를 추가하는 데 완벽합니다."
+    },
+    "dictate": {
+      "title": "받아쓰기"
     },
     "reviewCards": {
       "title": "카드 복습",

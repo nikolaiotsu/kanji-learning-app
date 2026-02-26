@@ -1,36 +1,35 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
-import Constants, { ExecutionEnvironment } from 'expo-constants';
-
-// expo-in-app-purchases requires native code and is NOT available in Expo Go.
-// Conditionally load it only when running in a development build or production.
-let InAppPurchases: typeof import('expo-in-app-purchases') | null = null;
-if (Constants.executionEnvironment !== ExecutionEnvironment.StoreClient) {
-  try {
-    InAppPurchases = require('expo-in-app-purchases');
-  } catch {
-    InAppPurchases = null;
-  }
-}
-import { SubscriptionContextType, SubscriptionState, SubscriptionPlan, IAPProduct } from '../../types';
-import { SUBSCRIPTION_PLANS, PRODUCT_IDS } from '../constants/config';
-import { useAuth } from './AuthContext';
-import { 
-  validateReceipt, 
-  fetchSubscriptionStatus, 
-  isSubscriptionValid,
-  getSubscriptionPlan,
+import Constants from 'expo-constants';
+import type { CustomerInfo } from 'react-native-purchases';
+import {
+  getCustomerInfo,
+  hasEntitlement,
+  purchaseByProductId,
+  restorePurchases as revenueCatRestore,
+  addCustomerInfoUpdateListener,
+  ENTITLEMENT_ID,
+  isRevenueCatConfigured,
+} from '../services/revenueCatService';
+import {
   setTestingSubscriptionOverride,
-  clearTestingSubscriptionOverride
+  clearTestingSubscriptionOverride,
 } from '../services/receiptValidationService';
-
+import { SubscriptionContextType, SubscriptionState, SubscriptionPlan, IAPProduct } from '../../types';
+import { SUBSCRIPTION_PLANS } from '../constants/config';
+import { useAuth } from './AuthContext';
+import { getOfferings } from '../services/revenueCatService';
 import { logger } from '../utils/logger';
-// Storage key for subscription data
-const SUBSCRIPTION_STORAGE_KEY = 'user_subscription_data';
 
-// Determine if we're in development mode
+const SUBSCRIPTION_STORAGE_KEY = 'user_subscription_data';
 const isDevelopment = __DEV__ || Constants.appOwnership === 'expo';
+
+function mapCustomerInfoToSubscriptionState(hasPremium: boolean): SubscriptionState {
+  return {
+    plan: hasPremium ? 'PREMIUM' : 'FREE',
+    isActive: hasPremium,
+  };
+}
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
 
@@ -44,7 +43,16 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [availableProducts, setAvailableProducts] = useState<IAPProduct[]>([]);
-  
+
+  const applySubscriptionFromCustomerInfo = useCallback(
+    (customerInfo: CustomerInfo | null) => {
+      const hasPremium = hasEntitlement(customerInfo, ENTITLEMENT_ID);
+      const newState = mapCustomerInfoToSubscriptionState(hasPremium);
+      setSubscription(newState);
+    },
+    []
+  );
+
   // When guest, always show FREE (no premium)
   useEffect(() => {
     if (isGuest) {
@@ -52,239 +60,113 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
       setIsSubscriptionReady(true);
     }
   }, [isGuest]);
-  
-  // Initialize IAP and subscription data (guests always FREE; load stored subscription only when not guest)
-  useEffect(() => {
-    initializeIAP();
-    loadSubscriptionData();
-    
-    return () => {
-      // Cleanup: disconnect IAP when component unmounts
-      if (!isDevelopment && InAppPurchases) {
-        InAppPurchases.disconnectAsync().catch((err) => 
-          logger.error('Error disconnecting IAP:', err)
-        );
-      }
-    };
-  }, [isGuest]);
-  
-  // Initialize In-App Purchases
-  const initializeIAP = async () => {
-    if (isDevelopment || !InAppPurchases) {
-      logger.log('Development mode or Expo Go: Skipping real IAP initialization');
-      return;
-    }
-    
-    try {
-      logger.log('Initializing In-App Purchases...');
-      await InAppPurchases.connectAsync();
-      logger.log('IAP connected successfully');
-      
-      // Set up purchase listener
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- IAP types require expo-in-app-purchases which may be null in Expo Go
-      InAppPurchases.setPurchaseListener(handlePurchaseUpdate as any);
-      
-      // Fetch available products
-      await fetchProducts();
-    } catch (error) {
-      logger.error('Failed to initialize IAP:', error);
-      setError('Failed to connect to the App Store');
-    }
-  };
-  
-  // Fetch products from the App Store
-  const fetchProducts = async () => {
-    if (!InAppPurchases) return;
-    try {
-      const productIds = [PRODUCT_IDS.PREMIUM_MONTHLY, PRODUCT_IDS.PREMIUM_YEARLY];
-      logger.log('Fetching products:', productIds);
-      
-      const { responseCode, results } = await InAppPurchases.getProductsAsync(productIds);
-      
-      if (InAppPurchases && responseCode === InAppPurchases.IAPResponseCode.OK && results) {
-        const products: IAPProduct[] = results.map((product: any) => ({
-          productId: product.productId,
-          price: product.price,
-          localizedPrice: product.localizedPrice || product.price,
-          title: product.title,
-          description: product.description,
-          type: product.type || 'subscription',
-        }));
-        
-        setAvailableProducts(products);
-        logger.log('Products fetched successfully:', products);
-      } else {
-        logger.error('Failed to fetch products, response code:', responseCode);
-      }
-    } catch (error) {
-      logger.error('Error fetching products:', error);
-    }
-  };
-  
-  // Handle purchase updates from the App Store (uses expo-in-app-purchases IAPQueryResponse<InAppPurchase>)
-  const handlePurchaseUpdate = (result: { responseCode: number; results?: Array<{ productId: string; transactionReceipt?: string; purchaseTime: number; acknowledged?: boolean; [key: string]: unknown }>; errorCode?: number }) => {
-    if (!InAppPurchases) return;
-    const { responseCode, results, errorCode } = result;
-    
-    logger.log('Purchase update received:', { responseCode, errorCode });
-    
-    if (InAppPurchases && responseCode === InAppPurchases.IAPResponseCode.OK && results) {
-      results.forEach(async (purchase) => {
-        if (!purchase.acknowledged) {
-          logger.log('Processing new purchase:', purchase.productId);
-          
-          // Validate receipt with server
-          if (purchase.transactionReceipt) {
-            logger.log('Validating receipt with server...');
-            const validationResult = await validateReceipt(
-              purchase.transactionReceipt,
-              purchase.productId
-            );
-            
-            if (validationResult.success && validationResult.subscription) {
-              const serverSub = validationResult.subscription;
-              
-              // Update local subscription state with server-validated data
-              const newSubscription: SubscriptionState = {
-                plan: 'PREMIUM',
-                isActive: serverSub.isActive,
-                purchaseDate: new Date(serverSub.purchaseDate),
-                expiryDate: new Date(serverSub.expiresDate),
-                receipt: purchase.transactionReceipt,
-              };
-              
-              await saveSubscriptionData(newSubscription);
-              setSubscription(newSubscription);
-              logger.log('Receipt validated and subscription updated');
-            } else {
-              logger.error('Receipt validation failed:', validationResult.error);
-              setError(`Validation failed: ${validationResult.error}`);
-              
-              // Still grant temporary access while we investigate
-              const tempSubscription: SubscriptionState = {
-                plan: 'PREMIUM',
-                isActive: true,
-                purchaseDate: new Date(purchase.purchaseTime),
-                expiryDate: new Date(purchase.purchaseTime + 30 * 24 * 60 * 60 * 1000),
-                receipt: purchase.transactionReceipt,
-              };
-              
-              await saveSubscriptionData(tempSubscription);
-              setSubscription(tempSubscription);
-            }
-          } else {
-            logger.error('No transaction receipt available');
-          }
-          
-          // Acknowledge the purchase (important!)
-          if (InAppPurchases) await InAppPurchases.finishTransactionAsync(purchase as never, true);
-          logger.log('Purchase acknowledged successfully');
-        }
-      });
-    } else if (InAppPurchases && responseCode === InAppPurchases.IAPResponseCode.USER_CANCELED) {
-      logger.log('User canceled the purchase');
-      setError('Purchase was canceled');
-    } else if (errorCode !== undefined) {
-      const errorMessage = InAppPurchases && typeof errorCode === 'number' ? InAppPurchases.IAPErrorCode[errorCode] ?? String(errorCode) : String(errorCode);
-      logger.error('Purchase error:', errorMessage);
-      setError(`Purchase failed: ${errorMessage}`);
-    }
-  };
 
-  const loadSubscriptionData = async () => {
-    try {
-      if (isGuest) {
+  // Load subscription from RevenueCat (or dev override)
+  useEffect(() => {
+    if (isGuest) return;
+
+    let unsubscribe: (() => void) | null = null;
+
+    const loadSubscription = async () => {
+      try {
+        // Development: check testing override first
+        if (isDevelopment) {
+          const storedData = await AsyncStorage.getItem(SUBSCRIPTION_STORAGE_KEY);
+          if (storedData) {
+            const data: SubscriptionState = JSON.parse(storedData);
+            if (data.plan === 'PREMIUM' && data.expiryDate && new Date(data.expiryDate) > new Date()) {
+              setSubscription({
+                ...data,
+                expiryDate: new Date(data.expiryDate),
+                purchaseDate: data.purchaseDate ? new Date(data.purchaseDate) : undefined,
+              });
+              setIsSubscriptionReady(true);
+              return;
+            }
+          }
+        }
+
+        if (!isRevenueCatConfigured()) {
+          logger.log('[Subscription] RevenueCat not configured (Expo Go?), defaulting to FREE');
+          setSubscription({ plan: 'FREE', isActive: false });
+          setIsSubscriptionReady(true);
+          return;
+        }
+
+        const customerInfo = await getCustomerInfo();
+        applySubscriptionFromCustomerInfo(customerInfo);
+
+        // Fetch offerings to populate availableProducts
+        const offeringsData = await getOfferings();
+        if (offeringsData?.current?.availablePackages) {
+          const products: IAPProduct[] = offeringsData.current.availablePackages.map((pkg) => ({
+            productId: pkg.product.identifier,
+            price: String(pkg.product.price),
+            localizedPrice: pkg.product.priceString,
+            title: pkg.product.title,
+            description: pkg.product.description ?? '',
+            type: 'subscription',
+          }));
+          setAvailableProducts(products);
+        }
+
+        setIsSubscriptionReady(true);
+      } catch (err) {
+        logger.error('[Subscription] Error loading subscription:', err);
         setSubscription({ plan: 'FREE', isActive: false });
         setIsSubscriptionReady(true);
-        return;
       }
-      // In production, load from server
-      if (!isDevelopment) {
-        logger.log('Loading subscription from server...');
-        const dbSubscription = await fetchSubscriptionStatus();
-        
-        if (dbSubscription && isSubscriptionValid(dbSubscription)) {
-          const subscriptionState: SubscriptionState = {
-            plan: 'PREMIUM',
-            isActive: true,
-            purchaseDate: new Date(dbSubscription.purchase_date),
-            expiryDate: new Date(dbSubscription.expires_date),
-            receipt: dbSubscription.receipt_data,
-          };
-          
-          setSubscription(subscriptionState);
-          await saveSubscriptionData(subscriptionState);
-          logger.log('Loaded active subscription from server');
-          setIsSubscriptionReady(true);
-          return;
-        } else {
-          logger.log('No active subscription found on server');
-          await resetToFreeSubscription();
-          setIsSubscriptionReady(true);
-          return;
-        }
-      }
-      
-      // Development mode: load from local storage
-      const storedData = await AsyncStorage.getItem(SUBSCRIPTION_STORAGE_KEY);
-      if (storedData) {
-        const data: SubscriptionState = JSON.parse(storedData);
-        
-        // Check if subscription is still valid
-        if (data.expiryDate && new Date(data.expiryDate) > new Date()) {
-          setSubscription({
-            ...data,
-            expiryDate: new Date(data.expiryDate),
-            purchaseDate: data.purchaseDate ? new Date(data.purchaseDate) : undefined,
-          });
-        } else {
-          // Subscription expired, reset to free
-          await resetToFreeSubscription();
-        }
-      }
-      setIsSubscriptionReady(true);
-    } catch (error) {
-      logger.error('Error loading subscription data:', error);
-      await resetToFreeSubscription();
-      setIsSubscriptionReady(true);
+    };
+
+    loadSubscription();
+
+    // Subscribe to customer info updates (purchase, restore, renewal)
+    if (isRevenueCatConfigured()) {
+      unsubscribe = addCustomerInfoUpdateListener((info) => {
+        applySubscriptionFromCustomerInfo(info);
+      });
     }
-  };
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [isGuest, applySubscriptionFromCustomerInfo]);
 
   const purchaseSubscription = async (productId: string): Promise<boolean> => {
     try {
       setIsLoading(true);
       setError(null);
-      
-      // Development mode: Simulate purchase
+
       if (isDevelopment) {
-        logger.log('Development mode: Simulating premium purchase');
-        const newSubscription: SubscriptionState = {
+        logger.log('[Subscription] Dev mode: simulating premium purchase');
+        const newState: SubscriptionState = {
           plan: 'PREMIUM',
           isActive: true,
           purchaseDate: new Date(),
-          expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+          expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           receipt: 'dev_receipt_' + Date.now(),
         };
-        
-        await saveSubscriptionData(newSubscription);
-        setSubscription(newSubscription);
+        setSubscription(newState);
+        await AsyncStorage.setItem(SUBSCRIPTION_STORAGE_KEY, JSON.stringify(newState));
         return true;
       }
-      
-      // Production mode: Real IAP purchase
-      logger.log('Initiating real IAP purchase for:', productId);
-      
-      // Purchase the item
-      if (!InAppPurchases) return false;
-      await InAppPurchases.purchaseItemAsync(productId);
-      
-      // The purchase result will be handled by the purchase listener
-      // Return true to indicate the purchase was initiated successfully
-      return true;
-      
-    } catch (error: any) {
-      logger.error('Purchase failed:', error);
-      setError(`Purchase failed: ${error.message || 'Unknown error'}`);
+
+      if (!isRevenueCatConfigured()) {
+        setError('Purchases not available');
+        return false;
+      }
+
+      const result = await purchaseByProductId(productId);
+      if (result.success && result.customerInfo) {
+        applySubscriptionFromCustomerInfo(result.customerInfo);
+        return true;
+      }
+      setError(result.error ?? 'Purchase failed');
+      return false;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error('[Subscription] Purchase failed:', err);
+      setError(msg);
       return false;
     } finally {
       setIsLoading(false);
@@ -295,15 +177,12 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     try {
       setIsLoading(true);
       setError(null);
-      
-      // Development mode: Check local storage
+
       if (isDevelopment) {
-        logger.log('Development mode: Checking for stored premium subscription');
         const storedData = await AsyncStorage.getItem(SUBSCRIPTION_STORAGE_KEY);
         if (storedData) {
           const data: SubscriptionState = JSON.parse(storedData);
           if (data.plan === 'PREMIUM' && data.expiryDate && new Date(data.expiryDate) > new Date()) {
-            logger.log('Restored premium subscription from storage');
             setSubscription({
               ...data,
               expiryDate: new Date(data.expiryDate),
@@ -312,61 +191,25 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
             return true;
           }
         }
-        
-        logger.log('No premium subscription found to restore');
         return false;
       }
-      
-      // Production mode: Restore from App Store
-      logger.log('Restoring purchases from App Store...');
-      
-      if (!InAppPurchases) return false;
-      const { responseCode, results } = await InAppPurchases.getPurchaseHistoryAsync();
-      
-      if (responseCode === InAppPurchases.IAPResponseCode.OK && results && results.length > 0) {
-        logger.log('Found purchase history:', results);
-        
-        // Find the most recent premium subscription
-        const premiumPurchase = results.find(
-          (purchase: any) => 
-            purchase.productId === PRODUCT_IDS.PREMIUM_MONTHLY || 
-            purchase.productId === PRODUCT_IDS.PREMIUM_YEARLY
-        );
-        
-        if (premiumPurchase) {
-          // Calculate expiry based on product type
-          const duration = premiumPurchase.productId === PRODUCT_IDS.PREMIUM_YEARLY 
-            ? 365 * 24 * 60 * 60 * 1000 // 1 year
-            : 30 * 24 * 60 * 60 * 1000; // 30 days
-          
-          const expiryDate = new Date((premiumPurchase as any).purchaseTime + duration);
-          
-          // Check if subscription is still valid
-          if (expiryDate > new Date()) {
-            const restoredSubscription: SubscriptionState = {
-              plan: 'PREMIUM',
-              isActive: true,
-              purchaseDate: new Date((premiumPurchase as any).purchaseTime),
-              expiryDate: expiryDate,
-              receipt: (premiumPurchase as any).transactionReceipt,
-            };
-            
-            await saveSubscriptionData(restoredSubscription);
-            setSubscription(restoredSubscription);
-            logger.log('Successfully restored premium subscription');
-            return true;
-          } else {
-            logger.log('Found premium purchase but it has expired');
-          }
-        }
+
+      if (!isRevenueCatConfigured()) {
+        setError('Purchases not available');
+        return false;
       }
-      
-      logger.log('No premium subscription found to restore');
+
+      const result = await revenueCatRestore();
+      if (result.success && result.customerInfo) {
+        applySubscriptionFromCustomerInfo(result.customerInfo);
+        return true;
+      }
+      setError(result.error ?? 'Restore failed');
       return false;
-      
-    } catch (error) {
-      logger.error('Failed to restore purchases:', error);
-      setError('Failed to restore purchases');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error('[Subscription] Restore failed:', err);
+      setError(msg);
       return false;
     } finally {
       setIsLoading(false);
@@ -374,104 +217,53 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
   };
 
   const checkSubscriptionStatus = async (): Promise<void> => {
-    // In production, re-validate with server
-    if (!isDevelopment) {
-      logger.log('Checking subscription status with server...');
-      const dbSubscription = await fetchSubscriptionStatus();
-      
-      if (dbSubscription && isSubscriptionValid(dbSubscription)) {
-        const subscriptionState: SubscriptionState = {
-          plan: 'PREMIUM',
-          isActive: true,
-          purchaseDate: new Date(dbSubscription.purchase_date),
-          expiryDate: new Date(dbSubscription.expires_date),
-          receipt: dbSubscription.receipt_data,
-        };
-        
-        setSubscription(subscriptionState);
-        await saveSubscriptionData(subscriptionState);
-      } else {
-        logger.log('Subscription no longer valid, resetting to free');
-        await resetToFreeSubscription();
+    if (isGuest) return;
+    if (isDevelopment) {
+      const storedData = await AsyncStorage.getItem(SUBSCRIPTION_STORAGE_KEY);
+      if (storedData) {
+        const data: SubscriptionState = JSON.parse(storedData);
+        if (data.expiryDate && new Date(data.expiryDate) <= new Date()) {
+          setSubscription({ plan: 'FREE', isActive: false });
+          await AsyncStorage.removeItem(SUBSCRIPTION_STORAGE_KEY);
+        }
       }
       return;
     }
-    
-    // Development mode: check local expiry date
-    if (subscription.expiryDate && new Date(subscription.expiryDate) <= new Date()) {
-      await resetToFreeSubscription();
-    }
+    if (!isRevenueCatConfigured()) return;
+    const customerInfo = await getCustomerInfo();
+    applySubscriptionFromCustomerInfo(customerInfo);
   };
 
-  const saveSubscriptionData = async (subscriptionData: SubscriptionState) => {
-    try {
-      await AsyncStorage.setItem(SUBSCRIPTION_STORAGE_KEY, JSON.stringify(subscriptionData));
-    } catch (error) {
-      logger.error('Error saving subscription data:', error);
-    }
-  };
-
-  const resetToFreeSubscription = async () => {
-    const freeSubscription: SubscriptionState = {
-      plan: 'FREE',
-      isActive: false,
-    };
-    
-    setSubscription(freeSubscription);
-    await saveSubscriptionData(freeSubscription);
-  };
-
-  // Testing function to manually switch subscription plans
-  // This works in both development AND preview/TestFlight builds
   const setTestingSubscriptionPlan = async (plan: SubscriptionPlan) => {
-    const expiryDate = plan === 'PREMIUM' ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : undefined; // 30 days from now
-    
-    const testingSubscription: SubscriptionState = {
-      plan: plan,
+    const expiryDate =
+      plan === 'PREMIUM' ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : undefined;
+    const testingState: SubscriptionState = {
+      plan,
       isActive: plan === 'PREMIUM',
       purchaseDate: plan === 'PREMIUM' ? new Date() : undefined,
-      expiryDate: expiryDate,
+      expiryDate,
       receipt: plan === 'PREMIUM' ? 'testing_receipt_' + Date.now() : undefined,
     };
-    
-    // Update local context state
-    setSubscription(testingSubscription);
-    await saveSubscriptionData(testingSubscription);
-    
-    // IMPORTANT: Also set the testing override for preview/production builds
-    // This ensures getCurrentSubscriptionPlan() returns the correct plan even in builds where __DEV__ is false
+    setSubscription(testingState);
+    await AsyncStorage.setItem(SUBSCRIPTION_STORAGE_KEY, JSON.stringify(testingState));
     if (plan === 'PREMIUM') {
       await setTestingSubscriptionOverride(plan, expiryDate);
     } else {
-      // When switching to FREE, clear the testing override
       await clearTestingSubscriptionOverride();
     }
-    
-    logger.log('Testing subscription plan set to:', plan);
+    logger.log('[Subscription] Testing plan set to:', plan);
   };
 
-  // Helper functions
-  const getMaxOCRScans = (): number => {
-    return SUBSCRIPTION_PLANS[subscription.plan].ocrScansPerDay;
-  };
-
+  const getMaxOCRScans = (): number =>
+    SUBSCRIPTION_PLANS[subscription.plan].ocrScansPerDay;
   const getMaxFlashcards = (): number => {
     const limit = SUBSCRIPTION_PLANS[subscription.plan].flashcardsPerDay;
-    // -1 represents unlimited for premium users
     return limit === -1 ? Number.MAX_SAFE_INTEGER : limit;
   };
-
-  const getMaxDecks = (): number => {
-    return SUBSCRIPTION_PLANS[subscription.plan].maxDecks;
-  };
-
-  const canShowAds = (): boolean => {
-    return SUBSCRIPTION_PLANS[subscription.plan].showAds;
-  };
-
-  const hasPremiumFeature = (feature: string): boolean => {
-    return SUBSCRIPTION_PLANS[subscription.plan].features.includes(feature);
-  };
+  const getMaxDecks = (): number => SUBSCRIPTION_PLANS[subscription.plan].maxDecks;
+  const canShowAds = (): boolean => SUBSCRIPTION_PLANS[subscription.plan].showAds;
+  const hasPremiumFeature = (feature: string): boolean =>
+    SUBSCRIPTION_PLANS[subscription.plan].features.includes(feature);
 
   return (
     <SubscriptionContext.Provider
@@ -497,11 +289,10 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
   );
 };
 
-// Custom hook to use the subscription context
 export const useSubscription = (): SubscriptionContextType => {
   const context = useContext(SubscriptionContext);
   if (!context) {
     throw new Error('useSubscription must be used within a SubscriptionProvider');
   }
   return context;
-}; 
+};

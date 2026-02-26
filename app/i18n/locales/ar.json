@@ -497,6 +497,8 @@
   },
   "textInput": {
     "placeholder": "أدخل نصاً للترجمة",
+    "placeholderWithLanguage": "أدخل نصاً للترجمة إلى {{language}}",
+    "targetPlaceholderWithLanguage": "سيظهر {{language}} هنا",
     "cancel": "إلغاء",
     "translate": "ترجمة"
   },
@@ -553,6 +555,19 @@
       "organizeBullet": "تنظيم البطاقات، إنشاء مجموعات جديدة، إعادة الترتيب والحذف",
       "dontShowAgain": "عدم العرض مجددًا",
       "gotIt": "تم"
+    },
+    "customCard": {
+      "title": "إضافة بطاقة مخصصة",
+      "description": "أنشئ بطاقة مخصصة بإدخال النص مباشرة. مثالية لإضافة بطاقات بدون التقاط صورة."
+    },
+    "dictate": {
+      "title": "إملاء",
+      "recordButton": "بدء الإدخال الصوتي",
+      "stopRecordButton": "إيقاف الإدخال الصوتي",
+      "recording": "جاري الاستماع...",
+      "permissionDenied": "الوصول إلى الميكروفون ضروري للإدخال الصوتي.",
+      "permissionDeniedTitle": "الوصول إلى الميكروفون",
+      "openSettings": "فتح الإعدادات"
     }
   },
   "reviewPrompt": {
@@ -588,6 +603,9 @@
     "customCard": {
       "title": "إضافة بطاقة مخصصة",
       "description": "أنشئ بطاقة مخصصة بإدخال النص مباشرة. مثالية لإضافة بطاقات بدون التقاط صورة."
+    },
+    "dictate": {
+      "title": "إملاء"
     },
     "reviewCards": {
       "title": "مراجعة البطاقات",
