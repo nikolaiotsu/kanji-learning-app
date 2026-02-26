@@ -543,8 +543,9 @@
     "failedToTakePhoto": "写真の撮影に失敗しました",
     "customCardInstruction": {
       "title": "カスタムカードを追加",
-      "body": "スキャンせずに、入力または貼り付けたテキストでフラッシュカードを作成できます。",
+      "body": "入力、貼り付け、または音声でスキャンなしでフラッシュカードを作成できます。",
       "typeBullet": "任意の言語のテキストを入力または貼り付け",
+      "dictateBullet": "録音ボタンをタップして話す—聞いている間、波形が表示されます",
       "translateBullet": "翻訳と Wordscope 分析を取得",
       "dontShowAgain": "今後表示しない",
       "gotIt": "了解"

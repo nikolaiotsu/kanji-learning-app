@@ -543,8 +543,9 @@
     "failedToTakePhoto": "Error al tomar la foto",
     "customCardInstruction": {
       "title": "Añadir tarjeta personalizada",
-      "body": "Escribe o pega cualquier texto para crear una tarjeta sin escanear.",
+      "body": "Escribe, pega o dicta para crear una tarjeta sin escanear.",
       "typeBullet": "Escribe o pega texto en cualquier idioma",
+      "dictateBullet": "Toca el botón de grabación para hablar—se muestra una forma de onda al escuchar",
       "translateBullet": "Obtener traducciones y análisis Wordscope",
       "dontShowAgain": "No volver a mostrar",
       "gotIt": "Entendido"

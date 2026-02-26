@@ -14,6 +14,7 @@ import {
 import {
   setTestingSubscriptionOverride,
   clearTestingSubscriptionOverride,
+  TESTING_SUBSCRIPTION_OVERRIDE_KEY,
 } from '../services/receiptValidationService';
 import { SubscriptionContextType, SubscriptionState, SubscriptionPlan, IAPProduct } from '../../types';
 import { SUBSCRIPTION_PLANS } from '../constants/config';
@@ -69,7 +70,28 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     const loadSubscription = async () => {
       try {
-        // Development: check testing override first
+        // Always check testing override first (works in preview/TestFlight builds)
+        // This persists premium when set via Beta Testing section
+        try {
+          const testingOverride = await AsyncStorage.getItem(TESTING_SUBSCRIPTION_OVERRIDE_KEY);
+          if (testingOverride) {
+            const override = JSON.parse(testingOverride);
+            if (override.plan && (!override.expiryDate || new Date(override.expiryDate) > new Date())) {
+              setSubscription({
+                plan: override.plan,
+                isActive: override.plan === 'PREMIUM',
+                purchaseDate: override.setAt ? new Date(override.setAt) : undefined,
+                expiryDate: override.expiryDate ? new Date(override.expiryDate) : undefined,
+              });
+              setIsSubscriptionReady(true);
+              return;
+            }
+          }
+        } catch (overrideErr) {
+          logger.error('[Subscription] Error reading testing override:', overrideErr);
+        }
+
+        // Development: check legacy stored subscription
         if (isDevelopment) {
           const storedData = await AsyncStorage.getItem(SUBSCRIPTION_STORAGE_KEY);
           if (storedData) {

@@ -152,6 +152,16 @@ partOfSpeech: word1 [label] + word2 [label] + ... all words from source; labels 
 examples: 3 items; sentence in ${sourceLangName}, translation and note in ${targetLangName}. synonyms: 3 items; phrase in ${sourceLangName}, translation and nuance in ${targetLangName}. commonMistake: mistake IN ${sourceLangName} (scanned language)—wrong and correct in ${sourceLangName} only; reason in ${targetLangName}. grammar.explanation, commonMistake.reason in ${targetLangName}. All explanations and learner-facing text in ${targetLangName} only. Double-check. Period-end sentence-like fields. particles/baseForm only if needed (JA/KO).`;
 }
 
+/** Lite scope instructions when analyzing the TRANSLATION (output), not the input. Used in Dictate flow when front of card = translation. */
+export function buildScopeInstructionsForOutputLite(
+  scopeSourceLangName: string,
+  scopeTargetLangName: string
+): string {
+  return `CRITICAL: For grammar analysis, analyze YOUR TRANSLATION (the ${scopeSourceLangName} text in translatedText), NOT the input text.
+partOfSpeech: word1 [label] + word2 [label] + ... all words from YOUR TRANSLATION; labels in ${scopeTargetLangName}.
+examples: 3 items; sentence in ${scopeSourceLangName}, translation and note in ${scopeTargetLangName}. synonyms: 3 items; phrase in ${scopeSourceLangName}, translation and nuance in ${scopeTargetLangName}. commonMistake: mistake IN ${scopeSourceLangName}—wrong and correct in ${scopeSourceLangName} only; reason in ${scopeTargetLangName}. grammar.explanation, commonMistake.reason in ${scopeTargetLangName}. All explanations and learner-facing text in ${scopeTargetLangName} only. Double-check. Period-end sentence-like fields. particles/baseForm only if needed (JA/KO).`;
+}
+
 // Helper function to get grammar labels in the target language
 export function getGrammarLabels(targetLanguage: string): string {
   const labels: Record<string, string> = {

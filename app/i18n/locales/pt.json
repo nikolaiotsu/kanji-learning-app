@@ -544,8 +544,9 @@
     "failedToTakePhoto": "Falha ao tirar foto",
     "customCardInstruction": {
       "title": "Adicionar cartão personalizado",
-      "body": "Digite ou cole qualquer texto para criar um cartão sem digitalizar.",
+      "body": "Digite, cole ou fale para criar um cartão sem digitalizar.",
       "typeBullet": "Digite ou cole texto em qualquer idioma",
+      "dictateBullet": "Toque no botão de gravação para falar—uma forma de onda aparece ao escutar",
       "translateBullet": "Obter traduções e análise Wordscope",
       "dontShowAgain": "Não mostrar novamente",
       "gotIt": "Entendi"

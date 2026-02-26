@@ -11,7 +11,7 @@ module.exports = {
     newArchEnabled: false,
     scheme: "kanjilearningapp",
     splash: {
-      image: "./assets/worddexiconlogo.png",
+      image: "./assets/splash-transparent.png",
       resizeMode: "contain",
       backgroundColor: "#0A1628",
     },
@@ -22,7 +22,7 @@ module.exports = {
       'expo-dev-client',
       ['expo-splash-screen', {
         backgroundColor: "#0A1628",
-        image: "./assets/worddexiconlogo.png",
+        image: "./assets/splash-transparent.png",
         resizeMode: "contain",
       }],
       ['expo-screen-orientation', {

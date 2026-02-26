@@ -544,8 +544,9 @@
     "failedToTakePhoto": "Không thể chụp ảnh",
     "customCardInstruction": {
       "title": "Thêm thẻ tùy chỉnh",
-      "body": "Nhập hoặc dán văn bản bất kỳ để tạo thẻ ghi nhớ mà không cần quét.",
+      "body": "Nhập, dán hoặc nói để tạo thẻ ghi nhớ mà không cần quét.",
       "typeBullet": "Nhập hoặc dán văn bản bằng bất kỳ ngôn ngữ nào",
+      "dictateBullet": "Chạm vào nút ghi âm để nói—sóng âm hiển thị khi đang nghe",
       "translateBullet": "Nhận bản dịch và phân tích Wordscope",
       "dontShowAgain": "Không hiển thị lại",
       "gotIt": "Đã hiểu"

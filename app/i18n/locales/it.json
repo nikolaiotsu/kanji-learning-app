@@ -544,8 +544,9 @@
     "failedToTakePhoto": "Scatto foto fallito",
     "customCardInstruction": {
       "title": "Aggiungi scheda personalizzata",
-      "body": "Digita o incolla qualsiasi testo per creare una scheda senza scansionare.",
+      "body": "Digita, incolla o parla per creare una scheda senza scansionare.",
       "typeBullet": "Digita o incolla testo in qualsiasi lingua",
+      "dictateBullet": "Tocca il pulsante di registrazione per parlare—si mostra una forma d'onda mentre ascolta",
       "translateBullet": "Ottieni traduzioni e analisi Wordscope",
       "dontShowAgain": "Non mostrare più",
       "gotIt": "Capito"

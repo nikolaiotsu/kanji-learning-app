@@ -543,8 +543,9 @@
     "failedToTakePhoto": "사진 촬영에 실패했습니다",
     "customCardInstruction": {
       "title": "맞춤 카드 추가",
-      "body": "스캔 없이 텍스트를 입력하거나 붙여넣어 플래시카드를 만드세요.",
+      "body": "입력, 붙여넣기 또는 음성으로 스캔 없이 플래시카드를 만드세요.",
       "typeBullet": "어떤 언어로든 텍스트 입력 또는 붙여넣기",
+      "dictateBullet": "녹음 버튼을 탭해서 말하세요—들을 때 파형이 표시됩니다",
       "translateBullet": "번역 및 Wordscope 분석 받기",
       "dontShowAgain": "다시 표시하지 않기",
       "gotIt": "확인"

@@ -545,8 +545,9 @@
     "failedToTakePhoto": "Foto konnte nicht aufgenommen werden",
     "customCardInstruction": {
       "title": "Eigene Karte hinzufügen",
-      "body": "Tippen oder fügen Sie Text ein, um ohne Scannen eine Karteikarte zu erstellen.",
+      "body": "Tippen, einfügen oder sprechen Sie, um ohne Scannen eine Karteikarte zu erstellen.",
       "typeBullet": "Text in beliebiger Sprache eingeben oder einfügen",
+      "dictateBullet": "Aufnahme-Button antippen zum Sprechen—beim Zuhören wird eine Wellenform angezeigt",
       "translateBullet": "Übersetzungen und Wordscope-Analyse erhalten",
       "dontShowAgain": "Nicht mehr anzeigen",
       "gotIt": "Verstanden"

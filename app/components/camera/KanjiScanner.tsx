@@ -1545,7 +1545,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
         fromLang,
         textModalProgressCallback,
         subscriptionPlan,
-        outputNeedsReadings
+        outputNeedsReadings,
+        !isDictateSwapped // When not swapped, front of card = translation; analyze output with examples in output lang, explanations in input/UI lang
       );
 
       if (result.errorCode) {

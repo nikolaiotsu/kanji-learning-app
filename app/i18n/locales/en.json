@@ -548,8 +548,9 @@
     "failedToTakePhoto": "Failed to take photo",
     "customCardInstruction": {
       "title": "Add Custom Card",
-      "body": "Type or paste any text to create a flashcard without scanning.",
+      "body": "Type, paste, or speak to create a flashcard without scanning.",
       "typeBullet": "Type or paste text in any language",
+      "dictateBullet": "Tap the record button to speak—a waveform shows while it listens",
       "translateBullet": "Get translations and Wordscope analysis",
       "dontShowAgain": "Don't show again",
       "gotIt": "Got it"

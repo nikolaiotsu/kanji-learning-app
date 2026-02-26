@@ -542,8 +542,9 @@
     "failedToTakePhoto": "فشل في التقاط الصورة",
     "customCardInstruction": {
       "title": "إضافة بطاقة مخصصة",
-      "body": "اكتب أو الصق أي نص لإنشاء بطاقة بدون مسح.",
+      "body": "اكتب أو الصق أو انطق لإنشاء بطاقة بدون مسح.",
       "typeBullet": "اكتب أو الصق نصًا بأي لغة",
+      "dictateBullet": "اضغط على زر التسجيل للتحدث—يظهر waveform أثناء الاستماع",
       "translateBullet": "الحصول على الترجمات وتحليل Wordscope",
       "dontShowAgain": "عدم العرض مجددًا",
       "gotIt": "تم"

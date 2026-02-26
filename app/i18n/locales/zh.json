@@ -536,8 +536,9 @@
     "failedToTakePhoto": "拍照失败",
     "customCardInstruction": {
       "title": "添加自定义卡片",
-      "body": "输入或粘贴任意文字即可创建闪卡，无需扫描。",
+      "body": "输入、粘贴或语音输入任意文字即可创建闪卡，无需扫描。",
       "typeBullet": "输入或粘贴任意语言的文字",
+      "dictateBullet": "点击录音按钮说话—收听时会显示波形",
       "translateBullet": "获取翻译和 Wordscope 分析",
       "dontShowAgain": "不再显示",
       "gotIt": "知道了"

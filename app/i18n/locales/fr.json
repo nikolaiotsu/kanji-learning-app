@@ -545,8 +545,9 @@
     "failedToTakePhoto": "Échec de la prise de photo",
     "customCardInstruction": {
       "title": "Ajouter une carte personnalisée",
-      "body": "Saisissez ou collez du texte pour créer une fiche sans scanner.",
+      "body": "Saisissez, collez ou parlez pour créer une fiche sans scanner.",
       "typeBullet": "Saisir ou coller du texte dans n'importe quelle langue",
+      "dictateBullet": "Appuyez sur le bouton d'enregistrement pour parler—une forme d'onde s'affiche à l'écoute",
       "translateBullet": "Obtenir des traductions et l'analyse Wordscope",
       "dontShowAgain": "Ne plus afficher",
       "gotIt": "Compris"

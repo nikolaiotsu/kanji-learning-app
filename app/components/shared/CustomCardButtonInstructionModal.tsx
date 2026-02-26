@@ -2,7 +2,7 @@
  * CustomCardButtonInstructionModal
  *
  * Instructional modal shown when the user presses the Add Custom Card button for the first time.
- * Explains how to type or paste text to create flashcards without scanning.
+ * Explains how to type, paste, or use voice (Dictate) to create flashcards without scanning.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -14,7 +14,7 @@ import {
   StyleSheet,
   Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { COLORS } from '../../constants/colors';
 import { FONTS } from '../../constants/typography';
@@ -66,11 +66,15 @@ export default function CustomCardButtonInstructionModal({
 
           <View style={styles.bullets}>
             <View style={styles.bulletRow}>
-              <Ionicons name="create" size={18} color={COLORS.primary} style={styles.bulletIcon} />
+              <Ionicons name="create-outline" size={18} color={COLORS.primary} style={styles.bulletIcon} />
               <Text style={styles.bulletText}>{t('camera.customCardInstruction.typeBullet')}</Text>
             </View>
             <View style={styles.bulletRow}>
-              <Ionicons name="language" size={18} color={COLORS.primary} style={styles.bulletIcon} />
+              <MaterialCommunityIcons name="record-circle-outline" size={18} color={COLORS.primary} style={styles.bulletIcon} />
+              <Text style={styles.bulletText}>{t('camera.customCardInstruction.dictateBullet')}</Text>
+            </View>
+            <View style={styles.bulletRow}>
+              <Ionicons name="language-outline" size={18} color={COLORS.primary} style={styles.bulletIcon} />
               <Text style={styles.bulletText}>{t('camera.customCardInstruction.translateBullet')}</Text>
             </View>
           </View>

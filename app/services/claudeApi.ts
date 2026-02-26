@@ -26,6 +26,7 @@ import {
   USE_LITE_PROMPTS,
   buildGeneralLanguageSystemPromptLite,
   buildScopeInstructionsLite,
+  buildScopeInstructionsForOutputLite,
   getGrammarLabels,
   ACCURATE_TRANSLATION_POLICY,
 } from './claude/prompts';
@@ -4357,6 +4358,7 @@ Format your response as valid JSON with these exact keys:
  * @param onProgress Optional callback for progress updates
  * @param subscriptionPlan Optional subscription plan to use for rate limiting (avoids re-fetching)
  * @param outputNeedsReadings When true, request readings on the translated output (Dictate mode)
+ * @param scopeAnalyzeOutput When true, analyze the TRANSLATION (output) for scope, not the input. Examples in output lang, explanations in input lang. Used when flashcard front = translation (Dictate not swapped).
  * @returns Promise with furiganaText, translatedText, and scopeAnalysis
  */
 export async function processWithClaudeAndScope(
@@ -4365,13 +4367,14 @@ export async function processWithClaudeAndScope(
   forcedLanguage: string = 'ja',
   onProgress?: (checkpoint: number) => void,
   subscriptionPlan?: 'PREMIUM' | 'FREE',
-  outputNeedsReadings?: boolean
+  outputNeedsReadings?: boolean,
+  scopeAnalyzeOutput?: boolean
 ): Promise<ClaudeResponse> {
   // When outputNeedsReadings is true (Dictate), the combined path expects source-language readings.
   // Use fallback so processWithClaude can apply output-readings prompts.
   if (outputNeedsReadings && (OUTPUT_READING_LANGUAGES as readonly string[]).includes(targetLanguage)) {
     logger.log('[WordScope Combined] outputNeedsReadings=true, using fallback for output readings');
-    return await processWithClaudeAndScopeFallback(text, targetLanguage, forcedLanguage, onProgress, subscriptionPlan, outputNeedsReadings);
+    return await processWithClaudeAndScopeFallback(text, targetLanguage, forcedLanguage, onProgress, subscriptionPlan, outputNeedsReadings, scopeAnalyzeOutput);
   }
 
   // OPTIMIZED: Combined single API call for translation + scope analysis
@@ -4507,6 +4510,10 @@ export async function processWithClaudeAndScope(
     const targetLangName = LANGUAGE_NAMES_MAP[targetLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'English';
     const sourceLangName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'the source language';
     
+    // When scopeAnalyzeOutput: analyze the TRANSLATION (output), not input. Examples in output lang, explanations in input lang.
+    const scopeSourceLangName = scopeAnalyzeOutput ? targetLangName : sourceLangName;
+    const scopeTargetLangName = scopeAnalyzeOutput ? sourceLangName : targetLangName;
+    
     // Check if source language needs readings (furigana/pinyin/romanization)
     const readingLanguages: { [key: string]: { name: string; readingType: string; format: string } } = {
       'ja': { name: 'Japanese', readingType: 'furigana', format: 'kanji(hiragana) e.g. 漢字(かんじ)' },
@@ -4521,10 +4528,15 @@ export async function processWithClaudeAndScope(
     const needsReadings = forcedLanguage in readingLanguages;
     const readingInfo = needsReadings ? readingLanguages[forcedLanguage] : null;
     
-    logger.log(`[WordScope Combined] Grammar analysis, needsReadings: ${needsReadings}`);
+    logger.log(`[WordScope Combined] Grammar analysis, needsReadings: ${needsReadings}, scopeAnalyzeOutput: ${scopeAnalyzeOutput}`);
     
     // Build scope instructions (lite - Haiku 4.5 optimized)
-    const scopeInstructions = buildScopeInstructionsLite(normalizedText, sourceLangName, targetLangName);
+    const scopeInstructions = scopeAnalyzeOutput
+      ? buildScopeInstructionsForOutputLite(scopeSourceLangName, scopeTargetLangName)
+      : buildScopeInstructionsLite(normalizedText, sourceLangName, targetLangName);
+
+    // For scope-related references in prompt: when scopeAnalyzeOutput, analyze the translation, not the input
+    const scopeTextRef = scopeAnalyzeOutput ? 'YOUR TRANSLATION (the translatedText output)' : `"${normalizedText}"`;
 
     // Build reading instructions. System prompt has full rules - use short reminder only.
     let readingTask = '';
@@ -4734,7 +4746,7 @@ You MUST respond with valid JSON in this exact format:
   "scopeAnalysis": {
     "word": "main word or key phrase from the source sentence",
     "reading": "pronunciation guide",
-    "partOfSpeech": "FULL sentence breakdown: word1 [label] + word2 [label] + word3 [label] + ... - analyze ALL words from '${normalizedText}'",
+    "partOfSpeech": "FULL sentence breakdown: word1 [label] + word2 [label] + word3 [label] + ... - analyze ALL words from ${scopeTextRef}",
     "baseForm": "dictionary form if different, otherwise omit this field",
     "grammar": {
       "explanation": "one clear sentence explaining the grammar pattern",
@@ -4744,17 +4756,17 @@ You MUST respond with valid JSON in this exact format:
     },
     "examples": [
       {
-        "sentence": "simple example sentence that uses the EXACT same words/phrase from '${normalizedText}' in a different context",
+        "sentence": "simple example sentence that uses the EXACT same words/phrase from ${scopeTextRef} in a different context",
         "translation": "translation",
         "note": "brief grammar point (under 10 words)"
       },
       {
-        "sentence": "intermediate example sentence that uses the EXACT same words/phrase from '${normalizedText}' in a more complex context",
+        "sentence": "intermediate example sentence that uses the EXACT same words/phrase from ${scopeTextRef} in a more complex context",
         "translation": "translation",
         "note": "different usage point"
       },
       {
-        "sentence": "intermediate example sentence that uses the EXACT same words/phrase from '${normalizedText}' in another context",
+        "sentence": "intermediate example sentence that uses the EXACT same words/phrase from ${scopeTextRef} in another context",
         "translation": "translation",
         "note": "additional usage point"
       }
@@ -4796,18 +4808,18 @@ CRITICAL REQUIREMENTS:
   * "example" in particles array must end with a period
   * "commonContext" must end with a period if it's a complete sentence
   * "nuance" in synonyms array must end with a period
-- CRITICAL: The "examples" section MUST use the EXACT same words/phrase from "${normalizedText}" - create new sentences that contain the same phrase/words in different contexts, NOT synonyms or alternatives
-- The examples are to show how "${normalizedText}" works in different contexts, but must include the actual words/phrase from the scanned text
+- CRITICAL: The "examples" section MUST use the EXACT same words/phrase from ${scopeTextRef} - create new sentences that contain the same phrase/words in different contexts, NOT synonyms or alternatives
+- The examples are to show how the analyzed phrase works in different contexts, but must include the actual words/phrase from the text being analyzed
 - The "synonyms" section provides 3 alternative expressions for advanced learners - these MUST be DIFFERENT from what's used in examples
 - ALL fields are required and must be complete${needsReadings ? `
 - readingsText MUST contain the COMPLETE original text WITH ${readingInfo?.readingType} for EVERY applicable character/word
 - Do NOT skip any readings - every ${forcedLanguage === 'ja' ? 'kanji' : 'word'} must have its reading` : ''}
-- Write translation and analysis in ${targetLangName}
 - Do not include any text outside the JSON object
 - Ensure proper JSON escaping: use \\" for quotes inside strings, \\n for newlines, \\\\ for backslashes
 - Do NOT truncate or abbreviate any field
 - commonContext should briefly mention typical situations, relationships, or settings where the phrase appears
-- partOfSpeech MUST be a COMPLETE breakdown of ALL words in "${normalizedText}" - format: "word1 [label] + word2 [label] + word3 [label] + ..." with ALL words from the source sentence`;
+- partOfSpeech MUST be a COMPLETE breakdown of ALL words in the analyzed text - format: "word1 [label] + word2 [label] + word3 [label] + ..." with ALL words from the source sentence
+- Write translation in ${targetLangName} and scope analysis/explanations in ${scopeTargetLangName}`;
 
     // Progress callback
     onProgress?.(1);
@@ -5325,7 +5337,7 @@ CRITICAL REQUIREMENTS:
   } catch (error) {
     logger.error('[WordScope Combined] Combined call failed, falling back to separate calls:', error);
     // Fall back to the original two-call approach if combined fails
-    return await processWithClaudeAndScopeFallback(text, targetLanguage, forcedLanguage, onProgress, subscriptionPlan);
+    return await processWithClaudeAndScopeFallback(text, targetLanguage, forcedLanguage, onProgress, subscriptionPlan, outputNeedsReadings, scopeAnalyzeOutput);
   }
 }
 
@@ -5339,7 +5351,8 @@ async function processWithClaudeAndScopeFallback(
   forcedLanguage: string = 'ja',
   onProgress?: (checkpoint: number) => void,
   subscriptionPlan?: 'PREMIUM' | 'FREE',
-  outputNeedsReadings?: boolean
+  outputNeedsReadings?: boolean,
+  scopeAnalyzeOutput?: boolean
 ): Promise<ClaudeResponse> {
   logger.log('[WordScope Fallback] Using separate calls approach...');
   
@@ -5360,6 +5373,15 @@ async function processWithClaudeAndScopeFallback(
     return translationResult;
   }
 
+  // When scopeAnalyzeOutput: analyze the TRANSLATION (output), not the input. Examples in output lang, explanations in input lang.
+  const textToAnalyze = scopeAnalyzeOutput ? translationResult.translatedText : normalizedText;
+  const scopeSourceLangName = scopeAnalyzeOutput
+    ? (LANGUAGE_NAMES_MAP[targetLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'English')
+    : (LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'the source language');
+  const scopeTargetLangName = scopeAnalyzeOutput
+    ? (LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'the source language')
+    : (LANGUAGE_NAMES_MAP[targetLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'English');
+
   // Now get scope analysis with a separate call
   try {
     const apiKey = Constants.expoConfig?.extra?.EXPO_PUBLIC_CLAUDE_API_KEY;
@@ -5370,12 +5392,9 @@ async function processWithClaudeAndScopeFallback(
     // Haiku 4.5 for all languages (fallback scope-only call)
     const wordScopeModel = 'claude-haiku-4-5-20251001';
     
-    const targetLangName = LANGUAGE_NAMES_MAP[targetLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'English';
-    const sourceLangName = LANGUAGE_NAMES_MAP[forcedLanguage as keyof typeof LANGUAGE_NAMES_MAP] || 'the source language';
-    
     const scopePrompt = `TASK: Grammar analysis ONLY (translation already provided separately)
 
-Analyze the grammatical structure of this ${sourceLangName} text: "${normalizedText}"
+Analyze the grammatical structure of this ${scopeSourceLangName} text: "${textToAnalyze}"
 
 IMPORTANT: Output ONLY the grammar analysis JSON below. DO NOT include readingsText or translatedText fields.
 
@@ -5383,7 +5402,7 @@ Respond with this exact JSON structure:
 {
   "word": "word in original script",
   "reading": "pronunciation guide",
-  "partOfSpeech": "FORMAT: word1 [${targetLangName} label] + word2 [${targetLangName} label] + ... - use ${sourceLangName} words with ${targetLangName} labels like [noun], [verb], [adjective]",
+  "partOfSpeech": "FORMAT: word1 [${scopeTargetLangName} label] + word2 [${scopeTargetLangName} label] + ... - use ${scopeSourceLangName} words with ${scopeTargetLangName} labels like [noun], [verb], [adjective]",
   "baseForm": "dictionary form if different, otherwise omit this field",
   "grammar": {
     "explanation": "one clear sentence explaining the grammar pattern",
@@ -5393,17 +5412,17 @@ Respond with this exact JSON structure:
   },
   "examples": [
     {
-      "sentence": "simple example sentence that uses the EXACT same words/phrase from '${normalizedText}' in a different context",
+      "sentence": "simple example sentence that uses the EXACT same words/phrase from '${textToAnalyze}' in a different context",
       "translation": "translation",
       "note": "brief grammar point (under 10 words)"
     },
     {
-      "sentence": "intermediate example sentence that uses the EXACT same words/phrase from '${normalizedText}' in a more complex context",
+      "sentence": "intermediate example sentence that uses the EXACT same words/phrase from '${textToAnalyze}' in a more complex context",
       "translation": "translation",
       "note": "different usage point"
     },
     {
-      "sentence": "intermediate example sentence that uses the EXACT same words/phrase from '${normalizedText}' in another context",
+      "sentence": "intermediate example sentence that uses the EXACT same words/phrase from '${textToAnalyze}' in another context",
       "translation": "translation",
       "note": "additional usage point"
     }
@@ -5416,8 +5435,8 @@ Respond with this exact JSON structure:
   "commonContext": "brief note about when/where this phrase is commonly used (e.g., 'customer-to-patron contexts', 'formal business settings', 'casual conversations'). Omit if not applicable.",
   "synonyms": [
     {
-      "phrase": "alternative way to express the same meaning in ${sourceLangName}",
-      "translation": "translation in ${targetLangName}",
+      "phrase": "alternative way to express the same meaning in ${scopeSourceLangName}",
+      "translation": "translation in ${scopeTargetLangName}",
       "nuance": "brief note on when to use this vs the original (under 15 words)"
     },
     {
@@ -5437,8 +5456,8 @@ RULES:
 - Keep all explanations SHORT and practical
 - Example notes must be under 10 words
 - Examples should progress: simple → intermediate → intermediate
-- CRITICAL: The "examples" section MUST use the EXACT same words/phrase from "${normalizedText}" - create new sentences that contain the same phrase/words in different contexts, NOT synonyms or alternatives
-- The examples are to show how "${normalizedText}" works in different contexts, but must include the actual words/phrase from the scanned text
+- CRITICAL: The "examples" section MUST use the EXACT same words/phrase from the analyzed text - create new sentences that contain the same phrase/words in different contexts, NOT synonyms or alternatives
+- The examples are to show how the analyzed phrase works in different contexts, but must include the actual words/phrase from the text
 - The "synonyms" section provides 3 alternative expressions for advanced learners - these MUST be DIFFERENT from what's used in examples
 - Particles array only needed for languages that use them (Japanese, Korean)
 - Focus only on what helps the learner USE the word correctly
@@ -5455,20 +5474,19 @@ RULES:
   * "commonContext" must end with a period if it's a complete sentence
   * "nuance" in synonyms array must end with a period
 - CRITICAL for "partOfSpeech": 
-  * YOU MUST ANALYZE THE SOURCE SENTENCE: "${normalizedText}"
-  * DO NOT analyze the translation - analyze the ORIGINAL SOURCE TEXT above
-  * FORMAT: word1 [${targetLangName} label] + word2 [${targetLangName} label] + word3 [${targetLangName} label] + ...
-  * The words MUST come from "${normalizedText}" - the ${sourceLangName} source
-  * The labels MUST be in ${targetLangName} - use these: ${getGrammarLabels(targetLanguage)}
+  * YOU MUST ANALYZE THE SENTENCE: "${textToAnalyze}"
+  * FORMAT: word1 [${scopeTargetLangName} label] + word2 [${scopeTargetLangName} label] + word3 [${scopeTargetLangName} label] + ...
+  * The words MUST come from "${textToAnalyze}" - the ${scopeSourceLangName} text
+  * The labels MUST be in ${scopeTargetLangName} - use these: ${getGrammarLabels(scopeAnalyzeOutput ? forcedLanguage : targetLanguage)}
   * Include ALL words from the source
-  * WRONG: Using labels in ${sourceLangName} like [${sourceLangName === 'French' ? 'nom' : sourceLangName === 'Spanish' ? 'sustantivo' : 'grammar term'}]
-  * CORRECT: Using labels in ${targetLangName} like [${targetLanguage === 'ja' ? '名詞' : targetLanguage === 'en' ? 'noun' : targetLanguage === 'fr' ? 'nom' : 'grammar term'}]
+  * WRONG: Using labels in ${scopeSourceLangName} like [${scopeSourceLangName === 'French' ? 'nom' : scopeSourceLangName === 'Spanish' ? 'sustantivo' : 'grammar term'}]
+  * CORRECT: Using labels in ${scopeTargetLangName} like [${(scopeAnalyzeOutput ? forcedLanguage : targetLanguage) === 'ja' ? '名詞' : (scopeAnalyzeOutput ? forcedLanguage : targetLanguage) === 'en' ? 'noun' : (scopeAnalyzeOutput ? forcedLanguage : targetLanguage) === 'fr' ? 'nom' : 'grammar term'}]
 - LANGUAGE REQUIREMENTS:
-  * Example sentences ("sentence" field) must be in ${sourceLangName} (the scanned language)
-  * Translations ("translation" field) must be in ${targetLangName}
-  * Notes, explanations, and all other text must be in ${targetLangName}
-  * Common mistake examples ("wrong" and "correct" fields) must be in ${sourceLangName}
-  * Common mistake explanation ("reason" field) must be in ${targetLangName}
+  * Example sentences ("sentence" field) must be in ${scopeSourceLangName}
+  * Translations ("translation" field) must be in ${scopeTargetLangName}
+  * Notes, explanations, and all other text must be in ${scopeTargetLangName}
+  * Common mistake examples ("wrong" and "correct" fields) must be in ${scopeSourceLangName}
+  * Common mistake explanation ("reason" field) must be in ${scopeTargetLangName}
 - CRITICAL JSON ESCAPING: When including quotes in string values (like "tapas"), you MUST escape them as \\" in the JSON output`;
     
     const scopeMetrics = apiLogger.startAPICall('https://api.anthropic.com/v1/messages', {
@@ -5481,9 +5499,9 @@ RULES:
     // IMPORTANT: Use a simple, non-cached system prompt for fallback scope analysis.
     // The main WordScope prompt includes translation + readings; for retry we already have those.
     // This dedicated scope-only prompt ensures Claude outputs ONLY the scope JSON.
-    const scopeOnlySystemPrompt = `You are a ${sourceLangName} language expert helping ${targetLangName} speakers learn grammar.
+    const scopeOnlySystemPrompt = `You are a ${scopeSourceLangName} language expert helping ${scopeTargetLangName} speakers learn grammar.
 
-YOUR TASK: Analyze the grammatical structure of the given ${sourceLangName} text.
+YOUR TASK: Analyze the grammatical structure of the given ${scopeSourceLangName} text.
 
 CRITICAL RULES:
 1. Output ONLY a single JSON object for grammar analysis
@@ -5491,7 +5509,7 @@ CRITICAL RULES:
 3. DO NOT output multiple JSON objects
 4. DO NOT include any text outside the JSON object
 5. Ensure all quotes inside JSON string values are properly escaped as \\"
-6. The partOfSpeech field must analyze the SOURCE text words, NOT translations
+6. The partOfSpeech field must analyze the given text words (the text provided above)
 
 OUTPUT FORMAT:
 {
