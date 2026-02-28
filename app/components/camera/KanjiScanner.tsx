@@ -320,6 +320,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   const rotationCompletedWaitingForImageRef = useRef(false);
   /** Tracks whether current image came from camera or gallery; used to vary rotate step (camera = enter rotate, gallery = skip to crop). */
   const imageSourceRef = useRef<'camera' | 'gallery' | null>(null);
+  const lastOcrBlockTapRef = useRef<{ id: string; time: number } | null>(null);
 
   // Define walkthrough steps (first step: "Your first card" modal, then find-text action = gallery/photo)
   const walkthroughSteps: WalkthroughStep[] = [
@@ -2298,6 +2299,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
       logger.log('[KanjiScanner] Starting OCR scan mode - scanning full image');
       const blocks = await detectTextBlocks(capturedImage.uri);
       setOcrScanBlocks(blocks);
+      setSelectedOcrBlockIds(new Set(blocks.map((b) => b.id)));
       setOcrScanModeActive(true);
       if (blocks.length === 0) {
         Alert.alert(
@@ -2323,6 +2325,10 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
   };
 
   const handleOcrBlockTapped = (blockId: string) => {
+    const now = Date.now();
+    const last = lastOcrBlockTapRef.current;
+    if (last?.id === blockId && now - last.time < 300) return;
+    lastOcrBlockTapRef.current = { id: blockId, time: now };
     setSelectedOcrBlockIds((prev) => {
       const next = new Set(prev);
       if (next.has(blockId)) {
@@ -3517,6 +3523,8 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
             selectedBlockIds={selectedOcrBlockIds}
             onBlockTapped={handleOcrBlockTapped}
             ocrScanModeActive={ocrScanModeActive}
+            onOcrScanSelectAll={() => setSelectedOcrBlockIds(new Set(ocrScanBlocks.map((b) => b.id)))}
+            onOcrScanDeselectAll={() => setSelectedOcrBlockIds(new Set())}
           />
           {/* Walkthrough: cursor-drag crop box hint — box opens as if user is dragging (non-blocking) */}
           {showCropDragHint && (
@@ -3887,7 +3895,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
               >
                 {/* Input box with label on top */}
                 <View style={styles.modalInputSection}>
-                  <Text style={styles.modalBoxLabel}>{t('textInput.placeholderWithLanguage', { language: AVAILABLE_LANGUAGES[(isDictateSwapped ? forcedDetectionLanguage : targetLanguage) as keyof typeof AVAILABLE_LANGUAGES] || 'English' })}</Text>
+                  <Text style={styles.modalBoxLabel}>{t('textInput.placeholderWithLanguage', { language: t(`languageNames.${isDictateSwapped ? forcedDetectionLanguage : targetLanguage}`, { defaultValue: AVAILABLE_LANGUAGES[(isDictateSwapped ? forcedDetectionLanguage : targetLanguage) as keyof typeof AVAILABLE_LANGUAGES] || 'English' }) })}</Text>
                   <View style={styles.modalTextContainer}>
                     <View style={styles.modalTextInputWrapper}>
                       <TextInput
@@ -3951,7 +3959,7 @@ const galleryConfirmRef = useRef<View>(null); // reuse gallery button for the se
                 </TouchableOpacity>
                 {/* Output box with label on top */}
                 <View style={styles.modalResultContainer}>
-                  <Text style={styles.modalBoxLabel}>{t('textInput.targetPlaceholderWithLanguage', { language: DETECTABLE_LANGUAGES[(isDictateSwapped ? targetLanguage : forcedDetectionLanguage) as keyof typeof DETECTABLE_LANGUAGES] || AVAILABLE_LANGUAGES[(isDictateSwapped ? targetLanguage : forcedDetectionLanguage) as keyof typeof AVAILABLE_LANGUAGES] || 'Japanese' })}</Text>
+                  <Text style={styles.modalBoxLabel}>{t('textInput.targetPlaceholderWithLanguage', { language: t(`languageNames.${isDictateSwapped ? targetLanguage : forcedDetectionLanguage}`, { defaultValue: DETECTABLE_LANGUAGES[(isDictateSwapped ? targetLanguage : forcedDetectionLanguage) as keyof typeof DETECTABLE_LANGUAGES] || AVAILABLE_LANGUAGES[(isDictateSwapped ? targetLanguage : forcedDetectionLanguage) as keyof typeof AVAILABLE_LANGUAGES] || 'Japanese' }) })}</Text>
                   {!textModalOutput ? (
                     <View style={styles.outputBox} />
                   ) : (

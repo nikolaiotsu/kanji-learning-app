@@ -489,6 +489,8 @@
     "dragToCrop": "drag to crop",
     "ocrScanTapToSelect": "Tap text blocks to select, then confirm",
     "ocrScanSelectedCount": "{{count}} selected",
+    "ocrScanSelectAll": "Select All",
+    "ocrScanDeselectAll": "Deselect All",
     "longPressTooltip": {
       "title": "Highlight Tips",
       "body": "Two ways to capture text:",

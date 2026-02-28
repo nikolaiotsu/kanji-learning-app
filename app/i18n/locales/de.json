@@ -486,6 +486,8 @@
     "dragToCrop": "ziehen, um zuzuschneiden",
     "ocrScanTapToSelect": "Tippen Sie auf Textblöcke, um sie auszuwählen, und bestätigen Sie.",
     "ocrScanSelectedCount": "{{count}} ausgewählt",
+    "ocrScanSelectAll": "Alle auswählen",
+    "ocrScanDeselectAll": "Alle abwählen",
     "longPressTooltip": {
       "title": "Markierungs-Tipps",
       "body": "Zwei Wege, Text zu erfassen:",
@@ -498,7 +500,7 @@
   },
   "textInput": {
     "placeholder": "Text zum Übersetzen eingeben",
-    "placeholderWithLanguage": "Text zum Übersetzen ins {{language}} eingeben",
+    "placeholderWithLanguage": "{{language}} eingeben zum Übersetzen",
     "targetPlaceholder": "Übersetzung erscheint hier",
     "targetPlaceholderWithLanguage": "{{language}} erscheint hier",
     "cancel": "Abbrechen",

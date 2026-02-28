@@ -485,6 +485,8 @@
     "dragToCrop": "اسحب للقص",
     "ocrScanTapToSelect": "اضغط على مربعات النص لتحديدها، ثم أكد.",
     "ocrScanSelectedCount": "{{count}} محدد",
+    "ocrScanSelectAll": "تحديد الكل",
+    "ocrScanDeselectAll": "إلغاء تحديد الكل",
     "longPressTooltip": {
       "title": "نصائح التحديد",
       "body": "طريقتان لالتقاط النص:",
@@ -497,7 +499,7 @@
   },
   "textInput": {
     "placeholder": "أدخل نصاً للترجمة",
-    "placeholderWithLanguage": "أدخل نصاً للترجمة إلى {{language}}",
+    "placeholderWithLanguage": "أدخل {{language}} للترجمة",
     "targetPlaceholderWithLanguage": "سيظهر {{language}} هنا",
     "cancel": "إلغاء",
     "translate": "ترجمة"

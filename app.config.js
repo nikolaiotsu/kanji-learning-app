@@ -11,7 +11,7 @@ module.exports = {
     newArchEnabled: false,
     scheme: "kanjilearningapp",
     splash: {
-      image: "./assets/splash-transparent.png",
+      image: "./assets/worddexiconlogo.png",
       resizeMode: "contain",
       backgroundColor: "#0A1628",
     },
@@ -22,8 +22,9 @@ module.exports = {
       'expo-dev-client',
       ['expo-splash-screen', {
         backgroundColor: "#0A1628",
-        image: "./assets/splash-transparent.png",
+        image: "./assets/worddexiconlogo.png",
         resizeMode: "contain",
+        imageWidth: 64,
       }],
       ['expo-screen-orientation', {
         initialOrientation: "PORTRAIT_UP",
@@ -82,6 +83,7 @@ module.exports = {
         projectId: "8d650758-11ac-4561-9757-e635a031ac9b",
       },
       EXPO_PUBLIC_CLAUDE_API_KEY: process.env.EXPO_PUBLIC_CLAUDE_API_KEY || process.env.CLAUDE_API_KEY,
+      EXPO_PUBLIC_GEMINI_API_KEY: process.env.EXPO_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY,
       EXPO_PUBLIC_REVENUECAT_API_KEY: process.env.EXPO_PUBLIC_REVENUECAT_API_KEY || process.env.REVENUECAT_API_KEY,
     },
   },

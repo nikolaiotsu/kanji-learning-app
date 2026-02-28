@@ -486,6 +486,8 @@
     "dragToCrop": "перетащите, чтобы обрезать",
     "ocrScanTapToSelect": "Нажмите на блоки текста, чтобы выбрать, затем подтвердите.",
     "ocrScanSelectedCount": "Выбрано: {{count}}",
+    "ocrScanSelectAll": "Выбрать всё",
+    "ocrScanDeselectAll": "Снять выбор",
     "longPressTooltip": {
       "title": "Советы по выделению",
       "body": "Два способа захвата текста:",
@@ -498,7 +500,7 @@
   },
   "textInput": {
     "placeholder": "Введите текст для перевода",
-    "placeholderWithLanguage": "Введите текст для перевода на {{language}}",
+    "placeholderWithLanguage": "Введите {{language}} для перевода",
     "targetPlaceholderWithLanguage": "{{language}} появится здесь",
     "cancel": "Отмена",
     "wordScope": "WordScope",

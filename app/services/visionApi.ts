@@ -858,8 +858,9 @@ export async function detectTextBlocks(imageUri: string): Promise<TextBlock[]> {
     }
 
     // Fallback 1: use textAnnotations (word-level with boundingPoly) when fullText hierarchy yields no blocks
+    // Skip index 0: it contains the entire recognized text; including it with individual elements causes duplication when "select all" is used
     if (blocks.length === 0 && Array.isArray(textAnnotations) && textAnnotations.length > 0) {
-      for (let i = 0; i < textAnnotations.length; i++) {
+      for (let i = 1; i < textAnnotations.length; i++) {
         const ann = textAnnotations[i];
         const desc = (ann as { description?: string }).description ?? '';
         if (!desc.trim()) continue;

@@ -485,6 +485,8 @@
     "dragToCrop": "ドラッグしてクロップ",
     "ocrScanTapToSelect": "テキストブロックをタップして選択し、確認してください。",
     "ocrScanSelectedCount": "{{count}}件選択中",
+    "ocrScanSelectAll": "すべて選択",
+    "ocrScanDeselectAll": "選択解除",
     "longPressTooltip": {
       "title": "ハイライトのヒント",
       "body": "テキストをキャプチャする2つの方法：",
@@ -497,7 +499,7 @@
   },
   "textInput": {
     "placeholder": "翻訳するテキストを入力",
-    "placeholderWithLanguage": "{{language}}に翻訳するテキストを入力",
+    "placeholderWithLanguage": "{{language}}を入力して翻訳",
     "targetPlaceholder": "訳文がここに表示されます",
     "targetPlaceholderWithLanguage": "{{language}}がここに表示されます",
     "cancel": "キャンセル",

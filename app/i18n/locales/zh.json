@@ -478,6 +478,8 @@
     "dragToCrop": "拖动裁剪",
     "ocrScanTapToSelect": "点击文本框进行选择，然后确认。",
     "ocrScanSelectedCount": "已选 {{count}} 项",
+    "ocrScanSelectAll": "全选",
+    "ocrScanDeselectAll": "取消全选",
     "longPressTooltip": {
       "title": "高亮提示",
       "body": "两种捕获文本的方式：",
@@ -490,7 +492,7 @@
   },
   "textInput": {
     "placeholder": "输入要翻译的文本",
-    "placeholderWithLanguage": "输入要翻译成{{language}}的文本",
+    "placeholderWithLanguage": "输入{{language}}进行翻译",
     "targetPlaceholder": "译文将显示在这里",
     "targetPlaceholderWithLanguage": "{{language}}将显示在这里",
     "cancel": "取消",

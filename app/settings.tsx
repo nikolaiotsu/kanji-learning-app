@@ -35,6 +35,8 @@ import { presentPaywall } from './utils/presentPaywall';
 import { logger } from './utils/logger';
 import { getLocalDateString } from './utils/dateUtils';
 import { apiLogger } from './services/apiUsageLogger';
+import { processWithClaude } from './services/claudeApi';
+import { getCurrentSubscriptionPlan } from './services/receiptValidationService';
 export default function SettingsScreen() {
   const { t } = useTranslation();
   const { user, signOut, deleteAccount } = useAuth();
@@ -70,6 +72,7 @@ export default function SettingsScreen() {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isLongPressing, setIsLongPressing] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
+  const [isTestingGemini, setIsTestingGemini] = useState(false);
   const longPressProgress = useRef(new Animated.Value(0)).current;
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -883,6 +886,61 @@ export default function SettingsScreen() {
               <Ionicons name="rocket-outline" size={16} color="white" style={{ marginRight: 8 }} />
               <Text style={styles.resetCountButtonText}>
                 Launch Onboarding
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.resetCountButton, { backgroundColor: '#8B5CF6' }]}
+              onPress={async () => {
+                if (isTestingGemini) return;
+                setIsTestingGemini(true);
+                try {
+                  logger.log('[Beta] Simulating 529 - testing Gemini fallback...');
+                  const subscriptionPlan = await getCurrentSubscriptionPlan(subscription?.plan);
+                  const result = await processWithClaude(
+                    'こんにちは',
+                    targetLanguage,
+                    forcedDetectionLanguage,
+                    undefined,
+                    false,
+                    subscriptionPlan,
+                    false,
+                    true
+                  );
+                  if (result.usedFallback && result.translatedText) {
+                    logger.log('[Beta] Gemini fallback SUCCESS:', result.translatedText);
+                    Alert.alert(
+                      'Gemini Fallback Test',
+                      `Simulated 529 error. Gemini API was used for translation.\n\n"こんにちは" → "${result.translatedText}"\n\nCheck logs for confirmation.`
+                    );
+                  } else if (result.errorCode) {
+                    logger.warn('[Beta] Gemini fallback FAILED - errorCode:', result.errorCode);
+                    Alert.alert(
+                      'Gemini Fallback Test',
+                      `Gemini fallback failed. Error: ${result.errorCode}\n\nCheck that EXPO_PUBLIC_GEMINI_API_KEY is set.`
+                    );
+                  } else {
+                    Alert.alert('Gemini Fallback Test', 'Unexpected result. Check logs.');
+                  }
+                } catch (e) {
+                  logger.error('[Beta] Gemini fallback test error:', e);
+                  Alert.alert(
+                    'Gemini Fallback Test',
+                    `Error: ${e instanceof Error ? e.message : String(e)}`
+                  );
+                } finally {
+                  setIsTestingGemini(false);
+                }
+              }}
+              disabled={isTestingGemini}
+            >
+              {isTestingGemini ? (
+                <ActivityIndicator size="small" color="white" style={{ marginRight: 8 }} />
+              ) : (
+                <Ionicons name="swap-horizontal" size={16} color="white" style={{ marginRight: 8 }} />
+              )}
+              <Text style={styles.resetCountButtonText}>
+                {isTestingGemini ? 'Testing...' : 'Test Gemini Fallback (529)'}
               </Text>
             </TouchableOpacity>
           </View>

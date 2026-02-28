@@ -485,6 +485,8 @@
     "dragToCrop": "드래그하여 자르기",
     "ocrScanTapToSelect": "텍스트 블록을 탭하여 선택한 후 확인하세요.",
     "ocrScanSelectedCount": "{{count}}개 선택됨",
+    "ocrScanSelectAll": "모두 선택",
+    "ocrScanDeselectAll": "선택 해제",
     "longPressTooltip": {
       "title": "하이라이트 팁",
       "body": "텍스트 캡처 두 가지 방법:",
@@ -497,7 +499,7 @@
   },
   "textInput": {
     "placeholder": "번역할 텍스트 입력",
-    "placeholderWithLanguage": "{{language}}(으)로 번역할 텍스트 입력",
+    "placeholderWithLanguage": "{{language}}을(를) 입력하여 번역",
     "targetPlaceholder": "번역이 여기에 표시됩니다",
     "targetPlaceholderWithLanguage": "{{language}}이(가) 여기에 표시됩니다",
     "cancel": "취소",

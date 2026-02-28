@@ -485,6 +485,8 @@
     "dragToCrop": "arrastra para recortar",
     "ocrScanTapToSelect": "Toca los bloques de texto para seleccionarlos y confirma.",
     "ocrScanSelectedCount": "{{count}} seleccionados",
+    "ocrScanSelectAll": "Seleccionar todo",
+    "ocrScanDeselectAll": "Deseleccionar todo",
     "longPressTooltip": {
       "title": "Consejos de resaltado",
       "body": "Dos formas de capturar texto:",
@@ -497,7 +499,7 @@
   },
   "textInput": {
     "placeholder": "Ingresa texto para traducir",
-    "placeholderWithLanguage": "Ingresa texto para traducir al {{language}}",
+    "placeholderWithLanguage": "Ingresa {{language}} para traducir",
     "targetPlaceholder": "La traducción aparecerá aquí",
     "targetPlaceholderWithLanguage": "{{language}} aparecerá aquí",
     "cancel": "Cancelar",

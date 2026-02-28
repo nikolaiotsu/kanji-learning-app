@@ -486,6 +486,8 @@
     "dragToCrop": "arraste para cortar",
     "ocrScanTapToSelect": "Toque nos blocos de texto para selecionar e confirme.",
     "ocrScanSelectedCount": "{{count}} selecionados",
+    "ocrScanSelectAll": "Selecionar tudo",
+    "ocrScanDeselectAll": "Desmarcar tudo",
     "longPressTooltip": {
       "title": "Dicas de destaque",
       "body": "Duas formas de capturar texto:",
@@ -498,7 +500,7 @@
   },
   "textInput": {
     "placeholder": "Digite o texto para traduzir",
-    "placeholderWithLanguage": "Digite o texto para traduzir para {{language}}",
+    "placeholderWithLanguage": "Digite {{language}} para traduzir",
     "targetPlaceholderWithLanguage": "{{language}} aparecerá aqui",
     "cancel": "Cancelar",
     "wordScope": "WordScope",

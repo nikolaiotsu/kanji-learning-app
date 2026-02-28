@@ -478,6 +478,8 @@
     "dragToCrop": "क्रॉप करने के लिए खींचें",
     "ocrScanTapToSelect": "चुनने के लिए टेक्स्ट ब्लॉक पर टैप करें, फिर पुष्टि करें।",
     "ocrScanSelectedCount": "{{count}} चयनित",
+    "ocrScanSelectAll": "सभी चुनें",
+    "ocrScanDeselectAll": "सभी अचयनित करें",
     "longPressTooltip": {
       "title": "हाइलाइट टिप्स",
       "body": "टेक्स्ट कैप्चर करने के दो तरीके:",
@@ -490,7 +492,7 @@
   },
   "textInput": {
     "placeholder": "अनुवाद के लिए पाठ दर्ज करें",
-    "placeholderWithLanguage": "{{language}} में अनुवाद के लिए पाठ दर्ज करें",
+    "placeholderWithLanguage": "अनुवाद के लिए {{language}} दर्ज करें",
     "targetPlaceholderWithLanguage": "{{language}} यहां दिखाई देगा",
     "cancel": "रद्द करें",
     "translate": "अनुवाद करें"

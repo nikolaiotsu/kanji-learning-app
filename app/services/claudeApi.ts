@@ -50,6 +50,7 @@ import {
   validateTextMatchesLanguage,
 } from './claude/languageDetection';
 import { cleanJsonString, parseWordScopeResponse, ensureSentenceEnding, formatScopeAnalysis } from './claude/responseParser';
+import { processWithGemini } from './geminiApi';
 
 // Minimum prompt length (tokens) for prompt caching to apply. Haiku 4.5 requires 4096; Haiku 3.x required 2048.
 // See https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching#cache-limitations
@@ -170,6 +171,8 @@ export interface ClaudeResponse {
   tokenUsage?: { input: number; output: number; total: number };
   /** Set when the API failed (e.g. 529 overload). UI should show a modal and not use translatedText. */
   errorCode?: ClaudeApiErrorCode;
+  /** Set when Gemini was used as backup after Claude failed. Scope analysis is skipped when true. */
+  usedFallback?: boolean;
 }
 
 // Map for language code to name for prompts
@@ -403,6 +406,7 @@ Be precise and return ONLY the JSON with no additional explanation.`;
  * @param includeScope Whether to include scope analysis (etymology/grammar)
  * @param subscriptionPlan Optional subscription plan to use for rate limiting (avoids re-fetching)
  * @param outputNeedsReadings When true, request readings on the translated output (Dictate mode - output becomes card front)
+ * @param simulateClaudeFailure When true, skip Claude and test Gemini fallback (beta settings only)
  * @returns Object containing text with furigana/romanization, translation, and optional scope analysis
  */
 export async function processWithClaude(
@@ -412,7 +416,8 @@ export async function processWithClaude(
   onProgress?: (checkpoint: number) => void,
   includeScope: boolean = false,
   subscriptionPlan?: 'PREMIUM' | 'FREE',
-  outputNeedsReadings?: boolean
+  outputNeedsReadings?: boolean,
+  simulateClaudeFailure?: boolean
 ): Promise<ClaudeResponse> {
   // CRITICAL: Normalize quotation marks and special characters BEFORE processing
   // This prevents JSON parsing issues when Claude includes quotes in translations
@@ -446,6 +451,42 @@ export async function processWithClaude(
     if (!hasEscapedSlashes || !output) return output;
     return output.replace(new RegExp(SLASH_PLACEHOLDER, 'g'), '/');
   };
+
+  // Beta: Simulate 529 - skip Claude and test Gemini fallback
+  if (simulateClaudeFailure) {
+    logger.log('[Claude API] Simulating 529 error - bypassing Claude, testing Gemini fallback');
+    try {
+      const geminiResult = await processWithGemini(
+        text,
+        targetLanguage,
+        forcedLanguage,
+        onProgress,
+        subscriptionPlan,
+        outputNeedsReadings
+      );
+      if (!geminiResult.errorCode && geminiResult.translatedText) {
+        logger.log('[Claude API] Gemini fallback test SUCCESS - translation from Gemini API');
+        return {
+          readingsText: restoreSlashes(geminiResult.readingsText || ''),
+          translatedText: restoreSlashes(geminiResult.translatedText),
+          usedFallback: true,
+        };
+      }
+      logger.warn('[Claude API] Gemini fallback test FAILED - no translation returned');
+      return {
+        readingsText: '',
+        translatedText: '',
+        errorCode: 'API_ERROR',
+      };
+    } catch (geminiErr) {
+      logger.error('[Claude API] Gemini fallback test ERROR:', geminiErr instanceof Error ? geminiErr.message : geminiErr);
+      return {
+        readingsText: '',
+        translatedText: '',
+        errorCode: 'API_ERROR',
+      };
+    }
+  }
   
   // RETRY COUNTER LOGGING: Track internal API calls (verification, furigana retries, etc.)
   let internalApiCallCount = 0;
@@ -4340,6 +4381,28 @@ Format your response as valid JSON with these exact keys:
   const isOverloaded = lastError instanceof AxiosError && lastError.response?.status === 529;
   const errorCode: ClaudeApiErrorCode = isOverloaded ? 'API_OVERLOADED' : 'API_ERROR';
 
+  // Try Gemini as backup when Claude fails
+  try {
+    const geminiResult = await processWithGemini(
+      text,
+      targetLanguage,
+      forcedLanguage,
+      onProgress,
+      subscriptionPlan,
+      outputNeedsReadings
+    );
+    if (!geminiResult.errorCode && geminiResult.translatedText) {
+      logger.log('[Claude API] Gemini backup translation succeeded');
+      return {
+        readingsText: restoreSlashes(geminiResult.readingsText || ''),
+        translatedText: restoreSlashes(geminiResult.translatedText),
+        usedFallback: true,
+      };
+    }
+  } catch (geminiErr) {
+    logger.warn('[Claude API] Gemini fallback failed:', geminiErr instanceof Error ? geminiErr.message : geminiErr);
+  }
+
   return {
     readingsText: '',
     translatedText: '',
@@ -5370,6 +5433,10 @@ async function processWithClaudeAndScopeFallback(
   }
   if (translationResult.languageMismatch) {
     logger.log('[WordScope Fallback] Language mismatch detected, skipping scope analysis');
+    return translationResult;
+  }
+  if (translationResult.usedFallback) {
+    logger.log('[WordScope Fallback] Translation used Gemini backup, skipping scope analysis (Claude unavailable)');
     return translationResult;
   }
 

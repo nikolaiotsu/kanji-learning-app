@@ -486,6 +486,8 @@
     "dragToCrop": "kéo để cắt",
     "ocrScanTapToSelect": "Chạm vào các khối văn bản để chọn, rồi xác nhận.",
     "ocrScanSelectedCount": "Đã chọn {{count}}",
+    "ocrScanSelectAll": "Chọn tất cả",
+    "ocrScanDeselectAll": "Bỏ chọn tất cả",
     "longPressTooltip": {
       "title": "Mẹo đánh dấu",
       "body": "Hai cách chụp văn bản:",
@@ -498,7 +500,7 @@
   },
   "textInput": {
     "placeholder": "Nhập văn bản để dịch",
-    "placeholderWithLanguage": "Nhập văn bản để dịch sang {{language}}",
+    "placeholderWithLanguage": "Nhập {{language}} để dịch",
     "targetPlaceholderWithLanguage": "{{language}} sẽ xuất hiện tại đây",
     "cancel": "Hủy",
     "wordScope": "WordScope",

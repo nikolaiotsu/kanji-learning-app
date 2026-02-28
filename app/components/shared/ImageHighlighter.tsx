@@ -114,6 +114,10 @@ interface ImageHighlighterProps {
   onBlockTapped?: (blockId: string) => void;
   /** When true, OCR scan mode is active; drawing is disabled so block taps register. */
   ocrScanModeActive?: boolean;
+  /** Called when user taps "Select All" chip in OCR scan mode. */
+  onOcrScanSelectAll?: () => void;
+  /** Called when user taps "Deselect All" chip in OCR scan mode. */
+  onOcrScanDeselectAll?: () => void;
 }
 
 // Let's define a type for our crop box to ensure type consistency
@@ -166,6 +170,8 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
   selectedBlockIds,
   onBlockTapped,
   ocrScanModeActive = false,
+  onOcrScanSelectAll,
+  onOcrScanDeselectAll,
 }, ref) => {
   const { t } = useTranslation();
   const effectiveStrokeWidth = (Platform.OS === 'ios' && Platform.isPad && imageIsCropped)
@@ -2038,9 +2044,9 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
                       StyleSheet.absoluteFill,
                       styles.ocrScanBlockInner,
                       {
-                        borderColor: isSelected ? rainbowColor : selectedFlashColor,
+                        borderColor: isSelected ? rainbowColor : '#000000',
                         borderWidth: isSelected ? 3 : 2,
-                        backgroundColor: isSelected ? 'rgba(34, 197, 94, 0.25)' : 'rgba(0, 0, 0, 0.1)',
+                        backgroundColor: isSelected ? 'rgba(34, 197, 94, 0.25)' : 'rgba(0, 0, 0, 0.2)',
                       },
                     ]}
                   />
@@ -2126,13 +2132,29 @@ const ImageHighlighter = forwardRef<ImageHighlighterRef, ImageHighlighterProps>(
         </View>
       )}
       {ocrScanModeActive && ocrScanBlocks && ocrScanBlocks.length > 0 && (
-        <View style={styles.instructionContainer}>
-          <Text style={styles.instructionText}>
-            {(selectedBlockIds?.size ?? 0) > 0
-              ? t('imageHighlighter.ocrScanSelectedCount', { count: selectedBlockIds?.size ?? 0 })
-              : t('imageHighlighter.ocrScanTapToSelect')}
-          </Text>
-        </View>
+        <>
+          {(onOcrScanSelectAll || onOcrScanDeselectAll) && (
+            <View style={styles.ocrScanChipsRow}>
+              {onOcrScanSelectAll && (
+                <TouchableOpacity style={[styles.ocrScanChip, { marginRight: 6 }]} onPress={onOcrScanSelectAll} activeOpacity={0.7}>
+                  <Text style={styles.ocrScanChipText}>{t('imageHighlighter.ocrScanSelectAll')}</Text>
+                </TouchableOpacity>
+              )}
+              {onOcrScanDeselectAll && (
+                <TouchableOpacity style={[styles.ocrScanChip, { marginLeft: 6 }]} onPress={onOcrScanDeselectAll} activeOpacity={0.7}>
+                  <Text style={styles.ocrScanChipText}>{t('imageHighlighter.ocrScanDeselectAll')}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+          <View style={styles.instructionContainer}>
+            <Text style={styles.instructionText}>
+              {(selectedBlockIds?.size ?? 0) > 0
+                ? t('imageHighlighter.ocrScanSelectedCount', { count: selectedBlockIds?.size ?? 0 })
+                : t('imageHighlighter.ocrScanTapToSelect')}
+            </Text>
+          </View>
+        </>
       )}
 
       {/* Tech screen frame on top of image: translucent matrix-green border and corner brackets */}
@@ -2442,6 +2464,24 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.2 }],
   },
 
+  ocrScanChipsRow: {
+    position: 'absolute',
+    bottom: 55,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    zIndex: 100,
+  },
+  ocrScanChip: {
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+  },
+  ocrScanChipText: {
+    fontFamily: FONTS.sans,
+    color: 'white',
+    fontSize: 14,
+  },
   instructionContainer: {
     position: 'absolute',
     bottom: 20,

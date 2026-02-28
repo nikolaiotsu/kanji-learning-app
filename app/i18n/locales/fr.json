@@ -486,6 +486,8 @@
     "dragToCrop": "glissez pour recadrer",
     "ocrScanTapToSelect": "Appuyez sur les blocs de texte pour les sélectionner, puis confirmez.",
     "ocrScanSelectedCount": "{{count}} sélectionné(s)",
+    "ocrScanSelectAll": "Tout sélectionner",
+    "ocrScanDeselectAll": "Tout désélectionner",
     "longPressTooltip": {
       "title": "Conseils de surlignage",
       "body": "Deux façons de capturer du texte :",
@@ -498,7 +500,7 @@
   },
   "textInput": {
     "placeholder": "Entrez le texte à traduire",
-    "placeholderWithLanguage": "Entrez le texte à traduire en {{language}}",
+    "placeholderWithLanguage": "Entrez {{language}} pour traduire",
     "targetPlaceholder": "La traduction apparaîtra ici",
     "targetPlaceholderWithLanguage": "{{language}} apparaîtra ici",
     "cancel": "Annuler",

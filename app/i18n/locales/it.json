@@ -486,6 +486,8 @@
     "dragToCrop": "trascina per ritagliare",
     "ocrScanTapToSelect": "Tocca i blocchi di testo per selezionarli, poi conferma.",
     "ocrScanSelectedCount": "{{count}} selezionati",
+    "ocrScanSelectAll": "Seleziona tutto",
+    "ocrScanDeselectAll": "Deseleziona tutto",
     "longPressTooltip": {
       "title": "Suggerimenti per evidenziare",
       "body": "Due modi per catturare il testo:",
@@ -498,7 +500,7 @@
   },
   "textInput": {
     "placeholder": "Inserisci testo da tradurre",
-    "placeholderWithLanguage": "Inserisci testo da tradurre in {{language}}",
+    "placeholderWithLanguage": "Inserisci {{language}} per tradurre",
     "targetPlaceholderWithLanguage": "{{language}} apparirà qui",
     "cancel": "Annulla",
     "wordScope": "WordScope",

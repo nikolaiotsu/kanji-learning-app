@@ -486,6 +486,8 @@
     "dragToCrop": "ลากเพื่อครอบตัด",
     "ocrScanTapToSelect": "แตะกล่องข้อความเพื่อเลือก แล้วกดยืนยัน",
     "ocrScanSelectedCount": "เลือก {{count}} รายการ",
+    "ocrScanSelectAll": "เลือกทั้งหมด",
+    "ocrScanDeselectAll": "ยกเลิกการเลือก",
     "longPressTooltip": {
       "title": "เคล็ดลับการไฮไลท์",
       "body": "สองวิธีในการจับข้อความ:",
@@ -498,7 +500,7 @@
   },
   "textInput": {
     "placeholder": "กรอกข้อความเพื่อแปล",
-    "placeholderWithLanguage": "กรอกข้อความเพื่อแปลเป็น {{language}}",
+    "placeholderWithLanguage": "ป้อน {{language}} เพื่อแปล",
     "targetPlaceholderWithLanguage": "{{language}} จะปรากฏที่นี่",
     "cancel": "ยกเลิก",
     "wordScope": "WordScope",
