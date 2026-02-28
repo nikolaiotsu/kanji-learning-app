@@ -62,6 +62,7 @@
   "auth": {
     "login": {
       "title": "Привет, Коллекционер.",
+      "titlePostOnboarding": "Продолжить путешествие...",
       "newUser": "Новичок в приложении?",
       "createAccount": "Создать аккаунт",
       "signInWithEmail": "Продолжить с email",

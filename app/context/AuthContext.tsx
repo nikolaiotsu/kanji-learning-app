@@ -45,6 +45,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isOfflineMode, setIsOfflineMode] = useState(false);
   const [isGuest, setIsGuestState] = useState(false);
+  const hadRevenueCatLoginRef = React.useRef(false);
 
   // Load guest mode from storage on mount
   useEffect(() => {
@@ -134,9 +135,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           }
           // NOW set user state - UI will fetch cards (even if migration failed, so user can still use the app)
           setUser(session.user);
-          logInRevenueCat(session.user.id).catch((err) =>
-            logger.warn('[AuthContext] RevenueCat logIn on init failed:', err)
-          );
+          logInRevenueCat(session.user.id)
+            .then(() => { hadRevenueCatLoginRef.current = true; })
+            .catch((err) =>
+              logger.warn('[AuthContext] RevenueCat logIn on init failed:', err)
+            );
           logger.log('🔄 [AuthContext] User already authenticated on app start, syncing cache...');
           syncAllUserData().catch(err => {
             // Silent error - don't log network errors during sync
@@ -215,9 +218,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
               } finally {
                 setUser(signedInUser);
                 setIsLoading(false);
-                logInRevenueCat(signedInUser.id).catch((err) =>
-                  logger.warn('[AuthContext] RevenueCat logIn on sign-in failed:', err)
-                );
+                logInRevenueCat(signedInUser.id)
+                  .then(() => { hadRevenueCatLoginRef.current = true; })
+                  .catch((err) =>
+                    logger.warn('[AuthContext] RevenueCat logIn on sign-in failed:', err)
+                  );
                 logger.log('✅ [AuthContext] Auth state updated (after migration)');
                 syncAllUserData().catch(syncErr => {
                   logger.error('❌ [AuthContext] Failed to sync user data after auth state change:', syncErr);
@@ -239,13 +244,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           if (session?.user) {
             await clearGuestMode();
             await storeUserIdOffline(session.user.id);
-            logInRevenueCat(session.user.id).catch((err) =>
-              logger.warn('[AuthContext] RevenueCat logIn failed:', err)
-            );
+            logInRevenueCat(session.user.id)
+              .then(() => { hadRevenueCatLoginRef.current = true; })
+              .catch((err) =>
+                logger.warn('[AuthContext] RevenueCat logIn failed:', err)
+              );
           } else if (event === 'SIGNED_OUT') {
-            logOutRevenueCat().catch((err) =>
-              logger.warn('[AuthContext] RevenueCat logOut failed:', err)
-            );
+            if (hadRevenueCatLoginRef.current) {
+              hadRevenueCatLoginRef.current = false;
+              logOutRevenueCat().catch((err) =>
+                logger.warn('[AuthContext] RevenueCat logOut failed:', err)
+              );
+            }
             await clearUserIdOffline();
           }
         }
@@ -263,9 +273,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setIsLoading(true);
     try {
       await authService.signOut();
-      logOutRevenueCat().catch((err) =>
-        logger.warn('[AuthContext] RevenueCat logOut on signOut failed:', err)
-      );
+      // Only call RevenueCat logOut when user was actually logged in (not guest/anonymous).
+      // RevenueCat throws "LogOut was called but the current user is anonymous" otherwise.
+      if (user && !isGuest && hadRevenueCatLoginRef.current) {
+        hadRevenueCatLoginRef.current = false;
+        logOutRevenueCat().catch((err) =>
+          logger.warn('[AuthContext] RevenueCat logOut on signOut failed:', err)
+        );
+      }
       await clearUserIdOffline();
       await clearGuestMode();
       setSession(null);

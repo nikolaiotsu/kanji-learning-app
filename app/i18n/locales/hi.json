@@ -62,6 +62,7 @@
   "auth": {
     "login": {
       "title": "नमस्ते संग्राहक।",
+      "titlePostOnboarding": "अपनी यात्रा जारी रखें...",
       "newUser": "ऐप में नए हैं?",
       "createAccount": "खाता बनाएं",
       "signInWithEmail": "ईमेल से जारी रखें",

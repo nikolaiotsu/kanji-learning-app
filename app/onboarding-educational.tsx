@@ -12,14 +12,12 @@ import {
 } from 'react-native';
 import { useOnboardingLayout } from './hooks/useOnboardingLayout';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Video, ResizeMode } from 'expo-av';
 import { useOnboarding } from './context/OnboardingContext';
 import { useOnboardingProgress } from './context/OnboardingProgressContext';
-import { useAuth } from './context/AuthContext';
-import { useTransitionLoading } from './context/TransitionLoadingContext';
-import { resetWalkthrough } from './hooks/useWalkthrough';
+import { resetWalkthrough, setPendingWalkthrough } from './hooks/useWalkthrough';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from './constants/colors';
 import { FONTS } from './constants/typography';
@@ -33,7 +31,6 @@ const PHONE_MAX_WIDTH = 767;
 
 export default function OnboardingEducationalScreen() {
   const { t } = useTranslation();
-  const navigation = useNavigation();
   const { width, height } = useWindowDimensions();
   const isPhoneOrNarrow = width <= PHONE_MAX_WIDTH;
   const { paddingHorizontal, contentPaddingTop } = useOnboardingLayout();
@@ -51,7 +48,6 @@ export default function OnboardingEducationalScreen() {
   useEffect(() => {
     setOnboardingStep('onboarding-educational');
   }, [setOnboardingStep]);
-  const { setGuestMode } = useAuth();
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -59,18 +55,11 @@ export default function OnboardingEducationalScreen() {
     }
   }, []);
 
-  const { setShowTransitionLoading } = useTransitionLoading();
-
   const handleCTA = async () => {
-    setShowTransitionLoading(true);
     await resetWalkthrough();
     await setHasCompletedOnboarding(true);
-    // Set guest mode so user can save cards locally during walkthrough
-    // Must await to ensure state is updated before navigation
-    await setGuestMode(true);
-    // Reset the entire stack so user cannot swipe back to onboarding screens
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- reset routes type varies by expo-router version
-    navigation.reset({ index: 0, routes: [{ name: 'index', params: { walkthrough: 'true' } }] } as any);
+    await setPendingWalkthrough(true);
+    router.replace('/login');
   };
 
   return (

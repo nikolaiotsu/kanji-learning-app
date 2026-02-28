@@ -62,6 +62,7 @@
   "auth": {
     "login": {
       "title": "สวัสดีนักสะสม",
+      "titlePostOnboarding": "เดินทางต่อ...",
       "newUser": "ใหม่ในแอป?",
       "createAccount": "สร้างบัญชี",
       "signInWithEmail": "ดำเนินการต่อด้วยอีเมล",

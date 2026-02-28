@@ -51,6 +51,19 @@ module.exports = {
       config: {
         usesNonExemptEncryption: false,
       },
+      privacyManifests: {
+        NSPrivacyTracking: false,
+        NSPrivacyAccessedAPITypes: [
+          {
+            NSPrivacyAccessedAPIType: "NSPrivacyAccessedAPICategoryUserDefaults",
+            NSPrivacyAccessedAPITypeReasons: ["CA92.1"],
+          },
+          {
+            NSPrivacyAccessedAPIType: "NSPrivacyAccessedAPICategoryFileTimestamp",
+            NSPrivacyAccessedAPITypeReasons: ["C133.1"],
+          },
+        ],
+      },
       entitlements: {
         "com.apple.developer.applesignin": ["Default"],
       },

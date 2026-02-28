@@ -3,6 +3,8 @@ import { ActivityIndicator, View, StyleSheet, Text } from 'react-native';
 import { useSegments, useRouter, useGlobalSearchParams } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useOnboarding } from '../../context/OnboardingContext';
+import { useTransitionLoading } from '../../context/TransitionLoadingContext';
+import { getPendingWalkthrough } from '../../hooks/useWalkthrough';
 import { useNetworkState } from '../../services/networkManager';
 import { COLORS } from '../../constants/colors';
 import { FONTS } from '../../constants/typography';
@@ -21,6 +23,7 @@ const AUTH_ONLY_REDIRECT_SEGMENTS = ['login', 'signup'];
 export const AuthGuard = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading, isOfflineMode, isGuest } = useAuth();
   const { hasCompletedOnboarding } = useOnboarding();
+  const { setShowTransitionLoading } = useTransitionLoading();
   const { isConnected } = useNetworkState();
   const segments = useSegments();
   const router = useRouter();
@@ -69,18 +72,22 @@ export const AuthGuard = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
-    // User is authenticated but tries to access login/signup → go home (onboarding allowed for beta testing)
+    // User is authenticated but tries to access login/signup → go home (or walkthrough if pending)
     if (user && AUTH_ONLY_REDIRECT_SEGMENTS.includes(currentSegment)) {
-      logger.log('🔐 [AuthGuard] User authenticated, resetting navigation to /');
-      // Dismiss all modal/pushed screens and navigate to home. Use dismissTo instead of
-      // dismissAll + replace to avoid "POP_TO_TOP was not handled" when signing in from
-      // guest (e.g. home → flashcards modal → signup). dismissTo uses proper path-based
-      // navigation that works across nested navigators.
-      try {
-        router.dismissTo('/');
-      } catch {
-        router.replace('/');
-      }
+      logger.log('🔐 [AuthGuard] User authenticated, redirecting to home');
+      // Check if user came from onboarding and needs walkthrough
+      getPendingWalkthrough().then((pending) => {
+        if (pending) {
+          setShowTransitionLoading(true);
+          router.replace({ pathname: '/', params: { walkthrough: 'true' } });
+        } else {
+          try {
+            router.dismissTo('/');
+          } catch {
+            router.replace('/');
+          }
+        }
+      });
       return;
     }
 
@@ -139,6 +146,20 @@ export const AuthGuard = ({ children }: { children: React.ReactNode }) => {
       router.replace('/onboarding');
     }
   }, [isLoading, hasCompletedOnboarding, user, currentSegment, router]);
+
+  // Reopen after crash: user signed in but app closed before walkthrough loaded → redirect to walkthrough
+  useEffect(() => {
+    if (isLoading || !user) return;
+    const isOnHome = currentSegment === undefined || currentSegment === 'index';
+    if (!isOnHome || hasWalkthroughParam) return;
+    getPendingWalkthrough().then((pending) => {
+      if (pending) {
+        logger.log('🔐 [AuthGuard] Reopened with pending walkthrough; redirecting');
+        setShowTransitionLoading(true);
+        router.replace({ pathname: '/', params: { walkthrough: 'true' } });
+      }
+    });
+  }, [isLoading, user, currentSegment, hasWalkthroughParam, setShowTransitionLoading]);
 
   // Show loading while auth or onboarding state is resolving (avoids flashing wrong screen)
   const resolvingFirstTime = !user && hasCompletedOnboarding === null;

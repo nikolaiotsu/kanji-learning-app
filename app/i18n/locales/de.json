@@ -62,6 +62,7 @@
   "auth": {
     "login": {
       "title": "Hallo Sammler.",
+      "titlePostOnboarding": "Setze deine Reise fort...",
       "newUser": "Neu in der App?",
       "createAccount": "Konto erstellen",
       "signInWithEmail": "Mit E-Mail fortfahren",

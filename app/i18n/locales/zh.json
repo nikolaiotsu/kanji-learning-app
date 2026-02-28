@@ -62,6 +62,7 @@
   "auth": {
     "login": {
       "title": "你好，收藏家。",
+      "titlePostOnboarding": "继续你的旅程...",
       "newUser": "新用户？",
       "createAccount": "创建账户",
       "signInWithEmail": "使用邮箱继续",

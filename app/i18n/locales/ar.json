@@ -62,6 +62,7 @@
   "auth": {
     "login": {
       "title": "مرحباً أيها الجامع.",
+      "titlePostOnboarding": "استمر في رحلتك...",
       "newUser": "جديد على التطبيق؟",
       "createAccount": "إنشاء حساب",
       "signInWithEmail": "متابعة باستخدام البريد الإلكتروني",

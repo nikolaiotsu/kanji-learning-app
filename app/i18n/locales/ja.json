@@ -62,6 +62,7 @@
   "auth": {
     "login": {
       "title": "こんにちは、\nコレクター。",
+      "titlePostOnboarding": "冒険を続けよう...",
       "newUser": "初めてのご利用ですか？",
       "createAccount": "アカウント作成",
       "signInWithEmail": "メールで続ける",

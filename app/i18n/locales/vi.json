@@ -62,6 +62,7 @@
   "auth": {
     "login": {
       "title": "Xin chào Người Sưu Tập.",
+      "titlePostOnboarding": "Tiếp tục hành trình của bạn...",
       "newUser": "Mới dùng ứng dụng?",
       "createAccount": "Tạo Tài khoản",
       "signInWithEmail": "Tiếp tục bằng Email",

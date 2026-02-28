@@ -62,6 +62,7 @@
   "auth": {
     "login": {
       "title": "안녕하세요, 수집가님.",
+      "titlePostOnboarding": "여정을 이어가세요...",
       "newUser": "앱이 처음이신가요?",
       "createAccount": "계정 만들기",
       "signInWithEmail": "이메일로 계속하기",

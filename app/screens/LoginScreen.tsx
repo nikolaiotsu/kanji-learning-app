@@ -1,8 +1,9 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Alert, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
 import { useOnboarding } from '../context/OnboardingContext';
+import { getPendingWalkthrough, PENDING_WALKTHROUGH_KEY } from '../hooks/useWalkthrough';
 import { router } from 'expo-router';
 import SocialAuth from '../components/SocialAuth';
 import { COLORS } from '../constants/colors';
@@ -17,6 +18,11 @@ const LoginScreen = () => {
   const { t } = useTranslation();
   const { setHasCompletedOnboarding } = useOnboarding();
   const scrollViewRef = useRef<ScrollView>(null);
+  const [isPostOnboardingFlow, setIsPostOnboardingFlow] = useState(false);
+
+  useEffect(() => {
+    getPendingWalkthrough().then(setIsPostOnboardingFlow);
+  }, []);
 
   const navigateToSignUp = () => {
     router.push('/signup');
@@ -60,7 +66,7 @@ const LoginScreen = () => {
           showsVerticalScrollIndicator={false}
         >
       <View style={styles.form}>
-        <Text style={styles.title}>{t('auth.login.title')}</Text>
+        <Text style={styles.title}>{t(isPostOnboardingFlow ? 'auth.login.titlePostOnboarding' : 'auth.login.title')}</Text>
         
         <View style={styles.newUserContainer}>
           <Text style={styles.newUserText}>{t('auth.login.newUser')}</Text>
@@ -77,7 +83,7 @@ const LoginScreen = () => {
         {__DEV__ && (
           <View style={styles.links}>
             <TouchableOpacity onPress={resetOnboardingForTesting} style={styles.testLink}>
-              <Text style={styles.testLinkText}>Test: New user flow (onboarding → guest)</Text>
+              <Text style={styles.testLinkText}>Test: New user flow (onboarding → sign-in → walkthrough)</Text>
             </TouchableOpacity>
           </View>
         )}

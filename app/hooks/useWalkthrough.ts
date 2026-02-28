@@ -9,6 +9,7 @@ const WALKTHROUGH_STARTED_KEY = '@walkthrough_started';
 const WALKTHROUGH_PHASE_KEY = '@walkthrough_phase';
 const WALKTHROUGH_STEP_INDEX_KEY = '@walkthrough_step_index';
 const SIGNIN_PROMPT_DISMISSED_KEY = '@signin_prompt_dismissed';
+export const PENDING_WALKTHROUGH_KEY = '@worddex_pending_walkthrough';
 
 export type WalkthroughPhase = 'home' | 'flashcards';
 
@@ -192,6 +193,7 @@ export function useWalkthrough(steps: WalkthroughStep[], options?: UseWalkthroug
       await AsyncStorage.removeItem(WALKTHROUGH_STARTED_KEY);
       await AsyncStorage.removeItem(WALKTHROUGH_PHASE_KEY);
       await AsyncStorage.removeItem(WALKTHROUGH_STEP_INDEX_KEY);
+      await AsyncStorage.removeItem(PENDING_WALKTHROUGH_KEY);
     } catch (error) {
       logger.error('Error persisting walkthrough completion:', error);
     }
@@ -231,6 +233,7 @@ export function useWalkthrough(steps: WalkthroughStep[], options?: UseWalkthroug
       await AsyncStorage.removeItem(WALKTHROUGH_STARTED_KEY);
       await AsyncStorage.removeItem(WALKTHROUGH_PHASE_KEY);
       await AsyncStorage.removeItem(WALKTHROUGH_STEP_INDEX_KEY);
+      await AsyncStorage.removeItem(PENDING_WALKTHROUGH_KEY);
     } catch (error) {
       logger.error('Error persisting walkthrough skip:', error);
     }
@@ -298,6 +301,27 @@ export async function getWalkthroughRestoreState(): Promise<{
   }
 }
 
+export async function setPendingWalkthrough(value: boolean): Promise<void> {
+  try {
+    if (value) {
+      await AsyncStorage.setItem(PENDING_WALKTHROUGH_KEY, 'true');
+    } else {
+      await AsyncStorage.removeItem(PENDING_WALKTHROUGH_KEY);
+    }
+  } catch (error) {
+    logger.error('Error setting pending walkthrough:', error);
+  }
+}
+
+export async function getPendingWalkthrough(): Promise<boolean> {
+  try {
+    const value = await AsyncStorage.getItem(PENDING_WALKTHROUGH_KEY);
+    return value === 'true';
+  } catch {
+    return false;
+  }
+}
+
 // Helper function to reset walkthrough (for settings)
 export async function resetWalkthrough(): Promise<void> {
   try {
@@ -309,6 +333,7 @@ export async function resetWalkthrough(): Promise<void> {
       AsyncStorage.removeItem(WALKTHROUGH_STEP_INDEX_KEY),
       // Also reset sign-in prompt dismissed state so it shows after walkthrough completes
       AsyncStorage.removeItem(SIGNIN_PROMPT_DISMISSED_KEY),
+      AsyncStorage.removeItem(PENDING_WALKTHROUGH_KEY),
     ]);
     
     // Reset global flags so walkthrough will show on next mount

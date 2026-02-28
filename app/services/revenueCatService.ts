@@ -91,6 +91,7 @@ export async function logInRevenueCat(appUserID: string): Promise<CustomerInfo |
 
 /**
  * Log out from RevenueCat (e.g. on sign-out). Resets to anonymous user.
+ * No-ops gracefully when current user is already anonymous (e.g. guest mode).
  */
 export async function logOutRevenueCat(): Promise<CustomerInfo | null> {
   if (!isRevenueCatAvailable) return null;
@@ -100,6 +101,12 @@ export async function logOutRevenueCat(): Promise<CustomerInfo | null> {
     logger.log('[RevenueCat] Logged out successfully');
     return customerInfo;
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    // Expected when user was never logged in (guest mode) - RevenueCat is already anonymous
+    if (message.includes('anonymous')) {
+      logger.log('[RevenueCat] Skipping logOut - user already anonymous');
+      return null;
+    }
     logger.error('[RevenueCat] LogOut failed:', error);
     return null;
   }
