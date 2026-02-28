@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, ActivityIndicator, Text, Animated, Easing } from 'react-native';
+import { View, Image, StyleSheet, ActivityIndicator, Text, Animated, Easing } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
 import { COLORS } from '../constants/colors';
 import { FONTS } from '../constants/typography';
 
 const loadingVideoSource = require('../../assets/loading.mp4');
+const logoPlaceholder = require('../../assets/worddexiconlogo.png');
 
 type LoadingVideoScreenProps = {
   message?: string;
@@ -21,6 +22,7 @@ export default function LoadingVideoScreen({
   showMessage = true,
 }: LoadingVideoScreenProps) {
   const [hasError, setHasError] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
   const floatAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -59,13 +61,17 @@ export default function LoadingVideoScreen({
     </View>
   ) : (
     <View style={styles.videoClip}>
+      {!videoReady && (
+        <Image source={logoPlaceholder} style={styles.logoPlaceholder} resizeMode="contain" />
+      )}
       <Video
         source={loadingVideoSource}
-        style={styles.video}
+        style={[styles.video, !videoReady && styles.hiddenVideo]}
         isLooping
         isMuted
         shouldPlay
         resizeMode={ResizeMode.CONTAIN}
+        onReadyForDisplay={() => setVideoReady(true)}
         onError={() => setHasError(true)}
       />
     </View>
@@ -99,8 +105,17 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 16,
     overflow: 'hidden',
+    backgroundColor: COLORS.background,
   },
   video: {
+    width: 64,
+    height: 64,
+  },
+  hiddenVideo: {
+    opacity: 0,
+    position: 'absolute',
+  },
+  logoPlaceholder: {
     width: 64,
     height: 64,
   },
